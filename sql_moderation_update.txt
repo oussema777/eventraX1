@@ -1,0 +1,26 @@
+-- EVENTRA DATABASE UPDATE: Phase 1 (Moderation & Approval Layer)
+-- Run this in your Supabase SQL Editor
+
+-- 1. Add moderation columns to events table
+ALTER TABLE public.events 
+ADD COLUMN IF NOT EXISTS is_approved boolean DEFAULT false;
+
+ALTER TABLE public.events 
+ADD COLUMN IF NOT EXISTS moderation_status text DEFAULT 'pending';
+
+-- 2. Add check constraint for status values safely
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'events_moderation_status_check') THEN
+        ALTER TABLE public.events ADD CONSTRAINT events_moderation_status_check 
+        CHECK (moderation_status IN ('pending', 'approved', 'rejected'));
+    END IF;
+END $$;
+
+-- 3. Update Row Level Security (RLS)
+-- This ensures that non-approved events remain hidden from the public browse page
+DROP POLICY IF EXISTS "Public can view approved events" ON public.events;
+CREATE POLICY "Public can view approved events" 
+ON public.events 
+FOR SELECT 
+USING (status = 'published' AND is_approved = true);

@@ -1,0 +1,12 @@
+-- Fix missing RPC function
+CREATE OR REPLACE FUNCTION public.increment_ticket_sold(tid uuid, qty integer)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE public.event_tickets
+  SET quantity_sold = quantity_sold + qty
+  WHERE id = tid;
+END;
+$$;

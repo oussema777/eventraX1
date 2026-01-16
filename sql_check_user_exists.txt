@@ -1,0 +1,22 @@
+-- Function to check if a user profile already exists (to prevent duplicate accounts)
+-- Run this in Supabase SQL Editor
+
+CREATE OR REPLACE FUNCTION public.check_user_exists(email_input text)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER -- Runs with elevated privileges to bypass RLS for this specific check
+SET search_path = public, auth
+AS $$
+BEGIN
+  -- Check if a profile exists with this email (case-insensitive)
+  -- We check public.profiles as it represents active app users
+  RETURN EXISTS (
+    SELECT 1 
+    FROM public.profiles 
+    WHERE lower(email) = lower(email_input)
+  );
+END;
+$$;
+
+-- Grant access to anonymous and authenticated users
+GRANT EXECUTE ON FUNCTION public.check_user_exists(text) TO anon, authenticated;

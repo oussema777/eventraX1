@@ -1,0 +1,59 @@
+-- FINAL FIX: Database Error Deleting User + Policy Fixes
+-- This script adds ON DELETE CASCADE and fixes the Policy Conflict Error.
+-- Run this in your Supabase SQL Editor.
+
+BEGIN;
+
+-- 1. FIX POLICIES (Handle "already exists" errors)
+-- Drop existing policies with the conflicting name before re-creating them
+DROP POLICY IF EXISTS "Enable insert for authenticated users" ON public.business_profiles;
+DROP POLICY IF EXISTS "Enable insert for authenticated users" ON public.event_attendee_sessions;
+
+-- Re-create Business Profile Policy safely
+CREATE POLICY "Enable insert for authenticated users" 
+ON public.business_profiles 
+FOR INSERT 
+TO authenticated 
+WITH CHECK (auth.uid() = owner_profile_id);
+
+-- 2. ADD ON DELETE CASCADE (Ensures users can be deleted)
+
+-- Profiles
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey;
+ALTER TABLE public.profiles ADD CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+-- Event Attendees
+ALTER TABLE public.event_attendees DROP CONSTRAINT IF EXISTS event_attendees_profile_id_fkey;
+ALTER TABLE public.event_attendees ADD CONSTRAINT event_attendees_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+-- Events
+ALTER TABLE public.events DROP CONSTRAINT IF EXISTS events_organizer_id_fkey;
+ALTER TABLE public.events ADD CONSTRAINT events_organizer_id_fkey FOREIGN KEY (organizer_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+-- Business Profiles
+ALTER TABLE public.business_profiles DROP CONSTRAINT IF EXISTS business_profiles_owner_profile_id_fkey;
+ALTER TABLE public.business_profiles ADD CONSTRAINT business_profiles_owner_profile_id_fkey FOREIGN KEY (owner_profile_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+-- Notifications
+ALTER TABLE public.notifications DROP CONSTRAINT IF EXISTS notifications_recipient_id_fkey;
+ALTER TABLE public.notifications ADD CONSTRAINT notifications_recipient_id_fkey FOREIGN KEY (recipient_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+-- Networking & Messaging (Bulk update for common tables)
+DO $$ 
+BEGIN 
+    -- B2B Meetings
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'b2b_meetings') THEN
+        ALTER TABLE public.b2b_meetings DROP CONSTRAINT IF EXISTS b2b_meetings_profile_a_id_fkey;
+        ALTER TABLE public.b2b_meetings ADD CONSTRAINT b2b_meetings_profile_a_id_fkey FOREIGN KEY (profile_a_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+        ALTER TABLE public.b2b_meetings DROP CONSTRAINT IF EXISTS b2b_meetings_profile_b_id_fkey;
+        ALTER TABLE public.b2b_meetings ADD CONSTRAINT b2b_meetings_profile_b_id_fkey FOREIGN KEY (profile_b_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+    END IF;
+
+    -- Messaging
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'message_thread_participants') THEN
+        ALTER TABLE public.message_thread_participants DROP CONSTRAINT IF EXISTS message_thread_participants_profile_id_fkey;
+        ALTER TABLE public.message_thread_participants ADD CONSTRAINT message_thread_participants_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+
+COMMIT;

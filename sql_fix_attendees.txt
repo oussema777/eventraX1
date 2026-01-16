@@ -1,0 +1,16 @@
+-- EVENTRA DATABASE FIX: Link Attendees to User Profiles
+-- Run this in your Supabase SQL Editor
+
+-- 1. Add profile_id column to event_attendees
+ALTER TABLE public.event_attendees 
+ADD COLUMN IF NOT EXISTS profile_id uuid REFERENCES auth.users(id);
+
+-- 2. Optional: Add index for performance
+CREATE INDEX IF NOT EXISTS idx_event_attendees_profile_id ON public.event_attendees(profile_id);
+
+-- 3. Update RLS policies to allow users to see their own attendance
+DROP POLICY IF EXISTS "Users can view own attendance" ON public.event_attendees;
+CREATE POLICY "Users can view own attendance" 
+ON public.event_attendees 
+FOR SELECT 
+USING (profile_id = auth.uid());

@@ -1,0 +1,163 @@
+-- FIX: Database Error Deleting User (Foreign Key Constraints)
+-- This script updates the database to automatically delete related data when a User is deleted.
+-- Run this in your Supabase SQL Editor.
+
+BEGIN;
+
+-- 1. PROFILES
+ALTER TABLE public.profiles 
+DROP CONSTRAINT IF EXISTS profiles_id_fkey,
+DROP CONSTRAINT IF EXISTS profiles_user_id_fkey; 
+
+ALTER TABLE public.profiles 
+ADD CONSTRAINT profiles_id_fkey 
+FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+-- 2. EVENT ATTENDEES
+ALTER TABLE public.event_attendees 
+DROP CONSTRAINT IF EXISTS event_attendees_profile_id_fkey;
+
+ALTER TABLE public.event_attendees 
+ADD CONSTRAINT event_attendees_profile_id_fkey 
+FOREIGN KEY (profile_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+-- 3. EVENTS (Organizer)
+ALTER TABLE public.events 
+DROP CONSTRAINT IF EXISTS events_organizer_id_fkey;
+
+ALTER TABLE public.events 
+ADD CONSTRAINT events_organizer_id_fkey 
+FOREIGN KEY (organizer_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+-- 4. BUSINESS PROFILES
+ALTER TABLE public.business_profiles 
+DROP CONSTRAINT IF EXISTS business_profiles_owner_profile_id_fkey;
+
+ALTER TABLE public.business_profiles 
+ADD CONSTRAINT business_profiles_owner_profile_id_fkey 
+FOREIGN KEY (owner_profile_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+-- 5. NOTIFICATIONS
+ALTER TABLE public.notifications 
+DROP CONSTRAINT IF EXISTS notifications_recipient_id_fkey;
+
+ALTER TABLE public.notifications 
+ADD CONSTRAINT notifications_recipient_id_fkey 
+FOREIGN KEY (recipient_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+-- 6. B2B MEETINGS
+ALTER TABLE public.b2b_meetings 
+DROP CONSTRAINT IF EXISTS b2b_meetings_requester_id_fkey,
+DROP CONSTRAINT IF EXISTS b2b_meetings_recipient_id_fkey,
+DROP CONSTRAINT IF EXISTS b2b_meetings_profile_a_id_fkey, -- Check alternate names
+DROP CONSTRAINT IF EXISTS b2b_meetings_profile_b_id_fkey,
+DROP CONSTRAINT IF EXISTS b2b_meetings_organizer_id_fkey;
+
+-- Note: UserB2BCenter uses profile_a_id/profile_b_id/organizer_id.
+-- We'll try to catch standard names or add them if missing.
+-- If columns are profile_a_id, profile_b_id:
+DO $$ 
+BEGIN 
+    -- We can't easily detect column names in a simple script without dynamic SQL.
+    -- Assuming standard Supabase naming based on columns.
+    
+    -- Try profile_a_id
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'b2b_meetings' AND column_name = 'profile_a_id') THEN
+        ALTER TABLE public.b2b_meetings DROP CONSTRAINT IF EXISTS b2b_meetings_profile_a_id_fkey;
+        ALTER TABLE public.b2b_meetings ADD CONSTRAINT b2b_meetings_profile_a_id_fkey FOREIGN KEY (profile_a_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+    END IF;
+
+    -- Try profile_b_id
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'b2b_meetings' AND column_name = 'profile_b_id') THEN
+        ALTER TABLE public.b2b_meetings DROP CONSTRAINT IF EXISTS b2b_meetings_profile_b_id_fkey;
+        ALTER TABLE public.b2b_meetings ADD CONSTRAINT b2b_meetings_profile_b_id_fkey FOREIGN KEY (profile_b_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+    END IF;
+
+    -- Try organizer_id
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'b2b_meetings' AND column_name = 'organizer_id') THEN
+        ALTER TABLE public.b2b_meetings DROP CONSTRAINT IF EXISTS b2b_meetings_organizer_id_fkey;
+        ALTER TABLE public.b2b_meetings ADD CONSTRAINT b2b_meetings_organizer_id_fkey FOREIGN KEY (organizer_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+    END IF;
+    
+    -- Legacy names just in case
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'b2b_meetings' AND column_name = 'requester_id') THEN
+        ALTER TABLE public.b2b_meetings DROP CONSTRAINT IF EXISTS b2b_meetings_requester_id_fkey;
+        ALTER TABLE public.b2b_meetings ADD CONSTRAINT b2b_meetings_requester_id_fkey FOREIGN KEY (requester_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+    END IF;
+    
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'b2b_meetings' AND column_name = 'recipient_id') THEN
+        ALTER TABLE public.b2b_meetings DROP CONSTRAINT IF EXISTS b2b_meetings_recipient_id_fkey;
+        ALTER TABLE public.b2b_meetings ADD CONSTRAINT b2b_meetings_recipient_id_fkey FOREIGN KEY (recipient_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+
+
+-- 7. MESSAGING
+-- message_threads (created_by)
+ALTER TABLE public.message_threads 
+DROP CONSTRAINT IF EXISTS message_threads_created_by_fkey;
+
+ALTER TABLE public.message_threads 
+ADD CONSTRAINT message_threads_created_by_fkey 
+FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+-- message_thread_participants (profile_id)
+ALTER TABLE public.message_thread_participants 
+DROP CONSTRAINT IF EXISTS message_thread_participants_profile_id_fkey;
+
+ALTER TABLE public.message_thread_participants 
+ADD CONSTRAINT message_thread_participants_profile_id_fkey 
+FOREIGN KEY (profile_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+-- message_messages (sender_id)
+ALTER TABLE public.message_messages 
+DROP CONSTRAINT IF EXISTS message_messages_sender_id_fkey;
+
+ALTER TABLE public.message_messages 
+ADD CONSTRAINT message_messages_sender_id_fkey 
+FOREIGN KEY (sender_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+
+-- 8. B2B REQUESTS
+ALTER TABLE public.b2b_requests 
+DROP CONSTRAINT IF EXISTS b2b_requests_sender_id_fkey,
+DROP CONSTRAINT IF EXISTS b2b_requests_recipient_id_fkey;
+
+ALTER TABLE public.b2b_requests 
+ADD CONSTRAINT b2b_requests_sender_id_fkey 
+FOREIGN KEY (sender_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+ALTER TABLE public.b2b_requests 
+ADD CONSTRAINT b2b_requests_recipient_id_fkey 
+FOREIGN KEY (recipient_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+
+-- 9. B2B MATCHES
+ALTER TABLE public.b2b_matches 
+DROP CONSTRAINT IF EXISTS b2b_matches_profile_id_fkey,
+DROP CONSTRAINT IF EXISTS b2b_matches_matched_profile_id_fkey;
+
+ALTER TABLE public.b2b_matches 
+ADD CONSTRAINT b2b_matches_profile_id_fkey 
+FOREIGN KEY (profile_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+ALTER TABLE public.b2b_matches 
+ADD CONSTRAINT b2b_matches_matched_profile_id_fkey 
+FOREIGN KEY (matched_profile_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+
+-- 10. B2B CONNECTIONS
+ALTER TABLE public.b2b_connections 
+DROP CONSTRAINT IF EXISTS b2b_connections_profile_a_id_fkey,
+DROP CONSTRAINT IF EXISTS b2b_connections_profile_b_id_fkey;
+
+ALTER TABLE public.b2b_connections 
+ADD CONSTRAINT b2b_connections_profile_a_id_fkey 
+FOREIGN KEY (profile_a_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+ALTER TABLE public.b2b_connections 
+ADD CONSTRAINT b2b_connections_profile_b_id_fkey 
+FOREIGN KEY (profile_b_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+
+COMMIT;
