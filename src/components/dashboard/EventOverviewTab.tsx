@@ -49,7 +49,43 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
   });
   const [ticketSummary, setTicketSummary] = useState({ sold: 0, total: 0, revenue: 0, avgPrice: 0, currency: 'TND' });
   const [activity, setActivity] = useState<Array<any>>([]);
+  const [registrationRows, setRegistrationRows] = useState<Array<any>>([]);
   const [isPublishing, setIsPublishing] = useState(false);
+
+  const buildFallbackActivity = async (activeEventId: string) => {
+    const [tickets, sessions, speakers, exhibitors, forms, templates, links] = await Promise.all([
+      supabase.from('event_tickets').select('id,name,created_at,updated_at').eq('event_id', activeEventId).order('updated_at', { ascending: false }).limit(1),
+      supabase.from('event_sessions').select('id,title,created_at,updated_at').eq('event_id', activeEventId).order('updated_at', { ascending: false }).limit(1),
+      supabase.from('event_speakers').select('id,name,full_name,created_at,updated_at').eq('event_id', activeEventId).order('updated_at', { ascending: false }).limit(1),
+      supabase.from('event_exhibitors').select('id,company_name,created_at,updated_at').eq('event_id', activeEventId).order('updated_at', { ascending: false }).limit(1),
+      supabase.from('event_forms').select('id,title,created_at,updated_at').eq('event_id', activeEventId).order('updated_at', { ascending: false }).limit(1),
+      supabase.from('event_email_templates').select('id,name,subject,created_at,updated_at').eq('event_id', activeEventId).order('updated_at', { ascending: false }).limit(1),
+      supabase.from('event_tracking_links').select('id,name,slug,created_at,updated_at').eq('event_id', activeEventId).order('updated_at', { ascending: false }).limit(1)
+    ]);
+
+    const rows = [
+      ...(tickets.data || []).map((row: any) => ({ ...row, entity_type: 'event_tickets', entity_title: row.name })),
+      ...(sessions.data || []).map((row: any) => ({ ...row, entity_type: 'event_sessions', entity_title: row.title })),
+      ...(speakers.data || []).map((row: any) => ({ ...row, entity_type: 'event_speakers', entity_title: row.name || row.full_name })),
+      ...(exhibitors.data || []).map((row: any) => ({ ...row, entity_type: 'event_exhibitors', entity_title: row.company_name })),
+      ...(forms.data || []).map((row: any) => ({ ...row, entity_type: 'event_forms', entity_title: row.title })),
+      ...(templates.data || []).map((row: any) => ({ ...row, entity_type: 'event_email_templates', entity_title: row.name || row.subject })),
+      ...(links.data || []).map((row: any) => ({ ...row, entity_type: 'event_tracking_links', entity_title: row.name || row.slug }))
+    ];
+
+    return rows
+      .filter((row) => row.id && (row.updated_at || row.created_at))
+      .map((row) => ({
+        id: row.id,
+        action: 'update',
+        entity_type: row.entity_type,
+        entity_id: row.id,
+        entity_title: row.entity_title,
+        created_at: row.updated_at || row.created_at
+      }))
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 8);
+  };
   useEffect(() => {
     if (!eventId) return;
     let mounted = true;
@@ -57,7 +93,7 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
       try {
         const eventReq = supabase
           .from('events')
-          .select('id, cover_image_url, badge_settings, registration_form_schema, marketing_settings, start_date, location_address, status, is_public')
+          .select('id, cover_image_url, badge_settings, marketing_settings, start_date, end_date, location_address, status, is_public')
           .eq('id', eventId)
           .single();
 
@@ -67,10 +103,18 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
         const exhibitorsCountReq = supabase.from('event_exhibitors').select('id', { count: 'exact', head: true }).eq('event_id', eventId);
         const formsCountReq = supabase.from('event_forms').select('id', { count: 'exact', head: true }).eq('event_id', eventId);
         const marketingTemplatesReq = supabase.from('event_email_templates').select('id', { count: 'exact', head: true }).eq('event_id', eventId);
-        const marketingLinksReq = supabase.from('event_marketing_links').select('id', { count: 'exact', head: true }).eq('event_id', eventId);
+        const marketingLinksReq = supabase.from('event_tracking_links').select('id', { count: 'exact', head: true }).eq('event_id', eventId);
         const ticketsSummaryReq = supabase
           .from('event_tickets')
           .select('price, currency, quantity_sold, quantity_total')
+          .eq('event_id', eventId);
+        const registrationsReq = supabase
+          .from('event_registrations')
+          .select('id, created_at')
+          .eq('event_id', eventId);
+        const attendeesReq = supabase
+          .from('event_attendees')
+          .select('id, created_at')
           .eq('event_id', eventId);
         const activityReq = supabase
           .from('event_activity_log')
@@ -89,17 +133,21 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
           marketingTemplatesRes,
           marketingLinksRes,
           ticketsSummaryRes,
+          registrationsRes,
+          attendeesRes,
           activityRes
         ] = await Promise.all([
           eventReq,
-          ticketsCountRes,
-          sessionsCountRes,
-          speakersCountRes,
-          exhibitorsCountRes,
-          formsCountRes,
-          marketingTemplatesRes,
-          marketingLinksRes,
-          ticketsSummaryRes,
+          ticketsCountReq,
+          sessionsCountReq,
+          speakersCountReq,
+          exhibitorsCountReq,
+          formsCountReq,
+          marketingTemplatesReq,
+          marketingLinksReq,
+          ticketsSummaryReq,
+          registrationsReq,
+          attendeesReq,
           activityReq
         ]);
 
@@ -133,8 +181,18 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
           setTicketSummary({ sold, total, revenue, avgPrice, currency });
         }
 
-        if (!activityRes.error && Array.isArray(activityRes.data)) setActivity(activityRes.data);
-        else setActivity([]);
+        const registrationData = (registrationsRes.data && registrationsRes.data.length)
+          ? registrationsRes.data
+          : (attendeesRes.data || []);
+        setRegistrationRows(registrationData);
+
+        if (!activityRes.error && Array.isArray(activityRes.data) && activityRes.data.length > 0) {
+          setActivity(activityRes.data);
+        } else {
+          const fallback = await buildFallbackActivity(eventId);
+          if (!mounted) return;
+          setActivity(fallback);
+        }
       } finally {
       }
     })();
@@ -181,7 +239,7 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
   const health = useMemo(() => {
     const ratio = (n: number, d: number) => (d <= 0 ? 0 : Math.min(1, Math.max(0, n / d)));
     const hasBadge = !!(eventMeta?.badge_settings && typeof eventMeta.badge_settings === 'object' && Object.keys(eventMeta.badge_settings).length > 0);
-    const hasRegistrationSchema = !!(eventMeta?.registration_form_schema && typeof eventMeta.registration_form_schema === 'object' && Object.keys(eventMeta.registration_form_schema).length > 0);
+    const hasRegistrationSchema = counts.forms > 0;
     const hasMarketing = counts.marketing > 0;
     const hasCover = !!eventMeta?.cover_image_url;
     const hasDate = !!eventMeta?.start_date;
@@ -259,7 +317,8 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
         case 'event_exhibitors': return 'exhibitors';
         case 'event_forms': return 'create-registration';
         case 'event_email_templates':
-        case 'event_marketing_links': return 'marketing';
+        case 'event_marketing_links':
+        case 'event_tracking_links': return 'marketing';
         default: return 'overview';
       }
     };
@@ -272,7 +331,7 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
       if (entityType === 'event_exhibitors') return Building;
       if (entityType === 'event_forms') return FileText;
       if (entityType === 'event_email_templates') return Mail;
-      if (entityType === 'event_marketing_links') return ExternalLink;
+      if (entityType === 'event_marketing_links' || entityType === 'event_tracking_links') return ExternalLink;
       return CheckCircle;
     };
 
@@ -292,7 +351,7 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
       if (entityType === 'event_exhibitors') return t('manageEvent.overview.activity.items.exhibitor');
       if (entityType === 'event_forms') return t('manageEvent.overview.activity.items.registrationForm');
       if (entityType === 'event_email_templates') return t('manageEvent.overview.activity.items.emailCampaign');
-      if (entityType === 'event_marketing_links') return t('manageEvent.overview.activity.items.marketingLink');
+      if (entityType === 'event_marketing_links' || entityType === 'event_tracking_links') return t('manageEvent.overview.activity.items.marketingLink');
       return t('manageEvent.overview.activity.items.update');
     };
 
@@ -334,6 +393,57 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
   }, [pendingTasks]);
 
   const isPublished = !!(eventMeta?.status === 'published' && eventMeta?.is_public);
+
+  const registrationSeries = useMemo(() => {
+    const dates = registrationRows
+      .map((r) => (r.created_at ? new Date(r.created_at) : null))
+      .filter((d) => d instanceof Date && !Number.isNaN(d?.getTime?.())) as Date[];
+
+    const now = new Date();
+    const minDate = dates.length ? new Date(Math.min(...dates.map((d) => d.getTime()))) : new Date(now.getTime() - 6 * 86400000);
+    const maxDate = dates.length ? new Date(Math.max(...dates.map((d) => d.getTime()))) : now;
+    const start = eventMeta?.start_date ? new Date(eventMeta.start_date) : minDate;
+    const end = eventMeta?.end_date ? new Date(eventMeta.end_date) : maxDate;
+
+    const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    const dayMs = 86400000;
+    const totalDays = Math.max(1, Math.round((endDay.getTime() - startDay.getTime()) / dayMs) + 1);
+    const stepDays = totalDays <= 6 ? 1 : Math.ceil(totalDays / 6);
+
+    const buckets: { label: string; count: number }[] = [];
+    for (let i = 0; i < totalDays; i += stepDays) {
+      const bucketStart = new Date(startDay.getTime() + i * dayMs);
+      const bucketEnd = new Date(Math.min(endDay.getTime() + dayMs, bucketStart.getTime() + stepDays * dayMs));
+      const count = dates.filter((d) => d >= bucketStart && d < bucketEnd).length;
+      buckets.push({
+        label: bucketStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        count
+      });
+    }
+    return buckets.length ? buckets : [{ label: startDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), count: 0 }];
+  }, [registrationRows, eventMeta?.start_date, eventMeta?.end_date]);
+
+  const registrationChart = useMemo(() => {
+    const width = 600;
+    const height = 200;
+    const pad = 16;
+    const max = Math.max(1, ...registrationSeries.map((d) => d.count));
+    const innerW = width - pad * 2;
+    const innerH = height - pad * 2;
+    const stepX = registrationSeries.length > 1 ? innerW / (registrationSeries.length - 1) : 0;
+    const points = registrationSeries
+      .map((d, i) => {
+        const x = pad + stepX * i;
+        const y = pad + innerH - (d.count / max) * innerH;
+        return `${x},${y}`;
+      })
+      .join(' ');
+    const baseY = pad + innerH;
+    const area = points ? `${pad},${baseY} ${points} ${pad + stepX * (registrationSeries.length - 1)},${baseY}` : '';
+    return { width, height, points, area };
+  }, [registrationSeries]);
+
 
   const handlePublish = async () => {
     if (!eventId || isPublished) return;
@@ -424,12 +534,51 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
                 border: '2px dashed rgba(255, 255, 255, 0.1)'
               }}
             >
-              <div className="text-center">
-                <BarChart3 size={48} style={{ color: '#64748B', margin: '0 auto 12px' }} />
-                <p style={{ fontSize: '14px', color: '#94A3B8' }}>
-                  {t('manageEvent.overview.charts.registrationTrends.visualization')}
-                </p>
-              </div>
+              {registrationRows.length > 0 ? (
+                <svg
+                  width="100%"
+                  height="100%"
+                  viewBox={`0 0 ${registrationChart.width} ${registrationChart.height}`}
+                  preserveAspectRatio="none"
+                >
+                  <defs>
+                    <linearGradient id="overviewTrendFill" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stopColor="#0684F5" stopOpacity="0.35" />
+                      <stop offset="100%" stopColor="#0684F5" stopOpacity="0.05" />
+                    </linearGradient>
+                  </defs>
+                  <rect
+                    x="0"
+                    y="0"
+                    width={registrationChart.width}
+                    height={registrationChart.height}
+                    fill="transparent"
+                  />
+                  {registrationChart.area && (
+                    <polygon
+                      points={registrationChart.area}
+                      fill="url(#overviewTrendFill)"
+                    />
+                  )}
+                  {registrationChart.points && (
+                    <polyline
+                      points={registrationChart.points}
+                      fill="none"
+                      stroke="#0684F5"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  )}
+                </svg>
+              ) : (
+                <div className="text-center">
+                  <BarChart3 size={48} style={{ color: '#64748B', margin: '0 auto 12px' }} />
+                  <p style={{ fontSize: '14px', color: '#94A3B8' }}>
+                    {t('manageEvent.overview.charts.registrationTrends.visualization')}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

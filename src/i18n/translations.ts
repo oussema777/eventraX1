@@ -5678,28 +5678,53 @@ export const translations = {
         },
         pricing: {
           contact: 'Contact for pricing',
-          quantityLabel: 'Select Quantity / Licenses'
+          quantityLabel: 'Select Quantity / Licenses',
+          licensesLabel: 'Licenses'
         },
         actions: {
           requestQuote: 'Request Quote',
-          messageSeller: 'Message Seller',
+          messageSeller: 'Contact Seller',
           saved: 'Saved',
-          wishlist: 'Wishlist',
+          wishlist: 'Save',
           share: 'Share'
         },
         reviews: {
           count: '({count} reviews)',
           globalSatisfaction: 'Global Satisfaction',
-          helpful: 'Was this review helpful? ({count})',
-          starsLabel: '{count} Stars'
+          helpful: 'Helpful ({count})',
+          starsLabel: '{count} Stars',
+          empty: 'No reviews yet.'
         },
         seller: {
+          about: 'About the Seller',
+          verified: 'Verified Seller',
           managedBy: 'Managed By',
           response: 'Response',
           memberSince: 'Member Since',
+          memberSinceInline: 'Member since {value}',
+          responseInline: 'Responds in {value}',
           viewProfile: 'View Professional Profile',
           fallbackName: 'Seller',
           deals: '({count} deals)'
+        },
+        features: {
+          title: 'Key Features'
+        },
+        longDescription: {
+          overviewTitle: 'Overview',
+          whatYouGetTitle: 'What You Get',
+          whyItMattersTitle: 'Why It Matters',
+          overviewFallback: 'A curated offering designed for event professionals.',
+          whyItMattersBody: 'Aligned with the needs of organizers who want reliable, scalable event outcomes.',
+          fallbackList: [
+            'Tailored solutions for event teams',
+            'Flexible delivery options',
+            'Dedicated support'
+          ]
+        },
+        toasts: {
+          linkCopied: 'Product link copied.',
+          copyFailed: 'Failed to copy product link.'
         }
       },
   },
@@ -11189,13 +11214,14 @@ export const translations = {
           cancel: 'Annuler',
           send: 'Envoyer la demande'
         }
-      },productsManagement: {
+      },
+      productsManagement: {
         title: 'Produits & Services',
-        subtitle: 'Gérez vos offres, tarifs et informations produits',
+        subtitle: 'Gerez vos offres, tarifs et informations produits',
         addProduct: 'Ajouter un produit',
         editProduct: 'Modifier le produit',
         addNewProduct: 'Ajouter un nouveau produit',
-        updateProduct: 'Mettre à jour',
+        updateProduct: 'Mettre a jour',
         saveProduct: 'Enregistrer',
         cancel: 'Annuler',
         form: {
@@ -11204,22 +11230,22 @@ export const translations = {
           sector: 'Secteur *',
           subsector: 'Sous-secteur *',
           description: 'Description *',
-          descriptionPlaceholder: 'Décrivez votre produit ou service...',
+          descriptionPlaceholder: 'Decrivez votre produit ou service...',
           price: 'Prix *',
           pricePlaceholder: '499.00',
           currency: 'Devise',
           tags: 'Tags',
-          tagsPlaceholder: 'Tapez un tag et appuyez sur Entrée',
+          tagsPlaceholder: 'Tapez un tag et appuyez sur Entree',
           mainImage: 'Image principale du produit *',
-          uploadMain: 'Cliquez pour télécharger l\'image principale',
-          imageUploaded: '✓ Image téléchargée - Cliquez pour changer',
+          uploadMain: "Cliquez pour telecharger l'image principale",
+          imageUploaded: 'Image telechargee - Cliquez pour changer',
           gallery: 'Images de la galerie (Max 4)',
-          upload: 'Télécharger'
+          upload: 'Telecharger'
         },
         toasts: {
-          offeringRemoved: 'Offre supprimée',
-          offeringSaved: 'Offre enregistrée',
-          uploadFailed: 'Échec du téléchargement'
+          offeringRemoved: 'Offre supprimee',
+          offeringSaved: 'Offre enregistree',
+          uploadFailed: 'Echec du telechargement'
         }
       },
       constants: {
@@ -11232,40 +11258,40 @@ export const translations = {
           Production: 'Production'
         },
         subsectors: {
-          'Software Development': 'Développement Logiciel',
-          'Event Tech': 'Tech Événementielle',
+          'Software Development': 'Developpement Logiciel',
+          'Event Tech': 'Tech evenementielle',
           'AI Tools': 'Outils IA',
           'Analytics': 'Analytique',
           'Consulting': 'Conseil',
           'Advisory': 'Avis',
-          'Operations': 'Opérations',
+          'Operations': 'Operations',
           'Legal': 'Juridique',
           'Digital Marketing': 'Marketing Digital',
-          'Brand Strategy': 'Stratégie de Marque',
+          'Brand Strategy': 'Strategie de Marque',
           'Growth': 'Croissance',
           'Content': 'Contenu',
-          'Accounting': 'Comptabilité',
+          'Accounting': 'Comptabilite',
           'Payments': 'Paiements',
           'Investment': 'Investissement',
           'FinTech': 'FinTech',
-          'Shipping': 'Expédition',
+          'Shipping': 'Expedition',
           'Warehousing': 'Entreposage',
           'Transportation': 'Transport',
-          'Fulfillment': 'Exécution',
+          'Fulfillment': 'Execution',
           'A/V Production': 'Production A/V',
-          'Stage Design': 'Conception Scénique',
-          'Lighting': 'Éclairage',
+          'Stage Design': 'Conception Scenique',
+          'Lighting': 'Eclairage',
           'Sound': 'Son'
         },
         countries: [
-          'États-Unis',
+          'Etats-Unis',
           'Canada',
           'Royaume-Uni',
           'Allemagne',
           'France',
           'Pays-Bas',
           'Espagne',
-          'Émirats Arabes Unis',
+          'Emirats Arabes Unis',
           'Arabie Saoudite',
           'Qatar',
           'Singapour',
@@ -11275,17 +11301,17 @@ export const translations = {
       },
       marketplace: {
         hero: {
-          title: 'Trouvez les partenaires parfaits pour votre prochain événement.',
+          title: 'Trouvez les partenaires parfaits pour votre prochain evenement.',
           searchPlaceholder: 'Rechercher des services, entreprises ou tags...',
           searchButton: 'Rechercher',
           categories: {
             av: 'A/V & Production',
             catering: 'Traiteur',
-            tech: 'Tech Événementielle',
+            tech: 'Tech evenementielle',
             venues: 'Lieux',
             logistics: 'Logistique',
             photography: 'Photographie',
-            design: 'Design & Décor',
+            design: 'Design & Decor',
             marketing: 'Marketing',
             entertainment: 'Divertissement',
             swag: 'Cadeaux & Goodies',
@@ -11300,8 +11326,8 @@ export const translations = {
           location: 'Lieu',
           locationPlaceholder: 'Pays / Ville',
           trustBadges: 'Badges de confiance',
-          verified: 'Entreprises vérifiées uniquement',
-          sustainable: 'Durable / Éco-responsable',
+          verified: 'Entreprises verifiees uniquement',
+          sustainable: 'Durable / Eco-responsable',
           size: 'Taille de l\'entreprise',
           rating: 'Note',
           up: '& Plus',
@@ -11312,24 +11338,24 @@ export const translations = {
           }
         },
         recommended: {
-          badge: 'Propulsé par IA',
-          title: 'Recommandé pour vous',
+          badge: 'Propulse par IA',
+          title: 'Recommande pour vous',
           refresh: 'Actualiser',
           match: '95% match',
           aiMatch: 'Match IA'
         },
         results: {
           loading: 'Chargement des entreprises...',
-          found: '{count} {label} Trouvé(s)',
+          found: '{count} {label} trouve(s)',
           business: 'Entreprise',
           businesses: 'Entreprises',
           requestQuote: 'Demander un devis',
           noDescription: 'Aucune description fournie.',
-          locationTbd: 'Lieu à définir'
+          locationTbd: 'Lieu a definir'
         },
         empty: {
-          title: 'Aucune entreprise trouvée',
-          subtitle: 'Essayez d\'ajuster vos filtres ou critères de recherche',
+          title: 'Aucune entreprise trouvee',
+          subtitle: 'Essayez d\'ajuster vos filtres ou criteres de recherche',
           action: 'Effacer tous les filtres'
         }
       },
@@ -11344,15 +11370,15 @@ export const translations = {
         },
         tabs: {
           description: 'Description',
-          specifications: 'Spécifications',
+          specifications: 'Specifications',
           reviews: 'Avis'
         },
-        overview: 'Aperçu',
+        overview: 'Apercu',
         labels: {
           id: 'ID',
-          verified: 'Entreprise vérifiée',
+          verified: 'Entreprise verifiee',
           deliveryTime: 'Livraison moyenne : {value}',
-          shipsFrom: 'Expédié depuis : {value}'
+          shipsFrom: 'Expedie depuis : {value}'
         },
         types: {
           product: 'Produit',
@@ -11360,36 +11386,61 @@ export const translations = {
         },
         specifications: {
           type: 'Type',
-          availability: 'Disponibilité',
-          unlimited: 'Illimitée',
-          limited: 'Limitée',
-          quantity: 'Quantité',
+          availability: 'Disponibilite',
+          unlimited: 'Illimitee',
+          limited: 'Limitee',
+          quantity: 'Quantite',
           tags: 'Tags'
         },
         pricing: {
           contact: 'Contactez-nous pour le prix',
-          quantityLabel: 'Sélectionner la quantité / licences'
+          quantityLabel: 'Selectionner la quantite / licences',
+          licensesLabel: 'Licences'
         },
         actions: {
           requestQuote: 'Demander un devis',
           messageSeller: 'Contacter le vendeur',
-          saved: 'Enregistré',
-          wishlist: 'Liste de souhaits',
+          saved: 'Enregistre',
+          wishlist: 'Enregistrer',
           share: 'Partager'
         },
         reviews: {
           count: '({count} avis)',
           globalSatisfaction: 'Satisfaction globale',
-          helpful: 'Avis utile ? ({count})',
-          starsLabel: '{count} étoiles'
+          helpful: 'Utile ({count})',
+          starsLabel: '{count} etoiles',
+          empty: 'Aucun avis pour le moment.'
         },
         seller: {
-          managedBy: 'Géré par',
-          response: 'Réponse',
+          about: 'A propos du vendeur',
+          verified: 'Vendeur verifie',
+          managedBy: 'Gere par',
+          response: 'Reponse',
           memberSince: 'Membre depuis',
+          memberSinceInline: 'Membre depuis {value}',
+          responseInline: 'Repond en {value}',
           viewProfile: 'Voir le profil professionnel',
           fallbackName: 'Vendeur',
           deals: '({count} transactions)'
+        },
+        features: {
+          title: 'Fonctionnalites cles'
+        },
+        longDescription: {
+          overviewTitle: 'Apercu',
+          whatYouGetTitle: 'Ce que vous obtenez',
+          whyItMattersTitle: 'Pourquoi c\'est important',
+          overviewFallback: 'Une offre concue pour les professionnels de l\'evenementiel.',
+          whyItMattersBody: 'Aligne sur les besoins des organisateurs qui veulent des resultats fiables et evolutifs.',
+          fallbackList: [
+            'Solutions adaptees aux equipes evenementielles',
+            'Options de livraison flexibles',
+            'Support dedie'
+          ]
+        },
+        toasts: {
+          linkCopied: 'Lien du produit copie.',
+          copyFailed: 'Echec de la copie du lien.'
         }
       },
   }
