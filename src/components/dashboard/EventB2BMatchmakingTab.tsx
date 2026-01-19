@@ -87,6 +87,27 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
     return `#B2B-${tail.padStart(5, '0')}`;
   };
 
+  const buildFallbackPair = () => {
+    const pair = attendeesData.filter((a) => a?.id).slice(0, 2);
+    if (pair.length < 2) return null;
+    const [a, b] = pair;
+    return {
+      aId: a.id,
+      bId: b.id,
+      aName: a.name || a.email || 'Attendee A',
+      bName: b.name || b.email || 'Attendee B',
+      aTitle: a.meta?.jobTitle || a.meta?.job_title || a.meta?.title || a.meta?.role || '',
+      bTitle: b.meta?.jobTitle || b.meta?.job_title || b.meta?.title || b.meta?.role || '',
+      aCompany: a.company || '',
+      bCompany: b.company || '',
+      score: 0,
+      tags: [],
+      breakdown: [],
+      insights: [],
+      topics: []
+    };
+  };
+
   const normalizeTokens = (...values: any[]) => {
     const tokens: string[] = [];
     values.forEach((value) => {
@@ -258,7 +279,8 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
         },
         { weightSum: 0, total: 0 }
       );
-    const finalScore = weighted.weightSum ? Math.round(weighted.total / weighted.weightSum) : 0;
+    const hasSignal = weighted.weightSum > 0;
+    const finalScore = hasSignal ? Math.round(weighted.total / weighted.weightSum) : 60;
 
     const tags = Array.from(new Set([
       industry.common[0] ? `Industry: ${industry.common[0]}` : '',
@@ -289,6 +311,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
 
     return {
       score: Math.min(100, Math.max(0, finalScore)),
+      hasSignal,
       tags,
       insights,
       topics,
@@ -584,33 +607,35 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
       }
 
       const maxSuggestions = Math.min(200, Math.max(10, Math.round(pool.length * 0.4)));
-      const pairs: any[] = [];
-      for (let i = 0; i < pool.length - 1; i += 1) {
-        for (let j = i + 1; j < pool.length; j += 1) {
-          const a = pool[i];
-          const b = pool[j];
-          if (!a?.id || !b?.id) continue;
-          const key = [a.id, b.id].sort().join(':');
-          if (blockedPairs.has(key)) continue;
+        const pairs: any[] = [];
+        const candidates: any[] = [];
+        for (let i = 0; i < pool.length - 1; i += 1) {
+          for (let j = i + 1; j < pool.length; j += 1) {
+            const a = pool[i];
+            const b = pool[j];
+            if (!a?.id || !b?.id) continue;
+            const key = [a.id, b.id].sort().join(':');
+            if (blockedPairs.has(key)) continue;
           if (matchingSelection === 'category') {
             const aCategory = buildMatchProfile(a).category;
             const bCategory = buildMatchProfile(b).category;
             if (!aCategory || !bCategory || aCategory.toLowerCase() !== bCategory.toLowerCase()) {
               continue;
             }
+            }
+            const meta = buildMatchMeta(a, b);
+            candidates.push({ a, b, score: meta.score, meta });
+            const threshold = meta.hasSignal ? Math.max(0, Math.min(100, Number(minMatchScore) || 0)) : 0;
+            if (meta.score < threshold) continue;
+            pairs.push({ a, b, score: meta.score, meta });
           }
-          const meta = buildMatchMeta(a, b);
-          if (meta.score < Math.max(0, Math.min(100, Number(minMatchScore) || 0))) continue;
-          pairs.push({
-            a,
-            b,
-            score: meta.score,
-            meta
-          });
         }
-      }
 
-      pairs.sort((a, b) => b.score - a.score);
+        pairs.sort((a, b) => b.score - a.score);
+        if (!pairs.length && candidates.length) {
+          candidates.sort((a, b) => b.score - a.score);
+          pairs.push(candidates[0]);
+        }
       const perAttendeeLimit = Math.max(3, Math.round(maxSuggestions / Math.max(1, pool.length) * 6));
       const attendeeCounts: Record<string, number> = {};
       const picked: any[] = [];
@@ -663,12 +688,19 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
     if (!eventId) return;
     if (savingMeeting) return;
 
-    const aId = selectedPair?.aId || suggestionsData?.[0]?.aId;
-    const bId = selectedPair?.bId || suggestionsData?.[0]?.bId;
-    if (!aId || !bId) {
-      toast.error('Select a match suggestion first');
-      return;
-    }
+      const fallbackAttendees = attendeesData.filter((a) => a?.id).slice(0, 2);
+      const fallbackPair = fallbackAttendees.length >= 2
+        ? { aId: fallbackAttendees[0].id, bId: fallbackAttendees[1].id }
+        : null;
+      const aId = selectedPair?.aId || suggestionsData?.[0]?.aId || fallbackPair?.aId;
+      const bId = selectedPair?.bId || suggestionsData?.[0]?.bId || fallbackPair?.bId;
+      if (!aId || !bId) {
+        toast.error('Select a match suggestion first');
+        return;
+      }
+      if (!selectedPair?.aId && !suggestionsData?.length && fallbackPair) {
+        toast.info('No AI suggestion selected. Scheduling a direct meeting.');
+      }
 
     const startIso = createMeetingDateTime ? new Date(createMeetingDateTime).toISOString() : null;
     const mins = Math.max(5, parseInt(String(createMeetingDuration || '30'), 10) || 30);
@@ -1273,10 +1305,13 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
           </div>
 
           <div className="event-b2b__header-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button
-              onClick={() => setActiveTab('ai-matchmaker')}
-              style={{
-                height: '44px',
+              <button
+                onClick={async () => {
+                  setActiveTab('ai-matchmaker');
+                  await handleGenerateMatches();
+                }}
+                style={{
+                  height: '44px',
                 padding: '0 24px',
                 background: 'linear-gradient(135deg, #0684F5 0%, #0EA5E9 100%)',
                 border: 'none',
@@ -1294,33 +1329,39 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
               <Sparkles size={18} />
               {t('manageEvent.b2b.header.aiMatchmaker')}
             </button>
-            <button
-              onClick={() => {
-                        const firstSuggestion = suggestionsData?.[0];
-                        if (firstSuggestion) {
-                          setSelectedPair({
-                            aId: firstSuggestion.aId,
-                            bId: firstSuggestion.bId,
-                            aName: firstSuggestion.aName,
-                            bName: firstSuggestion.bName,
-                            score: firstSuggestion.score,
-                            suggestionId: firstSuggestion.id,
-                            aTitle: firstSuggestion.aTitle,
-                            bTitle: firstSuggestion.bTitle,
-                            aCompany: firstSuggestion.aCompany,
-                            bCompany: firstSuggestion.bCompany,
-                            tags: firstSuggestion.tags,
-                            breakdown: firstSuggestion.breakdown,
-                            insights: firstSuggestion.insights,
-                            topics: firstSuggestion.topics
-                          });
-                          setShowCreateMeeting(true);
-                        } else {
-                          toast.error(t('manageEvent.b2b.toasts.addTwo'));
-                        }
-                      }}
-              style={{
-                height: '44px',
+              <button
+                onClick={() => {
+                  const firstSuggestion = suggestionsData?.[0];
+                  if (firstSuggestion) {
+                    setSelectedPair({
+                      aId: firstSuggestion.aId,
+                      bId: firstSuggestion.bId,
+                      aName: firstSuggestion.aName,
+                      bName: firstSuggestion.bName,
+                      score: firstSuggestion.score,
+                      suggestionId: firstSuggestion.id,
+                      aTitle: firstSuggestion.aTitle,
+                      bTitle: firstSuggestion.bTitle,
+                      aCompany: firstSuggestion.aCompany,
+                      bCompany: firstSuggestion.bCompany,
+                      tags: firstSuggestion.tags,
+                      breakdown: firstSuggestion.breakdown,
+                      insights: firstSuggestion.insights,
+                      topics: firstSuggestion.topics
+                    });
+                    setShowCreateMeeting(true);
+                    return;
+                  }
+                  const fallback = buildFallbackPair();
+                  if (fallback) {
+                    setSelectedPair(fallback);
+                    setShowCreateMeeting(true);
+                    return;
+                  }
+                  toast.error(t('manageEvent.b2b.toasts.addTwo'));
+                }}
+                style={{
+                  height: '44px',
                 padding: '0 20px',
                 backgroundColor: 'transparent',
                 border: '1px solid #FFFFFF',

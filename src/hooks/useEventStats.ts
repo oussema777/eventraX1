@@ -69,7 +69,7 @@ export function useEventStats(eventId?: string) {
         // 1. Fetch Event Details (Type & Base Settings)
         const { data: eventData } = await supabase
           .from('events')
-          .select('event_format, event_type, status, registration_form_schema')
+          .select('event_format, event_type, status')
           .eq('id', eventId)
           .single();
           
@@ -86,17 +86,22 @@ export function useEventStats(eventId?: string) {
           marketingTemplates,
           marketingLinks,
           ticketSummary,
+          registrationsRes,
           attendeesRes
         ] = await Promise.all([
           supabase.from('event_tickets').select('id', { count: 'exact', head: true }).eq('event_id', eventId),
           supabase.from('event_sessions').select('id', { count: 'exact', head: true }).eq('event_id', eventId),
           supabase.from('event_speakers').select('id', { count: 'exact', head: true }).eq('event_id', eventId),
           supabase.from('event_exhibitors').select('id', { count: 'exact', head: true }).eq('event_id', eventId),
-          supabase.from('event_forms').select('id', { count: 'exact', head: true }).eq('event_id', eventId),
+          supabase
+            .from('event_forms')
+            .select('id, schema, form_type, is_default, created_at', { count: 'exact' })
+            .eq('event_id', eventId),
           supabase.from('event_email_templates').select('id', { count: 'exact', head: true }).eq('event_id', eventId),
-          supabase.from('event_marketing_links').select('id', { count: 'exact', head: true }).eq('event_id', eventId),
+          supabase.from('event_tracking_links').select('id', { count: 'exact', head: true }).eq('event_id', eventId),
           supabase.from('event_tickets').select('price, currency, quantity_sold, quantity_total').eq('event_id', eventId),
-          supabase.from('event_attendees').select('custom_form_data').eq('event_id', eventId)
+          supabase.from('event_registrations').select('id, form_data, created_at').eq('event_id', eventId),
+          supabase.from('event_attendees').select('id, meta').eq('event_id', eventId)
         ]);
 
         // Calculate Revenue & Ticket Stats
@@ -114,6 +119,11 @@ export function useEventStats(eventId?: string) {
           avgPrice = sold > 0 ? revenue / sold : 0;
         }
 
+        const registrationRows = (registrationsRes.data && Array.isArray(registrationsRes.data) && registrationsRes.data.length)
+          ? registrationsRes.data
+          : (attendeesRes.data || []);
+        const registrationsCount = registrationRows.length || sold;
+
         if (mounted) {
           setBaseStats({
             tickets: ticketsCount.count || 0,
@@ -122,7 +132,7 @@ export function useEventStats(eventId?: string) {
             exhibitors: exhibitorsCount.count || 0,
             forms: formsCount.count || 0,
             marketing: (marketingTemplates.count || 0) + (marketingLinks.count || 0),
-            registrations: attendeesRes.data?.length || sold, // Use actual attendee row count
+            registrations: registrationsCount,
             revenue,
             ticketsSold: sold,
             ticketsTotal: total,
@@ -135,11 +145,18 @@ export function useEventStats(eventId?: string) {
 
         // 4. Smart Audience Insights
         const insights: AudienceInsight[] = [];
-        const attendees = attendeesRes.data || [];
+        const attendees = registrationRows.map((row: any) => ({
+          ...row,
+          __formData: row.form_data ?? row.meta
+        }));
         const totalAttendees = attendees.length;
         
         if (totalAttendees > 0) {
-           const schema = eventData?.registration_form_schema || { fields: [] };
+           const formRows = formsCount.data || [];
+           const registrationForm = formRows.find((f: any) => f.form_type === 'registration')
+             || formRows.find((f: any) => f.is_default)
+             || formRows[0];
+           const schema = registrationForm?.schema || { fields: [] };
            
            // A. Find "Smart" fields (Categorical OR common text fields)
            const smartFields = (schema.fields || []).filter((f: any) => 
@@ -163,7 +180,7 @@ export function useEventStats(eventId?: string) {
              const counts: Record<string, number> = {};
              attendees.forEach((att: any) => {
                 // Try to find the value by ID first, then Label
-                const val = att.custom_form_data?.[priorityField.id] || att.custom_form_data?.[priorityField.label];
+                const val = att.__formData?.[priorityField.id] || att.__formData?.[priorityField.label];
                 if (val && typeof val === 'string' && val.trim() !== '') {
                   const normalizedVal = val.trim();
                   counts[normalizedVal] = (counts[normalizedVal] || 0) + 1;

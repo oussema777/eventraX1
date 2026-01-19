@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -9,17 +9,68 @@ import {
   ChevronLeft,
   ChevronRight,
   MessageSquare,
+  FileText,
   Package,
   Zap,
+  Globe,
   MapPin,
   Clock,
-  TrendingUp,
+  Users,
+  Award,
   Heart,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from 'lucide-react';
+import { toast } from 'sonner@2.0.3';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import { supabase } from '../lib/supabase';
 import { useI18n } from '../i18n/I18nContext';
+import { useMessageThread } from '../hooks/useMessageThread';
+import { useAuth } from '../contexts/AuthContext';
+
+type BusinessProfile = {
+  id: string;
+  company_name: string;
+  logo_url: string;
+  cover_url: string;
+  verification_status: string;
+  address: string;
+  owner_profile_id: string;
+  created_at: string;
+  branding: {
+    rating: number;
+    review_count: number;
+    response_time: string;
+  };
+};
+
+type Offering = {
+  id: string;
+  business_id: string;
+  name: string;
+  description: string;
+  type: string;
+  price: number;
+  currency: string;
+  tags: string[];
+  images: string[];
+  pricing_model: string;
+  delivery_time: string;
+  original_price: number;
+  discount: string;
+  reviews: Array<{
+    id: string;
+    author: string;
+    company: string;
+    rating: number;
+    date: string;
+    text: string;
+    helpful: number;
+  }>;
+  features: Array<{ label: string; description: string } | string>;
+};
+
+const FEATURE_ICONS = [Zap, Package, Shield, Globe, Users, Award];
 
 const escapeHtml = (value: string) =>
   value
@@ -29,205 +80,361 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
-const buildTagline = (description: string, fallback: string) => {
-  const trimmed = description.replace(/\s+/g, ' ').trim();
-  if (!trimmed) return fallback;
-  if (trimmed.length <= 120) return trimmed;
-  return `${trimmed.slice(0, 117)}...`;
+const toNumberOrNull = (value: unknown) => {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const cleaned = value.replace(/[^0-9.]/g, '');
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 };
 
-const buildLongDescription = (description: string | undefined, title: string) => {
-  if (!description) return '';
-  return `<h3>${escapeHtml(title)}</h3><p>${escapeHtml(description)}</p>`;
+const formatPrice = (value: number, currency: string) => {
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency
+    }).format(value);
+  } catch {
+    return `${currency} ${value.toFixed(2)}`;
+  }
 };
 
-const formatPrice = (price: number | string | null | undefined) => {
-  if (price === null || price === undefined || price === '') return null;
-  const numeric = Number(price);
-  if (Number.isNaN(numeric)) return String(price);
-  return numeric.toFixed(2);
+const buildTagline = (description: string | null | undefined, tags: string[]) => {
+  const cleaned = (description || '').replace(/\s+/g, ' ').trim();
+  if (cleaned) {
+    return cleaned.length > 120 ? `${cleaned.slice(0, 117)}...` : cleaned;
+  }
+  if (tags.length) {
+    return `Built for ${tags.slice(0, 3).join(', ')}`;
+  }
+  return 'Built for modern event teams';
 };
 
-const resolveTypeLabel = (
-  type: string | undefined,
-  fallback: string,
-  labels: { product: string; service: string }
+const buildLongDescription = (
+  description: string | null | undefined,
+  tags: string[],
+  copy: {
+    overviewTitle: string;
+    whatYouGetTitle: string;
+    whyItMattersTitle: string;
+    overviewFallback: string;
+    whyItMattersBody: string;
+    fallbackList: string[];
+  }
 ) => {
-  if (!type) return fallback;
-  if (type === 'service') return labels.service;
-  if (type === 'product') return labels.product;
-  return type;
+  const safeDescription = escapeHtml(description || '');
+  const listItems = (tags.length ? tags.slice(0, 6) : copy.fallbackList)
+    .map((item) => `<li>${escapeHtml(item)}</li>`)
+    .join('');
+
+  return `
+    <h3>${escapeHtml(copy.overviewTitle)}</h3>
+    <p>${safeDescription || escapeHtml(copy.overviewFallback)}</p>
+    <h3>${escapeHtml(copy.whatYouGetTitle)}</h3>
+    <ul>${listItems}</ul>
+    <h3>${escapeHtml(copy.whyItMattersTitle)}</h3>
+    <p>${escapeHtml(copy.whyItMattersBody)}</p>
+  `;
 };
 
-const toNumberOrNull = (value: any) => {
-  const numeric = Number(value);
-  return Number.isNaN(numeric) ? null : numeric;
+const resolveTypeLabel = (value: string | null | undefined, t: (key: string) => string) => {
+  if (!value) return t('businessProductPage.types.product');
+  return value === 'service'
+    ? t('businessProductPage.types.service')
+    : t('businessProductPage.types.product');
+};
+
+const buildFeatures = (rawFeatures: any, tags: string[]) => {
+  const features: Array<{ label: string; description: string }> = [];
+
+  if (Array.isArray(rawFeatures)) {
+    rawFeatures.forEach((item) => {
+      if (!item) return;
+      if (typeof item === 'string') {
+        features.push({ label: item, description: `Focused on ${item}` });
+        return;
+      }
+      if (typeof item === 'object' && item.label) {
+        features.push({
+          label: String(item.label),
+          description: item.description ? String(item.description) : 'Tailored to event needs'
+        });
+      }
+    });
+  }
+
+  if (!features.length && tags.length) {
+    tags.slice(0, 6).forEach((tag) => {
+      features.push({ label: tag, description: `Designed around ${tag}` });
+    });
+  }
+
+  if (!features.length) {
+    features.push(
+      { label: 'Dedicated Support', description: 'Responsive guidance from the vendor' },
+      { label: 'Flexible Delivery', description: 'Adapted to your event timelines' },
+      { label: 'Secure Workflow', description: 'Built with data protection in mind' },
+      { label: 'Scalable Execution', description: 'Ready for events of any size' },
+      { label: 'Integration Ready', description: 'Fits into your existing stack' },
+      { label: 'Results Driven', description: 'Focused on measurable outcomes' }
+    );
+  }
+
+  return features.slice(0, 6).map((feature, index) => ({
+    ...feature,
+    icon: FEATURE_ICONS[index % FEATURE_ICONS.length]
+  }));
+};
+
+const computeRating = (rating: number | null, reviews: Array<{ rating: number }>) => {
+  if (rating !== null) return rating;
+  if (!reviews.length) return 0;
+  const total = reviews.reduce((sum, review) => sum + (Number(review.rating) || 0), 0);
+  return Number((total / reviews.length).toFixed(1));
+};
+
+const isVerifiedSeller = (status: string | null | undefined) => {
+  if (!status) return false;
+  const normalized = status.toLowerCase();
+  return ['verified', 'approved', 'validated'].includes(normalized);
+};
+
+const normalizeImages = (images: string[], fallback: string) => {
+  const unique = images.filter(Boolean);
+  if (unique.length) return unique;
+  return fallback ? [fallback] : [];
 };
 
 export default function BusinessProductPage() {
   const navigate = useNavigate();
   const { businessId, productId } = useParams();
-  const { t } = useI18n();
+  const { t, tList } = useI18n();
+  const { user } = useAuth();
+  const { getOrCreateThread, loading: connecting } = useMessageThread();
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isSaved, setIsSaved] = useState(false);
   const [activeTab, setActiveTab] = useState<'description' | 'specifications' | 'reviews'>('description');
-  const [product, setProduct] = useState<any>(null);
+  const [product, setProduct] = useState<Offering | null>(null);
+  const [business, setBusiness] = useState<BusinessProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadOffering = async () => {
-      setIsLoading(true);
-      setNotFound(false);
-      setProduct(null);
-      setSelectedImageIndex(0);
-
+    const fetchProduct = async () => {
       if (!productId) {
-        setNotFound(true);
+        setProduct(null);
+        setBusiness(null);
         setIsLoading(false);
         return;
       }
 
       try {
-        const { data: offering, error } = await supabase
-          .from('business_offerings')
-          .select('*')
-          .eq('id', productId)
-          .maybeSingle();
+        setIsLoading(true);
+        setLoadError(null);
 
-        if (error) throw error;
-
-        if (!offering) {
-          setNotFound(true);
-          return;
+        let offeringQuery = supabase.from('business_offerings').select('*').eq('id', productId);
+        if (businessId) {
+          offeringQuery = offeringQuery.eq('business_id', businessId);
         }
 
-        let businessProfile = null;
-        const targetBusinessId = offering.business_id || businessId;
-        if (targetBusinessId) {
+        const { data: offering, error: offeringError } = await offeringQuery.single();
+        if (offeringError) throw offeringError;
+
+        setProduct(offering);
+
+        const resolvedBusinessId = offering.business_id || businessId;
+        if (resolvedBusinessId) {
           const { data: businessData, error: businessError } = await supabase
             .from('business_profiles')
             .select('*')
-            .eq('id', targetBusinessId)
-            .maybeSingle();
+            .eq('id', resolvedBusinessId)
+            .single();
 
-          if (!businessError) {
-            businessProfile = businessData;
-          }
+          if (businessError) throw businessError;
+          setBusiness(businessData);
+        } else {
+          setBusiness(null);
         }
-
-        const sellerRating = toNumberOrNull(businessProfile?.branding?.rating);
-        const sellerReviewCount = toNumberOrNull(businessProfile?.branding?.review_count);
-        const priceLabel = formatPrice(offering.price);
-        const tags = Array.isArray(offering.tags) ? offering.tags.filter(Boolean) : [];
-        const images = Array.isArray(offering.images) ? offering.images.filter(Boolean) : [];
-        const memberSince = businessProfile?.created_at
-          ? new Date(businessProfile.created_at).getFullYear().toString()
-          : '';
-        const typeLabels = {
-          product: t('businessProductPage.types.product'),
-          service: t('businessProductPage.types.service')
-        };
-        const specifications = [
-          offering.type
-            ? {
-                label: t('businessProductPage.specifications.type'),
-                value: resolveTypeLabel(offering.type, offering.type, typeLabels)
-              }
-            : null,
-          offering.is_unlimited !== null && offering.is_unlimited !== undefined
-            ? {
-                label: t('businessProductPage.specifications.availability'),
-                value: offering.is_unlimited
-                  ? t('businessProductPage.specifications.unlimited')
-                  : t('businessProductPage.specifications.limited')
-              }
-            : null,
-          offering.quantity_total !== null && offering.quantity_total !== undefined
-            ? { label: t('businessProductPage.specifications.quantity'), value: offering.quantity_total.toString() }
-            : null,
-          tags.length > 0
-            ? { label: t('businessProductPage.specifications.tags'), value: tags.join(', ') }
-            : null
-        ].filter(Boolean);
-
-        const sellerId = businessProfile?.id || offering.business_id || businessId || '';
-
-        setProduct({
-          id: offering.id,
-          name: offering.name,
-          type: resolveTypeLabel(offering.type, offering.type || t('businessProductPage.types.product'), typeLabels),
-          tagline: offering.description ? buildTagline(offering.description, '') : '',
-          description: offering.description || '',
-          longDescription: buildLongDescription(offering.description, t('businessProductPage.overview')),
-          price: priceLabel,
-          currency: offering.currency || '',
-          tags,
-          images,
-          rating: sellerRating,
-          reviewCount: sellerReviewCount,
-          specifications,
-          reviews: [],
-          features: [],
-          pricingModel: '',
-          showQuantity: offering.type === 'product' && offering.is_unlimited !== true && offering.quantity_total !== null && offering.quantity_total !== undefined,
-          quantityTotal: offering.quantity_total,
-          seller: {
-            id: sellerId,
-            name: businessProfile?.company_name || t('businessProductPage.seller.fallbackName'),
-            logo: businessProfile?.logo_url || '',
-            location: businessProfile?.address || '',
-            email: businessProfile?.email || '',
-            phone: businessProfile?.phone || '',
-            memberSince,
-            rating: sellerRating,
-            reviewCount: sellerReviewCount
-          },
-          sellerVerified: businessProfile?.verification_status === 'verified',
-          originalPrice: undefined,
-          discount: undefined
-        });
-        setNotFound(false);
-      } catch (err) {
-        console.error('Error loading offering:', err);
+      } catch (error: any) {
+        setLoadError(error?.message || t('businessProductPage.notFound.title'));
+        setProduct(null);
+        setBusiness(null);
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadOffering();
-  }, [productId, businessId]);
+    fetchProduct();
+  }, [businessId, productId, t]);
+
+  const tags = useMemo(
+    () => (Array.isArray(product?.tags) ? product?.tags.filter(Boolean) : []),
+    [product?.tags]
+  );
+
+  const images = useMemo(() => {
+    const raw = Array.isArray(product?.images) ? product?.images : [];
+    const fallback = business?.cover_url || business?.logo_url || '';
+    return normalizeImages(raw, fallback);
+  }, [product?.images, business?.cover_url, business?.logo_url]);
 
   useEffect(() => {
-    if (!product) return;
-    const hasSpecifications = Array.isArray(product.specifications) && product.specifications.length > 0;
-    const hasReviews = Array.isArray(product.reviews) && product.reviews.length > 0;
-    const availableTabs: Array<'description' | 'specifications' | 'reviews'> = ['description'];
-    if (hasSpecifications) availableTabs.push('specifications');
-    if (hasReviews) availableTabs.push('reviews');
-    if (!availableTabs.includes(activeTab)) {
-      setActiveTab('description');
+    if (selectedImageIndex >= images.length) {
+      setSelectedImageIndex(0);
     }
-  }, [product, activeTab]);
+  }, [images.length, selectedImageIndex]);
 
-  if (isLoading && !product) {
+  const longDescriptionCopy = useMemo(
+    () => ({
+      overviewTitle: t('businessProductPage.longDescription.overviewTitle'),
+      whatYouGetTitle: t('businessProductPage.longDescription.whatYouGetTitle'),
+      whyItMattersTitle: t('businessProductPage.longDescription.whyItMattersTitle'),
+      overviewFallback: t('businessProductPage.longDescription.overviewFallback'),
+      whyItMattersBody: t('businessProductPage.longDescription.whyItMattersBody'),
+      fallbackList: tList<string>('businessProductPage.longDescription.fallbackList', [
+        'Tailored solutions for event teams',
+        'Flexible delivery options',
+        'Dedicated support'
+      ])
+    }),
+    [t, tList]
+  );
+
+  const longDescription = useMemo(
+    () => buildLongDescription(product?.description, tags, longDescriptionCopy),
+    [product?.description, tags, longDescriptionCopy]
+  );
+
+  const features = useMemo(
+    () => buildFeatures(product?.features, tags),
+    [product?.features, tags]
+  );
+
+  const reviews = useMemo(() => {
+    const rawReviews = Array.isArray(product?.reviews) ? product?.reviews : [];
+    return rawReviews.map((review, index) => ({
+      id: review.id || `${product?.id || 'review'}-${index}`,
+      author: review.author || t('messages.defaults.user'),
+      company: review.company || '',
+      rating: Number(review.rating) || 0,
+      date: review.date || '',
+      text: review.text || '',
+      helpful: Number(review.helpful) || 0
+    }));
+  }, [product?.reviews, product?.id, t]);
+
+  const ratingValue = useMemo(() => {
+    const brandingRating = toNumberOrNull(business?.branding?.rating);
+    return computeRating(brandingRating, reviews);
+  }, [business?.branding?.rating, reviews]);
+
+  const reviewCount = useMemo(() => {
+    if (reviews.length) return reviews.length;
+    const brandingCount = toNumberOrNull(business?.branding?.review_count);
+    return brandingCount ? Math.max(0, Math.floor(brandingCount)) : 0;
+  }, [reviews.length, business?.branding?.review_count]);
+
+  const ratingBreakdown = useMemo(() => {
+    if (!reviews.length) {
+      return [5, 4, 3, 2, 1].map((stars) => ({ stars, percentage: 0 }));
+    }
+    const totals = reviews.reduce((acc, review) => {
+      const rating = Math.min(5, Math.max(1, Math.round(review.rating || 0)));
+      acc[rating] = (acc[rating] || 0) + 1;
+      return acc;
+    }, {} as Record<number, number>);
+    return [5, 4, 3, 2, 1].map((stars) => ({
+      stars,
+      percentage: Math.round(((totals[stars] || 0) / reviews.length) * 100)
+    }));
+  }, [reviews]);
+
+  const productName = product?.name || t('browseEventsPage.event.untitled');
+  const productTypeLabel = resolveTypeLabel(product?.type, t);
+  const productTagline = buildTagline(product?.description, tags);
+  const pricingModel = product?.pricing_model || '';
+  const currency = product?.currency || 'USD';
+  const priceValue = toNumberOrNull(product?.price);
+  const originalPrice = toNumberOrNull(product?.original_price);
+  const discount = product?.discount;
+  const deliveryTime = product?.delivery_time || t('networking.common.tbd');
+  const sellerResponseTime = business?.branding?.response_time || t('networking.common.tbd');
+  const showQuantity = (product?.type || '').toLowerCase() === 'product';
+
+  const handlePreviousImage = () => {
+    if (!images.length) return;
+    setSelectedImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  };
+
+  const handleNextImage = () => {
+    if (!images.length) return;
+    setSelectedImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  };
+
+  const handleContactSeller = async () => {
+    if (!business?.owner_profile_id) {
+      toast.error(t('businessProfilePage.errors.noOwner'));
+      return;
+    }
+    if (business.owner_profile_id === user?.id) {
+      toast.error(t('businessProfilePage.errors.contactSelf'));
+      return;
+    }
+    const threadId = await getOrCreateThread(business.owner_profile_id);
+    if (threadId) {
+      navigate('/messages', { state: { threadId } });
+    }
+  };
+
+  const handleRequestQuote = async () => {
+    await handleContactSeller();
+  };
+
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0B2641] flex items-center justify-center text-white">
-        {t('businessProductPage.loading')}
+      <div style={{ minHeight: '100vh', backgroundColor: '#0B2641' }}>
+        <NavbarLoggedIn />
+        <div className="flex items-center justify-center" style={{ minHeight: '70vh' }}>
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="animate-spin text-[#0684F5]" size={40} />
+            <p style={{ color: '#94A3B8' }}>{t('businessProductPage.loading')}</p>
+          </div>
+        </div>
       </div>
     );
   }
 
-  if (!product || notFound) {
+  if (!product || !business) {
     return (
-      <div className="min-h-screen bg-[#0B2641] flex items-center justify-center">
+      <div
+        style={{
+          minHeight: '100vh',
+          backgroundColor: '#0B2641',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+      >
         <NavbarLoggedIn />
-        <div className="text-center p-10">
-          <h1 className="text-2xl font-bold text-white mb-4">{t('businessProductPage.notFound.title')}</h1>
+        <div style={{ textAlign: 'center', color: '#FFFFFF', padding: '40px' }}>
+          <h1 style={{ fontSize: '24px', marginBottom: '16px' }}>{t('businessProductPage.notFound.title')}</h1>
+          {loadError && (
+            <p style={{ color: '#94A3B8', marginBottom: '16px' }}>{loadError}</p>
+          )}
           <button
             onClick={() => navigate('/b2b-marketplace')}
-            className="px-6 py-3 bg-[#00D4D4] hover:bg-[#00B8B8] text-white font-semibold rounded-lg transition-colors"
+            style={{
+              padding: '12px 24px',
+              backgroundColor: '#0684F5',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer'
+            }}
           >
             {t('businessProductPage.notFound.back')}
           </button>
@@ -236,541 +443,956 @@ export default function BusinessProductPage() {
     );
   }
 
-  const handlePreviousImage = () => {
-    if (!product.images?.length) return;
-    setSelectedImageIndex((prev) => (prev === 0 ? product.images.length - 1 : prev - 1));
-  };
-
-  const handleNextImage = () => {
-    if (!product.images?.length) return;
-    setSelectedImageIndex((prev) => (prev === product.images.length - 1 ? 0 : prev + 1));
-  };
-
-  const hasImages = Array.isArray(product.images) && product.images.length > 0;
-  const hasTags = Array.isArray(product.tags) && product.tags.length > 0;
-  const hasRating = product.rating !== null && product.rating !== undefined;
-  const hasReviewCount = product.reviewCount !== null && product.reviewCount !== undefined;
-  const hasSpecifications = Array.isArray(product.specifications) && product.specifications.length > 0;
-  const hasReviews = Array.isArray(product.reviews) && product.reviews.length > 0;
-  const hasFeatures = Array.isArray(product.features) && product.features.length > 0;
-  const contactPriceLabel = t('businessProductPage.pricing.contact');
-  const priceLabel = product.price ? product.price : contactPriceLabel;
-  const showCurrency = !!product.currency;
-  const showPricingModel = !!product.pricingModel;
-  const showQuantity = !!product.showQuantity;
-  const showDeliveryTime = !!product.deliveryTime;
-  const showSellerLocation = !!product.seller?.location;
-  const ratingValue = hasRating ? Math.floor(product.rating) : 0;
-  const showSellerResponse = !!product.seller?.responseTime;
-  const showSellerMemberSince = !!product.seller?.memberSince;
-  const showSellerMeta = showSellerResponse || showSellerMemberSince;
-  const tabLabels: Record<'description' | 'specifications' | 'reviews', string> = {
-    description: t('businessProductPage.tabs.description'),
-    specifications: t('businessProductPage.tabs.specifications'),
-    reviews: t('businessProductPage.tabs.reviews')
-  };
-  const availableTabs: Array<'description' | 'specifications' | 'reviews'> = [
-    'description',
-    ...(hasSpecifications ? (['specifications'] as const) : []),
-    ...(hasReviews ? (['reviews'] as const) : [])
-  ];
-
   return (
-    <div className="min-h-screen bg-[#0B2641] text-white font-sans business-product-page">
+    <div className="product-page" style={{ minHeight: '100vh', backgroundColor: '#0B2641' }}>
+      <NavbarLoggedIn />
+
       <style>{`
-        @media (max-width: 900px) {
-          .business-product-page .product-breadcrumb {
-            flex-wrap: wrap;
-            row-gap: 8px;
+        @media (max-width: 1024px) {
+          .product-page__content {
+            grid-template-columns: 1fr !important;
+            min-height: auto !important;
           }
-          .business-product-page .product-tabs {
-            flex-wrap: wrap;
-          }
-          .business-product-page .product-tabs button {
-            padding: 12px 16px;
-          }
-          .business-product-page .product-thumbnails {
-            gap: 12px;
-          }
-          .business-product-page .product-thumbnail {
-            width: 72px;
-          }
-          .business-product-page .product-action-card {
-            padding: 20px;
-          }
-          .business-product-page .product-seller-card {
-            padding: 20px;
+          .product-page__gallery {
+            position: static !important;
           }
         }
 
-        @media (max-width: 600px) {
-          .business-product-page .product-title {
-            font-size: 28px;
+        @media (max-width: 768px) {
+          .product-page__content {
+            padding: 16px !important;
+            gap: 32px !important;
           }
-          .business-product-page .product-price {
-            font-size: 36px;
+          .product-page__breadcrumb {
+            flex-wrap: wrap;
+            row-gap: 6px;
           }
-          .business-product-page .product-thumbnail {
-            width: 64px;
+          .product-page__main-image {
+            height: 360px !important;
           }
-          .business-product-page .seller-meta-grid {
-            grid-template-columns: 1fr;
+          .product-page__thumbs {
+            grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)) !important;
+          }
+          .product-page__cta {
+            flex-direction: column !important;
+          }
+          .product-page__cta button {
+            width: 100% !important;
+          }
+          .product-page__secondary {
+            flex-direction: column !important;
+          }
+          .product-page__secondary button {
+            width: 100% !important;
+          }
+          .product-page__features-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .product-page__reviews-summary {
+            flex-direction: column !important;
+            align-items: stretch !important;
+          }
+          .product-page__tabs {
+            margin-bottom: 24px !important;
+          }
+          .product-page__tablist {
+            overflow-x: auto;
+            white-space: nowrap;
+          }
+          .product-page__tablist button {
+            flex: 0 0 auto;
+          }
+          .product-page__seller-card .flex.items-start {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .product-page__main-image {
+            height: 280px !important;
+          }
+          .product-page__thumbs button {
+            height: 72px !important;
+          }
+          .product-page__seller-card {
+            padding: 16px !important;
           }
         }
       `}</style>
-      <NavbarLoggedIn />
-      
-      {/* Breadcrumb - Polished */}
-      <div className="max-w-7xl mx-auto px-6 py-8" style={{ marginTop: '72px' }}>
-        <nav className="flex items-center gap-3 text-sm text-slate-400 product-breadcrumb">
-          <button 
+
+      {/* Breadcrumb Navigation */}
+      <div
+        style={{
+          maxWidth: '1400px',
+          margin: '0 auto',
+          padding: '24px 20px 16px'
+        }}
+      >
+        <div className="product-page__breadcrumb flex items-center gap-2" style={{ fontSize: '14px', color: '#94A3B8' }}>
+          <button
             onClick={() => navigate('/b2b-marketplace')}
-            className="hover:text-[#00D4D4] transition-colors flex items-center gap-1.5"
+            className="flex items-center gap-2 transition-colors"
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#94A3B8',
+              cursor: 'pointer'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = '#0684F5'}
+            onMouseLeave={(e) => e.currentTarget.style.color = '#94A3B8'}
           >
-            <ArrowLeft size={14} />
+            <ArrowLeft size={16} />
             {t('businessProductPage.breadcrumb.marketplace')}
           </button>
-          <span className="opacity-30">/</span>
-          <button 
-            onClick={() => {
-              if (businessId) {
-                navigate(`/business/${businessId}`);
-                return;
-              }
-              if (product.seller.id) {
-                navigate(`/business/${product.seller.id}`);
-                return;
-              }
-              navigate('/business-profile');
+          <span>/</span>
+          <button
+            onClick={() => navigate(`/business/${business.id}`)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#94A3B8',
+              cursor: 'pointer'
             }}
-            className="hover:text-[#00D4D4] transition-colors"
+            onMouseEnter={(e) => e.currentTarget.style.color = '#0684F5'}
+            onMouseLeave={(e) => e.currentTarget.style.color = '#94A3B8'}
           >
-            {product.seller.name}
+            {business.company_name || t('businessProductPage.seller.fallbackName')}
           </button>
-          <span className="opacity-30">/</span>
-          <span className="text-slate-200 font-medium">{product.name}</span>
-        </nav>
+          <span>/</span>
+          <span style={{ color: '#E2E8F0' }}>{productName}</span>
+        </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-6 pb-24">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-          
-          {/* LEFT SIDE: Visuals & Core Content (8 Cols) */}
-          <div className="lg:col-span-8 space-y-12">
+      {/* Main Content - Split Screen Layout */}
+      <div
+        className="product-page__content"
+        style={{
+          maxWidth: '1400px',
+          margin: '0 auto',
+          padding: '20px',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '48px',
+          minHeight: 'calc(100vh - 200px)'
+        }}
+      >
+        {/* LEFT SIDE: Image Gallery */}
+        <div className="product-page__gallery" style={{ position: 'sticky', top: '100px', height: 'fit-content' }}>
+          {/* Main Image Display */}
+          <div
+            className="product-page__main-image"
+            style={{
+              width: '100%',
+              height: '600px',
+              backgroundColor: '#152C48',
+              borderRadius: '16px',
+              overflow: 'hidden',
+              position: 'relative',
+              marginBottom: '16px',
+              border: '1px solid rgba(255,255,255,0.1)'
+            }}
+          >
+            {images.length ? (
+              <img
+                src={images[selectedImageIndex]}
+                alt={productName}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover'
+                }}
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-[#94A3B8]">
+                {t('businessProductPage.pricing.contact')}
+              </div>
+            )}
             
-            {/* Image Showcase */}
-            <div className="space-y-4">
-              <div className="relative aspect-video bg-[#1E293B] rounded-2xl overflow-hidden border border-white/5 group">
-                {hasImages ? (
-                  <img
-                    src={product.images[selectedImageIndex]}
-                    alt={product.name}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-slate-500">
-                    <Package size={56} />
-                  </div>
-                )}
-                
-                {/* Navigation */}
-                {hasImages && product.images.length > 1 && (
-                  <>
-                    <button
-                      onClick={handlePreviousImage}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-[#00D4D4] hover:border-[#00D4D4]"
-                    >
-                      <ChevronLeft size={24} />
-                    </button>
-                    <button
-                      onClick={handleNextImage}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-[#00D4D4] hover:border-[#00D4D4]"
-                    >
-                      <ChevronRight size={24} />
-                    </button>
-                  </>
-                )}
+            {/* Image Navigation Arrows */}
+            {images.length > 1 && (
+              <>
+                <button
+                  onClick={handlePreviousImage}
+                  className="transition-all"
+                  style={{
+                    position: 'absolute',
+                    left: '16px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(11, 38, 65, 0.9)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    color: '#FFFFFF',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backdropFilter: 'blur(10px)'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.9)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(11, 38, 65, 0.9)'}
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                <button
+                  onClick={handleNextImage}
+                  className="transition-all"
+                  style={{
+                    position: 'absolute',
+                    right: '16px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(11, 38, 65, 0.9)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    color: '#FFFFFF',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backdropFilter: 'blur(10px)'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.9)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(11, 38, 65, 0.9)'}
+                >
+                  <ChevronRight size={24} />
+                </button>
+              </>
+            )}
 
-                {/* Badges Overlay */}
-                <div className="absolute top-4 left-4 flex gap-2">
-                  <span className="px-3 py-1.5 bg-[#00D4D4]/90 backdrop-blur-sm text-black text-xs font-bold rounded-lg tracking-wider uppercase">
-                    {product.type}
-                  </span>
-                  {product.discount && (
-                    <span className="px-3 py-1.5 bg-[#FF5722] text-white text-xs font-bold rounded-lg tracking-wider uppercase">
-                      {product.discount}
-                    </span>
-                  )}
-                </div>
-
-                {hasImages && (
-                  <div className="absolute bottom-4 right-4 px-3 py-1 bg-black/60 backdrop-blur-md rounded-full text-xs font-medium border border-white/10">
-                    {selectedImageIndex + 1} / {product.images.length}
-                  </div>
-                )}
-              </div>
-
-              {/* Thumbnails */}
-              {hasImages && product.images.length > 1 && (
-                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide product-thumbnails">
-                  {product.images.map((img: string, idx: number) => (
-                    <button
-                      key={idx}
-                      onClick={() => setSelectedImageIndex(idx)}
-                      className={`relative w-24 aspect-[4/3] rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 product-thumbnail ${selectedImageIndex === idx ? 'border-[#00D4D4] scale-105' : 'border-transparent opacity-50 hover:opacity-100'}`}
-                    >
-                      <img src={img} className="w-full h-full object-cover" />
-                    </button>
-                  ))}
-                </div>
-              )}
+            {/* Image Counter */}
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '16px',
+                right: '16px',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(11, 38, 65, 0.9)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                backdropFilter: 'blur(10px)'
+              }}
+            >
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>
+                {selectedImageIndex + 1} / {images.length}
+              </span>
             </div>
 
-            {/* Product Header Info */}
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white leading-tight product-title">
-                  {product.name}
-                </h1>
-                {product.tagline && (
-                  <p className="text-xl text-slate-400 font-medium italic">
-                    "{product.tagline}"
-                  </p>
-                )}
+            {/* Discount Badge */}
+            {discount && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '16px',
+                  left: '16px',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                }}
+              >
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF' }}>
+                  {discount}
+                </span>
               </div>
+            )}
+          </div>
 
-              <div className="flex flex-wrap items-center gap-6 py-4 border-y border-white/5">
-                {hasRating && (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center text-[#F59E0B]">
-                        {[...Array(5)].map((_, i) => (
-                          <Star key={i} size={18} fill={i < ratingValue ? 'currentColor' : 'none'} className={i >= ratingValue ? 'opacity-30' : ''} />
-                        ))}
-                      </div>
-                      <span className="text-lg font-bold">{product.rating}</span>
-                      {hasReviewCount && (
-                        <span className="text-slate-500">
-                          {t('businessProductPage.reviews.count', { count: product.reviewCount })}
-                        </span>
-                      )}
-                    </div>
-                    <div className="h-4 w-px bg-white/10 hidden md:block" />
-                  </>
-                )}
-                <div className="flex items-center gap-2 text-slate-300">
-                  <Package size={18} className="text-[#00D4D4]" />
-                  <span className="font-medium">
-                    {t('businessProductPage.labels.id')}: {product.id}
-                  </span>
-                </div>
-                <div className="h-4 w-px bg-white/10 hidden md:block" />
-                {product.sellerVerified && (
-                  <div className="flex items-center gap-2 text-[#10B981]">
-                    <Shield size={18} />
-                    <span className="font-semibold">{t('businessProductPage.labels.verified')}</span>
-                  </div>
-                )}
-              </div>
+          {/* Thumbnail Gallery */}
+          <div
+            className="product-page__thumbs"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${Math.min(images.length || 1, 5)}, 1fr)`,
+              gap: '12px'
+            }}
+          >
+            {images.map((image, index) => (
+              <button
+                key={image}
+                onClick={() => setSelectedImageIndex(index)}
+                className="transition-all"
+                style={{
+                  width: '100%',
+                  height: '100px',
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                  border: selectedImageIndex === index ? '2px solid #0684F5' : '2px solid rgba(255,255,255,0.1)',
+                  cursor: 'pointer',
+                  padding: 0,
+                  backgroundColor: '#152C48',
+                  opacity: selectedImageIndex === index ? 1 : 0.6
+                }}
+                onMouseEnter={(e) => {
+                  if (selectedImageIndex !== index) {
+                    e.currentTarget.style.opacity = '0.8';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (selectedImageIndex !== index) {
+                    e.currentTarget.style.opacity = '0.6';
+                  }
+                }}
+              >
+                <img
+                  src={image}
+                  alt={`${productName} ${index + 1}`}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover'
+                  }}
+                />
+              </button>
+            ))}
+          </div>
+        </div>
 
-              {hasTags && (
-                <div className="flex flex-wrap gap-2">
-                  {product.tags.map((tag: string) => (
-                    <span key={tag} className="px-3 py-1 bg-[#1E293B] text-slate-300 rounded-full text-xs font-semibold border border-white/10">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
+        {/* RIGHT SIDE: Product Information */}
+        <div className="product-page__details">
+          {/* Product Header */}
+          <div style={{ marginBottom: '24px' }}>
+            {/* Type Badge */}
+            <div
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg"
+              style={{
+                backgroundColor: 'rgba(6, 132, 245, 0.1)',
+                border: '1px solid rgba(6, 132, 245, 0.3)',
+                marginBottom: '12px'
+              }}
+            >
+              <Package size={14} style={{ color: '#0684F5' }} />
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#0684F5' }}>
+                {productTypeLabel}
+              </span>
             </div>
 
-            {/* Tabs Section */}
-            <div className="space-y-8">
-              <div className="flex border-b border-white/10 product-tabs">
-                {availableTabs.map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`px-8 py-4 text-sm font-bold tracking-wide uppercase transition-all relative ${activeTab === tab ? 'text-[#00D4D4]' : 'text-slate-500 hover:text-slate-300'}`}
-                  >
-                    {tabLabels[tab]}
-                    {activeTab === tab && (
-                      <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#00D4D4] rounded-t-full shadow-[0_-4px_12px_rgba(0,212,212,0.4)]" />
-                    )}
-                  </button>
-                ))}
+            {/* Product Name */}
+            <h1 style={{ fontSize: '36px', fontWeight: 700, color: '#FFFFFF', marginBottom: '12px', lineHeight: 1.2 }}>
+              {productName}
+            </h1>
+
+            {/* Tagline */}
+            <p style={{ fontSize: '18px', color: '#94A3B8', marginBottom: '20px', lineHeight: 1.5 }}>
+              {productTagline}
+            </p>
+
+            {/* Rating & Reviews */}
+            <div className="flex items-center gap-4 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={`${product?.id || 'rating'}-${i}`}
+                      size={18}
+                      style={{
+                        color: i < Math.floor(ratingValue) ? '#F59E0B' : '#475569',
+                        fill: i < Math.floor(ratingValue) ? '#F59E0B' : 'none'
+                      }}
+                    />
+                  ))}
+                </div>
+                <span style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF' }}>
+                  {ratingValue.toFixed(1)}
+                </span>
+                <span style={{ fontSize: '14px', color: '#94A3B8' }}>
+                  {t('businessProductPage.reviews.count', { count: reviewCount })}
+                </span>
               </div>
+            </div>
 
-              <div className="min-h-[300px]">
-                {activeTab === 'description' && (
-                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="prose prose-invert max-w-none prose-h3:text-2xl prose-h3:font-bold prose-h3:text-[#00D4D4] prose-p:text-slate-300 prose-li:text-slate-300 whitespace-pre-wrap">
-                      {product.description && (
-                        <p className="text-lg leading-relaxed mb-8">{product.description}</p>
-                      )}
-                      {product.longDescription && (
-                        <div dangerouslySetInnerHTML={{ __html: product.longDescription }} />
-                      )}
-                    </div>
-
-                    {hasFeatures && (
-                      <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {product.features.map((feature: any, idx: number) => {
-                          const Icon = feature.icon;
-                          return (
-                            <div key={idx} className="p-6 bg-[#1E293B]/50 rounded-2xl border border-white/5 hover:border-[#00D4D4]/30 transition-all group">
-                              <div className="w-12 h-12 rounded-xl bg-[#00D4D4]/10 flex items-center justify-center mb-4 text-[#00D4D4] group-hover:scale-110 transition-transform">
-                                <Icon size={24} />
-                              </div>
-                              <h4 className="text-lg font-bold mb-2">{feature.label}</h4>
-                              <p className="text-slate-400 text-sm leading-relaxed">{feature.description}</p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {activeTab === 'specifications' && hasSpecifications && (
-                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {product.specifications.map((spec: any, idx: number) => (
-                      <div key={idx} className="flex justify-between items-center p-4 bg-[#1E293B]/30 rounded-xl border border-white/5">
-                        <span className="text-slate-500 font-medium">{spec.label}</span>
-                        <span className="text-white font-bold">{spec.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {activeTab === 'reviews' && hasReviews && (
-                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
-                    {/* Reviews Summary Header */}
-                    <div className="p-8 bg-gradient-to-br from-[#1E293B] to-[#0B2641] rounded-3xl border border-white/10 flex flex-col md:flex-row gap-10 items-center">
-                      <div className="text-center md:border-r border-white/10 md:pr-10">
-                        <div className="text-6xl font-black text-white mb-2">{hasRating ? product.rating : 'N/A'}</div>
-                        <div className="flex items-center justify-center gap-1 text-[#F59E0B] mb-2">
-                          {[...Array(5)].map((_, i) => (
-                            <Star key={i} size={20} fill={i < ratingValue ? 'currentColor' : 'none'} className={i >= ratingValue ? 'opacity-30' : ''} />
-                          ))}
-                        </div>
-                        <div className="text-slate-400 text-sm font-medium">
-                          {t('businessProductPage.reviews.globalSatisfaction')}
-                        </div>
-                      </div>
-                      <div className="flex-1 space-y-3 w-full">
-                        {[5, 4, 3, 2, 1].map((stars) => {
-                          const percent = stars === 5 ? 85 : stars === 4 ? 12 : 3;
-                          return (
-                            <div key={stars} className="flex items-center gap-4">
-                              <span className="text-xs font-bold text-slate-500 w-12">
-                                {t('businessProductPage.reviews.starsLabel', { count: stars })}
-                              </span>
-                              <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
-                                <div className="h-full bg-[#00D4D4]" style={{ width: `${percent}%` }} />
-                              </div>
-                              <span className="text-xs font-bold text-slate-400 w-10 text-right">{percent}%</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Review Cards */}
-                    {product.reviews.map((review: any) => (
-                      <div key={review.id} className="p-6 bg-[#1E293B]/20 rounded-2xl border border-white/5 space-y-4">
-                        <div className="flex justify-between items-start">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-[#00D4D4]/20 flex items-center justify-center text-[#00D4D4] font-bold">
-                              {review.author[0]}
-                            </div>
-                            <div>
-                              <div className="font-bold">{review.author}</div>
-                              <div className="text-xs text-slate-500 uppercase tracking-widest">{review.company}</div>
-                            </div>
-                          </div>
-                          <div className="text-xs text-slate-600 font-medium">{review.date}</div>
-                        </div>
-                        <div className="flex text-[#F59E0B]">
-                          {[...Array(5)].map((_, i) => <Star key={i} size={14} fill={i < review.rating ? 'currentColor' : 'none'} className={i >= review.rating ? 'opacity-20' : ''} />)}
-                        </div>
-                        <p className="text-slate-300 leading-relaxed">{review.text}</p>
-                        <div className="pt-2">
-                          <button className="text-xs font-bold text-[#00D4D4] hover:underline flex items-center gap-2">
-                            <TrendingUp size={14} />
-                            {t('businessProductPage.reviews.helpful', { count: review.helpful })}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+            {/* Tags */}
+            <div className="flex flex-wrap gap-2">
+              {tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="px-3 py-1 rounded-full"
+                  style={{
+                    backgroundColor: 'rgba(74, 124, 109, 0.15)',
+                    border: '1px solid rgba(74, 124, 109, 0.3)',
+                    color: '#4A7C6D',
+                    fontSize: '13px',
+                    fontWeight: 500
+                  }}
+                >
+                  {tag}
+                </span>
+              ))}
             </div>
           </div>
 
-          {/* RIGHT SIDE: Pricing & Seller (4 Cols) */}
-          <div className="lg:col-span-4 space-y-8 lg:sticky lg:top-24 self-start">
-            
-            {/* Action Card */}
-            <div className="p-8 bg-[#1E293B] rounded-3xl border border-white/10 shadow-2xl space-y-8 product-action-card">
-              <div className="space-y-1">
-                <div className="flex items-baseline gap-2">
-                  {showCurrency && (
-                    <span className="text-sm font-bold text-[#00D4D4] uppercase tracking-widest">{product.currency}</span>
-                  )}
-                  <span className="text-5xl font-black text-white product-price">{priceLabel}</span>
-                </div>
-                {product.originalPrice && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg text-slate-500 line-through">{product.originalPrice}</span>
-                    <span className="text-sm font-bold text-[#FF5722]">{product.discount}</span>
-                  </div>
-                )}
-                {showPricingModel && <p className="text-slate-400 font-medium">{product.pricingModel}</p>}
+          {/* Pricing Section */}
+          <div
+            className="product-page__pricing"
+            style={{
+              padding: '24px',
+              backgroundColor: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '12px',
+              marginBottom: '24px'
+            }}
+          >
+            <div className="flex items-end gap-3 mb-2">
+              <div style={{ fontSize: '42px', fontWeight: 700, color: '#FFFFFF' }}>
+                {priceValue !== null ? formatPrice(priceValue, currency) : t('businessProductPage.pricing.contact')}
               </div>
-
-              <div className="space-y-4">
-                {showQuantity && (
-                  <div className="space-y-3">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-                      {t('businessProductPage.pricing.quantityLabel')}
-                    </label>
-                    <div className="flex items-center bg-black/20 rounded-xl p-1 border border-white/5">
-                      <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 flex items-center justify-center hover:text-[#00D4D4] transition-colors">-</button>
-                      <input 
-                        type="number" 
-                        value={quantity} 
-                        onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                        className="flex-1 bg-transparent text-center font-bold text-lg outline-none"
-                      />
-                      <button onClick={() => setQuantity(quantity + 1)} className="w-10 h-10 flex items-center justify-center hover:text-[#00D4D4] transition-colors">+</button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-3 pt-4">
-                  <button className="w-full h-14 bg-[#FF5722] hover:bg-[#E64A19] text-white font-black text-lg rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_8px_24px_rgba(255,87,34,0.3)] flex items-center justify-center gap-3">
-                    <Zap size={20} />
-                    {t('businessProductPage.actions.requestQuote')}
-                  </button>
-                  <button className="w-full h-14 bg-[#00D4D4]/10 hover:bg-[#00D4D4]/20 border border-[#00D4D4] text-[#00D4D4] font-bold rounded-xl transition-all flex items-center justify-center gap-3">
-                    <MessageSquare size={20} />
-                    {t('businessProductPage.actions.messageSeller')}
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => setIsSaved(!isSaved)}
-                  className={`flex-1 h-12 rounded-xl border transition-all flex items-center justify-center gap-2 font-bold text-sm ${isSaved ? 'bg-[#D5006D]/10 border-[#D5006D] text-[#D5006D]' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'}`}
-                >
-                  <Heart size={18} fill={isSaved ? 'currentColor' : 'none'} />
-                  {isSaved ? t('businessProductPage.actions.saved') : t('businessProductPage.actions.wishlist')}
-                </button>
-                <button className="flex-1 h-12 bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition-all flex items-center justify-center gap-2 font-bold text-sm">
-                  <Share2 size={18} />
-                  {t('businessProductPage.actions.share')}
-                </button>
-              </div>
-
-              {(showDeliveryTime || showSellerLocation) && (
-                <div className="pt-6 border-t border-white/5 space-y-4">
-                  {showDeliveryTime && (
-                    <div className="flex items-center gap-3 text-xs font-bold text-slate-500">
-                      <Clock size={16} className="text-[#00D4D4]" />
-                      <span>{t('businessProductPage.labels.deliveryTime', { value: product.deliveryTime })}</span>
-                    </div>
-                  )}
-                  {showSellerLocation && (
-                    <div className="flex items-center gap-3 text-xs font-bold text-slate-500">
-                      <MapPin size={16} className="text-[#00D4D4]" />
-                      <span>{t('businessProductPage.labels.shipsFrom', { value: product.seller.location })}</span>
-                    </div>
-                  )}
+              {originalPrice !== null && originalPrice > 0 && (
+                <div style={{ fontSize: '24px', color: '#64748B', textDecoration: 'line-through', marginBottom: '8px' }}>
+                  {formatPrice(originalPrice, currency)}
                 </div>
               )}
             </div>
+            <p style={{ fontSize: '14px', color: '#94A3B8', marginBottom: '20px' }}>
+              {pricingModel ? `${currency} ${pricingModel}` : currency}
+            </p>
 
-            {/* Seller Quick Card */}
-            <div className="p-6 bg-[#1E293B]/50 rounded-3xl border border-white/5 space-y-6 product-seller-card">
-              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-                {t('businessProductPage.seller.managedBy')}
-              </h3>
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  {product.seller.logo ? (
-                    <img src={product.seller.logo} className="w-16 h-16 rounded-2xl object-cover border-2 border-[#00D4D4]" />
-                  ) : (
-                    <div className="w-16 h-16 rounded-2xl border-2 border-[#00D4D4] bg-[#0B2641] flex items-center justify-center text-sm font-bold text-[#00D4D4]">
-                      {product.seller.name?.[0] || 'S'}
-                    </div>
-                  )}
-                  {product.sellerVerified && (
-                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-[#10B981] rounded-full flex items-center justify-center text-white border-4 border-[#1E293B]">
-                      <Check size={12} strokeWidth={4} />
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <div className="font-black text-xl">{product.seller.name}</div>
-                  {hasRating && (
-                    <div className="flex items-center gap-2 text-[#F59E0B] text-sm">
-                      <Star size={14} fill="currentColor" />
-                      <span className="font-bold">{product.seller.rating}</span>
-                      {hasReviewCount && (
-                        <span className="text-slate-500">
-                          {t('businessProductPage.seller.deals', { count: product.seller.reviewCount })}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
+            {/* Quantity Selector (if applicable) */}
+            {showQuantity && (
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ fontSize: '14px', fontWeight: 600, color: '#E2E8F0', display: 'block', marginBottom: '8px' }}>
+                  {t('businessProductPage.pricing.licensesLabel')}
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={quantity}
+                  onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                  style={{
+                    width: '100px',
+                    padding: '10px',
+                    backgroundColor: '#152C48',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: '8px',
+                    color: '#FFFFFF',
+                    fontSize: '14px'
+                  }}
+                />
               </div>
-              {showSellerMeta && (
-                <div className="grid grid-cols-2 gap-4 seller-meta-grid">
-                  {showSellerResponse && (
-                    <div className="p-3 bg-black/20 rounded-xl text-center">
-                      <div className="text-xs text-slate-500 font-bold mb-1 uppercase tracking-tighter">
-                        {t('businessProductPage.seller.response')}
-                      </div>
-                      <div className="font-bold text-white tracking-tight">{product.seller.responseTime}</div>
-                    </div>
-                  )}
-                  {showSellerMemberSince && (
-                    <div className="p-3 bg-black/20 rounded-xl text-center">
-                      <div className="text-xs text-slate-500 font-bold mb-1 uppercase tracking-tighter">
-                        {t('businessProductPage.seller.memberSince')}
-                      </div>
-                      <div className="font-bold text-white tracking-tight">{product.seller.memberSince}</div>
-                    </div>
-                  )}
-                </div>
-              )}
-              <button 
-                onClick={() => {
-                  if (businessId) {
-                    navigate(`/business/${businessId}`);
-                    return;
-                  }
-                  if (product.seller.id) {
-                    navigate(`/business/${product.seller.id}`);
-                    return;
-                  }
-                  navigate('/business-profile');
+            )}
+
+            {/* CTA Buttons */}
+            <div className="product-page__cta" style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+              <button
+                onClick={handleRequestQuote}
+                className="flex-1 transition-all"
+                style={{
+                  padding: '16px',
+                  backgroundColor: '#0684F5',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontSize: '16px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
                 }}
-                className="w-full py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all border border-white/10 flex items-center justify-center gap-2 group"
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0570D6'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0684F5'}
+                disabled={connecting}
               >
-                {t('businessProductPage.seller.viewProfile')}
-                <ExternalLink size={16} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                <FileText size={20} />
+                {t('businessProductPage.actions.requestQuote')}
+              </button>
+              <button
+                onClick={handleContactSeller}
+                className="flex-1 transition-all"
+                style={{
+                  padding: '16px',
+                  backgroundColor: 'rgba(6, 132, 245, 0.1)',
+                  color: '#0684F5',
+                  border: '1px solid #0684F5',
+                  borderRadius: '10px',
+                  fontSize: '16px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.1)';
+                }}
+                disabled={connecting}
+              >
+                <MessageSquare size={20} />
+                {t('businessProductPage.actions.messageSeller')}
               </button>
             </div>
 
+            {/* Secondary Actions */}
+            <div className="product-page__secondary" style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => setIsSaved(!isSaved)}
+                className="flex-1 transition-all"
+                style={{
+                  padding: '12px',
+                  backgroundColor: isSaved ? 'rgba(6, 132, 245, 0.1)' : 'rgba(255,255,255,0.05)',
+                  color: isSaved ? '#0684F5' : '#94A3B8',
+                  border: `1px solid ${isSaved ? '#0684F5' : 'rgba(255,255,255,0.2)'}`,
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+              >
+                {isSaved ? <Heart size={18} fill="#0684F5" /> : <Heart size={18} />}
+                {isSaved ? t('businessProductPage.actions.saved') : t('businessProductPage.actions.wishlist')}
+              </button>
+              <button
+                className="flex-1 transition-all"
+                style={{
+                  padding: '12px',
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  color: '#94A3B8',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)';
+                  e.currentTarget.style.color = '#FFFFFF';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
+                  e.currentTarget.style.color = '#94A3B8';
+                }}
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(window.location.href);
+                    toast.success(t('businessProductPage.toasts.linkCopied'));
+                  } catch {
+                    toast.error(t('businessProductPage.toasts.copyFailed'));
+                  }
+                }}
+              >
+                <Share2 size={18} />
+                {t('businessProductPage.actions.share')}
+              </button>
+            </div>
+
+            {/* Trust Indicators */}
+            <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+              <div className="flex items-center gap-4 text-sm">
+                {isVerifiedSeller(business.verification_status) && (
+                  <div className="flex items-center gap-2">
+                    <Shield size={16} style={{ color: '#10B981' }} />
+                    <span style={{ fontSize: '13px', color: '#10B981' }}>
+                      {t('businessProductPage.seller.verified')}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Clock size={16} style={{ color: '#94A3B8' }} />
+                  <span style={{ fontSize: '13px', color: '#94A3B8' }}>{deliveryTime}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Seller Information Card */}
+          <div
+            className="product-page__seller-card"
+            style={{
+              padding: '20px',
+              backgroundColor: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '12px',
+              marginBottom: '32px'
+            }}
+          >
+            <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#E2E8F0', marginBottom: '16px' }}>
+              {t('businessProductPage.seller.about')}
+            </h3>
+            <div className="flex items-start gap-4">
+              <img
+                src={business.logo_url || business.cover_url || ''}
+                alt={business.company_name || t('businessProductPage.seller.fallbackName')}
+                style={{
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  border: '2px solid rgba(6, 132, 245, 0.3)'
+                }}
+              />
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <h4 style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF' }}>
+                    {business.company_name || t('businessProductPage.seller.fallbackName')}
+                  </h4>
+                  {isVerifiedSeller(business.verification_status) && (
+                    <Check size={16} style={{ color: '#10B981' }} />
+                  )}
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-1">
+                    <Star size={14} style={{ color: '#F59E0B', fill: '#F59E0B' }} />
+                    <span style={{ fontSize: '13px', color: '#94A3B8' }}>
+                      {ratingValue.toFixed(1)} {t('businessProductPage.reviews.count', { count: reviewCount })}
+                    </span>
+                  </div>
+                  <span style={{ color: '#64748B' }}>-</span>
+                  <span style={{ fontSize: '13px', color: '#94A3B8' }}>
+                    {business.created_at
+                      ? t('businessProductPage.seller.memberSinceInline', {
+                          value: new Date(business.created_at).getFullYear()
+                        })
+                      : t('businessProductPage.seller.memberSince')}
+                  </span>
+                </div>
+                <div className="flex items-center gap-4 mb-3">
+                  <div className="flex items-center gap-2">
+                    <MapPin size={14} style={{ color: '#94A3B8' }} />
+                    <span style={{ fontSize: '13px', color: '#94A3B8' }}>{business.address || t('marketplace.results.locationTbd')}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Clock size={14} style={{ color: '#94A3B8' }} />
+                    <span style={{ fontSize: '13px', color: '#94A3B8' }}>{t('businessProductPage.seller.responseInline', { value: sellerResponseTime })}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => navigate(`/business/${business.id}`)}
+                  className="transition-all"
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: 'rgba(6, 132, 245, 0.1)',
+                    border: '1px solid #0684F5',
+                    borderRadius: '6px',
+                    color: '#0684F5',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.2)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.1)'}
+                >
+                  {t('businessProductPage.seller.viewProfile')}
+                  <ExternalLink size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Tabs: Description, Specifications, Reviews */}
+          <div className="product-page__tabs" style={{ marginBottom: '32px' }}>
+            {/* Tab Headers */}
+            <div
+              className="product-page__tablist flex gap-1"
+              style={{
+                borderBottom: '1px solid rgba(255,255,255,0.1)',
+                marginBottom: '24px'
+              }}
+            >
+              {(['description', 'specifications', 'reviews'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className="transition-all"
+                  style={{
+                    padding: '12px 24px',
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    borderBottom: activeTab === tab ? '2px solid #0684F5' : '2px solid transparent',
+                    color: activeTab === tab ? '#0684F5' : '#94A3B8',
+                    fontSize: '15px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textTransform: 'capitalize'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (activeTab !== tab) {
+                      e.currentTarget.style.color = '#CBD5E1';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (activeTab !== tab) {
+                      e.currentTarget.style.color = '#94A3B8';
+                    }
+                  }}
+                >
+                  {t(`businessProductPage.tabs.${tab}`)}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab Content */}
+            <div>
+              {activeTab === 'description' && (
+                <div>
+                  <p style={{ fontSize: '15px', color: '#CBD5E1', lineHeight: 1.7, marginBottom: '24px' }}>
+                    {product.description || t('businessProductPage.longDescription.overviewFallback')}
+                  </p>
+                  
+                  {/* Long Description with HTML */}
+                  <div
+                    style={{ fontSize: '15px', color: '#CBD5E1', lineHeight: 1.7 }}
+                    dangerouslySetInnerHTML={{
+                      __html: longDescription
+                        .replace(/<h3>/g, '<h3 style="font-size: 18px; font-weight: 600; color: #E2E8F0; margin: 24px 0 12px;">')
+                        .replace(/<ul>/g, '<ul style="margin-left: 20px; margin-bottom: 16px;">')
+                        .replace(/<li>/g, '<li style="margin-bottom: 8px;">')
+                        .replace(/<p>/g, '<p style="margin-bottom: 16px;">')
+                    }}
+                  />
+
+                  {/* Key Features Grid */}
+                  <div style={{ marginTop: '32px' }}>
+                    <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#E2E8F0', marginBottom: '16px' }}>
+                      {t('businessProductPage.features.title')}
+                    </h3>
+                    <div
+                      className="product-page__features-grid"
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(2, 1fr)',
+                        gap: '16px'
+                      }}
+                    >
+                      {features.map((feature, index) => {
+                        const IconComponent = feature.icon;
+                        return (
+                          <div
+                            key={`${feature.label}-${index}`}
+                            className="flex gap-3 p-4 rounded-lg transition-all"
+                            style={{
+                              backgroundColor: 'rgba(255,255,255,0.03)',
+                              border: '1px solid rgba(255,255,255,0.1)'
+                            }}
+                          >
+                            <div
+                              className="flex items-center justify-center"
+                              style={{
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: '8px',
+                                backgroundColor: 'rgba(6, 132, 245, 0.15)',
+                                flexShrink: 0
+                              }}
+                            >
+                              <IconComponent size={20} style={{ color: '#0684F5' }} />
+                            </div>
+                            <div>
+                              <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#E2E8F0', marginBottom: '4px' }}>
+                                {feature.label}
+                              </h4>
+                              <p style={{ fontSize: '13px', color: '#94A3B8' }}>
+                                {feature.description}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'specifications' && (
+                <div>
+                  <div
+                    style={{
+                      backgroundColor: 'rgba(255,255,255,0.02)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '12px',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {[
+                      { label: t('businessProductPage.specifications.type'), value: productTypeLabel },
+                      {
+                        label: t('businessProductPage.specifications.availability'),
+                        value: t('businessProductPage.specifications.unlimited')
+                      },
+                      {
+                        label: t('businessProductPage.specifications.quantity'),
+                        value: showQuantity ? String(quantity) : t('businessProductPage.specifications.unlimited')
+                      },
+                      {
+                        label: t('businessProductPage.specifications.tags'),
+                        value: tags.length ? tags.slice(0, 4).join(', ') : t('businessProductPage.specifications.limited')
+                      }
+                    ].map((spec, index, list) => (
+                      <div
+                        key={spec.label}
+                        className="flex justify-between py-4 px-5"
+                        style={{
+                          borderBottom: index < list.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none'
+                        }}
+                      >
+                        <span style={{ fontSize: '14px', fontWeight: 600, color: '#94A3B8' }}>
+                          {spec.label}
+                        </span>
+                        <span style={{ fontSize: '14px', color: '#E2E8F0', textAlign: 'right' }}>
+                          {spec.value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'reviews' && (
+                <div>
+                  {/* Reviews Summary */}
+                  <div
+                    className="product-page__reviews-summary flex items-center gap-8 p-6 rounded-lg"
+                    style={{
+                      backgroundColor: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      marginBottom: '24px'
+                    }}
+                  >
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '48px', fontWeight: 700, color: '#FFFFFF', marginBottom: '8px' }}>
+                        {ratingValue.toFixed(1)}
+                      </div>
+                      <div className="flex items-center justify-center gap-1 mb-2">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={`summary-${i}`}
+                            size={18}
+                            style={{
+                              color: i < Math.floor(ratingValue) ? '#F59E0B' : '#475569',
+                              fill: i < Math.floor(ratingValue) ? '#F59E0B' : 'none'
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <p style={{ fontSize: '13px', color: '#94A3B8' }}>
+                        {t('businessProductPage.reviews.count', { count: reviewCount })}
+                      </p>
+                    </div>
+                    <div className="flex-1">
+                      {ratingBreakdown.map(({ stars, percentage }) => (
+                        <div key={stars} className="flex items-center gap-3 mb-2">
+                          <span style={{ fontSize: '13px', color: '#94A3B8', width: '60px' }}>
+                            {t('businessProductPage.reviews.starsLabel', { count: stars })}
+                          </span>
+                          <div
+                            style={{
+                              flex: 1,
+                              height: '8px',
+                              backgroundColor: 'rgba(255,255,255,0.1)',
+                              borderRadius: '4px',
+                              overflow: 'hidden'
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: `${percentage}%`,
+                                height: '100%',
+                                backgroundColor: '#F59E0B',
+                                borderRadius: '4px'
+                              }}
+                            />
+                          </div>
+                          <span style={{ fontSize: '13px', color: '#94A3B8', width: '40px', textAlign: 'right' }}>
+                            {percentage}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Individual Reviews */}
+                  {reviews.length ? (
+                    <div className="product-page__review-list" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                      {reviews.map((review) => (
+                        <div
+                          key={review.id}
+                          className="p-5 rounded-lg"
+                          style={{
+                            backgroundColor: 'rgba(255,255,255,0.02)',
+                            border: '1px solid rgba(255,255,255,0.1)'
+                          }}
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <h4 style={{ fontSize: '15px', fontWeight: 600, color: '#E2E8F0', marginBottom: '4px' }}>
+                                {review.author}
+                              </h4>
+                              {review.company && (
+                                <p style={{ fontSize: '13px', color: '#94A3B8' }}>
+                                  {review.company}
+                                </p>
+                              )}
+                            </div>
+                            {review.date && (
+                              <span style={{ fontSize: '12px', color: '#64748B' }}>
+                                {review.date}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 mb-3">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={`${review.id}-star-${i}`}
+                                size={14}
+                                style={{
+                                  color: i < (review.rating || 0) ? '#F59E0B' : '#475569',
+                                  fill: i < (review.rating || 0) ? '#F59E0B' : 'none'
+                                }}
+                              />
+                            ))}
+                          </div>
+                          {review.text && (
+                            <p style={{ fontSize: '14px', color: '#CBD5E1', lineHeight: 1.6, marginBottom: '12px' }}>
+                              {review.text}
+                            </p>
+                          )}
+                          <button
+                            style={{
+                              fontSize: '13px',
+                              color: '#94A3B8',
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                          >
+                            {t('businessProductPage.reviews.helpful', { count: review.helpful || 0 })}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ color: '#94A3B8', fontSize: '14px' }}>
+                      {t('businessProductPage.reviews.empty')}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
-
