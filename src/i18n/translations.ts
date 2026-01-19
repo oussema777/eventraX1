@@ -5722,8 +5722,19 @@ export const translations = {
             'Dedicated support'
           ]
         },
+        errors: {
+          loginRequired: 'Please log in to contact the seller.',
+          noOwner: 'Seller information is unavailable.',
+          contactSelf: 'You cannot contact your own listing.'
+        },
+        notifications: {
+          quoteTitle: 'Quote request',
+          quoteBody: 'Quote request for {product}.'
+        },
         toasts: {
           linkCopied: 'Product link copied.',
+          quoteSent: 'Quote request sent.',
+          quoteFailed: 'Failed to request a quote.',
           copyFailed: 'Failed to copy product link.'
         }
       },
@@ -11438,8 +11449,19 @@ export const translations = {
             'Support dedie'
           ]
         },
+        errors: {
+          loginRequired: 'Veuillez vous connecter pour contacter le vendeur.',
+          noOwner: 'Les informations du vendeur sont indisponibles.',
+          contactSelf: 'Vous ne pouvez pas contacter votre propre annonce.'
+        },
+        notifications: {
+          quoteTitle: 'Demande de devis',
+          quoteBody: 'Demande de devis pour {product}.'
+        },
         toasts: {
           linkCopied: 'Lien du produit copie.',
+          quoteSent: 'Demande de devis envoyee.',
+          quoteFailed: 'Echec de la demande de devis.',
           copyFailed: 'Echec de la copie du lien.'
         }
       },

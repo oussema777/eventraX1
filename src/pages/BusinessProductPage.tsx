@@ -174,12 +174,7 @@ const buildFeatures = (rawFeatures: any, tags: string[]) => {
 
   if (!features.length) {
     features.push(
-      { label: 'Dedicated Support', description: 'Responsive guidance from the vendor' },
-      { label: 'Flexible Delivery', description: 'Adapted to your event timelines' },
-      { label: 'Secure Workflow', description: 'Built with data protection in mind' },
-      { label: 'Scalable Execution', description: 'Ready for events of any size' },
-      { label: 'Integration Ready', description: 'Fits into your existing stack' },
-      { label: 'Results Driven', description: 'Focused on measurable outcomes' }
+
     );
   }
 
@@ -376,12 +371,16 @@ export default function BusinessProductPage() {
   };
 
   const handleContactSeller = async () => {
+    if (!user?.id) {
+      toast.error(t('businessProductPage.errors.loginRequired'));
+      return;
+    }
     if (!business?.owner_profile_id) {
-      toast.error(t('businessProfilePage.errors.noOwner'));
+      toast.error(t('businessProductPage.errors.noOwner'));
       return;
     }
     if (business.owner_profile_id === user?.id) {
-      toast.error(t('businessProfilePage.errors.contactSelf'));
+      toast.error(t('businessProductPage.errors.contactSelf'));
       return;
     }
     const threadId = await getOrCreateThread(business.owner_profile_id);
@@ -391,7 +390,33 @@ export default function BusinessProductPage() {
   };
 
   const handleRequestQuote = async () => {
-    await handleContactSeller();
+    const { data: sessionData } = await supabase.auth.getSession();
+    const sessionUser = sessionData?.session?.user;
+    if (!sessionUser?.id) {
+      toast.error(t('businessProductPage.errors.loginRequired'));
+      return;
+    }
+    if (!business?.owner_profile_id) {
+      toast.error(t('businessProductPage.errors.noOwner'));
+      return;
+    }
+    if (business.owner_profile_id === sessionUser.id) {
+      toast.error(t('businessProductPage.errors.contactSelf'));
+      return;
+    }
+    try {
+      const { error } = await supabase.rpc('create_notification', {
+        p_recipient_id: business.owner_profile_id,
+        p_title: t('businessProductPage.notifications.quoteTitle'),
+        p_body: t('businessProductPage.notifications.quoteBody', { product: productName }),
+        p_type: 'action',
+        p_action_url: `/business/${business.id}/offerings/${product.id}`
+      });
+      if (error) throw error;
+      toast.success(t('businessProductPage.toasts.quoteSent'));
+    } catch (error: any) {
+      toast.error(error?.message || t('businessProductPage.toasts.quoteFailed'));
+    }
   };
 
   if (isLoading) {
