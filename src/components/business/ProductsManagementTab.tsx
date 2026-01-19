@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Plus,
   Edit,
@@ -41,6 +42,7 @@ const SECTORS_KEYS: Record<string, string[]> = {
 
 export default function ProductsManagementTab({ businessId }: { businessId?: string }) {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -117,6 +119,11 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
     setEditingProduct(product);
     setFormData(product);
     setShowProductModal(true);
+  };
+
+  const handleOpenProduct = (id?: string) => {
+    if (!id || !businessId) return;
+    navigate(`/business/${businessId}/offerings/${id}`);
   };
 
   const handleDeleteProduct = async (id: string) => {
@@ -288,6 +295,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
               backgroundColor: 'rgba(255,255,255,0.05)',
               border: '1px solid rgba(255,255,255,0.1)'
             }}
+            onClick={() => handleOpenProduct(product.id)}
           >
             <div className="products-management__card-content flex gap-6 p-6">
               {/* Main Image */}
@@ -354,7 +362,6 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
                   
                   <div className="products-management__actions flex items-center gap-2">
                     <button
-                      onClick={() => handleEditProduct(product)}
                       className="p-2 rounded-lg transition-all"
                       style={{
                         backgroundColor: 'rgba(6, 132, 245, 0.1)',
@@ -364,11 +371,14 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
                       }}
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.2)'}
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.1)'}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleEditProduct(product);
+                      }}
                     >
                       <Edit size={16} />
                     </button>
                     <button
-                      onClick={() => handleDeleteProduct(product.id)}
                       className="p-2 rounded-lg transition-all"
                       style={{
                         backgroundColor: 'rgba(239, 68, 68, 0.1)',
@@ -378,6 +388,10 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
                       }}
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)'}
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleDeleteProduct(product.id);
+                      }}
                     >
                       <Trash2 size={16} />
                     </button>
