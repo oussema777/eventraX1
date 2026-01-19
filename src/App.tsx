@@ -17,6 +17,8 @@ import DraftSaved from './pages/08_Draft_Saved';
 import EventManagementDashboard from './pages/06_Event_Management_Dashboard';
 import MyProfile from './pages/09_My_Profile';
 import BusinessProfileWizardPage from './pages/20_Business_Profile_Wizard';
+import BusinessProductPage from './pages/BusinessProductPage';
+
 import BusinessProfilePageRoute from './pages/21_Business_Profile_Page';
 import UserB2BCenterPage from './pages/22_User_B2B_Center';
 import UserMessagesCenterPage from './pages/23_User_Messages_Center';
@@ -81,6 +83,8 @@ export default function App() {
             <Route path="/logistics/freight-calculator" element={<FreightCalculatorPage />} />
             <Route path="/logistics/load-calculator" element={<LoadCalculatorPage />} />
             <Route path="/logistics/container-shipping" element={<ContainerShippingCostsPage />} />
+            <Route path="/business/:businessId/offerings/:productId" element={<BusinessProductPage />} />
+
             <Route path="/business/:businessId" element={<BusinessProfilePageRoute />} />
             <Route path="/event/:eventId/landing" element={<SingleEventLandingPage />} />
             <Route path="/event/:eventId/register" element={<EventRegistrationFlow />} />

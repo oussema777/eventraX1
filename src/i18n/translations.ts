@@ -5642,7 +5642,66 @@ export const translations = {
           subtitle: 'Try adjusting your filters or search criteria',
           action: 'Clear All Filters'
         }
-      }
+      },
+      businessProductPage: {
+        loading: 'Loading product...',
+        notFound: {
+          title: 'Product Not Found',
+          back: 'Back to Marketplace'
+        },
+        breadcrumb: {
+          marketplace: 'Marketplace'
+        },
+        tabs: {
+          description: 'Description',
+          specifications: 'Specifications',
+          reviews: 'Reviews'
+        },
+        overview: 'Overview',
+        labels: {
+          id: 'ID',
+          verified: 'Enterprise Verified',
+          deliveryTime: 'Avg. Delivery: {value}',
+          shipsFrom: 'Ships From: {value}'
+        },
+        types: {
+          product: 'Product',
+          service: 'Professional Service'
+        },
+        specifications: {
+          type: 'Type',
+          availability: 'Availability',
+          unlimited: 'Unlimited',
+          limited: 'Limited',
+          quantity: 'Quantity',
+          tags: 'Tags'
+        },
+        pricing: {
+          contact: 'Contact for pricing',
+          quantityLabel: 'Select Quantity / Licenses'
+        },
+        actions: {
+          requestQuote: 'Request Quote',
+          messageSeller: 'Message Seller',
+          saved: 'Saved',
+          wishlist: 'Wishlist',
+          share: 'Share'
+        },
+        reviews: {
+          count: '({count} reviews)',
+          globalSatisfaction: 'Global Satisfaction',
+          helpful: 'Was this review helpful? ({count})',
+          starsLabel: '{count} Stars'
+        },
+        seller: {
+          managedBy: 'Managed By',
+          response: 'Response',
+          memberSince: 'Member Since',
+          viewProfile: 'View Professional Profile',
+          fallbackName: 'Seller',
+          deals: '({count} deals)'
+        }
+      },
   },
   fr: {
     brand: {
@@ -11273,7 +11332,66 @@ export const translations = {
           subtitle: 'Essayez d\'ajuster vos filtres ou critères de recherche',
           action: 'Effacer tous les filtres'
         }
-      }
+      },
+      businessProductPage: {
+        loading: 'Chargement du produit...',
+        notFound: {
+          title: 'Produit introuvable',
+          back: 'Retour au marketplace'
+        },
+        breadcrumb: {
+          marketplace: 'Marketplace'
+        },
+        tabs: {
+          description: 'Description',
+          specifications: 'Spécifications',
+          reviews: 'Avis'
+        },
+        overview: 'Aperçu',
+        labels: {
+          id: 'ID',
+          verified: 'Entreprise vérifiée',
+          deliveryTime: 'Livraison moyenne : {value}',
+          shipsFrom: 'Expédié depuis : {value}'
+        },
+        types: {
+          product: 'Produit',
+          service: 'Service professionnel'
+        },
+        specifications: {
+          type: 'Type',
+          availability: 'Disponibilité',
+          unlimited: 'Illimitée',
+          limited: 'Limitée',
+          quantity: 'Quantité',
+          tags: 'Tags'
+        },
+        pricing: {
+          contact: 'Contactez-nous pour le prix',
+          quantityLabel: 'Sélectionner la quantité / licences'
+        },
+        actions: {
+          requestQuote: 'Demander un devis',
+          messageSeller: 'Contacter le vendeur',
+          saved: 'Enregistré',
+          wishlist: 'Liste de souhaits',
+          share: 'Partager'
+        },
+        reviews: {
+          count: '({count} avis)',
+          globalSatisfaction: 'Satisfaction globale',
+          helpful: 'Avis utile ? ({count})',
+          starsLabel: '{count} étoiles'
+        },
+        seller: {
+          managedBy: 'Géré par',
+          response: 'Réponse',
+          memberSince: 'Membre depuis',
+          viewProfile: 'Voir le profil professionnel',
+          fallbackName: 'Vendeur',
+          deals: '({count} transactions)'
+        }
+      },
   }
 }as any; 
 

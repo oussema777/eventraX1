@@ -348,6 +348,11 @@ export default function BusinessProfilePage() {
     }
   };
 
+  const handleOpenOffering = (offeringId: string) => {
+    if (!business?.id) return;
+    navigate(`/business/${business.id}/offerings/${offeringId}`);
+  };
+
   if (isLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-[#0B2641]">
@@ -370,12 +375,93 @@ export default function BusinessProfilePage() {
   const eventsManagedLabel = eventsManaged > 0 ? `${eventsManaged}+` : '0';
 
   return (
-    <div style={{ backgroundColor: '#0B2641', minHeight: '100vh' }}>
+    <div className="business-profile-page" style={{ backgroundColor: '#0B2641', minHeight: '100vh' }}>
+      <style>{`
+        @media (max-width: 1024px) {
+          .business-profile-page .business-profile-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .business-profile-page .business-profile-left,
+          .business-profile-page .business-profile-right {
+            grid-column: 1 / -1 !important;
+          }
+        }
+
+        @media (max-width: 900px) {
+          .business-profile-page .business-profile-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+          }
+          .business-profile-page .business-profile-actions {
+            width: 100% !important;
+            flex-wrap: wrap !important;
+            justify-content: flex-start !important;
+          }
+          .business-profile-page .business-profile-shell {
+            padding: 0 20px !important;
+          }
+          .business-profile-page .business-profile-main {
+            padding: 24px 20px 64px !important;
+          }
+          .business-profile-page .business-profile-card {
+            padding: 20px !important;
+            margin-top: -60px !important;
+          }
+          .business-profile-page .business-profile-cover {
+            height: 240px !important;
+          }
+          .business-profile-page .business-profile-logo > div {
+            width: 96px !important;
+            height: 96px !important;
+          }
+          .business-profile-page .business-profile-title {
+            font-size: 26px !important;
+          }
+          .business-profile-page .business-profile-team-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+          .business-profile-page .business-profile-offerings-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+
+        @media (max-width: 600px) {
+          .business-profile-page .business-profile-shell {
+            padding: 0 16px !important;
+          }
+          .business-profile-page .business-profile-main {
+            padding: 20px 16px 56px !important;
+          }
+          .business-profile-page .business-profile-card {
+            padding: 16px !important;
+            margin-top: -48px !important;
+          }
+          .business-profile-page .business-profile-cover {
+            height: 200px !important;
+          }
+          .business-profile-page .business-profile-logo > div {
+            width: 80px !important;
+            height: 80px !important;
+          }
+          .business-profile-page .business-profile-title {
+            font-size: 22px !important;
+          }
+          .business-profile-page .business-profile-team-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .business-profile-page .business-profile-offering-gallery {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+          .business-profile-page .business-profile-actions button {
+            width: 100% !important;
+          }
+        }
+      `}</style>
       {/* Hero Section with Cover */}
       <div className="relative">
         {/* Cover Image */}
         <div 
-          className="w-full"
+          className="w-full business-profile-cover"
           style={{ 
             height: '300px',
             background: business.cover_url ? `url(${business.cover_url})` : 'linear-gradient(135deg, #0684F5 0%, #4A7C6D 100%)',
@@ -399,7 +485,7 @@ export default function BusinessProfilePage() {
 
         {/* Profile Card */}
         <div 
-          className="relative"
+          className="relative business-profile-shell"
           style={{ 
             maxWidth: '1200px', 
             margin: '0 auto',
@@ -407,7 +493,7 @@ export default function BusinessProfilePage() {
           }}
         >
           <div 
-            className="relative rounded-2xl p-8"
+            className="relative rounded-2xl p-8 business-profile-card"
             style={{
               backgroundColor: 'rgba(255,255,255,0.05)',
               border: '1px solid rgba(255,255,255,0.15)',
@@ -415,9 +501,9 @@ export default function BusinessProfilePage() {
               backdropFilter: 'blur(10px)'
             }}
           >
-            <div className="flex items-start gap-6">
+            <div className="flex items-start gap-6 business-profile-header">
               {/* Logo + Manage Button */}
-              <div className="flex-shrink-0 flex flex-col items-center gap-3">
+              <div className="flex-shrink-0 flex flex-col items-center gap-3 business-profile-logo">
                 <div
                   className="rounded-full flex items-center justify-center overflow-hidden"
                   style={{
@@ -468,7 +554,7 @@ export default function BusinessProfilePage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-3 mb-2">
-                      <h1 style={{ fontSize: '32px', fontWeight: 700, color: '#FFFFFF' }}>
+                      <h1 className="business-profile-title" style={{ fontSize: '32px', fontWeight: 700, color: '#FFFFFF' }}>
                         {isEditMode ? (
                            <input 
                              value={companyName} 
@@ -496,7 +582,7 @@ export default function BusinessProfilePage() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 business-profile-actions">
                     {isOwner ? (
                       isEditMode ? (
                         <>
@@ -653,16 +739,16 @@ export default function BusinessProfilePage() {
 
       {/* Main Content */}
       <div 
-        className="relative"
+        className="relative business-profile-main"
         style={{ 
           maxWidth: '1200px', 
           margin: '0 auto',
           padding: '40px 40px 80px'
         }}
       >
-        <div className="grid grid-cols-12 gap-8">
+        <div className="grid grid-cols-12 gap-8 business-profile-grid">
           {/* LEFT COLUMN - Main Content */}
-          <div className="col-span-8 space-y-8">
+          <div className="col-span-8 space-y-8 business-profile-left">
             {/* About Section */}
             <div>
               <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF', marginBottom: '16px' }}>
@@ -728,7 +814,7 @@ export default function BusinessProfilePage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-4 gap-6">
+              <div className="grid grid-cols-4 gap-6 business-profile-team-grid">
                 {teamMembers.map((member) => (
                   <div
                     key={member.id}
@@ -780,7 +866,7 @@ export default function BusinessProfilePage() {
                 {t('businessProfilePage.offerings.title')}
               </h2>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 business-profile-offerings-grid">
                 {offerings.map((offering) => (
                   <div
                     key={offering.id}
@@ -789,6 +875,7 @@ export default function BusinessProfilePage() {
                       backgroundColor: 'rgba(255,255,255,0.05)',
                       border: '1px solid rgba(255,255,255,0.1)'
                     }}
+                    onClick={() => handleOpenOffering(offering.id)}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)';
                       e.currentTarget.style.transform = 'translateY(-2px)';
@@ -873,7 +960,7 @@ export default function BusinessProfilePage() {
 
                       {/* 4-Image Gallery */}
                       {Array.isArray(offering.images) && offering.images.length > 0 && (
-                        <div className="grid grid-cols-4 gap-2">
+                        <div className="grid grid-cols-4 gap-2 business-profile-offering-gallery">
                           {offering.images.slice(0, 4).map((image: string, idx: number) => (
                             <div
                               key={idx}
@@ -917,7 +1004,7 @@ export default function BusinessProfilePage() {
           </div>
 
           {/* RIGHT COLUMN - Sidebar */}
-          <div className="col-span-4 space-y-6">
+          <div className="col-span-4 space-y-6 business-profile-right">
             {/* Contact Information */}
             <div 
               className="rounded-xl p-6"
