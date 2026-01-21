@@ -1,0 +1,11 @@
+-- FORCE PUBLIC READ ACCESS FOR TESTING
+-- Warning: This exposes all attendee data. Use only for debugging.
+
+ALTER TABLE public.event_attendees ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public Select" ON public.event_attendees;
+
+CREATE POLICY "Public Select"
+ON public.event_attendees
+FOR SELECT
+USING (true);  -- Allow everyone to read everything

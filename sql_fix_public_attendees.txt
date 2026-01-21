@@ -1,0 +1,16 @@
+-- Enable public read access to event attendees (for the Attendees Directory)
+-- We strictly limit this to non-sensitive fields in the frontend query, 
+-- but RLS policies usually apply to the row.
+
+-- 1. Drop existing policy if it conflicts (or is too restrictive)
+DROP POLICY IF EXISTS "Public can view event attendees" ON public.event_attendees;
+
+-- 2. Create a policy that allows anyone (anon or authenticated) to view attendees
+--    where the status is 'registered' (to hide cancelled/pending).
+CREATE POLICY "Public can view event attendees"
+ON public.event_attendees
+FOR SELECT
+USING (status = 'registered');
+
+-- 3. (Optional) If you want to be even safer, you can restrict columns using a view, 
+--    but for now, the Select policy is sufficient if you trust your frontend not to expose emails.

@@ -50,15 +50,49 @@ export default function EventRegistrationFlow() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set());
   const [freeTicketId, setFreeTicketId] = useState<string | null>(null);
+  const [registeredAttendeeId, setRegisteredAttendeeId] = useState<string | null>(null);
+  const [confirmationCode, setConfirmationCode] = useState<string | null>(null);
   
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const generateConfirmationCode = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = 'EV-';
+    for (let i = 0; i < 6; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  };
 
   useEffect(() => {
     if (eventId) {
       fetchEventData();
     }
   }, [eventId, user, profile]);
+
+  // ... (keep existing fetchEventData)
+
+  const handleDownloadTicket = async () => {
+    if (!registeredAttendeeId) return;
+    try {
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${registeredAttendeeId}`;
+      const response = await fetch(qrUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Eventra-Ticket-${event?.name || 'Event'}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Ticket downloaded!');
+    } catch (e) {
+      console.error('Download failed:', e);
+      toast.error('Failed to download ticket');
+    }
+  };
 
   const fetchEventData = async () => {
     try {
@@ -197,6 +231,10 @@ export default function EventRegistrationFlow() {
         responses[f.label] = f.value;
       });
 
+      const code = generateConfirmationCode();
+      setConfirmationCode(code);
+      responses['confirmation_code'] = code;
+
       // 1. Insert Attendee
       const { data: attendee, error: regError } = await supabase
         .from('event_attendees')
@@ -226,6 +264,10 @@ export default function EventRegistrationFlow() {
             .single();
           
           if (existing) {
+            setRegisteredAttendeeId(existing.id); // SAVE ID
+            const existingCode = existing.meta?.confirmation_code || code;
+            setConfirmationCode(existingCode);
+
             const sessionInserts = Array.from(selectedSessions).map(sessionId => ({
               attendee_id: existing.id,
               session_id: sessionId
@@ -261,6 +303,7 @@ export default function EventRegistrationFlow() {
       }
 
       if (attendee) {
+        setRegisteredAttendeeId(attendee.id); // SAVE ID
         const mySessions = sessions.filter(s => selectedSessions.has(s.id));
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${attendee.id}`;
         const emailHtml = generateRegistrationEmailHtml(event?.name || 'Event', attendee.name || user.email || 'Attendee', qrUrl, mySessions);
@@ -716,10 +759,33 @@ export default function EventRegistrationFlow() {
                 You're All Set!
               </h1>
 
-              <p className="mb-8 max-w-md mx-auto" style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '16px' }}>
+              <p className="mb-6 max-w-md mx-auto" style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '16px' }}>
                 Thank you for registering for <strong style={{ color: '#FFFFFF' }}>{event?.name}</strong>. 
                 A confirmation email has been sent to <strong style={{ color: '#FFFFFF' }}>{user?.email}</strong>.
               </p>
+
+              {/* QR Code Display */}
+              {registeredAttendeeId && (
+                <div 
+                  className="mb-8 p-6 rounded-xl border inline-block"
+                  style={{ backgroundColor: '#FFFFFF', borderColor: 'rgba(255, 255, 255, 0.1)' }}
+                >
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${registeredAttendeeId}`}
+                    alt="Check-in QR Code"
+                    style={{ width: '180px', height: '180px', display: 'block' }}
+                  />
+                  <p style={{ color: '#000000', fontSize: '13px', fontWeight: 600, marginTop: '12px' }}>
+                    Scan at entrance
+                  </p>
+                  {confirmationCode && (
+                    <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px dashed #E2E8F0' }}>
+                      <p style={{ color: '#64748B', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Confirmation Code</p>
+                      <p style={{ color: '#0B2641', fontSize: '24px', fontWeight: 800, letterSpacing: '0.1em' }}>{confirmationCode}</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {selectedSessions.size > 0 && (
                 <div 
@@ -744,6 +810,7 @@ export default function EventRegistrationFlow() {
 
               <div className="flex flex-col gap-3 max-w-xs mx-auto">
                 <button
+                  onClick={handleDownloadTicket}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -768,7 +835,7 @@ export default function EventRegistrationFlow() {
                   }}
                 >
                   <Calendar size={18} />
-                  Add to Calendar
+                  Download Ticket
                 </button>
 
                 <button

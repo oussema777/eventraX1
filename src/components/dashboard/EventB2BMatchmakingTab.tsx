@@ -19,11 +19,18 @@ import {
   Brain,
   X,
   Send,
-  Crown
+  Crown,
+  Eye,
+  MessageSquare,
+  LayoutGrid,
+  Calendar,
+  User,
+  MapPin,
+  Copy
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 
-type TabType = 'ai-matchmaker' | 'all-meetings' | 'analytics' | 'suggestions';
+type TabType = 'ai-matchmaker' | 'all-meetings' | 'analytics' | 'suggestions' | 'logistics';
 
 export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }) {
   const { t } = useI18n();
@@ -43,6 +50,16 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
   const [sharedInterests, setSharedInterests] = useState(90);
   const [goalAlignment, setGoalAlignment] = useState(80);
   const [minMatchScore, setMinMatchScore] = useState(75);
+
+  // Logistics State
+  const [venueConfig, setVenueConfig] = useState({
+    tableCount: 10,
+    tablePrefix: 'Table-',
+    slotDuration: 30,
+    schedules: [] as { date: string; start: string; end: string }[]
+  });
+  const [newDate, setNewDate] = useState('');
+  const [eventDateRange, setEventDateRange] = useState({ start: '', end: '' });
 
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -322,35 +339,72 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
   const fetchB2BSettings = async () => {
     if (!eventId) return;
     try {
-      const { data, error } = await supabase
-        .from('event_b2b_settings')
-        .select('criteria,min_match_score')
-        .eq('event_id', eventId)
-        .maybeSingle();
-      if (error) return;
-      const c: any = data?.criteria || null;
-      if (!c) return;
-      if (c.matchingSelection) setMatchingSelection(c.matchingSelection);
-      if (typeof c.industryAlignment === 'number') setIndustryAlignment(c.industryAlignment);
-      if (typeof c.roleCompatibility === 'number') setRoleCompatibility(c.roleCompatibility);
-      if (typeof c.jobRoleCompatibility === 'number') setRoleCompatibility(c.jobRoleCompatibility);
-      if (typeof c.companyStage === 'number') setCompanyStage(c.companyStage);
-      if (typeof c.goalAlignment === 'number') setGoalAlignment(c.goalAlignment);
-      if (typeof c.sharedInterests === 'number') setSharedInterests(c.sharedInterests);
-      if (typeof c.commonInterests === 'number') setSharedInterests(c.commonInterests);
-      if (typeof c.minMatchScore === 'number') setMinMatchScore(c.minMatchScore);
-      if (typeof data?.min_match_score === 'number') setMinMatchScore(data.min_match_score);
-      const lastRunAt = c.lastRunAt || c.last_run_at;
-      if (lastRunAt) {
-        setLastRunMeta({
-          at: lastRunAt,
-          matchesCreated: c.lastRunCount ?? c.last_run_count ?? 0,
-          avgScore: c.lastRunAvgScore ?? c.last_run_avg_score ?? 0,
-          attendeesMatched: c.lastRunAttendeesMatched ?? c.last_run_attendees_matched ?? 0
+      // 1. Fetch Event Date Range First
+      const { data: eventData } = await supabase.from('events').select('start_date, end_date').eq('id', eventId).single();
+      if (eventData) {
+        setEventDateRange({
+          start: eventData.start_date ? eventData.start_date.split('T')[0] : '',
+          end: eventData.end_date ? eventData.end_date.split('T')[0] : (eventData.start_date ? eventData.start_date.split('T')[0] : '')
         });
       }
-    } catch {
-      toast.error('Failed to dismiss suggestion');
+
+      // 2. Fetch B2B Settings
+      const { data, error } = await supabase
+        .from('event_b2b_settings')
+        .select('criteria,min_match_score,venue_config')
+        .eq('event_id', eventId)
+        .maybeSingle();
+      
+      if (error) throw error;
+
+      // Map AI Criteria
+      const c: any = data?.criteria || null;
+      if (c) {
+        if (c.matchingSelection) setMatchingSelection(c.matchingSelection);
+        if (typeof c.industryAlignment === 'number') setIndustryAlignment(c.industryAlignment);
+        if (typeof c.roleCompatibility === 'number') setRoleCompatibility(c.roleCompatibility);
+        if (typeof c.jobRoleCompatibility === 'number') setRoleCompatibility(c.jobRoleCompatibility);
+        if (typeof c.companyStage === 'number') setCompanyStage(c.companyStage);
+        if (typeof c.goalAlignment === 'number') setGoalAlignment(c.goalAlignment);
+        if (typeof c.sharedInterests === 'number') setSharedInterests(c.sharedInterests);
+        if (typeof c.commonInterests === 'number') setSharedInterests(c.commonInterests);
+        if (typeof c.minMatchScore === 'number') setMinMatchScore(c.minMatchScore);
+        const lastRunAt = c.lastRunAt || c.last_run_at;
+        if (lastRunAt) {
+          setLastRunMeta({
+            at: lastRunAt,
+            matchesCreated: c.lastRunCount ?? 0,
+            avgScore: c.lastRunAvgAvgScore ?? 0,
+            attendeesMatched: c.lastRunAttendeesMatched ?? 0
+          });
+        }
+      }
+      
+      if (typeof data?.min_match_score === 'number') setMinMatchScore(data.min_match_score);
+
+      // Load Venue Config or Initialize default
+      if (data?.venue_config) {
+        setVenueConfig({
+          tableCount: data.venue_config.tableCount || 10,
+          tablePrefix: data.venue_config.tablePrefix || 'Table-',
+          slotDuration: data.venue_config.slotDuration || 30,
+          schedules: data.venue_config.schedules || []
+        });
+      } else if (eventData) {
+        const start = new Date(eventData.start_date);
+        const end = new Date(eventData.end_date || eventData.start_date);
+        const dates = [];
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          dates.push(new Date(d).toISOString().split('T')[0]);
+        }
+        setVenueConfig(prev => ({
+          ...prev,
+          schedules: dates.map(date => ({ date, start: '09:00', end: '17:00' }))
+        }));
+      }
+    } catch (err) {
+      console.error('Error fetching B2B settings:', err);
+      toast.error('Failed to load networking settings');
     }
   };
 
@@ -369,12 +423,27 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
         minMatchScore,
         ...extraCriteria
       };
+      
+      const payload: any = { 
+        event_id: eventId, 
+        criteria, 
+        min_match_score: minMatchScore,
+        venue_config: venueConfig
+      };
+
       const { error } = await supabase
         .from('event_b2b_settings')
-        .upsert({ event_id: eventId, criteria, min_match_score: minMatchScore }, { onConflict: 'event_id' });
+        .upsert(payload, { onConflict: 'event_id' });
+      
       if (error) throw error;
-    } catch {}
-    finally {
+      
+      if (!extraCriteria) {
+        toast.success('Configuration saved successfully');
+      }
+    } catch (e) {
+      console.error('Error saving B2B settings:', e);
+      toast.error('Failed to save configuration');
+    } finally {
       setSavingSettings(false);
     }
   };
@@ -440,6 +509,13 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
     } catch {}
   };
 
+  const getInitials = (name: string) => {
+    if (!name) return 'A';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return name.substring(0, 2).toUpperCase();
+  };
+
   const fetchMeetings = async () => {
     if (!eventId) return;
     try {
@@ -453,12 +529,32 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
       const rows: any[] = data || [];
       const ids = Array.from(new Set(rows.flatMap(r => [r.attendee_a_id, r.attendee_b_id]).filter(Boolean)));
       let attendeeMap: Record<string, any> = {};
+      
       if (ids.length) {
-        const { data: a } = await supabase
+        // 1. Fetch Attendees
+        const { data: attData } = await supabase
           .from('event_attendees')
-          .select('id,name,company,photo_url,avatar_url,ticket_type,meta')
+          .select('id,name,company,photo_url,avatar_url,ticket_type,meta,profile_id')
           .in('id', ids);
-        (a || []).forEach((x: any) => { attendeeMap[x.id] = x; });
+        
+        const profileIds = (attData || []).map(a => a.profile_id).filter(Boolean);
+        let profileMap: Record<string, string> = {};
+
+        // 2. Fetch Profiles for real avatars
+        if (profileIds.length > 0) {
+          const { data: profData } = await supabase
+            .from('profiles')
+            .select('id, avatar_url')
+            .in('id', profileIds);
+          (profData || []).forEach(p => profileMap[p.id] = p.avatar_url);
+        }
+
+        (attData || []).forEach((x: any) => { 
+          attendeeMap[x.id] = {
+            ...x,
+            final_avatar: profileMap[x.profile_id] || x.avatar_url || x.photo_url || x.meta?.photo
+          }; 
+        });
       }
 
       const mapped = rows.map((r) => {
@@ -478,8 +574,8 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
           bTitle: b.meta?.jobTitle || b.meta?.job_title || b.meta?.title || b.meta?.role || '',
           aCompany: a.company || '',
           bCompany: b.company || '',
-          aPhoto: a.photo_url || a.avatar_url || a.meta?.photo || '',
-          bPhoto: b.photo_url || b.avatar_url || b.meta?.photo || '',
+          aPhoto: a.final_avatar,
+          bPhoto: b.final_avatar,
           aTicketType: a.ticket_type || '',
           bTicketType: b.ticket_type || '',
           aMeta: a.meta || {},
@@ -1566,6 +1662,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
           {[
             { id: 'ai-matchmaker' as const, icon: Sparkles, label: t('manageEvent.b2b.tabs.aiMatchmaker') },
             { id: 'all-meetings' as const, icon: Handshake, label: t('manageEvent.b2b.tabs.allMeetings') },
+            { id: 'logistics' as const, icon: MapPin, label: "Logistics" },
             { id: 'analytics' as const, icon: TrendingUp, label: t('manageEvent.b2b.tabs.analytics') },
             { id: 'suggestions' as const, icon: Target, label: t('manageEvent.b2b.tabs.suggestions') }
           ].map((tab) => {
@@ -1608,8 +1705,8 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
 
         {/* TAB 1: AI MATCHMAKER */}
         {activeTab === 'ai-matchmaker' && (
-          <div className="event-b2b__grid" style={{ display: 'grid', gridTemplateColumns: '60% 40%', gap: '32px' }}>
-            {/* LEFT COLUMN: AI Matching Engine */}
+          <div className="event-b2b__grid" style={{ maxWidth: '800px', margin: '0 auto' }}>
+            {/* AI Matching Engine */}
             <div
               style={{
                 backgroundColor: 'rgba(255,255,255,0.05)',
@@ -1885,153 +1982,6 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                 </button>
               </div>
             </div>
-
-            {/* RIGHT COLUMN: Match Preview & Insights */}
-            <div
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.05)',
-                padding: '32px',
-                borderRadius: '12px',
-                border: '1px solid rgba(255,255,255,0.1)'
-              }}
-            >
-              <h4 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
-                {t('manageEvent.b2b.aiMatchmaker.insights.title')}
-              </h4>
-              <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '20px' }}>
-                {t('manageEvent.b2b.aiMatchmaker.insights.subtitle')}
-              </p>
-              <div style={{ width: '100%', height: '1px', backgroundColor: 'rgba(255,255,255,0.1)', marginBottom: '16px' }} />
-
-              {/* Insight Cards */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
-                {/* Insight 1 */}
-                <div
-                  style={{
-                    backgroundColor: 'rgba(16,185,129,0.1)',
-                    padding: '16px',
-                    borderRadius: '8px',
-                    borderLeft: '4px solid #10B981',
-                    display: 'flex',
-                    gap: '12px'
-                  }}
-                >
-                  <TrendingUp size={24} style={{ color: '#10B981', flexShrink: 0 }} />
-                  <div>
-                    <p style={{ fontSize: '16px', fontWeight: 500, color: '#FFFFFF', marginBottom: '4px' }}>
-                      {t('manageEvent.b2b.aiMatchmaker.insights.potential')}
-                    </p>
-                    <p style={{ fontSize: '13px', color: '#94A3B8' }}>
-                      {t('manageEvent.b2b.aiMatchmaker.insights.potentialDesc', { percent: attendeeInsights.potentialPercent })}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Insight 2 */}
-                <div
-                  style={{
-                    backgroundColor: 'rgba(6,132,245,0.1)',
-                    padding: '16px',
-                    borderRadius: '8px',
-                    borderLeft: '4px solid #0684F5',
-                    display: 'flex',
-                    gap: '12px'
-                  }}
-                >
-                  <Briefcase size={24} style={{ color: '#0684F5', flexShrink: 0 }} />
-                  <div>
-                    <p style={{ fontSize: '16px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px' }}>
-                      {t('manageEvent.b2b.aiMatchmaker.insights.industries')}
-                    </p>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                      {(attendeeInsights.topIndustries.length
-                        ? attendeeInsights.topIndustries
-                        : [{ label: 'No industry data', percentage: 0 }]).map((tag, idx) => (
-                        <span
-                          key={idx}
-                          style={{
-                            padding: '4px 10px',
-                            borderRadius: '12px',
-                            backgroundColor: 'rgba(6,132,245,0.15)',
-                            color: '#0684F5',
-                            fontSize: '11px',
-                            fontWeight: 600
-                          }}
-                        >
-                          {tag.label} {tag.percentage ? `${tag.percentage}%` : ''}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Insight 3 */}
-                <div
-                  style={{
-                    backgroundColor: 'rgba(139,92,246,0.1)',
-                    padding: '16px',
-                    borderRadius: '8px',
-                    borderLeft: '4px solid #8B5CF6'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                    <Target size={24} style={{ color: '#8B5CF6' }} />
-                    <p style={{ fontSize: '16px', fontWeight: 500, color: '#FFFFFF' }}>
-                      {t('manageEvent.b2b.aiMatchmaker.insights.goals')}
-                    </p>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {(attendeeInsights.topGoals.length
-                      ? attendeeInsights.topGoals
-                      : [{ label: 'No goal data', percentage: 0 }]).map((goal, idx) => (
-                      <div key={idx}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                          <span style={{ fontSize: '12px', color: '#FFFFFF' }}>{goal.label}</span>
-                          <span style={{ fontSize: '12px', color: '#8B5CF6', fontWeight: 600 }}>{goal.percentage}%</span>
-                        </div>
-                        <div style={{ width: '100%', height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
-                          <div style={{ width: `${goal.percentage}%`, height: '100%', backgroundColor: '#8B5CF6' }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Previous Match Summary */}
-              <div>
-                <p style={{ fontSize: '14px', fontWeight: 500, color: '#94A3B8', marginBottom: '12px' }}>
-                  {t('manageEvent.b2b.aiMatchmaker.insights.lastRun')}
-                </p>
-                <div
-                  style={{
-                    backgroundColor: 'rgba(255,255,255,0.05)',
-                    padding: '16px',
-                    borderRadius: '8px'
-                  }}
-                >
-                  <p style={{ fontSize: '13px', color: '#FFFFFF', marginBottom: '8px' }}>
-                    {lastRunMeta?.at ? formatDateTime(lastRunMeta.at) : t('manageEvent.b2b.aiMatchmaker.insights.noRun')}
-                  </p>
-                  <p style={{ fontSize: '14px', fontWeight: 700, color: '#10B981', marginBottom: '4px' }}>
-                    {t('manageEvent.b2b.aiMatchmaker.insights.generated', { count: lastRunMeta?.matchesCreated ?? 0 })}
-                  </p>
-                  <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '12px' }}>
-                    {t('manageEvent.b2b.aiMatchmaker.insights.accepted', { percent: suggestionStats.total ? Math.round((suggestionStats.accepted / suggestionStats.total) * 100) : 0 })}
-                  </p>
-                  <a
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setActiveTab('suggestions');
-                    }}
-                    style={{ fontSize: '13px', color: '#0684F5', textDecoration: 'none' }}
-                  >
-                    {t('manageEvent.b2b.aiMatchmaker.insights.viewResults')} →
-                  </a>
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
@@ -2051,46 +2001,74 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                 alignItems: 'center'
               }}
             >
-              <div className="event-b2b__filter-tabs" style={{ display: 'flex', gap: '12px' }}>
-                {meetingFilters.map((filter, idx) => {
+              <div className="event-b2b__filter-tabs" style={{ display: 'flex', gap: '8px' }}>
+                {[
+                  { key: 'all', label: t('manageEvent.b2b.allMeetings.filters.all'), icon: LayoutGrid, count: meetingFilters.find(f => f.key === 'all')?.count || 0 },
+                  { key: 'today', label: t('manageEvent.b2b.allMeetings.filters.today'), icon: Calendar, count: meetingFilters.find(f => f.key === 'today')?.count || 0 },
+                  { key: 'ai', label: t('manageEvent.b2b.allMeetings.filters.ai'), icon: Sparkles, count: meetingFilters.find(f => f.key === 'ai')?.count || 0 },
+                  { key: 'manual', label: t('manageEvent.b2b.allMeetings.filters.manual'), icon: User, count: meetingFilters.find(f => f.key === 'manual')?.count || 0 },
+                  { key: 'pending', label: t('manageEvent.b2b.allMeetings.filters.pending'), icon: Clock, count: meetingFilters.find(f => f.key === 'pending')?.count || 0 },
+                  { key: 'completed', label: t('manageEvent.b2b.allMeetings.filters.completed'), icon: CheckCircle, count: meetingFilters.find(f => f.key === 'completed')?.count || 0 }
+                ].map((filter) => {
                   const isActive = meetingFilter === filter.key;
-                  const label = filter.key === 'all' ? t('manageEvent.b2b.allMeetings.filters.all') :
-                               filter.key === 'today' ? t('manageEvent.b2b.allMeetings.filters.today') :
-                               filter.key === 'ai' ? t('manageEvent.b2b.allMeetings.filters.ai') :
-                               filter.key === 'manual' ? t('manageEvent.b2b.allMeetings.filters.manual') :
-                               filter.key === 'pending' ? t('manageEvent.b2b.allMeetings.filters.pending') :
-                               filter.key === 'completed' ? t('manageEvent.b2b.allMeetings.filters.completed') : filter.label;
+                  const Icon = filter.icon;
                   return (
                   <button
-                    key={idx}
+                    key={filter.key}
                     onClick={() => setMeetingFilter(filter.key)}
+                    title={filter.label}
                     style={{
-                      padding: '8px 16px',
-                      backgroundColor: isActive ? '#0684F5' : 'transparent',
-                      border: 'none',
+                      width: '40px',
+                      height: '40px',
+                      padding: 0,
+                      backgroundColor: isActive ? '#0684F5' : 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
                       borderRadius: '8px',
                       color: isActive ? '#FFFFFF' : '#94A3B8',
-                      fontSize: '14px',
-                      fontWeight: 500,
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '6px'
+                      justifyContent: 'center',
+                      position: 'relative',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                        e.currentTarget.style.color = '#FFFFFF';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
+                        e.currentTarget.style.color = '#94A3B8';
+                      }
                     }}
                   >
-                    {filter.icon && <Sparkles size={14} />}
-                    {label}
-                    <span
-                      style={{
-                        padding: '2px 6px',
-                        borderRadius: '8px',
-                        backgroundColor: isActive ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)',
-                        fontSize: '11px',
-                        fontWeight: 600
-                      }}
-                    >
-                      {filter.count}
-                    </span>
+                    <Icon size={18} />
+                    {filter.count > 0 && (
+                      <span
+                        style={{
+                          position: 'absolute',
+                          top: '-4px',
+                          right: '-4px',
+                          minWidth: '16px',
+                          height: '16px',
+                          padding: '0 4px',
+                          borderRadius: '8px',
+                          backgroundColor: isActive ? '#FFFFFF' : '#0684F5',
+                          color: isActive ? '#0684F5' : '#FFFFFF',
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                        }}
+                      >
+                        {filter.count}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -2231,25 +2209,45 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                     )}
                   </div>
 
-                  <div>
-                    <p style={{ fontSize: '14px', color: '#FFFFFF', marginBottom: '4px' }}>
-                      {meeting.p1} ↔ {meeting.p2}
-                    </p>
-                    {meeting.tag && (
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          padding: '2px 8px',
-                          borderRadius: '8px',
-                          backgroundColor: 'rgba(139,92,246,0.15)',
-                          color: '#8B5CF6',
-                          fontSize: '11px',
-                          fontWeight: 500
-                        }}
-                      >
-                        {meeting.tag}
-                      </span>
-                    )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+                      {/* Avatar A */}
+                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#1E3A5F', border: '2px solid #0B2641', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', zIndex: 2 }}>
+                        {meeting.aPhoto ? (
+                          <img src={meeting.aPhoto} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <span style={{ fontSize: '10px', fontWeight: 700, color: '#FFFFFF' }}>{getInitials(meeting.p1)}</span>
+                        )}
+                      </div>
+                      
+                      {/* Connection Line */}
+                      <div style={{ width: '12px', height: '2px', backgroundColor: 'rgba(255,255,255,0.2)', zIndex: 1 }} />
+                      
+                      {/* Avatar B */}
+                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#1E3A5F', border: '2px solid #0B2641', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', zIndex: 2 }}>
+                        {meeting.bPhoto ? (
+                          <img src={meeting.bPhoto} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <span style={{ fontSize: '10px', fontWeight: 700, color: '#FFFFFF' }}>{getInitials(meeting.p2)}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF', marginBottom: '2px', lineHeight: 1.2 }}>
+                        {meeting.p1}
+                      </p>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF', lineHeight: 1.2 }}>
+                        {meeting.p2}
+                      </p>
+                      {meeting.matchMeta?.message && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#94A3B8', marginTop: '4px' }}>
+                          <MessageSquare size={10} />
+                          <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {meeting.matchMeta.message}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div>
@@ -2322,51 +2320,344 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                     {meeting.status}
                   </span>
 
-                  <button
-                    onClick={() => {
-                      const computedMeta = meeting.matchMeta?.breakdown?.length
-                        ? meeting.matchMeta
-                        : buildMatchMeta(
-                            { meta: meeting.aMeta || {}, ticket_type: meeting.aTicketType || '' },
-                            { meta: meeting.bMeta || {}, ticket_type: meeting.bTicketType || '' }
-                          );
-                      setSelectedPair({
-                        aId: meeting.aId,
-                        bId: meeting.bId,
-                        aName: meeting.p1,
-                        bName: meeting.p2,
-                        score: meeting.score,
-                        meetingId: meeting.rawId,
-                        aTitle: meeting.aTitle,
-                        bTitle: meeting.bTitle,
-                        aCompany: meeting.aCompany,
-                        bCompany: meeting.bCompany,
-                        tags: computedMeta.tags,
-                        breakdown: computedMeta.breakdown,
-                        insights: computedMeta.insights,
-                        topics: computedMeta.topics
-                      });
-                      setShowMatchDetails(true);
-                    }}
-                    style={{
-                      padding: '6px 12px',
-                      backgroundColor: 'transparent',
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      borderRadius: '6px',
-                      color: '#FFFFFF',
-                      fontSize: '12px',
-                      fontWeight: 500,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {t('manageEvent.b2b.allMeetings.table.view')}
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={() => {
+                        // ... existing view logic
+                        const computedMeta = meeting.matchMeta?.breakdown?.length
+                            ? meeting.matchMeta
+                            : buildMatchMeta(
+                                { meta: meeting.aMeta || {}, ticket_type: meeting.aTicketType || '' },
+                                { meta: meeting.bMeta || {}, ticket_type: meeting.bTicketType || '' }
+                              );
+                          setSelectedPair({
+                            aId: meeting.aId,
+                            bId: meeting.bId,
+                            aName: meeting.p1,
+                            bName: meeting.p2,
+                            score: meeting.score,
+                            meetingId: meeting.rawId,
+                            aTitle: meeting.aTitle,
+                            bTitle: meeting.bTitle,
+                            aCompany: meeting.aCompany,
+                            bCompany: meeting.bCompany,
+                            tags: computedMeta.tags,
+                            breakdown: computedMeta.breakdown,
+                            insights: computedMeta.insights,
+                            topics: computedMeta.topics
+                          });
+                          setShowMatchDetails(true);
+                      }}
+                      title="View Details"
+                      style={{
+                        padding: '6px',
+                        backgroundColor: 'rgba(6,132,245,0.1)',
+                        border: 'none',
+                        borderRadius: '6px',
+                        color: '#0684F5',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Eye size={16} />
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!confirm('Are you sure you want to cancel this meeting?')) return;
+                        try {
+                          await supabase.from('event_b2b_meetings').update({ status: 'cancelled' }).eq('id', meeting.rawId);
+                          toast.success('Meeting cancelled');
+                          fetchMeetings();
+                        } catch {
+                          toast.error('Failed to cancel');
+                        }
+                      }}
+                      title="Cancel Meeting"
+                      style={{
+                        padding: '6px',
+                        backgroundColor: 'rgba(239,68,68,0.1)',
+                        border: 'none',
+                        borderRadius: '6px',
+                        color: '#EF4444',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
                 </div>
               )) : (
                 <div style={{ padding: '24px', textAlign: 'center', color: '#94A3B8' }}>
                   {t('manageEvent.b2b.allMeetings.table.empty')}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB: LOGISTICS */}
+        {activeTab === 'logistics' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+            {/* Left: Capacity Config */}
+            <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '32px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+                <LayoutGrid size={32} style={{ color: '#0684F5' }} />
+                <div>
+                  <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF' }}>Venue Capacity</h3>
+                  <p style={{ fontSize: '14px', color: '#94A3B8' }}>Define the physical constraints of your networking area.</p>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px' }}>
+                    Number of Tables
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={venueConfig.tableCount}
+                    onChange={(e) => setVenueConfig(prev => ({ ...prev, tableCount: parseInt(e.target.value) || 1 }))}
+                    style={{
+                      width: '100%',
+                      height: '44px',
+                      padding: '0 16px',
+                      backgroundColor: 'rgba(255,255,255,0.08)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      borderRadius: '8px',
+                      color: '#FFFFFF',
+                      fontSize: '16px',
+                      fontWeight: 600
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px' }}>
+                    Table Prefix
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Table-"
+                    value={venueConfig.tablePrefix}
+                    onChange={(e) => setVenueConfig(prev => ({ ...prev, tablePrefix: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      height: '44px',
+                      padding: '0 16px',
+                      backgroundColor: 'rgba(255,255,255,0.08)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      borderRadius: '8px',
+                      color: '#FFFFFF',
+                      fontSize: '16px'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '32px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px' }}>
+                  Meeting Slot Duration
+                </label>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  {[15, 20, 30, 45, 60].map(mins => (
+                    <button
+                      key={mins}
+                      onClick={() => setVenueConfig(prev => ({ ...prev, slotDuration: mins }))}
+                      style={{
+                        padding: '10px 20px',
+                        backgroundColor: venueConfig.slotDuration === mins ? '#0684F5' : 'rgba(255,255,255,0.05)',
+                        border: venueConfig.slotDuration === mins ? 'none' : '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '8px',
+                        color: venueConfig.slotDuration === mins ? '#FFFFFF' : '#94A3B8',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {mins} min
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ padding: '20px', backgroundColor: 'rgba(16,185,129,0.1)', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.2)' }}>
+                <h4 style={{ fontSize: '16px', fontWeight: 600, color: '#10B981', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <TrendingUp size={18} />
+                  Capacity Calculation
+                </h4>
+                
+                {(() => {
+                  let totalSlots = 0;
+                  venueConfig.schedules.forEach(s => {
+                    const start = new Date(`2000-01-01T${s.start}`);
+                    const end = new Date(`2000-01-01T${s.end}`);
+                    const minutes = (end.getTime() - start.getTime()) / 60000;
+                    totalSlots += Math.floor(minutes / venueConfig.slotDuration);
+                  });
+                  const totalCapacity = totalSlots * venueConfig.tableCount;
+
+                  return (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+                      <div>
+                        <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '4px' }}>Table Setup</p>
+                        <p style={{ fontSize: '16px', fontWeight: 700, color: '#FFFFFF' }}>{venueConfig.tablePrefix}{venueConfig.tableCount.toString().padStart(2, '0')}</p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '4px' }}>Slot Duration</p>
+                        <p style={{ fontSize: '16px', fontWeight: 700, color: '#FFFFFF' }}>{venueConfig.slotDuration} min</p>
+                      </div>
+                      <div style={{ marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '12px' }}>
+                        <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '4px' }}>Total Time Slots</p>
+                        <p style={{ fontSize: '24px', fontWeight: 700, color: '#10B981' }}>{totalSlots}</p>
+                      </div>
+                      <div style={{ marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '12px' }}>
+                        <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '4px' }}>Max Meetings</p>
+                        <p style={{ fontSize: '24px', fontWeight: 700, color: '#0684F5' }}>{totalCapacity}</p>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Right: Schedule */}
+            <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: '32px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+                <Clock size={32} style={{ color: '#F59E0B' }} />
+                <div>
+                  <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF' }}>Networking Schedule</h3>
+                  <p style={{ fontSize: '14px', color: '#94A3B8' }}>Select specific dates and hours for B2B sessions.</p>
+                </div>
+              </div>
+
+              {/* Add Date Control */}
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+                <input 
+                  type="date" 
+                  min={eventDateRange.start}
+                  max={eventDateRange.end}
+                  value={newDate}
+                  onChange={(e) => setNewDate(e.target.value)}
+                  style={{ flex: 1, height: '40px', padding: '0 12px', backgroundColor: '#0B2641', border: '1px solid rgba(255,255,255,0.2)', color: '#FFFFFF', borderRadius: '8px' }}
+                />
+                <button
+                  onClick={() => {
+                    if (!newDate) return;
+                    // Allow multiple blocks for same date, so we remove the duplicate check
+                    setVenueConfig(prev => ({
+                      ...prev,
+                      schedules: [...prev.schedules, { date: newDate, start: '09:00', end: '12:00' }].sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start))
+                    }));
+                    setNewDate('');
+                  }}
+                  style={{ padding: '0 20px', backgroundColor: '#0684F5', color: '#FFFFFF', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Add Date
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {venueConfig.schedules.map((schedule, idx) => (
+                  <div key={`${schedule.date}-${idx}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF', marginBottom: '8px' }}>
+                        {new Date(schedule.date).toLocaleDateString(undefined, { weekday: 'short', month: 'long', day: 'numeric' })}
+                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="time"
+                          value={schedule.start}
+                          onChange={(e) => {
+                            const newSchedules = [...venueConfig.schedules];
+                            newSchedules[idx].start = e.target.value;
+                            setVenueConfig(prev => ({ ...prev, schedules: newSchedules }));
+                          }}
+                          style={{ padding: '6px', borderRadius: '4px', backgroundColor: '#0B2641', border: '1px solid rgba(255,255,255,0.2)', color: '#FFFFFF', fontSize: '13px' }}
+                        />
+                        <span style={{ color: '#94A3B8', fontSize: '13px' }}>to</span>
+                        <input
+                          type="time"
+                          value={schedule.end}
+                          onChange={(e) => {
+                            const newSchedules = [...venueConfig.schedules];
+                            newSchedules[idx].end = e.target.value;
+                            setVenueConfig(prev => ({ ...prev, schedules: newSchedules }));
+                          }}
+                          style={{ padding: '6px', borderRadius: '4px', backgroundColor: '#0B2641', border: '1px solid rgba(255,255,255,0.2)', color: '#FFFFFF', fontSize: '13px' }}
+                        />
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => {
+                          const start = new Date(`2000-01-01T${schedule.start}`);
+                          const end = new Date(`2000-01-01T${schedule.end}`);
+                          const diff = end.getTime() - start.getTime(); // Duration in ms
+                          
+                          // New Start = Old End
+                          const newStart = end;
+                          // New End = New Start + Duration
+                          const newEnd = new Date(newStart.getTime() + diff);
+                          
+                          const formatTime = (d: Date) => d.toTimeString().slice(0, 5);
+                          
+                          const newBlock = {
+                            date: schedule.date,
+                            start: formatTime(newStart),
+                            end: formatTime(newEnd)
+                          };
+                          
+                          const newSchedules = [...venueConfig.schedules];
+                          newSchedules.splice(idx + 1, 0, newBlock); // Insert after current
+                          setVenueConfig(prev => ({ ...prev, schedules: newSchedules }));
+                        }}
+                        title="Duplicate Time Block"
+                        style={{ padding: '8px', backgroundColor: 'rgba(6,132,245,0.1)', color: '#0684F5', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                      >
+                        <Copy size={16} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          const newSchedules = venueConfig.schedules.filter((_, i) => i !== idx);
+                          setVenueConfig(prev => ({ ...prev, schedules: newSchedules }));
+                        }}
+                        style={{ padding: '8px', backgroundColor: 'rgba(239,68,68,0.1)', color: '#EF4444', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {venueConfig.schedules.length === 0 && (
+                  <div style={{ padding: '32px', textAlign: 'center', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '8px' }}>
+                    <p style={{ color: '#94A3B8', fontSize: '14px' }}>No active dates configured.</p>
+                    <p style={{ color: '#6B7280', fontSize: '12px' }}>Add a date to enable booking.</p>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={() => persistB2BSettings()}
+                style={{
+                  marginTop: '32px',
+                  width: '100%',
+                  height: '48px',
+                  backgroundColor: '#0684F5',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: '#FFFFFF',
+                  fontSize: '16px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+              >
+                <CheckCircle size={20} />
+                {savingSettings ? 'Saving...' : 'Save Configuration'}
+              </button>
             </div>
           </div>
         )}

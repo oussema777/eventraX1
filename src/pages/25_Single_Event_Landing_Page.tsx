@@ -5,6 +5,7 @@ export default function SingleEventLandingPage() {
   return (
     <>
       <NavbarLoggedIn />
+      <div style={{ height: '72px' }} /> {/* Space for fixed navbar if needed, or extra padding */}
       <DesignStudioLanding />
     </>
   );

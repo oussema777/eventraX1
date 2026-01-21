@@ -29,7 +29,7 @@ import { useMessageThread } from '../../hooks/useMessageThread';
 const MATCHES_TABLE = 'b2b_matches';
 const REQUESTS_TABLE = 'b2b_requests';
 const CONNECTIONS_TABLE = 'b2b_connections';
-const MEETINGS_TABLE = 'b2b_meetings';
+const MEETINGS_TABLE = 'event_b2b_meetings';
 
 type TabType = 'schedule' | 'matches' | 'requests' | 'connections';
 
@@ -97,7 +97,7 @@ export default function UserB2BCenter() {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<TabType>('schedule');
   const [selectedEvent, setSelectedEvent] = useState('all');
-  const [showPastMeetings, setShowPastMeetings] = useState(false);
+  const [showPastMeetings, setShowPastMeetings] = useState(true);
   const [showSentRequests, setShowSentRequests] = useState(false);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
@@ -200,6 +200,14 @@ export default function UserB2BCenter() {
   const loadNetworkingData = async () => {
     if (!user?.id) return;
     try {
+      // Get user's attendee IDs across all events
+      const { data: myAttendees } = await supabase
+        .from('event_attendees')
+        .select('id, event_id')
+        .eq('profile_id', user.id);
+      
+      const myAttendeeIds = (myAttendees || []).map(a => a.id);
+
       const [
         profileResult,
         matchesResult,
@@ -229,12 +237,19 @@ export default function UserB2BCenter() {
           .select('id, profile_a_id, profile_b_id, event_id, created_at')
           .or(`profile_a_id.eq.${user.id},profile_b_id.eq.${user.id}`)
           .order('created_at', { ascending: false }),
-        supabase
-          .from(MEETINGS_TABLE)
-          .select('id, organizer_id, profile_a_id, profile_b_id, event_id, start_at, end_at, location, meeting_type, status, meta, created_at')
-          .or(`profile_a_id.eq.${user.id},profile_b_id.eq.${user.id}`)
-          .order('start_at', { ascending: true })
+        myAttendeeIds.length > 0 
+          ? supabase
+              .from(MEETINGS_TABLE)
+              .select('*, attendee_a:attendee_a_id(id, profile_id, name), attendee_b:attendee_b_id(id, profile_id, name)')
+              .or(`attendee_a_id.in.(${myAttendeeIds.join(',')}),attendee_b_id.in.(${myAttendeeIds.join(',')})`)
+              .order('start_at', { ascending: true }) 
+          : Promise.resolve({ data: [] })
       ]);
+
+      console.log('User ID:', user.id);
+      console.log('My Attendee IDs:', myAttendeeIds);
+      console.log('Meetings Fetched:', (meetingsResult as any).data);
+      if ((meetingsResult as any).error) console.error('Meetings Fetch Error:', (meetingsResult as any).error);
 
       if (profileResult.data?.full_name) {
         setCurrentUserName(profileResult.data.full_name);
@@ -258,8 +273,8 @@ export default function UserB2BCenter() {
         if (otherId) profileIds.add(otherId);
       });
       (meetingsResult.data || []).forEach((row: any) => {
-        const otherId = getOtherProfileId(row.profile_a_id, row.profile_b_id);
-        if (otherId) profileIds.add(otherId);
+        const otherProfileId = row.attendee_a?.profile_id === user.id ? row.attendee_b?.profile_id : row.attendee_a?.profile_id;
+        if (otherProfileId) profileIds.add(otherProfileId);
       });
 
       const { data: profilesData } =
@@ -478,26 +493,25 @@ export default function UserB2BCenter() {
 
       setMeetings(
         (meetingsResult.data || []).map((row: any) => {
-          const otherId = getOtherProfileId(row.profile_a_id, row.profile_b_id);
-          const profile = profileMap[otherId] || { name: t('networking.defaults.networkingMeeting'), title: '', company: '' };
-          const meta = row.meta || {};
+          const isA = myAttendeeIds.includes(row.attendee_a_id);
+          const otherAttendee = isA ? row.attendee_b : row.attendee_a;
+          const otherProfileId = otherAttendee?.profile_id;
+          const profile = profileMap[otherProfileId] || { name: otherAttendee?.name || t('networking.defaults.networkingMeeting'), avatar: null };
+          
           return {
             id: row.id,
-            profileId: otherId,
+            profileId: otherProfileId,
             name: profile.name,
             avatar: profile.avatar,
             time: formatTime(row.start_at),
             status: toMeetingStatus(row.status),
-            location:
-              row.location ||
-              (row.meeting_type === 'video' ? t('networking.meetings.videoCall') : t('networking.common.tbd')),
-            type: row.meeting_type === 'in-person' ? 'in-person' : 'video',
+            location: row.location || (row.meta?.meeting_type === 'video' ? t('networking.meetings.videoCall') : t('networking.common.tbd')),
+            type: row.meta?.meeting_type || 'in-person',
             event: row.event_id ? eventsLookup[row.event_id] || t('networking.defaults.event') : t('networking.defaults.generalNetworking'),
             eventId: row.event_id || null,
             startAt: row.start_at,
-            meetingUrl: meta.meeting_url || undefined,
-            organizerId: row.organizer_id,
-            meetingFormat: meta.meeting_format || (row.meeting_type === 'in-person' ? 'in-person' : 'video')
+            organizerId: row.attendee_a?.profile_id,
+            meetingFormat: row.meta?.meeting_format || (row.meta?.meeting_type === 'video' ? 'video' : 'in-person')
           };
         })
       );
@@ -1322,6 +1336,7 @@ export default function UserB2BCenter() {
 
   return (
     <div className="networking-hub" style={{ backgroundColor: '#0B2641', minHeight: '100vh' }}>
+      <div style={{ height: '72px' }} /> {/* Navbar Spacer */}
       {/* Hero Header */}
       <div 
         className="networking-hub__hero relative"

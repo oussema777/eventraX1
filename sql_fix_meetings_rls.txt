@@ -1,0 +1,37 @@
+-- Fix RLS for B2B Meetings
+-- This allows attendees to see their own meetings
+
+-- 1. Enable RLS
+ALTER TABLE public.event_b2b_meetings ENABLE ROW LEVEL SECURITY;
+
+-- 2. Create policy for attendees to see their own meetings
+-- We check if the current user's profile_id matches either attendee_a or attendee_b's profile_id
+DROP POLICY IF EXISTS "Users can see own event meetings" ON public.event_b2b_meetings;
+
+CREATE POLICY "Users can see own event meetings"
+ON public.event_b2b_meetings
+FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.event_attendees
+    WHERE (id = attendee_a_id OR id = attendee_b_id)
+    AND profile_id = auth.uid()
+  )
+);
+
+-- 3. Create policy for attendees to update their own meetings (Accept/Decline)
+DROP POLICY IF EXISTS "Users can update own event meetings" ON public.event_b2b_meetings;
+
+CREATE POLICY "Users can update own event meetings"
+ON public.event_b2b_meetings
+FOR UPDATE
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.event_attendees
+    WHERE (id = attendee_a_id OR id = attendee_b_id)
+    AND profile_id = auth.uid()
+  )
+)
+WITH CHECK (true);

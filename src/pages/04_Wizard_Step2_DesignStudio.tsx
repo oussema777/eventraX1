@@ -24,6 +24,7 @@ import { useSessions } from '../hooks/useSessions';
 import { useTickets } from '../hooks/useTickets';
 import AboutBlockSettingsModal from '../components/design-studio/modals/AboutBlockSettingsModal';
 import FooterBlockSettingsModal from '../components/design-studio/modals/FooterBlockSettingsModal';
+import HeroBlockSettingsModal from '../components/design-studio/modals/HeroBlockSettingsModal';
 
 interface Block {
   id: string;
@@ -311,7 +312,7 @@ export default function WizardStep2DesignStudio() {
 
     switch (block.type) {
       case 'hero':
-        return <HeroBlock key={block.id} isLocked={isLocked} event={eventData} brandColor={brandColor} brandColorSecondary={brandColorSecondary} buttonRadius={buttonRadius} logoUrl={logoUrl} />;
+        return <HeroBlock key={block.id} isLocked={isLocked} event={eventData} brandColor={brandColor} brandColorSecondary={brandColorSecondary} buttonRadius={buttonRadius} logoUrl={logoUrl} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />;
       case 'about':
         const aboutData = {
           name: block.settings?.title || eventData.name,
@@ -573,6 +574,14 @@ export default function WizardStep2DesignStudio() {
           description: selectedBlock?.settings?.description || eventData.description
         }}
         onSave={(data) => handleSaveBlockSettings('about', { title: data.name, subtitle: data.tagline, description: data.description })}
+      />
+
+      <HeroBlockSettingsModal
+        isOpen={settingsBlockId === 'hero'}
+        onClose={() => setSettingsBlockId(null)}
+        currentSettings={selectedBlock?.settings || {}}
+        onSave={(data) => handleSaveBlockSettings('hero', data)}
+        isSaving={isEventSaving}
       />
 
       <FooterBlockSettingsModal

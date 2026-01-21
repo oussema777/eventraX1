@@ -39,7 +39,7 @@ type ScannerSettings = {
   duplicatePolicy: DuplicatePolicy;
 };
 const DEFAULT_SCANNER_SETTINGS: ScannerSettings = {
-  autoAdvance: true,
+  autoAdvance: false,
   soundOnSuccess: true,
   vibrateOnSuccess: true,
   offlineScanning: false,
@@ -601,23 +601,85 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(raw);
     const isEmail = raw.includes('@');
 
-    const base = supabase
-      .from('event_attendees')
-      .select('id,checked_in,check_in_at,name,email,company,photo_url,avatar_url,ticket_type,ticket_color,ticket_code,confirmation_code,qr_token,is_vip,meta')
-      .eq('event_id', eventId);
+    const selectCols = 'id,profile_id,checked_in,check_in_at,name,email,company,photo_url,avatar_url,ticket_type,ticket_color,ticket_code,confirmation_code,qr_token,is_vip,meta';
 
+    let attendee: any = null;
+
+    // 1. Try UUID / Primary ID
     if (isUuid) {
-      const { data } = await base.eq('id', raw).maybeSingle();
-      if (data) return data;
+      const { data: uuidData } = await supabase
+        .from('event_attendees')
+        .select(selectCols)
+        .eq('event_id', eventId)
+        .eq('id', raw)
+        .maybeSingle();
+      if (uuidData) attendee = uuidData;
     }
 
-    if (isEmail) {
-      const { data } = await base.eq('email', raw).maybeSingle();
-      if (data) return data;
+    // 2. Try Email
+    if (!attendee && isEmail) {
+      const { data: emailData } = await supabase
+        .from('event_attendees')
+        .select(selectCols)
+        .eq('event_id', eventId)
+        .eq('email', raw)
+        .maybeSingle();
+      if (emailData) attendee = emailData;
     }
 
-    const { data } = await base.or(`ticket_code.eq.${raw},confirmation_code.eq.${raw},qr_token.eq.${raw}`).maybeSingle();
-    return data || null;
+    // 3. Try Standard Columns (ticket_code, confirmation_code, qr_token)
+    if (!attendee) {
+      const { data: stdData } = await supabase
+        .from('event_attendees')
+        .select(selectCols)
+        .eq('event_id', eventId)
+        .or(`ticket_code.eq."${raw}",confirmation_code.eq."${raw}",qr_token.eq."${raw}"`)
+        .maybeSingle();
+      if (stdData) attendee = stdData;
+    }
+
+    // 4. Try Meta JSON (Deep Search)
+    if (!attendee) {
+      const { data: metaData } = await supabase
+        .from('event_attendees')
+        .select(selectCols)
+        .eq('event_id', eventId)
+        .contains('meta', { confirmation_code: raw })
+        .maybeSingle();
+      if (metaData) attendee = metaData;
+    }
+
+    // 5. Hard ID Fallback (if not UUID but exists in id column)
+    if (!attendee) {
+      const { data: idData } = await supabase
+        .from('event_attendees')
+        .select(selectCols)
+        .eq('event_id', eventId)
+        .eq('id', raw)
+        .maybeSingle();
+      if (idData) attendee = idData;
+    }
+
+    if (!attendee) return null;
+
+    // 6. Fetch Profile Avatar independently
+    if (attendee.profile_id) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', attendee.profile_id)
+        .maybeSingle();
+      
+      if (profile?.avatar_url) {
+        attendee.photo_url = profile.avatar_url;
+      }
+    }
+
+    return attendee;
+  };
+
+  const flattenProfilePhoto = (attendee: any) => {
+    return attendee; // No longer needed as we merged it above
   };
 
   const insertCheckin = async (payload: any) => {

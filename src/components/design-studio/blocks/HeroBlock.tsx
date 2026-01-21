@@ -1,6 +1,7 @@
-import { ArrowRight, Edit2, Image, Type, Palette } from 'lucide-react';
+import { ArrowRight, Image, Type, Palette } from 'lucide-react';
 import { useState } from 'react';
 import { useI18n } from '../../../i18n/I18nContext';
+import EditModule from './EditModule';
 
 interface HeroBlockProps {
   isLocked?: boolean;
@@ -15,6 +16,12 @@ interface HeroBlockProps {
     description?: string;
     event_type?: string;
   };
+  settings?: {
+    title?: string;
+    subtitle?: string;
+    button1?: { text: string; url: string; visible: boolean };
+    button2?: { text: string; url: string; visible: boolean };
+  };
   onRegister?: () => void;
 }
 
@@ -26,6 +33,7 @@ export default function HeroBlock({
   buttonRadius,
   logoUrl,
   event,
+  settings,
   onRegister
 }: HeroBlockProps) {
   const { t } = useI18n();
@@ -33,9 +41,19 @@ export default function HeroBlock({
   const primaryColor = brandColor || '#635BFF';
   const secondaryColor = '#0B2641'; // Dark Navy default
   const radius = Number.isFinite(buttonRadius) ? buttonRadius : 12;
-  const eventTitle = event?.name || t('wizard.designStudio.hero.title');
-  const eventSubtitle = event?.tagline || event?.description || t('wizard.designStudio.hero.subtitle');
+  
+  // Resolve content: Settings > Event Data > Defaults
+  const eventTitle = settings?.title || event?.name || t('wizard.designStudio.hero.title');
+  const eventSubtitle = settings?.subtitle || event?.tagline || event?.description || t('wizard.designStudio.hero.subtitle');
   const eventTypeLabel = (event?.event_type || t('wizard.designStudio.hero.category')).toUpperCase();
+
+  // Button 1 Config (Primary)
+  const btn1Text = settings?.button1?.text || t('wizard.designStudio.hero.primaryCta');
+  const btn1Visible = settings?.button1?.visible !== false; // Default true
+
+  // Button 2 Config (Secondary)
+  const btn2Text = settings?.button2?.text || t('wizard.designStudio.hero.secondaryCta');
+  const btn2Visible = settings?.button2?.visible !== false; // Default true
 
   return (
     <div
@@ -52,131 +70,17 @@ export default function HeroBlock({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Edit Module - Shows on hover */}
+      {/* Edit Module */}
       {isHovered && !isLocked && showEditControls && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '16px',
-            right: '16px',
-            zIndex: 20,
-            display: 'flex',
-            gap: '8px',
-            animation: 'fadeIn 0.2s ease'
-          }}
-        >
-          <button
-            onClick={onEdit}
-            title={t('wizard.designStudio.hero.actions.edit')}
-            style={{
-              height: '36px',
-              padding: '0 14px',
-              backgroundColor: 'rgba(11, 38, 65, 0.95)',
-              backdropFilter: 'blur(8px)',
-              borderRadius: '8px',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              fontSize: '13px',
-              fontWeight: 600,
-              color: '#FFFFFF',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = primaryColor;
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(11, 38, 65, 0.95)';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            <Edit2 size={14} />
-            {t('wizard.designStudio.hero.actions.editLabel')}
-          </button>
-          
-          {/* Quick Actions */}
-          <div style={{ display: 'flex', gap: '4px' }}>
-            <button
-              title={t('wizard.designStudio.hero.actions.changeBackground')}
-              style={{
-                width: '36px',
-                height: '36px',
-                backgroundColor: 'rgba(11, 38, 65, 0.95)',
-                backdropFilter: 'blur(8px)',
-                borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = primaryColor;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(11, 38, 65, 0.95)';
-              }}
-            >
-              <Image size={16} style={{ color: '#FFFFFF' }} />
-            </button>
-            <button
-              title={t('wizard.designStudio.hero.actions.editText')}
-              style={{
-                width: '36px',
-                height: '36px',
-                backgroundColor: 'rgba(11, 38, 65, 0.95)',
-                backdropFilter: 'blur(8px)',
-                borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = primaryColor;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(11, 38, 65, 0.95)';
-              }}
-            >
-              <Type size={16} style={{ color: '#FFFFFF' }} />
-            </button>
-            <button
-              title={t('wizard.designStudio.hero.actions.changeColors')}
-              style={{
-                width: '36px',
-                height: '36px',
-                backgroundColor: 'rgba(11, 38, 65, 0.95)',
-                backdropFilter: 'blur(8px)',
-                borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = primaryColor;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(11, 38, 65, 0.95)';
-              }}
-            >
-              <Palette size={16} style={{ color: '#FFFFFF' }} />
-            </button>
-          </div>
-        </div>
+        <EditModule 
+          blockName="Hero" 
+          onEdit={onEdit} 
+          quickActions={[
+            { icon: <Image size={16} style={{ color: '#FFFFFF' }} />, label: 'Change Background', onClick: onEdit },
+            { icon: <Type size={16} style={{ color: '#FFFFFF' }} />, label: 'Edit Text', onClick: onEdit },
+            { icon: <Palette size={16} style={{ color: '#FFFFFF' }} />, label: 'Colors', onClick: onEdit }
+          ]}
+        />
       )}
 
       {/* Background Pattern */}
@@ -255,60 +159,72 @@ export default function HeroBlock({
 
         {/* CTA Buttons */}
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button
-            onClick={onRegister}
-            style={{
-              height: '56px',
-              padding: '0 32px',
-              backgroundColor: '#FFFFFF',
-              borderRadius: `${radius}px`,
-              border: 'none',
-              fontSize: '16px',
-              fontWeight: 700,
-              color: primaryColor,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#F8F7FF';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0px 8px 24px rgba(0, 0, 0, 0.2)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#FFFFFF';
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
-          >
-            {t('wizard.designStudio.hero.primaryCta')}
-            <ArrowRight size={20} />
-          </button>
+          {btn1Visible && (
+            <button
+              onClick={onRegister}
+              style={{
+                height: '56px',
+                padding: '0 32px',
+                backgroundColor: '#FFFFFF',
+                borderRadius: `${radius}px`,
+                border: 'none',
+                fontSize: '16px',
+                fontWeight: 700,
+                color: primaryColor,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#F8F7FF';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0px 8px 24px rgba(0, 0, 0, 0.2)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#FFFFFF';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              {btn1Text}
+              <ArrowRight size={20} />
+            </button>
+          )}
 
-          <button
-            style={{
-              height: '56px',
-              padding: '0 32px',
-              backgroundColor: 'transparent',
-              borderRadius: `${radius}px`,
-              border: '2px solid rgba(255, 255, 255, 0.4)',
-              fontSize: '16px',
-              fontWeight: 700,
-              color: '#FFFFFF',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-          >
-            {t('wizard.designStudio.hero.secondaryCta')}
-          </button>
+          {btn2Visible && (
+            <button
+              onClick={() => {
+                const url = settings?.button2?.url || '#details';
+                if (url.startsWith('#')) {
+                   // Local scroll or similar (implementation choice)
+                } else if (url.startsWith('http')) {
+                   window.open(url, '_blank');
+                }
+              }}
+              style={{
+                height: '56px',
+                padding: '0 32px',
+                backgroundColor: 'transparent',
+                borderRadius: `${radius}px`,
+                border: '2px solid rgba(255, 255, 255, 0.4)',
+                fontSize: '16px',
+                fontWeight: 700,
+                color: '#FFFFFF',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              {btn2Text}
+            </button>
+          )}
         </div>
       </div>
 

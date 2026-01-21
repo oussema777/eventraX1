@@ -9,6 +9,8 @@ import SpeakersBlock from '../design-studio/blocks/SpeakersBlock';
 import AgendaBlock from '../design-studio/blocks/AgendaBlock';
 import TicketsBlock from '../design-studio/blocks/TicketsBlock';
 import FooterBlock from '../design-studio/blocks/FooterBlock';
+import LandingPageNavbar from './LandingPageNavbar';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface EventRecord {
   id: string;
@@ -30,6 +32,7 @@ interface DesignStudioSettings {
   activeBlocks: any[];
   brandColor: string;
   buttonRadius: number;
+  logoUrl?: string;
 }
 
 interface SpeakerCard {
@@ -108,13 +111,17 @@ const formatPrice = (price?: number, currency?: string) => {
 export default function DesignStudioLanding() {
   const { eventId } = useParams();
   const navigate = useNavigate();
+  const { user, isLoading: isLoadingAuth } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [event, setEvent] = useState<EventRecord | null>(null);
+  const [isRegistered, setIsRegistered] = useState(false);
   const [design, setDesign] = useState<DesignStudioSettings>(DEFAULT_DESIGN);
   const [speakers, setSpeakers] = useState<SpeakerCard[]>([]);
   const [sessions, setSessions] = useState<AgendaSession[]>([]);
   const [days, setDays] = useState<AgendaDay[]>([]);
   const [tickets, setTickets] = useState<TicketCard[]>([]);
+  const [exhibitors, setExhibitors] = useState<any[]>([]);
+  const [attendeesCount, setAttendeesCount] = useState(0);
 
   const handleRegister = () => {
     if (eventId) {
@@ -122,13 +129,23 @@ export default function DesignStudioLanding() {
     }
   };
 
+  const handleNavigate = (section: string) => {
+    if (section === 'landing') {
+      navigate(`/event/${eventId}/landing`);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    navigate(`/event/${eventId}/${section}`);
+  };
+
+  // 1. Public Data Fetch (Runs once)
   useEffect(() => {
     if (!eventId) {
       setIsLoading(false);
       return;
     }
 
-    const load = async () => {
+    const loadPublic = async () => {
       setIsLoading(true);
       try {
         const params = new URLSearchParams(window.location.search);
@@ -156,28 +173,26 @@ export default function DesignStudioLanding() {
           setDesign({
             activeBlocks: Array.isArray(designSettings.activeBlocks) ? designSettings.activeBlocks : [],
             brandColor: designSettings.brandColor || DEFAULT_DESIGN.brandColor,
-            buttonRadius: Number.isFinite(designSettings.buttonRadius) ? designSettings.buttonRadius : DEFAULT_DESIGN.buttonRadius
+            buttonRadius: Number.isFinite(designSettings.buttonRadius) ? designSettings.buttonRadius : DEFAULT_DESIGN.buttonRadius,
+            logoUrl: designSettings.logoUrl
           });
         } else {
           setDesign(DEFAULT_DESIGN);
         }
 
-        const [speakerRes, sessionRes, ticketRes] = await Promise.all([
+        const [speakerRes, sessionRes, ticketRes, exhibitorRes, attendeeRes] = await Promise.all([
           supabase.from('event_speakers').select('*').eq('event_id', eventId),
           supabase.from('event_sessions').select('*').eq('event_id', eventId).order('starts_at', { ascending: true }),
-          supabase.from('event_tickets').select('*').eq('event_id', eventId)
+          supabase.from('event_tickets').select('*').eq('event_id', eventId),
+          supabase.from('event_exhibitors').select('*').eq('event_id', eventId),
+          supabase.from('event_attendees').select('id', { count: 'exact', head: true }).eq('event_id', eventId)
         ]);
 
-        if (speakerRes.error) {
-          console.warn('Failed to load speakers:', speakerRes.error);
-        }
-        if (sessionRes.error) {
-          console.warn('Failed to load sessions:', sessionRes.error);
-        }
-        if (ticketRes.error && !['PGRST204', '42P01'].includes(ticketRes.error.code || '')) {
-          console.warn('Failed to load tickets:', ticketRes.error);
-        }
+        if (exhibitorRes.data) setExhibitors(exhibitorRes.data);
+        if (attendeeRes.count) setAttendeesCount(attendeeRes.count);
 
+        if (speakerRes.error) console.warn('Failed to load speakers:', speakerRes.error);
+        
         const speakerRows = speakerRes.data || [];
         setSpeakers(speakerRows.map((row: any) => ({
           name: row.full_name || row.name || 'Speaker',
@@ -256,8 +271,33 @@ export default function DesignStudioLanding() {
       }
     };
 
-    load();
+    loadPublic();
   }, [eventId]);
+
+  // 2. Private Data Fetch (Runs when Auth is ready)
+  useEffect(() => {
+    if (!eventId || isLoadingAuth) return;
+
+    const loadPrivate = async () => {
+      if (!user) {
+        setIsRegistered(false);
+        return;
+      }
+      try {
+        const { data } = await supabase
+          .from('event_attendees')
+          .select('id')
+          .eq('event_id', eventId)
+          .eq('profile_id', user.id)
+          .maybeSingle();
+        
+        setIsRegistered(!!data);
+      } catch (e) {
+        console.error('Failed to check registration:', e);
+      }
+    };
+    loadPrivate();
+  }, [eventId, user, isLoadingAuth]);
 
   const orderedBlocks = useMemo(() => {
     const blocks = Array.isArray(design.activeBlocks) ? design.activeBlocks : [];
@@ -279,9 +319,9 @@ export default function DesignStudioLanding() {
 
     switch (blockType) {
       case 'hero':
-        return <HeroBlock key={block.id} {...sharedProps} event={event || undefined} onRegister={handleRegister} />;
+        return <HeroBlock key={block.id} {...sharedProps} event={event || undefined} onRegister={handleRegister} isRegistered={isRegistered} settings={block.settings} />;
       case 'about':
-        return <AboutBlock key={block.id} {...sharedProps} event={event || undefined} />;
+        return <AboutBlock key={block.id} {...sharedProps} event={block.settings?.title ? { name: block.settings.title, tagline: block.settings.subtitle, description: block.settings.description } : (event || undefined)} />;
       case 'event-details':
       case 'details':
         return <EventDetailsBlock key={block.id} {...sharedProps} event={event || undefined} />;
@@ -292,7 +332,7 @@ export default function DesignStudioLanding() {
       case 'tickets':
         return <TicketsBlock key={block.id} {...sharedProps} tickets={tickets} onRegister={handleRegister} />;
       case 'footer':
-        return <FooterBlock key={block.id} {...sharedProps} event={event || undefined} />;
+        return <FooterBlock key={block.id} {...sharedProps} event={event || undefined} settings={block.settings} />;
       default:
         return null;
     }
@@ -323,8 +363,28 @@ export default function DesignStudioLanding() {
   }
 
   return (
-    <div style={{ backgroundColor: '#FFFFFF', minHeight: '100vh' }}>
-      {orderedBlocks.map((block) => renderBlock(block))}
+    <div style={{ backgroundColor: '#FFFFFF', minHeight: '100vh', position: 'relative' }}>
+      <LandingPageNavbar 
+        activeSections={{
+          agenda: sessions.length > 0,
+          speakers: speakers.length > 0,
+          exhibitors: exhibitors.length > 0,
+          attendees: attendeesCount > 0
+        }}
+        brandColor={design.brandColor}
+        logoUrl={design.logoUrl}
+        isRegistered={isRegistered}
+        onNavigate={handleNavigate}
+        onRegister={handleRegister}
+      />
+      {orderedBlocks.map((block) => {
+        const blockType = block.blockId || block.type;
+        return (
+          <div id={blockType} key={block.id}>
+            {renderBlock(block)}
+          </div>
+        );
+      })}
     </div>
   );
 }

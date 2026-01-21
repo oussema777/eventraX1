@@ -29,6 +29,7 @@ import B2BMarketplaceDiscoveryPage from './pages/27_B2B_Marketplace_Discovery';
 import CommunityPeopleDiscovery from './pages/34_Community_People_Discovery';
 import ViewCreatedEvent from './pages/28_View_Created_Event';
 import EventRegistrationFlow from './pages/32_Event_Registration_Flow';
+import EventSectionPage from './pages/EventSectionPage';
 import EventCreationWizard from './pages/EventCreationWizard';
 import PublicProfilePage from './pages/PublicProfilePage';
 import NotificationsPage from './pages/Notifications';
@@ -87,6 +88,10 @@ export default function App() {
 
             <Route path="/business/:businessId" element={<BusinessProfilePageRoute />} />
             <Route path="/event/:eventId/landing" element={<SingleEventLandingPage />} />
+            <Route path="/event/:eventId/agenda" element={<EventSectionPage type="agenda" />} />
+            <Route path="/event/:eventId/speakers" element={<EventSectionPage type="speakers" />} />
+            <Route path="/event/:eventId/exhibitors" element={<EventSectionPage type="exhibitors" />} />
+            <Route path="/event/:eventId/attendees" element={<EventSectionPage type="attendees" />} />
             <Route path="/event/:eventId/register" element={<EventRegistrationFlow />} />
             <Route path="/profile/:userId" element={<PublicProfilePage />} />
             

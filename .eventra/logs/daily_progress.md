@@ -105,3 +105,56 @@
 - **Data Validation:** Added a \DashboardDebugger\ component to the UI to expose raw event data, confirming table schema and values in real-time.
 - **Visual Assurance:** Updated the \DynamicKpiGrid\ to force-render the 'Audience Insights' section even with zero data, replacing the previous 'hidden if empty' logic that caused the 'nothing changed' perception.
 - **Architectural Cleanup:** Created \WidgetRegistry\ to decouple KPI configuration from rendering logic, preparing for future scalability.
+
+---
+
+## [Checkpoint 8] - Tuesday, 20 January 2026
+
+### 🚀 Major Achievements
+
+#### 1. Schedule Conflict Detection
+- **Logic:** Implemented a conflict detection algorithm in `useSessions.ts` that prevents double-booking the same venue at overlapping times.
+- **UX:** Integrated a specific "Venue Conflict" toast notification in the Event Schedule Tab to alert managers before saving.
+
+#### 2. Design Studio: Hero Customization
+- **Feature:** Created `HeroBlockSettingsModal` allowing full control over Hero Title, Tagline, and Button configurations.
+- **Locking:** Secured the Primary Button to always trigger the Registration Flow while allowing text customization.
+- **UI:** Improved settings input visibility with dark text for CTA fields.
+
+#### 3. Public Registration & Branding
+- **Delivery:** Switched from Mock to **Real Email Delivery** using Resend API and the verified `ilab.tn` domain.
+- **Emails:** Registration recap emails now include a welcoming message, session summary, and a personalized Check-in QR Code.
+- **Tickets:** Added instant QR code display and a "Download Ticket" button on the registration confirmation screen.
+- **Confirmation Codes:** Implemented secondary alphanumeric codes (e.g., `EV-X9Y2`) generated and stored in metadata for manual check-in.
+
+#### 4. Day-of-Event: Check-in Scanner
+- **Resolution:** Refactored the scanner to support UUIDs, Emails, and manual Confirmation Codes (searching deep within JSON metadata).
+- **Profile Sync:** Integrated `profiles` table lookup to fetch and display the attendee's real avatar during scan.
+- **Persistence:** Disabled auto-advance to ensure attendee information stays on screen until the manager manually proceeds.
+
+#### 5. Multi-Page Event Site Architecture
+- **Navigation:** Implemented a sticky, secondary event navbar stuck under the main bar with a dynamic "Compact Mode" (icons-only on scroll).
+- **New Hubs:** Created `EventSectionPage.tsx` to handle dedicated, high-fidelity views for Agenda, Speakers, Exhibitors, and Attendees.
+- **Enhanced Agenda:** Replicated the dashboard's "Pro" list design for the public agenda, including Date grouping, Session Type badges, and Track pills.
+- **"My Agenda" Integration:** Enabled registered users to save/remove specific sessions directly from the public agenda page with real-time DB sync.
+- **Speakers & Exhibitors:** Overhauled cards to support full professional profiles (Expertise Tags, Speaker Types, Industry, and Contact Suites).
+- **Public Directory:** Launched the Attendees page with a modern UI and a "Contact" integration linked to the B2B Meeting system.
+- **Robust Data Fetching:** Optimized auth-aware data loading to prevent "lost data" on page refresh by splitting public and private fetch effects.
+
+#### 6. B2B Matchmaking & Networking Engine
+- **Data Unification:** Standardized the networking system to use the `event_b2b_meetings` table across both the public booking modal and the admin dashboard.
+- **Logistics & Venue Management:** 
+    - Implemented a "Venue Capacity" configuration allowing managers to set total table counts and custom prefixes (e.g., "Table-", "Booth-").
+    - **Smart Scheduling:** Built a dynamic scheduling system where managers add specific networking dates (limited to event timeframe) and multiple time blocks per day.
+    - **Contiguous Duplication:** Added a "Smart Duplicate" feature that calculates and appends the next contiguous time slot with one click (e.g., 14:00-14:30 becomes 14:30-15:00).
+- **Automated Table Assignment:** 
+    - Refactored the `BookMeetingModal` to automatically assign unique table numbers to in-person meetings based on real-time availability for the selected slot.
+    - Implemented slot-specific capacity tracking (`TableCount - ConfirmedMeetings`) to prevent venue overbooking.
+- **Admin Dashboard Enhancement:** 
+    - Redesigned the "All Meetings" table with high-fidelity dual avatars and connection lines.
+    - Added real-time moderation tools allowing managers to cancel or view details of any booked meeting.
+    - Modernized the filter bar with a compact, icon-driven UI and top-right notification badges.
+
+---
+**Status:** B2B Networking & Logistics - **Production Ready**
+**Next Milestone:** Payment Gateway Integration (Stripe) and Speaker/Exhibitor application flows.

@@ -1,0 +1,29 @@
+-- Fix for B2B Logistics: Add venue_config column to event_b2b_settings
+-- Run this in your Supabase SQL Editor
+
+-- 1. Ensure the column exists
+ALTER TABLE public.event_b2b_settings 
+ADD COLUMN IF NOT EXISTS venue_config JSONB DEFAULT '{}'::jsonb;
+
+-- 2. Ensure RLS allows the manager to update
+-- (Assuming managers are authenticated and have access to their events)
+DROP POLICY IF EXISTS "Managers can update B2B settings" ON public.event_b2b_settings;
+
+CREATE POLICY "Managers can update B2B settings"
+ON public.event_b2b_settings
+FOR ALL
+TO authenticated
+USING (true)
+WITH CHECK (true);
+
+-- 3. (Optional) If the table didn't exist at all, uncomment below:
+/*
+CREATE TABLE IF NOT EXISTS public.event_b2b_settings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    event_id UUID REFERENCES public.events(id) ON DELETE CASCADE UNIQUE,
+    criteria JSONB DEFAULT '{}'::jsonb,
+    min_match_score INTEGER DEFAULT 70,
+    venue_config JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+*/

@@ -1,0 +1,10 @@
+-- Explicitly allow Authenticated users to read ALL attendees
+-- This fixes the issue where logged-in users can only see themselves.
+
+DROP POLICY IF EXISTS "Authenticated Read All" ON public.event_attendees;
+
+CREATE POLICY "Authenticated Read All"
+ON public.event_attendees
+FOR SELECT
+TO authenticated
+USING (true);

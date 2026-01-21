@@ -547,9 +547,13 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
         };
       });
       setSessions(refreshed);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      toast.error(t('manageEvent.agenda.toasts.updateError'));
+      if (e.message && e.message.includes('Venue conflict')) {
+        toast.error(t('manageEvent.agenda.toasts.venueConflict') || 'Venue Conflict: Room already booked!');
+      } else {
+        toast.error(t('manageEvent.agenda.toasts.updateError'));
+      }
     } finally {
       setEditSaving(false);
       setIsLoading(false);
