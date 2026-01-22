@@ -43,7 +43,6 @@ export default function WizardStep3Registration() {
       { key: '3.4' as const, title: t('wizard.step3.subSteps.exhibitors') },
       { key: '3.5' as const, title: t('wizard.step3.subSteps.schedule') },
       { key: '3.6' as const, title: t('wizard.step3.subSteps.sponsors') },
-      { key: '3.7' as const, title: t('wizard.step3.subSteps.qrBadges') },
       { key: '3.8' as const, title: t('wizard.step3.subSteps.customForms') },
       { key: '3.9' as const, title: t('wizard.step3.subSteps.marketingTools') }
     ];
@@ -197,8 +196,6 @@ export default function WizardStep3Registration() {
         />;
       case '3.6':
         return <SponsorsTab eventId={eventId} />;
-      case '3.7':
-        return <BadgeEditorSimple eventId={eventId} />;
       case '3.8':
         return <CustomFormsTab eventId={eventId} />;
       case '3.9':

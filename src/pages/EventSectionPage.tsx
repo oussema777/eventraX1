@@ -57,6 +57,8 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
           const { data: exhibitors } = await supabase.from('event_exhibitors').select('*').eq('event_id', eventId);
           setData(exhibitors);
         } else if (type === 'attendees') {
+          console.log('Fetching attendees for event:', eventId);
+          // 1. Fetch Attendees
           const { data: attendees, error } = await supabase
             .from('event_attendees')
             .select('id, profile_id, name, company, avatar_url, photo_url, meta')
@@ -69,17 +71,29 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
             return;
           }
 
+          // 2. Fetch Profiles for avatars (Manual Join)
           const profileIds = attendees.map((a: any) => a.profile_id).filter(Boolean);
           let profileMap: Record<string, string> = {};
+          
           if (profileIds.length > 0) {
-            const { data: profiles } = await supabase.from('profiles').select('id, avatar_url').in('id', profileIds);
-            if (profiles) profiles.forEach((p: any) => { profileMap[p.id] = p.avatar_url; });
+            const { data: profiles } = await supabase
+              .from('profiles')
+              .select('id, avatar_url')
+              .in('id', profileIds);
+            
+            if (profiles) {
+              profiles.forEach((p: any) => {
+                profileMap[p.id] = p.avatar_url;
+              });
+            }
           }
           
+          // 3. Merge Data
           const mapped = attendees.map((a: any) => ({
             ...a,
             final_avatar: profileMap[a.profile_id] || a.avatar_url || a.photo_url
           }));
+          
           setData(mapped);
         }
       } catch (e) {
@@ -266,7 +280,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
         )}
 
         {type === 'speakers' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '32px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '32px' }}>
             {(data || []).map((s: any) => (
               <div key={s.id} style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.1)', padding: '32px', textAlign: 'center', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', overflow: 'hidden' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-8px)'; e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2)'; e.currentTarget.style.borderColor = brandColor; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.2)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'; }}>
                 {s.speaker_type && <div style={{ position: 'absolute', top: '16px', right: '16px', padding: '4px 12px', borderRadius: '12px', backgroundColor: `${brandColor}20`, color: brandColor, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.025em' }}>{s.speaker_type.replace('_', ' ')}</div>}
@@ -287,7 +301,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
         )}
 
         {type === 'exhibitors' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
             {(data || []).map((e: any) => (
               <div key={e.id} style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column' }} onMouseEnter={(evt) => { evt.currentTarget.style.transform = 'translateY(-4px)'; evt.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.2)'; evt.currentTarget.style.borderColor = brandColor; evt.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'; }} onMouseLeave={(evt) => { evt.currentTarget.style.transform = 'translateY(0)'; evt.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)'; evt.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; evt.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'; }}>
                 <div style={{ height: '160px', backgroundColor: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)', position: 'relative' }}><img src={e.logo_url || 'https://via.placeholder.com/300x150?text=Logo'} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />{e.sponsorship_level && <div style={{ position: 'absolute', top: '12px', right: '12px', padding: '4px 10px', borderRadius: '20px', backgroundColor: e.sponsorship_level === 'Gold' ? '#FFFBEB' : e.sponsorship_level === 'Silver' ? '#F3F4F6' : '#EEF2FF', color: e.sponsorship_level === 'Gold' ? '#B45309' : e.sponsorship_level === 'Silver' ? '#4B5563' : '#4338CA', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', border: '1px solid rgba(0,0,0,0.05)', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>{e.sponsorship_level}</div>}</div>
@@ -305,18 +319,60 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
         {type === 'attendees' && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '24px' }}>
             {(data || []).map((a: any) => (
-              <div key={a.id} style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', padding: '24px', textAlign: 'center', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', alignItems: 'center' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.08)'; e.currentTarget.style.borderColor = brandColor; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'; }}>
+              <div 
+                key={a.id} 
+                onClick={() => {
+                  console.log('Navigating to profile:', a.profile_id);
+                  if (a.profile_id) navigate(`/profile/${a.profile_id}`);
+                }}
+                style={{ 
+                  backgroundColor: 'rgba(255,255,255,0.03)', 
+                  borderRadius: '16px', 
+                  border: '1px solid rgba(255,255,255,0.1)', 
+                  padding: '24px', 
+                  textAlign: 'center', 
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.08)';
+                  e.currentTarget.style.borderColor = brandColor;
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)';
+                }}
+              >
+                {/* Avatar Container */}
                 <div style={{ width: '80px', height: '80px', marginBottom: '16px', flexShrink: 0 }}>
                   {a.final_avatar ? (
-                    <img src={a.final_avatar} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', border: `3px solid #0B2641`, boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }} onError={(e) => { const parent = e.currentTarget.parentElement; if (parent) { e.currentTarget.style.display = 'none'; const fallback = document.createElement('div'); fallback.style.width = '100%'; fallback.style.height = '100%'; fallback.style.borderRadius = '50%'; fallback.style.backgroundColor = brandColor; fallback.style.color = '#FFFFFF'; fallback.style.display = 'flex'; fallback.style.alignItems = 'center'; fallback.style.justifyContent = 'center'; fallback.style.fontSize = '24px'; fallback.style.fontWeight = '700'; fallback.style.border = '3px solid #0B2641'; fallback.innerText = getInitials(a.name); parent.appendChild(fallback); } }} />
+                    <img 
+                      src={a.final_avatar} 
+                      style={{ 
+                        width: '100%', 
+                        height: '100%', 
+                        borderRadius: '50%', 
+                        objectFit: 'cover', 
+                        border: `3px solid #0B2641`, 
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.2)' 
+                      }} 
+                      onError={(e) => { const parent = e.currentTarget.parentElement; if (parent) { e.currentTarget.style.display = 'none'; const fallback = document.createElement('div'); fallback.style.width = '100%'; fallback.style.height = '100%'; fallback.style.borderRadius = '50%'; fallback.style.backgroundColor = brandColor; fallback.style.color = '#FFFFFF'; fallback.style.display = 'flex'; fallback.style.alignItems = 'center'; fallback.style.justifyContent = 'center'; fallback.style.fontSize = '24px'; fallback.style.fontWeight = '700'; fallback.style.border = '3px solid #0B2641'; fallback.innerText = getInitials(a.name); parent.appendChild(fallback); } }} 
+                    />
                   ) : <div style={{ width: '100%', height: '100%', borderRadius: '50%', backgroundColor: brandColor, color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 700, border: '3px solid #0B2641', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>{getInitials(a.name)}</div>}
                 </div>
                 <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>{a.name || 'Attendee'}</h3>
                 <div style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '2px' }}>{a.meta?.['Job Title'] || a.meta?.['Title'] || a.meta?.job_title || 'Professional'}</div>
                 <div style={{ fontSize: '13px', color: brandColor, fontWeight: 500, marginBottom: '20px' }}>{a.company || a.meta?.['Company'] || a.meta?.['Organization'] || ''}</div>
                 <div style={{ width: '100%', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <button onClick={() => { if (!user) { navigate(`/event/${eventId}/register`); return; } if (a.profile_id) setSelectedAttendee({ id: a.profile_id, name: a.name }); }} style={{ width: '100%', height: '36px', backgroundColor: brandColor, color: '#FFFFFF', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>Book Meeting</button>
-                  <button disabled={isMessageLoading} onClick={() => { if (a.profile_id) handleMessage(a.profile_id); }} style={{ width: '100%', height: '36px', backgroundColor: 'rgba(255,255,255,0.1)', color: '#FFFFFF', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', opacity: isMessageLoading ? 0.7 : 1 }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)'; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}>{isMessageLoading ? 'Loading...' : 'Message'}</button>
+                  <button onClick={(e) => { e.stopPropagation(); if (!user) { navigate(`/event/${eventId}/register`); return; } if (a.profile_id) setSelectedAttendee({ id: a.profile_id, name: a.name }); }} style={{ width: '100%', height: '36px', backgroundColor: brandColor, color: '#FFFFFF', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>Book Meeting</button>
+                  <button disabled={isMessageLoading} onClick={(e) => { e.stopPropagation(); if (a.profile_id) handleMessage(a.profile_id); }} style={{ width: '100%', height: '36px', backgroundColor: 'rgba(255,255,255,0.1)', color: '#FFFFFF', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', opacity: isMessageLoading ? 0.7 : 1 }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)'; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}>{isMessageLoading ? 'Loading...' : 'Message'}</button>
                 </div>
               </div>
             ))}
@@ -324,26 +380,13 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
         )}
       </div>
 
-      {selectedAttendee && user && (
-        <BookMeetingModal
-          isOpen={true}
-          onClose={() => setSelectedAttendee(null)}
-          currentUser={user}
-          recipient={selectedAttendee}
-          eventId={eventId}
-        />
-      )}
-
-      <style>{`
-        .agenda-row:hover { background-color: rgba(255,255,255,0.05) !important; }
-        .agenda-card { display: grid; grid-template-columns: 140px 1fr; gap: 24px; }
-        @media (max-width: 640px) {
-          .agenda-card { grid-template-columns: 1fr; gap: 16px; }
-          .agenda-time { text-align: left !important; display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
-          .agenda-row { flex-direction: column; align-items: flex-start !important; padding: 24px !important; }
-          .agenda-row > div { width: 100% !important; margin-bottom: 12px; }
-        }
-      `}</style>
+      <BookMeetingModal 
+        isOpen={!!selectedAttendee}
+        onClose={() => setSelectedAttendee(null)}
+        recipient={selectedAttendee || { id: '', name: '' }}
+        currentUser={user}
+        eventId={eventId}
+      />
     </div>
   );
 }

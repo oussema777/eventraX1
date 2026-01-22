@@ -98,7 +98,6 @@ export default function WizardSidebar({
         { key: '3.4', title: t('wizard.sidebar.subSteps.exhibitors'), icon: Store },
         { key: '3.5', title: t('wizard.sidebar.subSteps.schedule'), icon: Calendar },
         { key: '3.6', title: t('wizard.sidebar.subSteps.sponsors'), icon: Award },
-        { key: '3.7', title: t('wizard.sidebar.subSteps.qrBadges'), icon: QrCode },
         { key: '3.8', title: t('wizard.sidebar.subSteps.customForms'), icon: FileText },
         { key: '3.9', title: t('wizard.sidebar.subSteps.marketingTools'), icon: Mail }
       ]
