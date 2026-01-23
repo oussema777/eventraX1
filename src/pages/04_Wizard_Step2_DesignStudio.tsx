@@ -318,7 +318,8 @@ export default function WizardStep2DesignStudio() {
           name: block.settings?.title || eventData.name,
           tagline: block.settings?.subtitle || eventData.tagline,
           description: block.settings?.description || eventData.description,
-          features: block.settings?.features || undefined
+          features: block.settings?.features || undefined,
+          image: block.settings?.image
         };
         return <AboutBlock key={block.id} event={aboutData} brandColor={brandColor} />;
       case 'details':
@@ -571,9 +572,17 @@ export default function WizardStep2DesignStudio() {
         eventData={{
           name: selectedBlock?.settings?.title || eventData.name,
           tagline: selectedBlock?.settings?.subtitle || eventData.tagline,
-          description: selectedBlock?.settings?.description || eventData.description
+          description: selectedBlock?.settings?.description || eventData.description,
+          features: selectedBlock?.settings?.features,
+          image: selectedBlock?.settings?.image
         }}
-        onSave={(data) => handleSaveBlockSettings('about', { title: data.name, subtitle: data.tagline, description: data.description })}
+        onSave={(data) => handleSaveBlockSettings('about', { 
+          title: data.name, 
+          subtitle: data.tagline, 
+          description: data.description,
+          features: data.features,
+          image: data.image
+        })}
       />
 
       <HeroBlockSettingsModal

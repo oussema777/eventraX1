@@ -321,7 +321,16 @@ export default function DesignStudioLanding() {
       case 'hero':
         return <HeroBlock key={block.id} {...sharedProps} event={event || undefined} onRegister={handleRegister} isRegistered={isRegistered} settings={block.settings} />;
       case 'about':
-        return <AboutBlock key={block.id} {...sharedProps} event={block.settings?.title ? { name: block.settings.title, tagline: block.settings.subtitle, description: block.settings.description } : (event || undefined)} />;
+        const aboutData = block.settings?.title 
+          ? { 
+              name: block.settings.title, 
+              tagline: block.settings.subtitle, 
+              description: block.settings.description,
+              features: block.settings.features,
+              image: block.settings.image
+            } 
+          : (event || undefined);
+        return <AboutBlock key={block.id} {...sharedProps} event={aboutData} />;
       case 'event-details':
       case 'details':
         return <EventDetailsBlock key={block.id} {...sharedProps} event={event || undefined} />;

@@ -5,7 +5,6 @@ import {
   MapPin,
   Video,
   Globe,
-  Globe as GlobeIcon,
   DollarSign,
   Gift,
   Infinity,
@@ -15,7 +14,8 @@ import {
   Palette,
   Lightbulb,
   FileText,
-  ArrowRight
+  ArrowRight,
+  Lock
 } from 'lucide-react';
 import ProTipBox from './ProTipBox';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -23,6 +23,7 @@ import { ROUTES } from '../../utils/navigation';
 import { getEventBasicDetails, saveEventBasicDetails } from '../../utils/eventStorage';
 import { useEventWizard } from '../../hooks/useEventWizard';
 import { useI18n } from '../../i18n/I18nContext';
+import { usePlan } from '../../hooks/usePlan';
 import { toast } from 'sonner';
 
 interface EventDetailsFormProps {
@@ -34,6 +35,7 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
   const navigate = useNavigate();
   const { eventData, saveDraft, isLoading } = useEventWizard(eventId);
   const { t } = useI18n();
+  const { isPro } = usePlan();
   const initializedRef = useRef(false);
 
   const [eventName, setEventName] = useState('');
@@ -45,7 +47,6 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
   const [venueAddress, setVenueAddress] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [timezone, setTimezone] = useState('pt');
   const [hasCapacityLimit, setHasCapacityLimit] = useState(false);
   const [maxAttendees, setMaxAttendees] = useState('');
   const [waitlistCapacity, setWaitlistCapacity] = useState('');
@@ -53,6 +54,20 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
   const [showNameError, setShowNameError] = useState(false);
   const [nameIsValid, setNameIsValid] = useState(false);
   const [waitlistError, setWaitlistError] = useState('');
+  
+  // Debounced address for map preview to avoid excessive iframe reloads
+  const [debouncedVenueAddress, setDebouncedVenueAddress] = useState('');
+
+  useEffect(() => {
+    if (!venueAddress) {
+      setDebouncedVenueAddress('');
+      return;
+    }
+    const timer = setTimeout(() => {
+      setDebouncedVenueAddress(venueAddress);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [venueAddress]);
 
   const handleMaxAttendeesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/[^0-9]/g, '');
@@ -115,13 +130,6 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
     { value: 'Other', label: t('wizard.details.eventTypes.other') }
   ];
   const eventTypeValues = eventTypeOptions.map((option) => option.value);
-  const timezoneOptions = [
-    { value: 'pt', label: t('wizard.details.timezones.pt') },
-    { value: 'mt', label: t('wizard.details.timezones.mt') },
-    { value: 'ct', label: t('wizard.details.timezones.ct') },
-    { value: 'et', label: t('wizard.details.timezones.et') },
-    { value: 'utc', label: t('wizard.details.timezones.utc') }
-  ];
 
   useEffect(() => {
     if (isLoading) return;
@@ -145,7 +153,6 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
     setVenueAddress(stored.venueAddress || eventData.location_address || '');
     setStartDate(stored.startDate || eventData.start_date || '');
     setEndDate(stored.endDate || eventData.end_date || '');
-    setTimezone(stored.timezone || eventData.timezone || 'pt');
     setHasCapacityLimit(
       typeof stored.hasCapacityLimit === 'boolean'
         ? stored.hasCapacityLimit
@@ -182,7 +189,6 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
       venueAddress,
       startDate,
       endDate,
-      timezone,
       maxAttendees: hasCapacityLimit ? parseInt(maxAttendees || '0', 10) : undefined,
       hasCapacityLimit,
       enableWaitlist,
@@ -198,7 +204,6 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
     venueAddress,
     startDate,
     endDate,
-    timezone,
     hasCapacityLimit,
     maxAttendees,
     enableWaitlist,
@@ -231,7 +236,7 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
     },
     {
       id: 'hybrid' as const,
-      icon: GlobeIcon,
+      icon: Globe,
       label: t('wizard.details.format.hybrid.label'),
       description: t('wizard.details.format.hybrid.description')
     }
@@ -248,7 +253,6 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
       location_address: venueAddress,
       start_date: startDate,
       end_date: endDate,
-      timezone,
       capacity_limit: hasCapacityLimit ? parseInt(maxAttendees || '0', 10) : null,
       waitlist_enabled: enableWaitlist,
       attendee_settings: {
@@ -448,27 +452,41 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
               </div>
             </button>
 
-            {/* Paid Event */}
+            {/* Paid Event (Pro Only) */}
             <button
               onClick={() => {
+                if (!isPro) {
+                  toast.error(t('wizard.details.errors.proFeaturePaid', 'Paid events are a Pro feature. Please upgrade to select.'));
+                  return;
+                }
                 setEventStatus('paid');
                 saveEventBasicDetails({ eventStatus: 'paid' });
               }}
-              className="p-4 rounded-lg border-2 transition-all text-center"
+              className={`p-4 rounded-lg border-2 transition-all text-center relative ${!isPro ? 'opacity-80' : ''}`}
               style={{
                 borderColor: eventStatus === 'paid' ? '#0684F5' : '#E5E7EB',
-                backgroundColor: eventStatus === 'paid' ? '#EFF6FF' : 'white',
-                cursor: 'pointer'
+                backgroundColor: eventStatus === 'paid' ? '#EFF6FF' : (!isPro ? '#F9FAFB' : 'white'),
+                cursor: !isPro ? 'not-allowed' : 'pointer'
               }}
             >
+              {!isPro && (
+                <div className="absolute top-3 right-3">
+                  <Lock size={16} className="text-gray-400" />
+                </div>
+              )}
+              {!isPro && (
+                <div className="absolute top-0 right-0 left-0 flex justify-center -mt-3">
+                   <span className="bg-[#FACC15] text-[#854D0E] text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#EAB308] shadow-sm">PRO</span>
+                </div>
+              )}
               <DollarSign
                 size={24}
                 className="mx-auto mb-2"
-                style={{ color: eventStatus === 'paid' ? '#0684F5' : '#6B7280' }}
+                style={{ color: eventStatus === 'paid' ? '#0684F5' : (!isPro ? '#9CA3AF' : '#6B7280') }}
               />
               <div
                 className="text-sm mb-1"
-                style={{ fontWeight: 600, color: '#0B2641' }}
+                style={{ fontWeight: 600, color: !isPro ? '#6B7280' : '#0B2641' }}
               >
                 {t('wizard.details.eventStatus.paid.title')}
               </div>
@@ -480,27 +498,41 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
               </div>
             </button>
 
-            {/* Continuous Event */}
+            {/* Continuous Event (Pro Only) */}
             <button
               onClick={() => {
+                if (!isPro) {
+                  toast.error(t('wizard.details.errors.proFeatureContinuous', 'Continuous events are a Pro feature. Please upgrade to select.'));
+                  return;
+                }
                 setEventStatus('continuous');
                 saveEventBasicDetails({ eventStatus: 'continuous' });
               }}
-              className="p-4 rounded-lg border-2 transition-all text-center"
+              className={`p-4 rounded-lg border-2 transition-all text-center relative ${!isPro ? 'opacity-80' : ''}`}
               style={{
                 borderColor: eventStatus === 'continuous' ? '#0684F5' : '#E5E7EB',
-                backgroundColor: eventStatus === 'continuous' ? '#EFF6FF' : 'white',
-                cursor: 'pointer'
+                backgroundColor: eventStatus === 'continuous' ? '#EFF6FF' : (!isPro ? '#F9FAFB' : 'white'),
+                cursor: !isPro ? 'not-allowed' : 'pointer'
               }}
             >
+              {!isPro && (
+                <div className="absolute top-3 right-3">
+                  <Lock size={16} className="text-gray-400" />
+                </div>
+              )}
+              {!isPro && (
+                <div className="absolute top-0 right-0 left-0 flex justify-center -mt-3">
+                   <span className="bg-[#FACC15] text-[#854D0E] text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#EAB308] shadow-sm">PRO</span>
+                </div>
+              )}
               <Infinity
                 size={24}
                 className="mx-auto mb-2"
-                style={{ color: eventStatus === 'continuous' ? '#0684F5' : '#6B7280' }}
+                style={{ color: eventStatus === 'continuous' ? '#0684F5' : (!isPro ? '#9CA3AF' : '#6B7280') }}
               />
               <div
                 className="text-sm mb-1"
-                style={{ fontWeight: 600, color: '#0B2641' }}
+                style={{ fontWeight: 600, color: !isPro ? '#6B7280' : '#0B2641' }}
               >
                 {t('wizard.details.eventStatus.continuous.title')}
               </div>
@@ -567,41 +599,6 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
         </div>
       </div>
 
-        {/* Timezone */}
-        <div>
-          <label className="block text-xs mb-2" style={{ fontWeight: 500, color: '#6B7280' }}>
-            {t('wizard.details.fields.timezone.label')} <span style={{ color: '#EF4444' }}>*</span>
-          </label>
-          <div className="relative">
-            <Globe
-              size={18}
-              className="absolute left-3 top-1/2 -translate-y-1/2"
-              style={{ color: '#6B7280' }}
-            />
-            <select
-              value={timezone}
-              onChange={(e) => setTimezone(e.target.value)}
-              className="w-full h-11 pl-10 pr-10 rounded-lg border outline-none appearance-none cursor-pointer transition-colors"
-              style={{
-                borderColor: '#E5E7EB',
-                color: '#0B2641',
-                backgroundColor: 'white'
-              }}
-            >
-              {timezoneOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              size={18}
-              className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-              style={{ color: '#6B7280' }}
-            />
-          </div>
-        </div>
-
         {/* Event Format */}
         <div>
           <label className="block text-sm mb-4" style={{ fontWeight: 500, color: '#6B7280' }}>
@@ -649,7 +646,7 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
 
           {/* Conditional Venue Address */}
           {eventFormat === 'in-person' && (
-            <div className="mt-4">
+            <div className="mt-4 space-y-4">
               <div className="relative">
                 <MapPin
                   size={18}
@@ -668,12 +665,37 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
                   }}
                 />
               </div>
-              <button
-                className="mt-2 text-xs transition-opacity hover:opacity-80"
-                style={{ color: '#3B82F6', fontWeight: 500 }}
-              >
-                {t('wizard.details.fields.venueAddress.addToMaps')}
-              </button>
+
+              {/* Dynamic Map Preview */}
+              {debouncedVenueAddress && (
+                <div className="rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                  <div className="aspect-video w-full relative">
+                    <iframe
+                      width="100%"
+                      height="100%"
+                      frameBorder="0"
+                      scrolling="no"
+                      marginHeight={0}
+                      marginWidth={0}
+                      src={`https://maps.google.com/maps?q=${encodeURIComponent(debouncedVenueAddress)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                      title="Venue Location"
+                      className="w-full h-full"
+                    />
+                  </div>
+                  <div className="p-3 bg-white border-t border-gray-200 flex justify-end">
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venueAddress)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs flex items-center gap-1.5 transition-opacity hover:opacity-80"
+                      style={{ color: '#3B82F6', fontWeight: 500 }}
+                    >
+                      <MapPin size={14} />
+                      {t('wizard.details.fields.venueAddress.addToMaps', 'View on Google Maps')}
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

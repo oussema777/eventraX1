@@ -11,6 +11,7 @@ interface AboutBlockProps {
     tagline?: string;
     description?: string;
     features?: string[];
+    image?: string;
   };
 }
 
@@ -62,21 +63,35 @@ export default function AboutBlock({ showEditControls = true, brandColor, event 
       >
         {/* Image */}
         <div>
-          <div
-            style={{
-              width: '100%',
-              aspectRatio: '4/3',
-              borderRadius: '16px',
-              background: 'linear-gradient(135deg, #E0E7FF 0%, #C7D2FE 100%)',
-              boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '48px'
-            }}
-          >
-            {t('wizard.designStudio.about.imagePlaceholder')}
-          </div>
+          {event?.image ? (
+            <img
+              src={event.image}
+              alt="Event About"
+              style={{
+                width: '100%',
+                aspectRatio: '4/3',
+                borderRadius: '16px',
+                objectFit: 'cover',
+                boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.1)'
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: '100%',
+                aspectRatio: '4/3',
+                borderRadius: '16px',
+                background: 'linear-gradient(135deg, #E0E7FF 0%, #C7D2FE 100%)',
+                boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '48px'
+              }}
+            >
+              {t('wizard.designStudio.about.imagePlaceholder')}
+            </div>
+          )}
         </div>
 
         {/* Content */}

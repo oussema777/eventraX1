@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react';
-import { X, Loader2, Plus, Trash2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Loader2, Plus, Trash2, Upload } from 'lucide-react';
+import { useParams } from 'react-router-dom';
 import { useI18n } from '../../../i18n/I18nContext';
+import { uploadEventAsset } from '../../../utils/storage';
+import { toast } from 'sonner';
 
 interface AboutBlockSettingsModalProps {
   isOpen: boolean;
@@ -10,8 +13,9 @@ interface AboutBlockSettingsModalProps {
     tagline?: string;
     description?: string;
     features?: string[];
+    image?: string;
   };
-  onSave: (data: { name: string; tagline: string; description: string; features: string[] }) => Promise<void>;
+  onSave: (data: { name: string; tagline: string; description: string; features: string[]; image?: string }) => Promise<void>;
   isSaving?: boolean;
 }
 
@@ -22,12 +26,17 @@ export default function AboutBlockSettingsModal({
   onSave,
   isSaving = false
 }: AboutBlockSettingsModalProps) {
+  const { eventId } = useParams();
   const { t } = useI18n();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [name, setName] = useState(eventData.name || '');
   const [tagline, setTagline] = useState(eventData.tagline || '');
   const [description, setDescription] = useState(eventData.description || '');
   const [features, setFeatures] = useState<string[]>(eventData.features || []);
+  const [image, setImage] = useState(eventData.image || '');
   const [newFeature, setNewFeature] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -35,14 +44,43 @@ export default function AboutBlockSettingsModal({
       setTagline(eventData.tagline || '');
       setDescription(eventData.description || '');
       setFeatures(eventData.features || []);
+      setImage(eventData.image || '');
     }
   }, [isOpen, eventData]);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!eventId) {
+      toast.error('Event ID is missing. Please save the event first.');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const url = await uploadEventAsset(eventId, file);
+      if (url) {
+        setImage(url);
+        toast.success('Image uploaded successfully');
+      } else {
+        toast.error('Failed to upload image');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Error uploading image');
+    } finally {
+      setIsUploading(false);
+      // Reset input so same file can be selected again if needed
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onSave({ name, tagline, description, features });
+    await onSave({ name, tagline, description, features, image });
     onClose();
   };
 
@@ -121,6 +159,65 @@ export default function AboutBlockSettingsModal({
         </div>
 
         <form onSubmit={handleSubmit} style={{ padding: '28px', overflowY: 'auto' }}>
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
+              Section Image
+            </label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                value={image}
+                onChange={(e) => setImage(e.target.value)}
+                className="dark-placeholder"
+                style={{ 
+                  flex: 1, 
+                  padding: '12px 16px', 
+                  borderRadius: '8px', 
+                  border: '2px solid #E5E7EB', 
+                  fontSize: '15px',
+                  color: '#111827',
+                  fontWeight: 500,
+                  outline: 'none',
+                  transition: 'border-color 0.2s'
+                }}
+                onFocus={(e) => e.currentTarget.style.borderColor = '#0684F5'}
+                onBlur={(e) => e.currentTarget.style.borderColor = '#E5E7EB'}
+                placeholder="https://example.com/image.jpg"
+              />
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageUpload}
+                accept="image/*"
+                style={{ display: 'none' }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                style={{
+                  padding: '0 16px',
+                  backgroundColor: '#F3F4F6',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  color: '#111827',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: '50px'
+                }}
+                title="Upload Image"
+              >
+                {isUploading ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+              </button>
+            </div>
+            {image && (
+              <div style={{ marginTop: '8px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB', height: '100px', width: '100%', backgroundColor: '#F9FAFB', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <img src={image} alt="Preview" style={{ height: '100%', width: '100%', objectFit: 'contain' }} />
+              </div>
+            )}
+          </div>
+
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
               Section Headline

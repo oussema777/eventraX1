@@ -34,7 +34,6 @@ export default function WizardStep1Details() {
       location_address: details.venueAddress || eventData.location_address,
       start_date: details.startDate || eventData.start_date,
       end_date: details.endDate || eventData.end_date,
-      timezone: details.timezone || eventData.timezone,
       capacity_limit: details.hasCapacityLimit ? details.maxAttendees || null : null,
       waitlist_enabled: details.enableWaitlist || eventData.waitlist_enabled || false,
       attendee_settings: {

@@ -213,7 +213,8 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
             .range(0, 4999),
           supabase
             .from('event_attendee_sessions')
-            .select('session_id, attendee_id')
+            .select('session_id, attendee_id, event_attendees!inner(status)')
+            .eq('event_attendees.status', 'approved')
             .in('session_id', (await supabase.from('event_sessions').select('id').eq('event_id', eventId)).data?.map(s => s.id) || [])
         ]);
 

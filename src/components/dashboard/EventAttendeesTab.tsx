@@ -746,7 +746,7 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Registration</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Check-in</th>
-                  <th className="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-wider">Quick Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/10">
@@ -785,9 +785,53 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <button className="p-2 text-gray-500 hover:text-white rounded-lg hover:bg-white/10">
-                          <MoreVertical size={18} />
-                        </button>
+                        <div className="flex items-center justify-end gap-3">
+                          {/* Approval Action */}
+                          {attendee.status === 'approved' ? (
+                            <span className="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-xs font-bold">
+                              {t('common.approved', 'Approved')}
+                            </span>
+                          ) : (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateAttendee(attendee.id, { status: 'approved' });
+                                toast.success(t('manageEvent.attendees.toasts.approved', 'Attendee approved'));
+                              }}
+                              className="px-3 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-bold transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+                            >
+                              {t('common.approve', 'Approve')}
+                            </button>
+                          )}
+
+                          {/* Decline Action */}
+                          {attendee.status === 'declined' ? (
+                            <span className="px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-500 border border-rose-500/20 text-xs font-bold">
+                              {t('common.declined', 'Declined')}
+                            </span>
+                          ) : (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateAttendee(attendee.id, { status: 'declined' });
+                                toast.error(t('manageEvent.attendees.toasts.declined', 'Registration declined'));
+                              }}
+                              className="px-3 py-1.5 rounded-lg text-rose-500 bg-rose-500/10 hover:bg-rose-500/20 text-xs font-bold transition-all border border-rose-500/20 active:scale-95"
+                            >
+                              {t('common.decline', 'Decline')}
+                            </button>
+                          )}
+
+                          <button 
+                            className="p-2 text-gray-500 hover:text-white rounded-lg hover:bg-white/10"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // More options
+                            }}
+                          >
+                            <MoreVertical size={18} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
