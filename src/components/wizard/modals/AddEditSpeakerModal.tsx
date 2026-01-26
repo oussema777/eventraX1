@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { uploadFile } from '../../../utils/storage';
 import { useI18n } from '../../../i18n/I18nContext';
+import { toast } from 'sonner';
 
 interface Speaker {
   id?: string;
@@ -98,13 +99,34 @@ export default function AddEditSpeakerModal({ isOpen, onClose, onSave, speaker }
       const url = await uploadFile('profiles', path, file);
       if (url) {
         setFormData((prev) => ({ ...prev, photo: url }));
+        toast.success(t('common.updated', 'Photo updated successfully'));
+      } else {
+        toast.error(t('common.error', 'Failed to upload photo'));
       }
+    } catch (error) {
+      toast.error(t('common.error', 'Failed to upload photo'));
     } finally {
       setIsUploading(false);
+      if (event.target) event.target.value = '';
     }
   };
 
   const handleSave = () => {
+    const requiredFields = [
+      { key: 'name', label: t('wizard.step3.speakers.modal.fields.name.label', 'Full Name') },
+      { key: 'title', label: t('wizard.step3.speakers.modal.fields.title.label', 'Job Title') },
+      { key: 'company', label: t('wizard.step3.speakers.modal.fields.company.label', 'Company') },
+      { key: 'email', label: t('wizard.step3.speakers.modal.fields.email.label', 'Email') },
+      { key: 'bio', label: t('wizard.step3.speakers.modal.fields.bio.label', 'Biography') }
+    ];
+
+    const missingFields = requiredFields.filter(field => !formData[field.key as keyof Speaker]?.toString().trim());
+
+    if (missingFields.length > 0) {
+      toast.error(t('wizard.step3.sessions.modal.requiredFields', 'Please fill in all required fields'));
+      return;
+    }
+
     onSave(formData);
     onClose();
   };
@@ -273,7 +295,7 @@ export default function AddEditSpeakerModal({ isOpen, onClose, onSave, speaker }
                   {/* Full Name */}
                   <div>
                     <label className="block text-sm mb-2" style={{ fontWeight: 500, color: '#0B2641' }}>
-                      {t('wizard.step3.speakers.modal.fields.name.label')}
+                      {t('wizard.step3.speakers.modal.fields.name.label')} *
                     </label>
                     <input
                       type="text"
@@ -288,7 +310,7 @@ export default function AddEditSpeakerModal({ isOpen, onClose, onSave, speaker }
                   {/* Email */}
                   <div>
                     <label className="block text-sm mb-2" style={{ fontWeight: 500, color: '#0B2641' }}>
-                      {t('wizard.step3.speakers.modal.fields.email.label')}
+                      {t('wizard.step3.speakers.modal.fields.email.label')} *
                     </label>
                     <input
                       type="email"
@@ -329,7 +351,7 @@ export default function AddEditSpeakerModal({ isOpen, onClose, onSave, speaker }
                   {/* Job Title */}
                   <div>
                     <label className="block text-sm mb-2" style={{ fontWeight: 500, color: '#0B2641' }}>
-                      {t('wizard.step3.speakers.modal.fields.title.label')}
+                      {t('wizard.step3.speakers.modal.fields.title.label')} *
                     </label>
                     <input
                       type="text"
@@ -344,7 +366,7 @@ export default function AddEditSpeakerModal({ isOpen, onClose, onSave, speaker }
                   {/* Company */}
                   <div>
                     <label className="block text-sm mb-2" style={{ fontWeight: 500, color: '#0B2641' }}>
-                      {t('wizard.step3.speakers.modal.fields.company.label')}
+                      {t('wizard.step3.speakers.modal.fields.company.label')} *
                     </label>
                     <input
                       type="text"
@@ -412,7 +434,7 @@ export default function AddEditSpeakerModal({ isOpen, onClose, onSave, speaker }
                   {/* Biography */}
                   <div>
                     <label className="block text-sm mb-2" style={{ fontWeight: 500, color: '#0B2641' }}>
-                      {t('wizard.step3.speakers.modal.fields.bio.label')}
+                      {t('wizard.step3.speakers.modal.fields.bio.label')} *
                     </label>
                     <textarea
                       value={formData.bio}

@@ -108,7 +108,7 @@ const formatPrice = (price?: number, currency?: string) => {
   }
 };
 
-export default function DesignStudioLanding() {
+export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterRequest?: () => void }) {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const { user, isLoading: isLoadingAuth } = useAuth();

@@ -1,22 +1,28 @@
+import { useState } from 'react';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
-import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut'; // Import NavbarLoggedOut
+import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';
 import BrowseEventsDiscovery from '../components/discovery/BrowseEventsDiscovery';
-import { useAuth } from '../contexts/AuthContext'; // Corrected import path
-import { useState } from 'react'; // Import useState
-import ModalRegistrationEntry from '../components/modals/ModalRegistrationEntry'; // Import registration modal
-import ModalLogin from '../components/modals/ModalLogin'; // Import login modal
-
+import ModalLogin from '../components/modals/ModalLogin';
+import ModalRegistrationEntry from '../components/modals/ModalRegistrationEntry';
+import { useAuth } from '../contexts/AuthContext';
+import { useI18n } from '../i18n/I18nContext';
 
 export default function BrowseEventsDiscoveryPage() {
-  const { user } = useAuth(); // Use useAuth to get user status
-  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+  const { user, profile, signOut } = useAuth();
+  const { t } = useI18n();
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
 
-  // Handlers to open modals
-  const handleSignUpClick = () => setShowRegistrationModal(true);
-  const handleLoginClick = () => setShowLoginModal(true);
+  const handleLogout = async () => {
+    await signOut();
+  };
 
-  // Handlers to switch between modals
+  // Auth Handlers
+  const handleGoogleSignup = async () => setShowRegistrationModal(false);
+  const handleEmailSignup = async () => setShowRegistrationModal(false);
+  const handleLoginSuccess = () => setShowLoginModal(false);
+  const handleGoogleLogin = async () => setShowLoginModal(false);
+  
   const handleSwitchToSignup = () => {
     setShowLoginModal(false);
     setShowRegistrationModal(true);
@@ -30,32 +36,35 @@ export default function BrowseEventsDiscoveryPage() {
   return (
     <>
       {user ? (
-        <NavbarLoggedIn />
+        <NavbarLoggedIn 
+          userName={profile?.full_name || user.user_metadata?.full_name || t('nav.placeholders.userName')}
+          userEmail={user.email}
+          hasUnreadNotifications={true}
+          onLogout={handleLogout}
+        />
       ) : (
-        <NavbarLoggedOut
-          onSignUpClick={handleSignUpClick}
-          onLoginClick={handleLoginClick}
+        <NavbarLoggedOut 
+          onSignUpClick={() => setShowRegistrationModal(true)}
+          onLoginClick={() => setShowLoginModal(true)}
         />
       )}
+      
       <BrowseEventsDiscovery />
 
-      {/* Registration Modal */}
+      {/* Auth Modals */}
       <ModalRegistrationEntry
         isOpen={showRegistrationModal}
         onClose={() => setShowRegistrationModal(false)}
-        // Assuming these props are handled internally by the modal or not critical for this specific bug fix
-        onGoogleSignup={() => setShowRegistrationModal(false)} // Placeholder
-        onEmailSignup={() => setShowRegistrationModal(false)} // Placeholder
+        onGoogleSignup={handleGoogleSignup}
+        onEmailSignup={handleEmailSignup}
         onLoginClick={handleSwitchToLogin}
       />
 
-      {/* Login Modal */}
       <ModalLogin
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
-        // Assuming these props are handled internally by the modal or not critical for this specific bug fix
-        onGoogleLogin={() => setShowLoginModal(false)} // Placeholder
-        onLoginSuccess={() => setShowLoginModal(false)} // Placeholder
+        onGoogleLogin={handleGoogleLogin}
+        onLoginSuccess={handleLoginSuccess}
         onSignUpClick={handleSwitchToSignup}
       />
     </>

@@ -321,11 +321,11 @@ export default function WizardStep2DesignStudio() {
           features: block.settings?.features || undefined,
           image: block.settings?.image
         };
-        return <AboutBlock key={block.id} event={aboutData} brandColor={brandColor} />;
+        return <AboutBlock key={block.id} event={aboutData} brandColor={brandColor} onEdit={() => handleOpenSettings(block.id)} />;
       case 'details':
-        return <EventDetailsBlock key={block.id} event={eventData} brandColor={brandColor} />;
+        return <EventDetailsBlock key={block.id} event={eventData} brandColor={brandColor} onEdit={() => handleOpenSettings(block.id)} />;
       case 'speakers':
-        return <SpeakersBlock key={block.id} speakers={mappedSpeakers} brandColor={brandColor} />;
+        return <SpeakersBlock key={block.id} speakers={mappedSpeakers} brandColor={brandColor} onEdit={() => handleOpenSettings(block.id)} />;
       case 'agenda':
         return (
           <AgendaBlock 
@@ -334,12 +334,13 @@ export default function WizardStep2DesignStudio() {
             sessions={mappedSessions} 
             brandColor={brandColor} 
             buttonRadius={buttonRadius} 
+            onEdit={() => handleOpenSettings(block.id)}
           />
         );
       case 'tickets':
-        return <TicketsBlock key={block.id} tickets={mappedTickets} brandColor={brandColor} buttonRadius={buttonRadius} />;
+        return <TicketsBlock key={block.id} tickets={mappedTickets} brandColor={brandColor} buttonRadius={buttonRadius} onEdit={() => handleOpenSettings(block.id)} />;
       case 'footer':
-        return <FooterBlock key={block.id} settings={block.settings} brandColor={brandColor} event={eventData} />;
+        return <FooterBlock key={block.id} settings={block.settings} brandColor={brandColor} event={eventData} onEdit={() => handleOpenSettings(block.id)} />;
       default:
         return (
           <div

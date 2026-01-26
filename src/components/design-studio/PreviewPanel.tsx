@@ -432,6 +432,11 @@ export default function PreviewPanel({ children, activeBlocks = [], brandColor =
               fontFamily: getFontFamily(fontFamily)
             }}
           >
+            <style>{`
+              #preview-canvas, #preview-canvas * {
+                font-family: ${getFontFamily(fontFamily)} !important;
+              }
+            `}</style>
             {/* Browser Chrome Mockup */}
             <div
               style={{

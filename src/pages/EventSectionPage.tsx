@@ -3,7 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
+import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';
 import LandingPageNavbar from '../components/events/LandingPageNavbar';
+import ModalLogin from '../components/modals/ModalLogin';
+import ModalRegistrationEntry from '../components/modals/ModalRegistrationEntry';
 import { useAuth } from '../contexts/AuthContext';
 import BookMeetingModal from '../components/networking/BookMeetingModal';
 import { useMessageThread } from '../hooks/useMessageThread';
@@ -13,7 +16,7 @@ type SectionType = 'agenda' | 'speakers' | 'exhibitors' | 'attendees';
 export default function EventSectionPage({ type }: { type: SectionType }) {
   const { eventId } = useParams();
   const navigate = useNavigate();
-  const { user, isLoading: isLoadingAuth } = useAuth();
+  const { user, isLoading: isLoadingAuth, signOut } = useAuth();
   const { getOrCreateThread, loading: isMessageLoading } = useMessageThread();
   
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -24,6 +27,9 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
   const [mySessionIds, setMySessionIds] = useState<Set<string>>(new Set());
   const [attendeeId, setAttendeeId] = useState<string | null>(null);
   const [selectedAttendee, setSelectedAttendee] = useState<any>(null);
+
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
 
   // 1. Fetch Public Data (Event, Counts, Section Content)
   useEffect(() => {
@@ -142,7 +148,30 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
     navigate(`/event/${eventId}/register`);
   };
 
+  const handleLogout = async () => {
+    await signOut();
+  };
+
+  const handleGoogleSignup = async () => setShowRegistrationModal(false);
+  const handleEmailSignup = async () => setShowRegistrationModal(false);
+  const handleLoginSuccess = () => setShowLoginModal(false);
+  const handleGoogleLogin = async () => setShowLoginModal(false);
+  
+  const handleSwitchToSignup = () => {
+    setShowLoginModal(false);
+    setShowRegistrationModal(true);
+  };
+
+  const handleSwitchToLogin = () => {
+    setShowRegistrationModal(false);
+    setShowLoginModal(true);
+  };
+
   const handleToggleSession = async (sessionId: string) => {
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
     if (!attendeeId) return;
     const isAdded = mySessionIds.has(sessionId);
     const nextSet = new Set(mySessionIds);
@@ -159,7 +188,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
 
   const handleMessage = async (otherUserId: string) => {
     if (!user) {
-      navigate(`/event/${eventId}/register`);
+      setShowLoginModal(true);
       return;
     }
     const threadId = await getOrCreateThread(otherUserId);
@@ -188,7 +217,14 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
 
   return (
     <div style={{ backgroundColor: '#0B2641', minHeight: '100vh', color: '#FFFFFF' }}>
-      <NavbarLoggedIn />
+      {user ? (
+        <NavbarLoggedIn onLogout={handleLogout} />
+      ) : (
+        <NavbarLoggedOut 
+          onSignUpClick={() => setShowRegistrationModal(true)}
+          onLoginClick={() => setShowLoginModal(true)}
+        />
+      )}
       <div style={{ height: '72px' }} />
       
       <LandingPageNavbar 
@@ -391,6 +427,23 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
         recipient={selectedAttendee || { id: '', name: '' }}
         currentUser={user}
         eventId={eventId}
+      />
+
+      {/* Auth Modals */}
+      <ModalRegistrationEntry
+        isOpen={showRegistrationModal}
+        onClose={() => setShowRegistrationModal(false)}
+        onGoogleSignup={handleGoogleSignup}
+        onEmailSignup={handleEmailSignup}
+        onLoginClick={handleSwitchToLogin}
+      />
+
+      <ModalLogin
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onGoogleLogin={handleGoogleLogin}
+        onLoginSuccess={handleLoginSuccess}
+        onSignUpClick={handleSwitchToSignup}
       />
     </div>
   );

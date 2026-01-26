@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { toast } from 'sonner@2.0.3';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
+import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';
+import ModalLogin from '../components/modals/ModalLogin';
+import ModalRegistrationEntry from '../components/modals/ModalRegistrationEntry';
+import { useAuth } from '../contexts/AuthContext';
+import { useI18n } from '../i18n/I18nContext';
 
 type Port = {
   id: string;
@@ -34,6 +39,11 @@ const toSvgX = (lon: number) => ((lon + 180) / 360) * MAP_WIDTH;
 const toSvgY = (lat: number) => ((90 - lat) / 180) * MAP_HEIGHT;
 
 export default function ContainerShippingCostsPage() {
+  const { user, profile, signOut } = useAuth();
+  const { t } = useI18n();
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+
   const [fromQuery, setFromQuery] = useState('');
   const [toQuery, setToQuery] = useState('');
   const [fromSuggestions, setFromSuggestions] = useState<Port[]>([]);
@@ -165,12 +175,45 @@ export default function ContainerShippingCostsPage() {
     }
   };
 
+  const handleLogout = async () => {
+    await signOut();
+  };
+
+  // Auth Handlers
+  const handleGoogleSignup = async () => setShowRegistrationModal(false);
+  const handleEmailSignup = async () => setShowRegistrationModal(false);
+  const handleLoginSuccess = () => setShowLoginModal(false);
+  const handleGoogleLogin = async () => setShowLoginModal(false);
+  
+  const handleSwitchToSignup = () => {
+    setShowLoginModal(false);
+    setShowRegistrationModal(true);
+  };
+
+  const handleSwitchToLogin = () => {
+    setShowRegistrationModal(false);
+    setShowLoginModal(true);
+  };
+
   const fromMarker = fromCoords ? { x: toSvgX(fromCoords.lon), y: toSvgY(fromCoords.lat) } : null;
   const toMarker = toCoords ? { x: toSvgX(toCoords.lon), y: toSvgY(toCoords.lat) } : null;
 
   return (
     <>
-      <NavbarLoggedIn />
+      {user ? (
+        <NavbarLoggedIn 
+          userName={profile?.full_name || user.user_metadata?.full_name || t('nav.placeholders.userName')}
+          userEmail={user.email}
+          hasUnreadNotifications={true}
+          onLogout={handleLogout}
+        />
+      ) : (
+        <NavbarLoggedOut 
+          onSignUpClick={() => setShowRegistrationModal(true)}
+          onLoginClick={() => setShowLoginModal(true)}
+        />
+      )}
+
       <div style={{ backgroundColor: '#0B2641', minHeight: '100vh', paddingTop: '72px' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px 80px' }}>
           <div style={{ marginBottom: '24px' }}>
@@ -580,6 +623,23 @@ export default function ContainerShippingCostsPage() {
           }
         }
       `}</style>
+
+      {/* Auth Modals */}
+      <ModalRegistrationEntry
+        isOpen={showRegistrationModal}
+        onClose={() => setShowRegistrationModal(false)}
+        onGoogleSignup={handleGoogleSignup}
+        onEmailSignup={handleEmailSignup}
+        onLoginClick={handleSwitchToLogin}
+      />
+
+      <ModalLogin
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onGoogleLogin={handleGoogleLogin}
+        onLoginSuccess={handleLoginSuccess}
+        onSignUpClick={handleSwitchToSignup}
+      />
     </>
   );
 }

@@ -72,6 +72,22 @@ export default function WizardStep1Details() {
       return;
     }
 
+    if (!details.start_date || !details.end_date) {
+      toast.error(t('wizard.details.errors.datesRequired'));
+      return;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    if (details.start_date < today) {
+      toast.error(t('wizard.details.errors.startDatePast'));
+      return;
+    }
+
+    if (details.end_date < details.start_date) {
+      toast.error(t('wizard.details.errors.endDateBeforeStart'));
+      return;
+    }
+
     if (details.waitlist_enabled && details.capacity_limit && details.attendee_settings?.waitlist_capacity) {
       if (details.attendee_settings.waitlist_capacity > details.capacity_limit) {
         toast.error("Waitlist capacity cannot be more than max attendees");
@@ -125,6 +141,17 @@ export default function WizardStep1Details() {
     }
     if (!details.startDate || !details.endDate) {
       toast.error(t('wizard.details.errors.datesRequired', 'Please select start and end dates.'));
+      return;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    if (details.startDate < today) {
+      toast.error(t('wizard.details.errors.startDatePast'));
+      return;
+    }
+
+    if (details.endDate < details.startDate) {
+      toast.error(t('wizard.details.errors.endDateBeforeStart'));
       return;
     }
 

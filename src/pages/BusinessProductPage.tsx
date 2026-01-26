@@ -23,6 +23,9 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
+import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';
+import ModalLogin from '../components/modals/ModalLogin';
+import ModalRegistrationEntry from '../components/modals/ModalRegistrationEntry';
 import { supabase } from '../lib/supabase';
 import { useI18n } from '../i18n/I18nContext';
 import { useMessageThread } from '../hooks/useMessageThread';
@@ -207,8 +210,11 @@ export default function BusinessProductPage() {
   const navigate = useNavigate();
   const { businessId, productId } = useParams();
   const { t, tList } = useI18n();
-  const { user } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const { getOrCreateThread, loading: connecting } = useMessageThread();
+  
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isSaved, setIsSaved] = useState(false);
@@ -265,6 +271,26 @@ export default function BusinessProductPage() {
 
     fetchProduct();
   }, [businessId, productId, t]);
+
+  const handleLogout = async () => {
+    await signOut();
+  };
+
+  // Auth Handlers
+  const handleGoogleSignup = async () => setShowRegistrationModal(false);
+  const handleEmailSignup = async () => setShowRegistrationModal(false);
+  const handleLoginSuccess = () => setShowLoginModal(false);
+  const handleGoogleLogin = async () => setShowLoginModal(false);
+  
+  const handleSwitchToSignup = () => {
+    setShowLoginModal(false);
+    setShowRegistrationModal(true);
+  };
+
+  const handleSwitchToLogin = () => {
+    setShowRegistrationModal(false);
+    setShowLoginModal(true);
+  };
 
   const tags = useMemo(
     () => (Array.isArray(product?.tags) ? product?.tags.filter(Boolean) : []),
@@ -372,7 +398,7 @@ export default function BusinessProductPage() {
 
   const handleContactSeller = async () => {
     if (!user?.id) {
-      toast.error(t('businessProductPage.errors.loginRequired'));
+      setShowLoginModal(true);
       return;
     }
     if (!business?.owner_profile_id) {
@@ -393,7 +419,7 @@ export default function BusinessProductPage() {
     const { data: sessionData } = await supabase.auth.getSession();
     const sessionUser = sessionData?.session?.user;
     if (!sessionUser?.id) {
-      toast.error(t('businessProductPage.errors.loginRequired'));
+      setShowLoginModal(true);
       return;
     }
     if (!business?.owner_profile_id) {
@@ -422,7 +448,14 @@ export default function BusinessProductPage() {
   if (isLoading) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#0B2641' }}>
-        <NavbarLoggedIn />
+        {user ? (
+          <NavbarLoggedIn onLogout={handleLogout} />
+        ) : (
+          <NavbarLoggedOut 
+            onSignUpClick={() => setShowRegistrationModal(true)}
+            onLoginClick={() => setShowLoginModal(true)}
+          />
+        )}
         <div className="flex items-center justify-center" style={{ minHeight: '70vh' }}>
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="animate-spin text-[#0684F5]" size={40} />
@@ -444,7 +477,14 @@ export default function BusinessProductPage() {
           justifyContent: 'center'
         }}
       >
-        <NavbarLoggedIn />
+        {user ? (
+          <NavbarLoggedIn onLogout={handleLogout} />
+        ) : (
+          <NavbarLoggedOut 
+            onSignUpClick={() => setShowRegistrationModal(true)}
+            onLoginClick={() => setShowLoginModal(true)}
+          />
+        )}
         <div style={{ textAlign: 'center', color: '#FFFFFF', padding: '40px' }}>
           <h1 style={{ fontSize: '24px', marginBottom: '16px' }}>{t('businessProductPage.notFound.title')}</h1>
           {loadError && (
@@ -470,7 +510,14 @@ export default function BusinessProductPage() {
 
   return (
     <div className="product-page" style={{ minHeight: '100vh', backgroundColor: '#0B2641' }}>
-      <NavbarLoggedIn />
+      {user ? (
+        <NavbarLoggedIn onLogout={handleLogout} />
+      ) : (
+        <NavbarLoggedOut 
+          onSignUpClick={() => setShowRegistrationModal(true)}
+          onLoginClick={() => setShowLoginModal(true)}
+        />
+      )}
 
       <style>{`
         @media (max-width: 1024px) {
@@ -1418,6 +1465,22 @@ export default function BusinessProductPage() {
           </div>
         </div>
       </div>
+
+      <ModalRegistrationEntry
+        isOpen={showRegistrationModal}
+        onClose={() => setShowRegistrationModal(false)}
+        onGoogleSignup={handleGoogleSignup}
+        onEmailSignup={handleEmailSignup}
+        onLoginClick={handleSwitchToLogin}
+      />
+
+      <ModalLogin
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onGoogleLogin={handleGoogleLogin}
+        onLoginSuccess={handleLoginSuccess}
+        onSignUpClick={handleSwitchToSignup}
+      />
     </div>
   );
 }
