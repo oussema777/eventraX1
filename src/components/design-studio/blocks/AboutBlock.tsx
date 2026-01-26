@@ -6,6 +6,7 @@ import { useI18n } from '../../../i18n/I18nContext';
 interface AboutBlockProps {
   showEditControls?: boolean;
   brandColor?: string;
+  onEdit?: () => void;
   event?: {
     name?: string;
     tagline?: string;
@@ -15,7 +16,7 @@ interface AboutBlockProps {
   };
 }
 
-export default function AboutBlock({ showEditControls = true, brandColor, event }: AboutBlockProps) {
+export default function AboutBlock({ showEditControls = true, brandColor, onEdit, event }: AboutBlockProps) {
   const { t, tList } = useI18n();
   const [isHovered, setIsHovered] = useState(false);
   const accentColor = brandColor || '#635BFF';
@@ -38,14 +39,17 @@ export default function AboutBlock({ showEditControls = true, brandColor, event 
       {isHovered && showEditControls && (
         <EditModule
           blockName={t('wizard.designStudio.about.blockName')}
+          onEdit={onEdit}
           quickActions={[
             {
               icon: <Image size={16} style={{ color: '#FFFFFF' }} />,
-              label: t('wizard.designStudio.about.actions.changeImage')
+              label: t('wizard.designStudio.about.actions.changeImage'),
+              onClick: onEdit
             },
             {
               icon: <FileText size={16} style={{ color: '#FFFFFF' }} />,
-              label: t('wizard.designStudio.about.actions.editContent')
+              label: t('wizard.designStudio.about.actions.editContent'),
+              onClick: onEdit
             }
           ]}
         />

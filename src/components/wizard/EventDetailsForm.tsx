@@ -274,6 +274,17 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
       return;
     }
 
+    const today = new Date().toISOString().split('T')[0];
+    if (startDate < today) {
+      toast.error(t('wizard.details.errors.startDatePast', 'Start date cannot be in the past.'));
+      return;
+    }
+
+    if (endDate < startDate) {
+      toast.error(t('wizard.details.errors.endDateBeforeStart', 'End date cannot be before start date.'));
+      return;
+    }
+
     const payload = buildPayload();
     const created = await saveDraft(payload, !eventData.id);
     const id = created?.id || eventData.id;
@@ -562,6 +573,7 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
                 <input
                   type="date"
                   value={startDate}
+                  min={new Date().toISOString().split('T')[0]}
                   onChange={(e) => setStartDate(e.target.value)}
                   className="w-full h-11 px-4 rounded-lg border outline-none transition-colors"
                   style={{
@@ -581,6 +593,7 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
                 <input
                   type="date"
                   value={endDate}
+                  min={startDate || new Date().toISOString().split('T')[0]}
                   onChange={(e) => setEndDate(e.target.value)}
                   className="w-full h-11 px-4 rounded-lg border outline-none transition-colors"
                   style={{

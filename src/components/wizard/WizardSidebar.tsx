@@ -92,14 +92,14 @@ export default function WizardSidebar({
       label: t('wizard.sidebar.steps.registration.label'), 
       hasSubSteps: true,
       subSteps: [
-        { key: '3.1' as const, title: t('wizard.sidebar.subSteps.tickets'), icon: Ticket },
-        { key: '3.2', title: t('wizard.sidebar.subSteps.speakers'), icon: Mic },
-        { key: '3.3', title: t('wizard.sidebar.subSteps.attendees'), icon: Users },
-        { key: '3.4', title: t('wizard.sidebar.subSteps.exhibitors'), icon: Store },
-        { key: '3.5', title: t('wizard.sidebar.subSteps.schedule'), icon: Calendar },
-        { key: '3.6', title: t('wizard.sidebar.subSteps.sponsors'), icon: Award },
         { key: '3.8', title: t('wizard.sidebar.subSteps.customForms'), icon: FileText },
-        { key: '3.9', title: t('wizard.sidebar.subSteps.marketingTools'), icon: Mail }
+        { key: '3.5', title: t('wizard.sidebar.subSteps.schedule'), icon: Calendar },
+        { key: '3.2', title: t('wizard.sidebar.subSteps.speakers'), icon: Mic },
+        { key: '3.4', title: t('wizard.sidebar.subSteps.exhibitors'), icon: Store },
+        { key: '3.3', title: t('wizard.sidebar.subSteps.attendees'), icon: Users },
+        { key: '3.6', title: t('wizard.sidebar.subSteps.sponsors'), icon: Award },
+        { key: '3.9', title: t('wizard.sidebar.subSteps.marketingTools'), icon: Mail },
+        { key: '3.1' as const, title: t('wizard.sidebar.subSteps.tickets'), icon: Ticket }
       ]
     },
     { number: 4, title: t('wizard.sidebar.steps.launch.title'), icon: Rocket, label: t('wizard.sidebar.steps.launch.label'), hasSubSteps: false }

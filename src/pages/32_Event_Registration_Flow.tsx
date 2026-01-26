@@ -217,8 +217,19 @@ export default function EventRegistrationFlow() {
     try {
       setIsSubmitting(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error('You must be logged in to register');
+      
+      // Get form data
+      const responses: Record<string, any> = {};
+      formFields.forEach(f => {
+        responses[f.label] = f.value;
+      });
+
+      const email = user?.email || formFields.find(f => f.type === 'email')?.value;
+      const name = profile?.full_name || formFields.find(f => f.label.toLowerCase().includes('name'))?.value;
+
+      if (!email || !name) {
+        toast.error('Name and Email are required');
+        setIsSubmitting(false);
         return;
       }
 
@@ -226,29 +237,26 @@ export default function EventRegistrationFlow() {
         console.warn('No ticket found, registration might be incomplete on analytics.');
       }
 
-      const responses: Record<string, any> = {};
-      formFields.forEach(f => {
-        responses[f.label] = f.value;
-      });
-
       const code = generateConfirmationCode();
       setConfirmationCode(code);
       responses['confirmation_code'] = code;
 
       // 1. Insert Attendee
+      const attendeePayload = {
+        event_id: eventId,
+        profile_id: user?.id || null,
+        ticket_type: 'General Admission', 
+        ticket_color: '#0684F5',
+        price: 0,
+        status: 'registered',
+        meta: responses, 
+        email: email, 
+        name: name
+      };
+
       const { data: attendee, error: regError } = await supabase
         .from('event_attendees')
-        .insert([{
-          event_id: eventId,
-          profile_id: user.id,
-          ticket_type: 'General Admission', 
-          ticket_color: '#0684F5',
-          price: 0,
-          status: 'registered',
-          meta: responses, 
-          email: user.email, 
-          name: profile?.full_name || user.email 
-        }])
+        .insert([attendeePayload])
         .select()
         .single();
 
@@ -256,12 +264,19 @@ export default function EventRegistrationFlow() {
         if (regError.code === '23505') {
           // Already registered - fetch existing record
           toast.success("You're already registered! Updating your agenda...");
-          const { data: existing } = await supabase
+          
+          let query = supabase
             .from('event_attendees')
             .select()
-            .eq('event_id', eventId)
-            .eq('profile_id', user.id)
-            .single();
+            .eq('event_id', eventId);
+            
+          if (user) {
+            query = query.eq('profile_id', user.id);
+          } else {
+            query = query.eq('email', email);
+          }
+
+          const { data: existing } = await query.single();
           
           if (existing) {
             setRegisteredAttendeeId(existing.id); // SAVE ID
@@ -281,10 +296,10 @@ export default function EventRegistrationFlow() {
 
             const mySessions = sessions.filter(s => selectedSessions.has(s.id));
             const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${existing.id}`;
-            const emailHtml = generateRegistrationEmailHtml(event?.name || 'Event', existing.name || user.email || 'Attendee', qrUrl, mySessions);
+            const emailHtml = generateRegistrationEmailHtml(event?.name || 'Event', existing.name || email || 'Attendee', qrUrl, mySessions);
             
             await sendEmail({
-              to: user.email || '',
+              to: email || '',
               subject: `Registration Confirmed: ${event?.name}`,
               html: emailHtml
             });
@@ -304,12 +319,21 @@ export default function EventRegistrationFlow() {
 
       if (attendee) {
         setRegisteredAttendeeId(attendee.id); // SAVE ID
+        const sessionInserts = Array.from(selectedSessions).map(sessionId => ({
+          attendee_id: attendee.id,
+          session_id: sessionId
+        }));
+        
+        if (sessionInserts.length > 0) {
+          await supabase.from('event_attendee_sessions').insert(sessionInserts);
+        }
+
         const mySessions = sessions.filter(s => selectedSessions.has(s.id));
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${attendee.id}`;
-        const emailHtml = generateRegistrationEmailHtml(event?.name || 'Event', attendee.name || user.email || 'Attendee', qrUrl, mySessions);
+        const emailHtml = generateRegistrationEmailHtml(event?.name || 'Event', attendee.name || email || 'Attendee', qrUrl, mySessions);
         
         await sendEmail({
-          to: user.email || '',
+          to: email || '',
           subject: `Registration Confirmed: ${event?.name}`,
           html: emailHtml
         });
@@ -319,9 +343,9 @@ export default function EventRegistrationFlow() {
         if (event?.owner_id) {
           await createNotification({
             recipient_id: event.owner_id,
-            actor_id: user.id,
+            actor_id: user?.id || null,
             title: 'New event registration',
-            body: `${user.email || 'An attendee'} registered for ${event.name || 'your event'}.`,
+            body: `${email || 'An attendee'} registered for ${event.name || 'your event'}.`,
             type: 'action',
             action_url: `/event/${eventId}`
           });

@@ -14,6 +14,7 @@ interface SpeakerCard {
 interface SpeakersBlockProps {
   showEditControls?: boolean;
   brandColor?: string;
+  onEdit?: () => void;
   speakers?: SpeakerCard[];
 }
 
@@ -25,7 +26,7 @@ const getInitials = (name: string, fallback = 'SP') => {
   return `${first}${second}`.toUpperCase();
 };
 
-export default function SpeakersBlock({ showEditControls = true, brandColor, speakers: speakerData }: SpeakersBlockProps) {
+export default function SpeakersBlock({ showEditControls = true, brandColor, onEdit, speakers: speakerData }: SpeakersBlockProps) {
   const { t, tList } = useI18n();
   const [isHovered, setIsHovered] = useState(false);
   const accentColor = brandColor || '#635BFF';
@@ -43,14 +44,17 @@ export default function SpeakersBlock({ showEditControls = true, brandColor, spe
       {isHovered && showEditControls && (
         <EditModule
           blockName={t('wizard.designStudio.speakers.blockName')}
+          onEdit={onEdit}
           quickActions={[
             {
               icon: <UserPlus size={16} style={{ color: '#FFFFFF' }} />,
-              label: t('wizard.designStudio.speakers.actions.add')
+              label: t('wizard.designStudio.speakers.actions.add'),
+              onClick: onEdit
             },
             {
               icon: <Users size={16} style={{ color: '#FFFFFF' }} />,
-              label: t('wizard.designStudio.speakers.actions.manage')
+              label: t('wizard.designStudio.speakers.actions.manage'),
+              onClick: onEdit
             }
           ]}
         />

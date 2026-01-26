@@ -22,11 +22,12 @@ interface AgendaBlockProps {
   showEditControls?: boolean;
   brandColor?: string;
   buttonRadius?: number;
+  onEdit?: () => void;
   days?: AgendaDay[];
   sessions?: AgendaSession[];
 }
 
-export default function AgendaBlock({ showEditControls = true, brandColor, buttonRadius, days, sessions }: AgendaBlockProps) {
+export default function AgendaBlock({ showEditControls = true, brandColor, buttonRadius, onEdit, days, sessions }: AgendaBlockProps) {
   const { t, tList } = useI18n();
   const accentColor = brandColor || '#635BFF';
   const baseRadius = Number.isFinite(buttonRadius) ? buttonRadius : 12;
@@ -55,14 +56,17 @@ export default function AgendaBlock({ showEditControls = true, brandColor, butto
       {isHovered && showEditControls && (
         <EditModule
           blockName={t('wizard.designStudio.agenda.blockName')}
+          onEdit={onEdit}
           quickActions={[
             {
               icon: <Plus size={16} style={{ color: '#FFFFFF' }} />,
-              label: t('wizard.designStudio.agenda.actions.addSession')
+              label: t('wizard.designStudio.agenda.actions.addSession'),
+              onClick: onEdit
             },
             {
               icon: <Calendar size={16} style={{ color: '#FFFFFF' }} />,
-              label: t('wizard.designStudio.agenda.actions.manageSchedule')
+              label: t('wizard.designStudio.agenda.actions.manageSchedule'),
+              onClick: onEdit
             }
           ]}
         />

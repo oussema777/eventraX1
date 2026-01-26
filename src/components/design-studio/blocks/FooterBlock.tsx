@@ -6,6 +6,7 @@ import { useI18n } from '../../../i18n/I18nContext';
 interface FooterBlockProps {
   showEditControls?: boolean;
   brandColor?: string;
+  onEdit?: () => void;
   event?: {
     name?: string;
     tagline?: string;
@@ -26,7 +27,7 @@ interface FooterBlockProps {
   };
 }
 
-export default function FooterBlock({ showEditControls = true, brandColor, event, settings }: FooterBlockProps) {
+export default function FooterBlock({ showEditControls = true, brandColor, onEdit, event, settings }: FooterBlockProps) {
   const { t, tList } = useI18n();
   const [isHovered, setIsHovered] = useState(false);
   const accentColor = brandColor || '#635BFF';
@@ -65,10 +66,12 @@ export default function FooterBlock({ showEditControls = true, brandColor, event
       {isHovered && showEditControls && (
         <EditModule
           blockName={t('wizard.designStudio.footer.blockName')}
+          onEdit={onEdit}
           quickActions={[
             {
               icon: <Settings size={16} style={{ color: '#FFFFFF' }} />,
-              label: t('wizard.designStudio.footer.actions.settings')
+              label: t('wizard.designStudio.footer.actions.settings'),
+              onClick: onEdit
             }
           ]}
         />

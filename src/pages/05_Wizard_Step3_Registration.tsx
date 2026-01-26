@@ -31,27 +31,28 @@ export default function WizardStep3Registration() {
   const isFreeEvent = (eventData.event_status || getEventBasicDetails().eventStatus || 'free') === 'free';
   
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [currentSubStep, setCurrentSubStep] = useState<SubStep>('3.1');
+  const [currentSubStep, setCurrentSubStep] = useState<SubStep>('3.8');
   const [completedSteps, setCompletedSteps] = useState<(1 | 2 | SubStep)[]>([1, 2]);
   const untitledEvent = t('wizard.common.untitledEvent');
 
   const subSteps = useMemo(() => {
     const steps = [
-      { key: '3.1' as const, title: t('wizard.step3.subSteps.tickets') },
-      { key: '3.2' as const, title: t('wizard.step3.subSteps.speakers') },
-      { key: '3.3' as const, title: t('wizard.step3.subSteps.attendees') },
-      { key: '3.4' as const, title: t('wizard.step3.subSteps.exhibitors') },
-      { key: '3.5' as const, title: t('wizard.step3.subSteps.schedule') },
-      { key: '3.6' as const, title: t('wizard.step3.subSteps.sponsors') },
       { key: '3.8' as const, title: t('wizard.step3.subSteps.customForms') },
-      { key: '3.9' as const, title: t('wizard.step3.subSteps.marketingTools') }
+      { key: '3.5' as const, title: t('wizard.step3.subSteps.schedule') },
+      { key: '3.2' as const, title: t('wizard.step3.subSteps.speakers') },
+      { key: '3.4' as const, title: t('wizard.step3.subSteps.exhibitors') },
+      { key: '3.3' as const, title: t('wizard.step3.subSteps.attendees') },
+      { key: '3.6' as const, title: t('wizard.step3.subSteps.sponsors') },
+      { key: '3.9' as const, title: t('wizard.step3.subSteps.marketingTools') },
+      { key: '3.1' as const, title: t('wizard.step3.subSteps.tickets') }
     ];
     return isFreeEvent ? steps.filter((step) => step.key !== '3.1') : steps;
   }, [isFreeEvent, t]);
 
   useEffect(() => {
+    // If current step is Tickets (3.1) and event becomes free, redirect to first step
     if (isFreeEvent && currentSubStep === '3.1') {
-      setCurrentSubStep('3.2');
+      setCurrentSubStep('3.8');
     }
   }, [isFreeEvent, currentSubStep]);
 
@@ -259,11 +260,9 @@ export default function WizardStep3Registration() {
             <div className="wizard-header-section" style={{ marginBottom: '32px' }}>
               <div
                 style={{
-                  fontSize: '13px',
+                  fontSize: '14px',
                   fontWeight: 600,
                   color: '#0684F5',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
                   marginBottom: '8px'
                 }}
               >

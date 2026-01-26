@@ -14,11 +14,12 @@ interface TicketsBlockProps {
   showEditControls?: boolean;
   brandColor?: string;
   buttonRadius?: number;
+  onEdit?: () => void;
   tickets?: TicketCard[];
   onRegister?: () => void;
 }
 
-export default function TicketsBlock({ showEditControls = true, brandColor, buttonRadius, tickets: ticketData, onRegister }: TicketsBlockProps) {
+export default function TicketsBlock({ showEditControls = true, brandColor, buttonRadius, onEdit, tickets: ticketData, onRegister }: TicketsBlockProps) {
   const { t, tList } = useI18n();
   const [isHovered, setIsHovered] = useState(false);
   const accentColor = brandColor || '#635BFF';
@@ -36,14 +37,17 @@ export default function TicketsBlock({ showEditControls = true, brandColor, butt
       {isHovered && showEditControls && (
         <EditModule
           blockName={t('wizard.designStudio.tickets.blockName')}
+          onEdit={onEdit}
           quickActions={[
             {
               icon: <Tag size={16} style={{ color: '#FFFFFF' }} />,
-              label: t('wizard.designStudio.tickets.actions.manage')
+              label: t('wizard.designStudio.tickets.actions.manage'),
+              onClick: onEdit
             },
             {
               icon: <DollarSign size={16} style={{ color: '#FFFFFF' }} />,
-              label: t('wizard.designStudio.tickets.actions.editPricing')
+              label: t('wizard.designStudio.tickets.actions.editPricing'),
+              onClick: onEdit
             }
           ]}
         />

@@ -6,6 +6,7 @@ import { useI18n } from '../../../i18n/I18nContext';
 interface EventDetailsBlockProps {
   showEditControls?: boolean;
   brandColor?: string;
+  onEdit?: () => void;
   event?: {
     start_date?: string;
     end_date?: string;
@@ -28,7 +29,7 @@ const formatTime = (value?: string) => {
   return parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-export default function EventDetailsBlock({ showEditControls = true, brandColor, event }: EventDetailsBlockProps) {
+export default function EventDetailsBlock({ showEditControls = true, brandColor, onEdit, event }: EventDetailsBlockProps) {
   const { t } = useI18n();
   const [isHovered, setIsHovered] = useState(false);
   const accentColor = brandColor || '#635BFF';
@@ -70,18 +71,22 @@ export default function EventDetailsBlock({ showEditControls = true, brandColor,
       {isHovered && showEditControls && (
         <EditModule
           blockName={t('wizard.designStudio.details.blockName')}
+          onEdit={onEdit}
           quickActions={[
             {
               icon: <Calendar size={16} style={{ color: '#FFFFFF' }} />,
-              label: t('wizard.designStudio.details.actions.editDate')
+              label: t('wizard.designStudio.details.actions.editDate'),
+              onClick: onEdit
             },
             {
               icon: <MapPin size={16} style={{ color: '#FFFFFF' }} />,
-              label: t('wizard.designStudio.details.actions.editLocation')
+              label: t('wizard.designStudio.details.actions.editLocation'),
+              onClick: onEdit
             },
             {
               icon: <Users size={16} style={{ color: '#FFFFFF' }} />,
-              label: t('wizard.designStudio.details.actions.editCapacity')
+              label: t('wizard.designStudio.details.actions.editCapacity'),
+              onClick: onEdit
             }
           ]}
         />

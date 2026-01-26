@@ -2430,13 +2430,13 @@ function SpeakerCard({ speaker, onView, onSelect, isSelected, onContact, onEdit,
             alignItems: 'center',
             gap: '6px',
             padding: '6px 12px',
-            backgroundColor: statusColors[speaker.status].bg,
+            backgroundColor: (statusColors[speaker.status] || statusColors.pending).bg,
             borderRadius: '12px',
             marginBottom: '12px'
           }}
         >
-          <CheckCircle size={12} style={{ color: statusColors[speaker.status].text }} />
-          <span style={{ fontSize: '12px', fontWeight: 500, color: statusColors[speaker.status].text, textTransform: 'capitalize' }}>
+          <CheckCircle size={12} style={{ color: (statusColors[speaker.status] || statusColors.pending).text }} />
+          <span style={{ fontSize: '12px', fontWeight: 500, color: (statusColors[speaker.status] || statusColors.pending).text, textTransform: 'capitalize' }}>
             {speaker.status}
           </span>
         </div>

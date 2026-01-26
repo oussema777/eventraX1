@@ -1074,12 +1074,12 @@ function AddSessionModal({
   }, [eventStartDate, eventEndDate]);
 
   // Parse initial dates
-  const initialDate = initialData ? new Date(initialData.rawStartTime) : (eventStartDate ? new Date(eventStartDate) : new Date());
-  const initialEndDate = initialData ? new Date(initialData.rawEndTime) : new Date(initialDate.getTime() + 3600000);
+  const initialDate = initialData ? new Date(initialData.rawStartTime) : null;
+  const initialEndDate = initialData ? new Date(initialData.rawEndTime) : null;
 
-  const [date, setDate] = useState(formatDateForInput(initialDate.toISOString()));
-  const [startTime, setStartTime] = useState(initialDate.toTimeString().slice(0, 5));
-  const [endTime, setEndTime] = useState(initialEndDate.toTimeString().slice(0, 5));
+  const [date, setDate] = useState(initialDate ? formatDateForInput(initialDate.toISOString()) : '');
+  const [startTime, setStartTime] = useState(initialDate ? initialDate.toTimeString().slice(0, 5) : '');
+  const [endTime, setEndTime] = useState(initialEndDate ? initialEndDate.toTimeString().slice(0, 5) : '');
 
   const [selectedVenue, setSelectedVenue] = useState(initialData?.venue || '');
   const [capacity, setCapacity] = useState(initialData?.capacity?.toString() || '');
@@ -1195,6 +1195,11 @@ function AddSessionModal({
       // Construct Date objects
       const startDateTime = new Date(`${date}T${startTime}`);
       const endDateTime = new Date(`${date}T${endTime}`);
+
+      if (endDateTime <= startDateTime) {
+          toast.error(t('wizard.step3.sessions.modal.errors.timeRange', "Oops! The session can't end before it starts. Please check your times."));
+          return;
+      }
 
       const payload = {
         title,
@@ -1420,7 +1425,7 @@ function AddSessionModal({
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label htmlFor="date" style={{ fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px', display: 'block' }}>
-                    {t('wizard.step3.sessions.modal.date')}
+                    {t('wizard.step3.sessions.modal.date', 'Session Date')}
                   </label>
                   {availableDates.length > 0 ? (
                     <select
@@ -1445,6 +1450,7 @@ function AddSessionModal({
                         backgroundSize: '16px'
                       }}
                     >
+                      <option value="" disabled>{t('wizard.step3.sessions.modal.selectDate', 'Select Date')}</option>
                       {availableDates.map(d => (
                         <option key={d} value={d} style={{ backgroundColor: '#0B2641' }}>
                           {new Date(d).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
