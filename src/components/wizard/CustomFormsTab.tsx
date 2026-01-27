@@ -56,6 +56,7 @@ import {
   Crown
 } from 'lucide-react';
 import FieldPropertiesPanel from './FieldPropertiesPanel';
+import { IncludeInDashboardToggle } from './IncludeInDashboardToggle';
 import { countries } from '../../data/countries';
 
 const toFlagEmoji = (code: string) => {
@@ -103,6 +104,11 @@ interface CustomField {
   phoneCountryCode?: string;
   phoneNumber?: string;
   isDropdownOpen?: boolean;
+  // New properties for dashboard integration
+  includeInDashboard?: boolean;
+  dashboardLabel?: string;
+  dashboardAggregationType?: 'count' | 'sum' | 'average';
+  dashboardChartType?: 'bar' | 'pie' | 'line';
 }
 
 interface DbEventFormRow {
@@ -503,7 +509,8 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
             t('wizard.step3.customForms.fieldOptions.option3')
           ]
         : undefined,
-      isPro: fieldType.isPro
+      isPro: fieldType.isPro,
+      includeInDashboard: false
     };
 
     setFormFields([...formFields, newField]);
@@ -1887,6 +1894,14 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                               {field.description}
                             </p>
                           )}
+
+                          <IncludeInDashboardToggle
+                            field={field}
+                            onUpdateField={(updatedField) => {
+                              setFormFields(prev => prev.map(f => (f.id === updatedField.id ? updatedField : f)));
+                            }}
+                          />
+
                         </div>
                       ))}
 
