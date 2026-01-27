@@ -56,6 +56,15 @@ import {
   Crown
 } from 'lucide-react';
 import FieldPropertiesPanel from './FieldPropertiesPanel';
+import { countries } from '../../data/countries';
+
+const toFlagEmoji = (code: string) => {
+  return code
+    .toUpperCase()
+    .split('')
+    .map((char) => String.fromCodePoint(127397 + char.charCodeAt(0)))
+    .join('');
+};
 
 interface FormCard {
   id: string;
@@ -89,7 +98,11 @@ interface CustomField {
   options?: string[];
   isPro: boolean;
   isSystem?: boolean;
-  isEditable?: boolean; // Keep isEditable as it was from previous task
+  isEditable?: boolean;
+  fieldValue?: string; // For simple values
+  phoneCountryCode?: string;
+  phoneNumber?: string;
+  isDropdownOpen?: boolean;
 }
 
 interface DbEventFormRow {
@@ -1405,7 +1418,11 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                                      : undefined
                                  ),
                         isSystem: isSystemStr === 'true',
-                        isEditable: isEditableStr === 'false' ? false : true
+                        isEditable: isEditableStr === 'false' ? false : true,
+                        fieldValue: '',
+                        phoneCountryCode: fieldType === 'phone' ? 'US' : undefined,
+                        phoneNumber: fieldType === 'phone' ? '' : undefined,
+                        isDropdownOpen: false
                       };
                       setFormFields([...formFields, newField]);
                     }
@@ -1605,13 +1622,75 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                           )}
 
                           {field.type === 'phone' && (
-                            <input
-                              type="tel"
-                              placeholder={field.placeholder || t('wizard.step3.customForms.builder.placeholders.phone')}
-                              disabled
-                              className="w-full h-11 px-4 rounded-lg border"
-                              style={{ borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(255,255,255,0.05)', color: '#94A3B8' }}
-                            />
+                            <div className="flex gap-2">
+                              <div className="relative">
+                                <button
+                                  type="button"
+                                  onClick={() => setFormFields(prev => prev.map(f => f.id === field.id ? { ...f, isDropdownOpen: !f.isDropdownOpen } : f))}
+                                  className="flex items-center justify-between transition-all"
+                                  style={{
+                                    width: '90px',
+                                    height: '48px',
+                                    padding: '12px',
+                                    fontSize: '16px',
+                                    color: '#111827',
+                                    backgroundColor: '#FFFFFF',
+                                    border: '1.5px solid #D1D5DB',
+                                    borderRadius: '8px',
+                                    outline: 'none'
+                                  }}
+                                >
+                                  <span style={{ fontSize: '20px' }}>{toFlagEmoji(field.phoneCountryCode || 'US')}</span>
+                                  <ChevronDown size={16} style={{ color: '#6B7280' }} />
+                                </button>
+                                {field.isDropdownOpen && (
+                                  <div
+                                    className="absolute top-full left-0 mt-1 w-64 rounded-lg shadow-lg z-10"
+                                    style={{
+                                      backgroundColor: '#FFFFFF',
+                                      border: '1px solid #E5E7EB',
+                                      maxHeight: '240px',
+                                      overflowY: 'auto'
+                                    }}
+                                  >
+                                    {countries.map((country) => (
+                                      <button
+                                        key={country.code}
+                                        type="button"
+                                        onClick={() => {
+                                          setFormFields(prev => prev.map(f => f.id === field.id ? { ...f, phoneCountryCode: country.code, isDropdownOpen: false } : f));
+                                        }}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 transition-colors"
+                                      >
+                                        <span style={{ fontSize: '20px' }}>{toFlagEmoji(country.code)}</span>
+                                        <span style={{ fontSize: '14px', color: '#374151', flex: 1 }}>{country.name}</span>
+                                        <span style={{ fontSize: '14px', color: '#6B7280' }}>{country.phoneCode}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <input
+                                type="tel"
+                                placeholder={field.placeholder || t('wizard.step3.customForms.builder.placeholders.phone')}
+                                value={field.phoneNumber}
+                                onChange={(e) => {
+                                  const sanitized = e.target.value.replace(/[^0-9\s]/g, '');
+                                  setFormFields(prev => prev.map(f => f.id === field.id ? { ...f, phoneNumber: sanitized } : f));
+                                }}
+                                className="flex-1 transition-all"
+                                style={{
+                                  height: '48px',
+                                  padding: '12px 16px',
+                                  fontSize: '16px',
+                                  color: '#111827',
+                                  backgroundColor: '#FFFFFF',
+                                  border: `1.5px solid #D1D5DB`,
+                                  borderRadius: '8px',
+                                  outline: 'none'
+                                }}
+                              />
+                            </div>
                           )}
 
                           {field.type === 'number' && (
@@ -1633,6 +1712,74 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                             />
                           )}
 
+                          {field.type === 'country' && (
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFormFields(prev => prev.map(f => f.id === field.id ? { ...f, isDropdownOpen: !f.isDropdownOpen } : f));
+                                }}
+                                className="w-full flex items-center justify-between transition-all"
+                                style={{
+                                  height: '48px',
+                                  padding: '12px 16px',
+                                  fontSize: '16px',
+                                  color: field.value ? '#111827' : '#9CA3AF',
+                                  backgroundColor: '#FFFFFF',
+                                  border: '1.5px solid #D1D5DB',
+                                  borderRadius: '8px',
+                                  outline: 'none',
+                                  textAlign: 'left'
+                                }}
+                              >
+                                {field.value ? (
+                                  <span className="flex items-center gap-2">
+                                    <span style={{ fontSize: '20px' }}>
+                                      {toFlagEmoji(field.value)}
+                                    </span>
+                                    {countries.find(c => c.code === field.value)?.name}
+                                  </span>
+                                ) : (
+                                  t('profileSetup.placeholders.country')
+                                )}
+                                <ChevronDown size={20} style={{ color: '#6B7280' }} />
+                              </button>
+
+                              {/* Dropdown Menu */}
+                              {field.isDropdownOpen && (
+                                <div
+                                  className="absolute top-full left-0 mt-1 w-full rounded-lg shadow-lg z-10"
+                                  style={{
+                                    backgroundColor: '#FFFFFF',
+                                    border: '1px solid #E5E7EB',
+                                    maxHeight: '240px',
+                                    overflowY: 'auto'
+                                  }}
+                                >
+                                  {countries.map((country) => (
+                                    <button
+                                      key={country.code}
+                                      type="button"
+                                      onClick={() => {
+                                        setFormFields(prev => prev.map(f => f.id === field.id ? { ...f, value: country.code, isDropdownOpen: false } : f));
+                                      }}
+                                      className="w-full flex items-center gap-3 px-4 py-2.5 transition-colors"
+                                      style={{
+                                        border: 'none',
+                                        backgroundColor: field.value === country.code ? '#F3F4F6' : 'transparent',
+                                        cursor: 'pointer',
+                                        textAlign: 'left'
+                                      }}
+                                    >
+                                      <span style={{ fontSize: '20px' }}>{toFlagEmoji(country.code)}</span>
+                                      <span style={{ fontSize: '14px', color: '#374151' }}>{country.name}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
                           {field.type === 'dropdown' && (
                             <select
                               disabled
