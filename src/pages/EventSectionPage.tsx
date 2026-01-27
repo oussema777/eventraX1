@@ -160,10 +160,25 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
       }
     }
     
-    const mapped = attendees.map((a: any) => ({
-      ...a,
-      final_avatar: profileMap[a.profile_id] || a.avatar_url || a.photo_url
-    }));
+    const mapped = attendees.map((a: any) => {
+      // Security: Extract ONLY public fields from meta to avoid exposing private registration data
+      const publicMeta: Record<string, any> = {};
+      if (a.meta) {
+        const publicKeys = ['Job Title', 'Title', 'Company', 'Organization', 'Industry'];
+        publicKeys.forEach(key => {
+          if (a.meta[key]) publicMeta[key] = a.meta[key];
+        });
+      }
+
+      return {
+        id: a.id,
+        profile_id: a.profile_id,
+        name: a.name,
+        company: a.company,
+        final_avatar: profileMap[a.profile_id] || a.avatar_url || a.photo_url,
+        meta: publicMeta // Sanitized meta
+      };
+    });
     
     if (isInitial) {
       setData(mapped);

@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { usePlan } from '../../hooks/usePlan';
 import { useI18n } from '../../i18n/I18nContext';
 import { useEventWizard } from '../../hooks/useEventWizard';
+import { escapeHTML, escapeCSV } from '../../utils/security';
 
 type ViewMode = 'timeline' | 'list';
 type SessionType = 'keynote' | 'workshop' | 'panel' | 'break' | 'hackathon' | 'pitching' | 'training' | 'other';
@@ -2360,15 +2361,15 @@ function ExportModal({ onClose, sessions }: ExportModalProps) {
 
     const headers = ['Title', 'Type', 'Date', 'Start Time', 'End Time', 'Venue', 'Speakers', 'Capacity', 'Description'];
     const rows = sessions.map(s => [
-      s.title,
-      s.type,
-      s.date,
-      s.startTime,
-      s.endTime,
-      s.venue || 'TBD',
-      s.speakers.map(sp => sp.full_name || (sp as any).name).join('; '),
+      escapeCSV(s.title),
+      escapeCSV(s.type),
+      escapeCSV(s.date),
+      escapeCSV(s.startTime),
+      escapeCSV(s.endTime),
+      escapeCSV(s.venue || 'TBD'),
+      escapeCSV(s.speakers.map(sp => sp.full_name || (sp as any).name).join('; ')),
       s.capacity,
-      s.description.replace(/,/g, ';') // Simple escape for CSV
+      escapeCSV(s.description.replace(/,/g, ';'))
     ]);
 
     const csvContent = [
@@ -2441,21 +2442,21 @@ function ExportModal({ onClose, sessions }: ExportModalProps) {
             ${sessions.map(s => `
               <tr>
                 <td class="time-cell">
-                  <div>${s.date}</div>
-                  <div style="color: #6F767E; font-size: 12px;">${s.startTime} - ${s.endTime}</div>
+                  <div>${escapeHTML(s.date)}</div>
+                  <div style="color: #6F767E; font-size: 12px;">${escapeHTML(s.startTime)} - ${escapeHTML(s.endTime)}</div>
                 </td>
                 <td>
-                  <div class="session-title">${s.title}</div>
-                  <div class="session-type">${s.type}</div>
-                  <div style="margin-top: 8px; font-size: 12px; color: #6F767E;">${s.description}</div>
+                  <div class="session-title">${escapeHTML(s.title)}</div>
+                  <div class="session-type">${escapeHTML(s.type)}</div>
+                  <div style="margin-top: 8px; font-size: 12px; color: #6F767E;">${escapeHTML(s.description)}</div>
                 </td>
                 <td>
                   <div class="speaker-list">
-                    ${s.speakers.map(sp => sp.full_name || (sp as any).name).join('<br>')}
+                    ${s.speakers.map(sp => escapeHTML(sp.full_name || (sp as any).name)).join('<br>')}
                   </div>
                 </td>
                 <td>
-                  <div style="font-weight: 500;">${s.venue || 'TBD'}</div>
+                  <div style="font-weight: 500;">${escapeHTML(s.venue || 'TBD')}</div>
                   <div style="font-size: 12px; color: #6F767E;">Capacity: ${s.capacity}</div>
                 </td>
               </tr>

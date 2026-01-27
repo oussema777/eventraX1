@@ -107,8 +107,14 @@ export default function AddEditSpeakerModal({ isOpen, onClose, onSave, speaker }
     if (!file) return;
     setIsUploading(true);
     try {
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const path = `events/${eventId || 'draft'}/speakers/${Date.now()}_${safeName}`;
+      // Security: Strictly sanitize filename to prevent path traversal (../)
+      // Only allow alphanumeric characters, dots, and hyphens.
+      const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      
+      // Security: Ensure eventId is a clean string to prevent directory manipulation
+      const cleanEventId = (eventId || 'draft').replace(/[^a-zA-Z0-9_-]/g, '');
+      
+      const path = `events/${cleanEventId}/speakers/${Date.now()}_${safeName}`;
       const url = await uploadFile('profiles', path, file);
       if (url) {
         setFormData((prev) => ({ ...prev, photo: url }));

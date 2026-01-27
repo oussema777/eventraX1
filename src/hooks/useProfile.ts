@@ -49,6 +49,7 @@ export interface UserProfile {
   professional_data?: any;
   b2b_profile?: any;
   app_preferences?: any;
+  role?: 'admin' | 'user' | 'business' | string;
   created_at?: string;
   profile_education?: Education[];
   profile_certifications?: Certification[];

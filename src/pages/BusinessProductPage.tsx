@@ -116,33 +116,6 @@ const buildTagline = (description: string | null | undefined, tags: string[]) =>
   return 'Built for modern event teams';
 };
 
-const buildLongDescription = (
-  description: string | null | undefined,
-  tags: string[],
-  copy: {
-    overviewTitle: string;
-    whatYouGetTitle: string;
-    whyItMattersTitle: string;
-    overviewFallback: string;
-    whyItMattersBody: string;
-    fallbackList: string[];
-  }
-) => {
-  const safeDescription = escapeHtml(description || '');
-  const listItems = (tags.length ? tags.slice(0, 6) : copy.fallbackList)
-    .map((item) => `<li>${escapeHtml(item)}</li>`)
-    .join('');
-
-  return `
-    <h3>${escapeHtml(copy.overviewTitle)}</h3>
-    <p>${safeDescription || escapeHtml(copy.overviewFallback)}</p>
-    <h3>${escapeHtml(copy.whatYouGetTitle)}</h3>
-    <ul>${listItems}</ul>
-    <h3>${escapeHtml(copy.whyItMattersTitle)}</h3>
-    <p>${escapeHtml(copy.whyItMattersBody)}</p>
-  `;
-};
-
 const resolveTypeLabel = (value: string | null | undefined, t: (key: string) => string) => {
   if (!value) return t('businessProductPage.types.product');
   return value === 'service'
@@ -323,11 +296,6 @@ export default function BusinessProductPage() {
       ])
     }),
     [t, tList]
-  );
-
-  const longDescription = useMemo(
-    () => buildLongDescription(product?.description, tags, longDescriptionCopy),
-    [product?.description, tags, longDescriptionCopy]
   );
 
   const features = useMemo(
@@ -1216,21 +1184,34 @@ export default function BusinessProductPage() {
             <div>
               {activeTab === 'description' && (
                 <div>
-                  <p style={{ fontSize: '15px', color: '#CBD5E1', lineHeight: 1.7, marginBottom: '24px' }}>
-                    {product.description || t('businessProductPage.longDescription.overviewFallback')}
-                  </p>
-                  
-                  {/* Long Description with HTML */}
-                  <div
-                    style={{ fontSize: '15px', color: '#CBD5E1', lineHeight: 1.7 }}
-                    dangerouslySetInnerHTML={{
-                      __html: longDescription
-                        .replace(/<h3>/g, '<h3 style="font-size: 18px; font-weight: 600; color: #E2E8F0; margin: 24px 0 12px;">')
-                        .replace(/<ul>/g, '<ul style="margin-left: 20px; margin-bottom: 16px;">')
-                        .replace(/<li>/g, '<li style="margin-bottom: 8px;">')
-                        .replace(/<p>/g, '<p style="margin-bottom: 16px;">')
-                    }}
-                  />
+                  <div className="mb-8">
+                    <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#E2E8F0', marginBottom: '12px' }}>
+                      {t('businessProductPage.longDescription.overviewTitle')}
+                    </h3>
+                    <p style={{ fontSize: '15px', color: '#CBD5E1', lineHeight: 1.7 }}>
+                      {product.description || t('businessProductPage.longDescription.overviewFallback')}
+                    </p>
+                  </div>
+
+                  <div className="mb-8">
+                    <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#E2E8F0', marginBottom: '12px' }}>
+                      {t('businessProductPage.longDescription.whatYouGetTitle')}
+                    </h3>
+                    <ul style={{ marginLeft: '20px', marginBottom: '16px', color: '#CBD5E1' }}>
+                      {(tags.length ? tags.slice(0, 6) : longDescriptionCopy.fallbackList).map((item, idx) => (
+                        <li key={idx} style={{ marginBottom: '8px', fontSize: '15px' }}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="mb-8">
+                    <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#E2E8F0', marginBottom: '12px' }}>
+                      {t('businessProductPage.longDescription.whyItMattersTitle')}
+                    </h3>
+                    <p style={{ fontSize: '15px', color: '#CBD5E1', lineHeight: 1.7 }}>
+                      {t('businessProductPage.longDescription.whyItMattersBody')}
+                    </p>
+                  </div>
 
                   {/* Key Features Grid */}
                   <div style={{ marginTop: '32px' }}>
