@@ -89,6 +89,7 @@ interface CustomField {
   options?: string[];
   isPro: boolean;
   isSystem?: boolean;
+  isEditable?: boolean; // Keep isEditable as it was from previous task
 }
 
 interface DbEventFormRow {
@@ -1116,6 +1117,50 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
 
                     {/* Field Categories */}
                     <div className="space-y-6">
+                      {/* Common Fields */}
+                      <div>
+                        <h4 className="text-xs mb-3" style={{ fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          Common Fields
+                        </h4>
+                        <div className="space-y-2">
+                          {[
+                            { icon: Phone, label: 'Phone Number', type: 'phone', isEditable: false, isSystem: false },
+                            { icon: MapPin, label: 'Country', type: 'country', isEditable: false, isSystem: false },
+                            { icon: Calendar, label: 'Date of Birth', type: 'date', isEditable: false },
+                            { icon: Users, label: 'Gender', type: 'dropdown', options: ['Male', 'Female'], isEditable: false },
+                            { icon: Hash, label: 'Age', type: 'number', isEditable: false }
+                          ].map((field, idx) => {
+                            const FieldIcon = field.icon;
+                            return (
+                              <div
+                                key={idx}
+                                draggable
+                                onDragStart={(e) => {
+                                  e.dataTransfer.setData('fieldType', field.type);
+                                  e.dataTransfer.setData('fieldLabel', field.label);
+                                  if (field.options) {
+                                      e.dataTransfer.setData('fieldOptions', JSON.stringify(field.options));
+                                  }
+                                  e.dataTransfer.setData('isSystem', field.isSystem ? 'true' : 'false');
+                                  e.dataTransfer.setData('isEditable', field.isEditable ? 'true' : 'false');
+                                  e.dataTransfer.effectAllowed = 'copy';
+                                }}
+                                className="flex items-center gap-3 p-3 rounded-lg border cursor-move transition-all hover:border-blue-400"
+                                style={{ borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.03)' }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(6,132,245,0.1)'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'}
+                              >
+                                <GripVertical size={16} style={{ color: '#9CA3AF' }} />
+                                <FieldIcon size={18} style={{ color: '#0684F5' }} />
+                                <span className="text-sm" style={{ fontWeight: 500, color: '#FFFFFF' }}>
+                                  {field.label}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
                       {/* Basic Fields */}
                       <div>
                         <h4 className="text-xs mb-3" style={{ fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -1327,6 +1372,15 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                   onDrop={(e) => {
                     e.preventDefault();
                     const fieldType = e.dataTransfer.getData('fieldType');
+                    const fieldLabel = e.dataTransfer.getData('fieldLabel');
+                    const fieldOptionsStr = e.dataTransfer.getData('fieldOptions');
+                    const isSystemStr = e.dataTransfer.getData('isSystem');
+                    const isEditableStr = e.dataTransfer.getData('isEditable');
+                    let fieldOptions = undefined;
+                    if (fieldOptionsStr) {
+                        fieldOptions = JSON.parse(fieldOptionsStr);
+                    }
+
                     if (fieldType) {
                       // Determine if field is PRO
                       const isPROField = ['file', 'url', 'address'].includes(fieldType);
@@ -1335,19 +1389,23 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                       const newField: CustomField = {
                         id: Date.now().toString(),
                         type: fieldType as any,
-                        label: t('wizard.step3.customForms.builder.newFieldLabel', {
+                        label: fieldLabel || t('wizard.step3.customForms.builder.newFieldLabel', {
                           type: fieldTypeLabels[fieldType as CustomField['type']] || fieldType
                         }),
                         required: false,
                         placeholder: '',
                         isPro: isPROField,
-                        options: fieldType === 'dropdown' || fieldType === 'radio' || fieldType === 'checkbox' 
-                          ? [
-                              t('wizard.step3.customForms.fieldOptions.option1'),
-                              t('wizard.step3.customForms.fieldOptions.option2'),
-                              t('wizard.step3.customForms.fieldOptions.option3')
-                            ] 
-                          : undefined
+                        options: fieldOptions && fieldOptions.length > 0 ? fieldOptions : (
+                                   fieldType === 'dropdown' || fieldType === 'radio' || fieldType === 'checkbox'
+                                     ? [
+                                         t('wizard.step3.customForms.fieldOptions.option1'),
+                                         t('wizard.step3.customForms.fieldOptions.option2'),
+                                         t('wizard.step3.customForms.fieldOptions.option3')
+                                       ]
+                                     : undefined
+                                 ),
+                        isSystem: isSystemStr === 'true',
+                        isEditable: isEditableStr === 'false' ? false : true
                       };
                       setFormFields([...formFields, newField]);
                     }
@@ -1415,47 +1473,47 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                           style={{ borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.03)' }}
                         >
                           {/* Field Controls */}
-                          <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {!field.isSystem && (
+                          <div className="absolute top-3 right-3 flex items-center gap-1.5 transition-opacity">
+                            {!field.isSystem && field.isEditable !== false && ( // Updated condition for Edit button
                               <button
                                 onClick={() => {
                                   setEditingField(field);
                                   setShowFieldEditor(true);
                                 }}
-                                className="w-9 h-9 rounded-lg flex items-center justify-center transition-all hover:scale-105"
+                                className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:scale-105"
                                 style={{ backgroundColor: 'rgba(6,132,245,0.1)', color: '#0684F5' }}
                                 title={t('wizard.step3.customForms.builder.fieldActions.editProperties')}
                               >
-                                <Edit2 size={18} />
+                                <Edit2 size={16} />
                               </button>
                             )}
-                            {!field.isSystem && (
+                            {!field.isSystem && ( // Delete button remains the same condition
                               <button
                                 onClick={() => {
-                                  setFormFields(formFields.filter(f => f.id !== field.id));
+                                  handleDeleteField(field.id);
                                 }}
-                                className="w-9 h-9 rounded-lg flex items-center justify-center transition-all hover:scale-105"
+                                className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:scale-105"
                                 style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#EF4444' }}
                                 title={t('wizard.step3.customForms.builder.fieldActions.deleteField')}
                               >
-                                <Trash2 size={18} />
+                                <Trash2 size={16} />
                               </button>
                             )}
-                            {field.isSystem && (
+                            {field.isSystem && ( // Lock icon remains the same condition
                               <div
-                                className="w-9 h-9 rounded-lg flex items-center justify-center"
+                                className="w-8 h-8 rounded-lg flex items-center justify-center"
                                 style={{ backgroundColor: 'rgba(255,255,255,0.05)', cursor: 'not-allowed' }}
                                 title={t('wizard.step3.customForms.builder.fieldActions.systemLocked')}
                               >
                                 <Lock size={16} style={{ color: '#94A3B8' }} />
                               </div>
                             )}
-                            <div
-                              className="cursor-move w-9 h-9 rounded-lg flex items-center justify-center"
+                            <div // Drag handle remains the same
+                              className="cursor-move w-8 h-8 rounded-lg flex items-center justify-center"
                               style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
                               title={t('wizard.step3.customForms.builder.fieldActions.dragToReorder')}
                             >
-                              <GripVertical size={18} style={{ color: '#94A3B8' }} />
+                              <GripVertical size={16} style={{ color: '#94A3B8' }} />
                             </div>
                           </div>
 
@@ -1492,18 +1550,19 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                                 </span>
                               )}
                             </label>
-                            {!field.isSystem && (
-                              <button
-                                onClick={() => {
-                                  setEditingField(field);
-                                  setShowFieldEditor(true);
-                                }}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity w-7 h-7 rounded flex items-center justify-center hover:bg-blue-500/10"
-                                title={t('wizard.step3.customForms.builder.fieldActions.editSettings')}
-                                style={{ color: '#0684F5' }}
-                              >
-                                <Pencil size={16} />
-                              </button>
+                            {!field.isSystem && ( // Removed the hover-triggered edit button
+                                // <button
+                                //   onClick={() => {
+                                //     setEditingField(field);
+                                //     setShowFieldEditor(true);
+                                //   }}
+                                //   className="opacity-0 group-hover:opacity-100 transition-opacity w-7 h-7 rounded flex items-center justify-center hover:bg-blue-500/10"
+                                //   title={t('wizard.step3.customForms.builder.fieldActions.editSettings')}
+                                //   style={{ color: '#0684F5' }}
+                                // >
+                                //   <Pencil size={16} />
+                                // </button>
+                                null // Explicitly render null to remove the button
                             )}
                           </div>
                           

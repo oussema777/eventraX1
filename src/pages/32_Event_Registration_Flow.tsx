@@ -37,6 +37,7 @@ interface FormField {
   options?: string[];
   value: string;
   readonly?: boolean;
+  isSystem?: boolean;
 }
 
 export default function EventRegistrationFlow() {
@@ -47,7 +48,7 @@ export default function EventRegistrationFlow() {
   const [currentStep, setCurrentStep] = useState<RegistrationStep>(1);
   const [event, setEvent] = useState<any>(null);
   const [formFields, setFormFields] = useState<FormField[]>([]);
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessions, setSessions] = useState<Session[]>(new Array());
   const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set());
   const [freeTicketId, setFreeTicketId] = useState<string | null>(null);
   const [registeredAttendeeId, setRegisteredAttendeeId] = useState<string | null>(null);
@@ -70,8 +71,6 @@ export default function EventRegistrationFlow() {
       fetchEventData();
     }
   }, [eventId, user, profile]);
-
-  // ... (keep existing fetchEventData)
 
   const handleDownloadTicket = async () => {
     if (!registeredAttendeeId) return;
@@ -163,7 +162,7 @@ export default function EventRegistrationFlow() {
       ];
 
       if (formData?.schema?.fields && Array.isArray(formData.schema.fields)) {
-        const customFields = formData.schema.fields.map((f: any) => {
+        let customFields = formData.schema.fields.map((f: any) => {
           let defaultValue = '';
           if (profile) {
             const labelLower = (f.label || '').toLowerCase();
@@ -179,9 +178,16 @@ export default function EventRegistrationFlow() {
             required: f.required,
             options: f.options,
             value: defaultValue,
-            readonly: false
+            readonly: false,
+            isSystem: f.isSystem // Pass through the isSystem flag
           };
         });
+
+        // Filter out system default fields from customFields if they match the hardcoded ones
+        customFields = customFields.filter(f => 
+          !(f.isSystem && (f.id === 'default-name' || f.id === 'default-email'))
+        );
+
         setFormFields([...defaultFields, ...customFields]);
       } else {
         setFormFields(defaultFields);
