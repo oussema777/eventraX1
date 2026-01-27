@@ -89,6 +89,9 @@ export const translations = {
           virtual: 'Virtual',
           hybrid: 'Hybrid'
         },
+        type: { // Added new type filter title
+          title: 'Type'
+        },
         category: {
           title: 'Category',
           business: 'Business',
@@ -106,7 +109,9 @@ export const translations = {
           title: 'Date',
           today: 'Today',
           'this-weekend': 'This weekend',
-          custom: 'Choose Date Range...'
+          custom: 'Choose Date Range...',
+          startDate: 'Start Date',
+          endDate: 'End Date'
         }
       },
       sort: {

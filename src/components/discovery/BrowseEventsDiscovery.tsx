@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { 
+import {
   Search,
   MapPin,
   Calendar,
@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { supabase } from '../../lib/supabase';
 import { useI18n } from '../../i18n/I18nContext';
+// No Slider import here as it's being reverted
 
 interface EventCard {
   id: string;
@@ -35,7 +36,7 @@ interface EventCard {
 
 interface Filters {
   format: string[];
-  category: string[];
+  type: string[]; // Changed from category to type
   price: string[];
   date: string[];
 }
@@ -48,18 +49,20 @@ export default function BrowseEventsDiscovery() {
   const [loadError, setLoadError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState('');
-  const [dateFilter, setDateFilter] = useState('');
-  const [priceRange, setPriceRange] = useState([0, 1000]);
+  const [priceRange, setPriceRange] = useState([0, 1000]); // Reverted to single value for range input
   const [sortBy, setSortBy] = useState('upcoming');
   const [visibleCount, setVisibleCount] = useState(pageSize);
 
+  // New state for custom date range
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+
   const [filters, setFilters] = useState<Filters>({
     format: ['all'],
-    category: [],
+    type: [], // Changed from category to type
     price: [],
     date: []
   });
-
   const [likedEvents, setLikedEvents] = useState<Set<string>>(new Set());
 
   const [allEvents, setAllEvents] = useState<EventCard[]>([]);
@@ -71,12 +74,20 @@ export default function BrowseEventsDiscovery() {
     { value: 'hybrid', label: t('browseEventsPage.filters.format.hybrid') }
   ]), [t]);
 
-  const categoryOptions = useMemo(() => ([
-    { value: 'Business', label: t('browseEventsPage.filters.category.business') },
-    { value: 'Technology', label: t('browseEventsPage.filters.category.technology') },
-    { value: 'Music & Arts', label: t('browseEventsPage.filters.category.musicArts') },
-    { value: 'Education', label: t('browseEventsPage.filters.category.education') },
-    { value: 'Health & Wellness', label: t('browseEventsPage.filters.category.health') }
+  // New event type options
+  const eventTypeOptions = useMemo(() => ([
+    { value: 'Conference', label: t('wizard.details.eventTypes.conference') },
+    { value: 'Workshop', label: t('wizard.details.eventTypes.workshop') },
+    { value: 'Webinar', label: t('wizard.details.eventTypes.webinar') },
+    { value: 'Networking', label: t('wizard.details.eventTypes.networking') },
+    { value: 'Trade Show', label: t('wizard.details.eventTypes.tradeShow') },
+    { value: 'Summit', label: t('wizard.details.eventTypes.summit') },
+    { value: 'Masterclass', label: t('wizard.details.eventTypes.masterclass') },
+    { value: 'Training', label: t('wizard.details.eventTypes.training') },
+    { value: 'Bootcamp', label: t('wizard.details.eventTypes.bootcamp') },
+    { value: 'Hackathon', label: t('wizard.details.eventTypes.hackathon') },
+    { value: 'Award Ceremony', label: t('wizard.details.eventTypes.awardCeremony') },
+    { value: 'Other', label: t('wizard.details.eventTypes.other') }
   ]), [t]);
 
   const dateOptions = useMemo(() => ([
@@ -183,7 +194,7 @@ export default function BrowseEventsDiscovery() {
   const handleFilterChange = (group: keyof Filters, value: string) => {
     setFilters(prev => {
       const updated = { ...prev };
-      
+
       if (group === 'format' && value === 'all') {
         updated.format = ['all'];
       } else if (group === 'format') {
@@ -197,7 +208,7 @@ export default function BrowseEventsDiscovery() {
           ? currentGroup.filter(v => v !== value)
           : [...currentGroup, value];
       }
-      
+
       return updated;
     });
     resetPagination();
@@ -206,14 +217,15 @@ export default function BrowseEventsDiscovery() {
   const clearAllFilters = () => {
     setFilters({
       format: ['all'],
-      category: [],
+      type: [], // Changed from category to type
       price: [],
       date: []
     });
     setPriceRange([0, 1000]);
     setSearchQuery('');
     setLocation('');
-    setDateFilter('');
+    setCustomStartDate('');
+    setCustomEndDate('');
     resetPagination();
   };
 
@@ -238,8 +250,15 @@ export default function BrowseEventsDiscovery() {
     const normalize = (value: string) => value.trim().toLowerCase();
     const search = normalize(searchQuery);
     const locationSearch = normalize(location);
-    const customDate = dateFilter ? new Date(dateFilter) : null;
-    const customDateValid = customDate && Number.isFinite(customDate.getTime());
+
+    // Parse custom start/end dates from sidebar filter
+    const startRange = customStartDate ? new Date(customStartDate) : null;
+    const endRange = customEndDate ? new Date(customEndDate) : null;
+    // Normalize endRange to end of day for inclusive filtering
+    if (endRange) {
+      endRange.setHours(23, 59, 59, 999);
+    }
+
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const endOfWeekend = new Date(startOfToday);
@@ -250,14 +269,20 @@ export default function BrowseEventsDiscovery() {
       const matchesFormat = filters.format.includes('all') || filters.format.includes(event.format);
       if (!matchesFormat) return false;
 
-      const matchesCategory =
-        filters.category.length === 0 ||
-        filters.category.some((category) => normalize(event.category) === normalize(category));
-      if (!matchesCategory) return false;
+      const matchesType =
+        filters.type.length === 0 ||
+        filters.type.some((type) => normalize(event.category) === normalize(type)); // Filter by event.category matching filters.type
+      if (!matchesType) return false;
 
       const isFree = event.priceValue <= 0;
-      if (filters.price.includes('free') && !isFree) return false;
-      if (filters.price.includes('paid') && isFree) return false;
+      // Corrected logic for 'free' and 'paid' filters
+      if (filters.price.length === 2) {
+        // If both 'free' and 'paid' are selected, this filter does not exclude any events.
+      } else if (filters.price.includes('free') && !isFree) {
+        return false; // Exclude paid events if only 'free' is selected
+      } else if (filters.price.includes('paid') && isFree) {
+        return false; // Exclude free events if only 'paid' is selected
+      }
       if (event.priceValue > priceRange[1]) return false;
 
       if (search) {
@@ -276,25 +301,30 @@ export default function BrowseEventsDiscovery() {
         if (!locationValue.includes(locationSearch)) return false;
       }
 
-      if (filters.date.length > 0 || customDateValid) {
-        if (!event.startTimestamp) return false;
+      // Date filtering logic
+      if (filters.date.length > 0) { // Only apply date filters if at least one checkbox is checked
+        if (!event.startTimestamp) return false; // Events without a start date cannot be filtered by date
         const eventDate = new Date(event.startTimestamp);
-        const isToday = eventDate >= startOfToday && eventDate < new Date(startOfToday.getTime() + 86_400_000);
-        const isWeekend = (eventDate.getDay() === 0 || eventDate.getDay() === 6) && eventDate <= endOfWeekend;
-        const isCustom = customDateValid
-          ? eventDate.toDateString() === (customDate as Date).toDateString()
-          : false;
 
-        if (filters.date.includes('today') && !isToday) return false;
-        if (filters.date.includes('this-weekend') && !isWeekend) return false;
-        if (filters.date.includes('custom') && !isCustom) return false;
-        if (!filters.date.includes('custom') && customDateValid && !isCustom) return false;
+        if (filters.date.includes('today')) {
+          const isToday = eventDate >= startOfToday && eventDate < new Date(startOfToday.getTime() + 86_400_000);
+          if (!isToday) return false;
+        }
+
+        if (filters.date.includes('this-weekend')) {
+          const isWeekend = (eventDate.getDay() === 0 || eventDate.getDay() === 6) && eventDate <= endOfWeekend;
+          if (!isWeekend) return false;
+        }
+
+        if (filters.date.includes('custom')) {
+          if (startRange && eventDate < startRange) return false;
+          if (endRange && eventDate > endRange) return false;
+        }
       }
 
       return true;
     });
-  }, [allEvents, dateFilter, filters, location, priceRange, searchQuery]);
-
+  }, [allEvents, filters, location, priceRange, searchQuery, customStartDate, customEndDate]);
   const sortedEvents = useMemo(() => {
     const sorted = [...filteredEvents];
     sorted.sort((a, b) => {
@@ -403,11 +433,11 @@ export default function BrowseEventsDiscovery() {
           paddingTop: '40px'
         }}
       >
-        <h1 
+        <h1
           className="mb-6"
-          style={{ 
-            fontSize: '36px', 
-            fontWeight: 700, 
+          style={{
+            fontSize: '36px',
+            fontWeight: 700,
             color: '#FFFFFF',
             textAlign: 'center',
             marginTop: '20px'
@@ -448,246 +478,257 @@ export default function BrowseEventsDiscovery() {
           {/* Divider */}
           <div className="browse-events__search-divider" style={{ width: '1px', height: '32px', backgroundColor: '#E5E7EB' }} />
 
-          {/* Location Input */}
-          <div className="browse-events__search-field flex items-center gap-2 px-4" style={{ minWidth: '180px' }}>
-            <MapPin size={18} style={{ color: '#94A3B8', flexShrink: 0 }} />
-            <input
-              type="text"
-              placeholder={t('browseEventsPage.hero.locationPlaceholder')}
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className="flex-1 bg-transparent border-none outline-none"
-              style={{
-                color: '#0B2641',
-                fontSize: '14px',
-                minWidth: '0'
-              }}
-            />
-          </div>
-
-          {/* Divider */}
-          <div className="browse-events__search-divider" style={{ width: '1px', height: '32px', backgroundColor: '#E5E7EB' }} />
-
-          {/* Date Picker */}
-          <div className="browse-events__search-field flex items-center gap-2 px-4" style={{ minWidth: '140px' }}>
-            <Calendar size={18} style={{ color: '#94A3B8', flexShrink: 0 }} />
-            <input
-              type="text"
-              placeholder={t('browseEventsPage.hero.datePlaceholder')}
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="flex-1 bg-transparent border-none outline-none"
-              style={{
-                color: '#0B2641',
-                fontSize: '14px',
-                minWidth: '0'
-              }}
-            />
-          </div>
-
-          {/* Search Button */}
-          <button
-            className="browse-events__search-button flex items-center justify-center transition-colors mr-1"
-            style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '50%',
-              backgroundColor: '#0684F5',
-              color: '#FFFFFF',
-              border: 'none',
-              cursor: 'pointer',
-              flexShrink: 0
-            }}
-            onClick={resetPagination}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0570D6'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0684F5'}
-          >
-            <Search size={22} />
-          </button>
+                    {/* Location Input */}
+                    <div className="browse-events__search-field flex items-center gap-2 px-4" style={{ minWidth: '180px' }}>
+                      <MapPin size={18} style={{ color: '#94A3B8', flexShrink: 0 }} />
+                      <input
+                        type="text"
+                        placeholder={t('browseEventsPage.hero.locationPlaceholder')}
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                        className="flex-1 bg-transparent border-none outline-none"
+                        style={{
+                          color: '#0B2641',
+                          fontSize: '14px',
+                          minWidth: '0'
+                        }}
+                      />
+                    </div>
+          
+                    {/* Search Button */}
+                    <button
+                      className="browse-events__search-button flex items-center justify-center transition-colors mr-1"
+                      style={{
+                        width: '56px',
+                        height: '56px',
+                        borderRadius: '50%',
+                        backgroundColor: '#0684F5',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        cursor: 'pointer',
+                        flexShrink: 0
+                      }}
+                      onClick={resetPagination}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0570D6'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0684F5'}
+                    >
+                      <Search size={22} />
+                    </button>          </div>
         </div>
-      </div>
-
-      {/* Main Content Area */}
-      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '40px 20px' }}>
-        <div className="browse-events__layout flex gap-10">
-          {/* Left Column: Filters */}
-          <div className="browse-events__filters" style={{ width: '280px', flexShrink: 0 }}>
-            <div className="browse-events__filters-inner sticky top-4">
-              {/* Filter Header */}
-              <div className="flex items-center justify-between mb-6">
-                <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF' }}>
-                  {t('browseEventsPage.filters.title')}
-                </h2>
-                <button
-                  onClick={clearAllFilters}
-                  className="transition-colors"
-                  style={{
-                    fontSize: '14px',
-                    color: '#0684F5',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
-                  onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
-                >
-                  {t('browseEventsPage.filters.clearAll')}
-                </button>
-              </div>
-
-              {/* Filter Groups */}
-              <div className="space-y-6">
-                {/* Format */}
-                <div>
-                  <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF', marginBottom: '12px' }}>
-                    {t('browseEventsPage.filters.format.title')}
-                  </h3>
-                  <div className="space-y-2">
-                    {formatOptions.map((format) => (
-                      <label key={format.value} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={filters.format.includes(format.value)}
-                          onChange={() => handleFilterChange('format', format.value)}
-                          className="w-4 h-4 rounded"
-                          style={{ accentColor: '#0684F5' }}
-                        />
-                        <span style={{ fontSize: '14px', color: '#94A3B8', textTransform: 'capitalize' }}>
-                          {format.label}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
+  
+        {/* Main Content Area */}
+        <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '40px 20px' }}>
+          <div className="browse-events__layout flex gap-10">
+            {/* Left Column: Filters */}
+            <div className="browse-events__filters" style={{ width: '280px', flexShrink: 0 }}>
+              <div className="browse-events__filters-inner sticky top-4">
+                {/* Filter Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF' }}>
+                    {t('browseEventsPage.filters.title')}
+                  </h2>
+                  <button
+                    onClick={clearAllFilters}
+                    className="transition-colors"
+                    style={{
+                      fontSize: '14px',
+                      color: '#0684F5',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                    onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                  >
+                    {t('browseEventsPage.filters.clearAll')}
+                  </button>
                 </div>
-
-                {/* Category */}
-                <div>
-                  <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF', marginBottom: '12px' }}>
-                    {t('browseEventsPage.filters.category.title')}
-                  </h3>
-                  <div className="space-y-2">
-                    {categoryOptions.map((category) => (
-                      <label key={category.value} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={filters.category.includes(category.value)}
-                          onChange={() => handleFilterChange('category', category.value)}
-                          className="w-4 h-4 rounded"
-                          style={{ accentColor: '#0684F5' }}
-                        />
-                        <span style={{ fontSize: '14px', color: '#94A3B8' }}>
-                          {category.label}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Price */}
-                <div>
-                  <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF', marginBottom: '12px' }}>
-                    {t('browseEventsPage.filters.price.title')}
-                  </h3>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    <button
-                      onClick={() => handleFilterChange('price', 'free')}
-                      className="px-4 py-2 rounded-lg transition-all"
-                      style={{
-                        backgroundColor: filters.price.includes('free') 
-                          ? 'rgba(16, 185, 129, 0.2)' 
-                          : 'rgba(255,255,255,0.05)',
-                        border: filters.price.includes('free')
-                          ? '1px solid #10B981'
-                          : '1px solid rgba(255,255,255,0.1)',
-                        color: filters.price.includes('free') ? '#10B981' : '#94A3B8',
-                        fontSize: '13px',
-                        fontWeight: 600,
-                        cursor: 'pointer'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!filters.price.includes('free')) {
-                          e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!filters.price.includes('free')) {
-                          e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
-                        }
-                      }}
-                    >
-                      {t('browseEventsPage.filters.price.free')}
-                    </button>
-                    <button
-                      onClick={() => handleFilterChange('price', 'paid')}
-                      className="px-4 py-2 rounded-lg transition-all"
-                      style={{
-                        backgroundColor: filters.price.includes('paid') 
-                          ? 'rgba(6, 132, 245, 0.2)' 
-                          : 'rgba(255,255,255,0.05)',
-                        border: filters.price.includes('paid')
-                          ? '1px solid #0684F5'
-                          : '1px solid rgba(255,255,255,0.1)',
-                        color: filters.price.includes('paid') ? '#0684F5' : '#94A3B8',
-                        fontSize: '13px',
-                        fontWeight: 600,
-                        cursor: 'pointer'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!filters.price.includes('paid')) {
-                          e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!filters.price.includes('paid')) {
-                          e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
-                        }
-                      }}
-                    >
-                      {t('browseEventsPage.filters.price.paid')}
-                    </button>
-                  </div>
-
-                  {/* Price Range Slider */}
+  
+                {/* Filter Groups */}
+                <div className="space-y-6">
+                  {/* Format */}
                   <div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1000"
-                      value={priceRange[1]}
-                      onChange={(e) => setPriceRange([0, parseInt(e.target.value)])}
-                      className="w-full"
-                      style={{ accentColor: '#0684F5' }}
-                    />
-                    <div className="flex justify-between mt-2">
-                      <span style={{ fontSize: '12px', color: '#6B7280' }}>$0</span>
-                      <span style={{ fontSize: '12px', color: '#6B7280' }}>${priceRange[1]}</span>
+                    <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF', marginBottom: '12px' }}>
+                      {t('browseEventsPage.filters.format.title')}
+                    </h3>
+                    <div className="space-y-2">
+                      {formatOptions.map((format) => (
+                        <label key={format.value} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={filters.format.includes(format.value)}
+                            onChange={() => handleFilterChange('format', format.value)}
+                            className="w-4 h-4 rounded"
+                            style={{ accentColor: '#0684F5' }}
+                          />
+                          <span style={{ fontSize: '14px', color: '#94A3B8', textTransform: 'capitalize' }}>
+                            {format.label}
+                          </span>
+                        </label>
+                      ))}
                     </div>
                   </div>
-                </div>
-
-                {/* Date */}
-                <div>
-                  <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF', marginBottom: '12px' }}>
-                    {t('browseEventsPage.filters.date.title')}
-                  </h3>
-                  <div className="space-y-2">
-                    {dateOptions.map((date) => (
-                      <label key={date.value} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={filters.date.includes(date.value)}
-                          onChange={() => handleFilterChange('date', date.value)}
-                          className="w-4 h-4 rounded"
-                          style={{ accentColor: '#0684F5' }}
-                        />
-                        <span style={{ fontSize: '14px', color: '#94A3B8', textTransform: 'capitalize' }}>
-                          {date.label}
-                        </span>
-                      </label>
-                    ))}
+  
+                                  {/* Type */}
+                                  <div>
+                                    <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF', marginBottom: '12px' }}>
+                                      {t('browseEventsPage.filters.type.title')}
+                                    </h3>
+                                    <div className="space-y-2">
+                                      {eventTypeOptions.map((type) => (
+                                        <label key={type.value} className="flex items-center gap-2 cursor-pointer">
+                                          <input
+                                            type="checkbox"
+                                            checked={filters.type.includes(type.value)}
+                                            onChange={() => handleFilterChange('type', type.value)}
+                                            className="w-4 h-4 rounded"
+                                            style={{ accentColor: '#0684F5' }}
+                                          />
+                                          <span style={{ fontSize: '14px', color: '#94A3B8' }}>
+                                            {type.label}
+                                          </span>
+                                        </label>
+                                      ))}
+                                    </div>
+                                  </div>  
+                  {/* Price */}
+                  <div>
+                    <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF', marginBottom: '12px' }}>
+                      {t('browseEventsPage.filters.price.title')}
+                    </h3>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      <button
+                        onClick={() => handleFilterChange('price', 'free')}
+                        className="px-4 py-2 rounded-lg transition-all"
+                        style={{
+                          backgroundColor: filters.price.includes('free')
+                            ? 'rgba(16, 185, 129, 0.2)'
+                            : 'rgba(255,255,255,0.05)',
+                          border: filters.price.includes('free')
+                            ? '1px solid #10B981'
+                            : '1px solid rgba(255,255,255,0.1)',
+                          color: filters.price.includes('free') ? '#10B981' : '#94A3B8',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!filters.price.includes('free')) {
+                            e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!filters.price.includes('free')) {
+                            e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
+                          }
+                        }}
+                      >
+                        {t('browseEventsPage.filters.price.free')}
+                      </button>
+                      <button
+                        onClick={() => handleFilterChange('price', 'paid')}
+                        className="px-4 py-2 rounded-lg transition-all"
+                        style={{
+                          backgroundColor: filters.price.includes('paid')
+                            ? 'rgba(6, 132, 245, 0.2)'
+                            : 'rgba(255,255,255,0.05)',
+                          border: filters.price.includes('paid')
+                            ? '1px solid #0684F5'
+                            : '1px solid rgba(255,255,255,0.1)',
+                          color: filters.price.includes('paid') ? '#0684F5' : '#94A3B8',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!filters.price.includes('paid')) {
+                            e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!filters.price.includes('paid')) {
+                            e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
+                          }
+                        }}
+                      >
+                        {t('browseEventsPage.filters.price.paid')}
+                      </button>
+                    </div>
+  
+                    {/* Price Range Slider */}
+                    <div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1000"
+                        value={priceRange[1]}
+                        onChange={(e) => setPriceRange([0, parseInt(e.target.value)])}
+                        className="w-full"
+                        style={{ accentColor: '#0684F5' }}
+                      />
+                      <div className="flex justify-between mt-2">
+                        <span style={{ fontSize: '12px', color: '#6B7280' }}>$0</span>
+                        <span style={{ fontSize: '12px', color: '#6B7280' }}>${priceRange[1]}</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+  
+                  {/* Date */}
+                  <div>
+                    <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF', marginBottom: '12px' }}>
+                      {t('browseEventsPage.filters.date.title')}
+                    </h3>
+                    <div className="space-y-2">
+                      {dateOptions.map((date) => (
+                        <label key={date.value} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={filters.date.includes(date.value)}
+                            onChange={() => handleFilterChange('date', date.value)}
+                            className="w-4 h-4 rounded"
+                            style={{ accentColor: '#0684F5' }}
+                          />
+                          <span style={{ fontSize: '14px', color: '#94A3B8', textTransform: 'capitalize' }}>
+                            {date.label}
+                          </span>
+                        </label>
+                      ))}
+                      {filters.date.includes('custom') && (
+                        <div className="flex flex-col gap-2 mt-4">
+                          <label className="block" style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 500 }}>
+                            {t('browseEventsPage.filters.date.startDate')}
+                          </label>
+                          <input
+                            type="date"
+                            value={customStartDate}
+                            onChange={(e) => setCustomStartDate(e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg border outline-none"
+                            style={{
+                              backgroundColor: 'rgba(255,255,255,0.05)',
+                              borderColor: 'rgba(255,255,255,0.1)',
+                              color: '#FFFFFF',
+                              fontSize: '14px'
+                            }}
+                          />
+                          <label className="block mt-2" style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 500 }}>
+                            {t('browseEventsPage.filters.date.endDate')}
+                          </label>
+                                                  <input
+                                                    type="date"
+                                                    value={customEndDate}
+                                                    onChange={(e) => setCustomEndDate(e.target.value)}
+                                                    min={customStartDate || undefined} // Only set min if customStartDate has a value
+                                                    className="w-full px-3 py-2 rounded-lg border outline-none"
+                                                    style={{
+                                                      backgroundColor: 'rgba(255,255,255,0.05)',
+                                                      borderColor: 'rgba(255,255,255,0.1)',
+                                                      color: '#FFFFFF',
+                                                      fontSize: '14px'
+                                                    }}
+                                                  />                        </div>
+                      )}
+                    </div>
+                  </div>              </div>
             </div>
           </div>
 
