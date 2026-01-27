@@ -15,7 +15,6 @@ import { supabase } from '../lib/supabase';
 import { toast } from 'sonner@2.0.3';
 import { createNotification } from '../lib/notifications';
 import { useAuth } from '../contexts/AuthContext';
-import { sendEmail, generateRegistrationEmailHtml } from '../lib/email';
 
 type RegistrationStep = 1 | 2 | 3;
 
@@ -197,79 +196,39 @@ export default function EventRegistrationFlow() {
         responses[f.label] = f.value;
       });
 
-      // 1. Insert Attendee
-      const { data: attendee, error: regError } = await supabase
-        .from('event_attendees')
-        .insert([{
-          event_id: eventId,
-          profile_id: user.id,
-          ticket_type: 'General Admission', 
-          ticket_color: '#0684F5',
-          price: 0,
-          status: 'registered',
-          meta: responses, 
-          email: user.email, 
-          name: profile?.full_name || user.email 
-        }])
-        .select()
-        .single();
-
-      if (regError) {
-        if (regError.code === '23505') {
-          // Already registered - fetch existing record
-          toast.success("You're already registered! Updating your agenda...");
-          const { data: existing } = await supabase
-            .from('event_attendees')
-            .select()
-            .eq('event_id', eventId)
-            .eq('profile_id', user.id)
-            .single();
-          
-          if (existing) {
-            const sessionInserts = Array.from(selectedSessions).map(sessionId => ({
-              attendee_id: existing.id,
-              session_id: sessionId
-            }));
-
-            await supabase.from('event_attendee_sessions').delete().eq('attendee_id', existing.id);
-            
-            if (sessionInserts.length > 0) {
-              await supabase.from('event_attendee_sessions').insert(sessionInserts);
-            }
-
-            const mySessions = sessions.filter(s => selectedSessions.has(s.id));
-            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${existing.id}`;
-            const emailHtml = generateRegistrationEmailHtml(event?.name || 'Event', existing.name || user.email || 'Attendee', qrUrl, mySessions);
-            
-            await sendEmail({
-              to: user.email || '',
-              subject: `Registration Confirmed: ${event?.name}`,
-              html: emailHtml
-            });
-            
-            setCurrentStep(3);
-            return;
-          }
-        }
-        throw regError;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) {
+        toast.error('Missing session token');
+        return;
       }
 
-      try {
-        await supabase.rpc('increment_ticket_sold', { tid: freeTicketId, qty: 1 });
-      } catch (err) {
-        console.warn('Failed to update ticket count (RPC missing?):', err);
+      const apiBase = import.meta.env.VITE_REGISTRATION_API_URL || '';
+      if (!apiBase) {
+        toast.error('Registration email server is not configured');
+        return;
       }
 
-      if (attendee) {
-        const mySessions = sessions.filter(s => selectedSessions.has(s.id));
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${attendee.id}`;
-        const emailHtml = generateRegistrationEmailHtml(event?.name || 'Event', attendee.name || user.email || 'Attendee', qrUrl, mySessions);
-        
-        await sendEmail({
-          to: user.email || '',
-          subject: `Registration Confirmed: ${event?.name}`,
-          html: emailHtml
-        });
+      const payload = {
+        event_id: eventId,
+        responses,
+        selected_session_ids: Array.from(selectedSessions),
+        attendee_name: profile?.full_name || user.email,
+        attendee_email: user.email
+      };
+
+      const response = await fetch(`${apiBase}/api/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || 'Registration failed');
       }
 
       try {

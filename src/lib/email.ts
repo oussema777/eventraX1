@@ -1,6 +1,5 @@
 // Mock Email Service for Localhost Development
 // This simulates sending emails without requiring a backend or exposing API keys.
-
 interface SendEmailParams {
   to: string;
   subject: string;
