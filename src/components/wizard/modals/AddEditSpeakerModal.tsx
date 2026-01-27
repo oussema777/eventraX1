@@ -1,9 +1,10 @@
-import { X, CheckCircle, Upload, Star, Users as UsersIcon, Settings, User, Plus, XCircle } from 'lucide-react';
+import { X, CheckCircle, Upload, Star, Users as UsersIcon, Settings, User, Plus, XCircle, ChevronDown } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { uploadFile } from '../../../utils/storage';
 import { useI18n } from '../../../i18n/I18nContext';
 import { toast } from 'sonner';
+import { countries } from '../../../data/countries';
 
 interface Speaker {
   id?: string;
@@ -58,6 +59,7 @@ export default function AddEditSpeakerModal({ isOpen, onClose, onSave, speaker }
   const [shortBioCharCount, setShortBioCharCount] = useState(speaker?.shortBio?.length || 0);
   const [currentTag, setCurrentTag] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState('+1');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -85,6 +87,17 @@ export default function AddEditSpeakerModal({ isOpen, onClose, onSave, speaker }
     setBioCharCount(next.bio?.length || 0);
     setShortBioCharCount(next.shortBio?.length || 0);
     setCurrentTag('');
+    
+    // Extract country code if phone number exists
+    if (next.phone) {
+        // Simple logic: check if phone starts with a known code
+        const matchingCountry = countries.find(c => next.phone?.startsWith(c.phoneCode));
+        if (matchingCountry) {
+            setSelectedCountry(matchingCountry.phoneCode);
+            // Optionally strip the code from the input value if desired, 
+            // but for now we keep the full string in formData.phone
+        }
+    }
   }, [isOpen, speaker]);
 
   if (!isOpen) return null;
@@ -124,6 +137,13 @@ export default function AddEditSpeakerModal({ isOpen, onClose, onSave, speaker }
 
     if (missingFields.length > 0) {
       toast.error(t('wizard.step3.sessions.modal.requiredFields', 'Please fill in all required fields'));
+      return;
+    }
+
+    // Email Validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (formData.email && !emailRegex.test(formData.email)) {
+      toast.error(t('auth.errors.invalidEmail', 'Please enter a valid email address'));
       return;
     }
 
@@ -330,14 +350,53 @@ export default function AddEditSpeakerModal({ isOpen, onClose, onSave, speaker }
                     <label className="block text-sm mb-2" style={{ fontWeight: 500, color: '#0B2641' }}>
                       {t('wizard.step3.speakers.modal.fields.phone.label')}
                     </label>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder={t('wizard.step3.speakers.modal.fields.phone.placeholder')}
-                      className="w-full h-11 px-4 rounded-lg border outline-none transition-colors focus:border-blue-400"
-                      style={{ borderColor: '#E5E7EB', color: '#0B2641' }}
-                    />
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <div style={{ position: 'relative', width: '140px' }}>
+                        <select
+                          value={selectedCountry}
+                          onChange={(e) => setSelectedCountry(e.target.value)}
+                          style={{
+                            width: '100%',
+                            height: '44px',
+                            padding: '0 32px 0 12px',
+                            backgroundColor: '#FFFFFF',
+                            border: '1px solid #E5E7EB',
+                            borderRadius: '8px',
+                            fontFamily: 'Inter',
+                            fontSize: '14px',
+                            color: '#0B2641',
+                            outline: 'none',
+                            appearance: 'none',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {countries.map((country) => (
+                            <option key={`${country.code}-${country.phoneCode}`} value={country.phoneCode}>
+                              {country.code} ({country.phoneCode})
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown 
+                          size={16} 
+                          style={{ 
+                            position: 'absolute', 
+                            right: '12px', 
+                            top: '50%', 
+                            transform: 'translateY(-50%)', 
+                            color: '#6B7280', 
+                            pointerEvents: 'none' 
+                          }} 
+                        />
+                      </div>
+                      <input
+                        type="tel"
+                        value={formData.phone?.replace(selectedCountry, '') || ''}
+                        onChange={(e) => setFormData({ ...formData, phone: `${selectedCountry}${e.target.value}` })}
+                        placeholder={t('wizard.step3.speakers.modal.fields.phone.placeholder')}
+                        className="flex-1 h-11 px-4 rounded-lg border outline-none transition-colors focus:border-blue-400"
+                        style={{ borderColor: '#E5E7EB', color: '#0B2641' }}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

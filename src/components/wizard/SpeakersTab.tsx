@@ -605,45 +605,6 @@ export default function SpeakersTab() {
         </div>
       )}
 
-      {/* BULK ACTIONS BAR */}
-      {selectedSpeakers.size > 0 && (
-        <div 
-          className="speaker-bulk-bar fixed bottom-0 left-0 right-0 p-4 flex items-center justify-between shadow-lg"
-          style={{ 
-            backgroundColor: '#FFFFFF',
-            borderTop: '1px solid #E5E7EB',
-            zIndex: 50
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <span className="text-sm" style={{ color: '#0B2641', fontWeight: 500 }}>
-              {t('manageEvent.speakers.bulk.selected', { count: selectedSpeakers.size })}
-            </span>
-            <button
-              onClick={() => setSelectedSpeakers(new Set())}
-              className="text-xs transition-colors hover:underline"
-              style={{ color: 'var(--primary)', fontWeight: 600 }}
-            >
-              {t('manageEvent.speakers.bulk.deselect')}
-            </button>
-          </div>
-          <div className="speaker-bulk-actions flex items-center gap-2">
-            <button className="speaker-bulk-btn flex items-center gap-2 px-4 h-9 rounded-lg transition-colors hover:bg-gray-50">
-              <Download size={16} style={{ color: '#6B7280' }} />
-              <span className="text-sm" style={{ color: '#6B7280', fontWeight: 600 }}>{t('manageEvent.speakers.bulk.export')}</span>
-            </button>
-            <button className="speaker-bulk-btn flex items-center gap-2 px-4 h-9 rounded-lg transition-colors hover:bg-gray-50">
-              <Mail size={16} style={{ color: '#6B7280' }} />
-              <span className="text-sm" style={{ color: '#6B7280', fontWeight: 600 }}>{t('manageEvent.speakers.bulk.sendEmail')}</span>
-            </button>
-            <button className="speaker-bulk-btn flex items-center gap-2 px-4 h-9 rounded-lg transition-colors hover:bg-red-50">
-              <Trash2 size={16} style={{ color: '#EF4444' }} />
-              <span className="text-sm" style={{ color: '#EF4444', fontWeight: 600 }}>{t('manageEvent.speakers.bulk.delete')}</span>
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Modals */}
       <AddEditSpeakerModal
         isOpen={isAddModalOpen}

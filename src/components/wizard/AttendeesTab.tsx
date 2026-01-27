@@ -166,6 +166,13 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
       return;
     }
 
+    // Email Validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
     const missing = formFields.filter(f => f.required && !formData[f.label]);
     if (missing.length > 0) {
       toast.error(`Missing required field: ${missing[0].label}`);

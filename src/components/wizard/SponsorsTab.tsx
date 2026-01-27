@@ -15,6 +15,7 @@ import {
   MoreVertical,
   Star,
   X,
+  XCircle,
   Upload,
   Trash2,
   Mail,
@@ -40,7 +41,6 @@ export default function SponsorsTab() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [tierFilter, setTierFilter] = useState<TierFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showChoiceModal, setShowChoiceModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showFormPreviewModal, setShowFormPreviewModal] = useState(false);
   const [showPackagesModal, setShowPackagesModal] = useState(false);
@@ -196,7 +196,7 @@ export default function SponsorsTab() {
 
             {/* Add Sponsor Button */}
             <button
-              onClick={() => setShowChoiceModal(true)}
+              onClick={() => setShowAddModal(true)}
               style={{
                 height: '44px',
                 padding: '0 20px',
@@ -614,21 +614,6 @@ export default function SponsorsTab() {
         )}
 
         {/* Modals */}
-        {showChoiceModal && (
-          <AddChoiceModal
-            onClose={() => setShowChoiceModal(false)}
-            onManual={() => {
-              setShowChoiceModal(false);
-              setSelectedSponsor(null);
-              setShowAddModal(true);
-            }}
-            onSendForm={() => {
-              setShowChoiceModal(false);
-              setShowFormPreviewModal(true);
-            }}
-          />
-        )}
-
         {showAddModal && (
           <AddSponsorModal
             sponsor={selectedSponsor}
@@ -821,166 +806,6 @@ function SponsorCard({ sponsor, packages, onEdit }: { sponsor: Sponsor; packages
           <Edit size={16} />
           {t('wizard.step3.sponsors.actions.editSponsor')}
         </button>
-      </div>
-    </div>
-  );
-}
-
-// Add Choice Modal Component
-function AddChoiceModal({ onClose, onManual, onSendForm }: { onClose: () => void; onManual: () => void; onSendForm: () => void; }) {
-  const { t } = useI18n();
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-        padding: '20px'
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          width: 'min(600px, 92vw)',
-          backgroundColor: '#FFFFFF',
-          borderRadius: '12px',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.3)',
-          overflow: 'hidden'
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Modal Header */}
-        <div style={{ padding: '24px', borderBottom: '1px solid #E5E7EB' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <h2 style={{ fontSize: '24px', fontWeight: 600, color: '#0B2641', marginBottom: '4px' }}>
-                {t('wizard.step3.sponsors.addChoice.title')}
-              </h2>
-              <p style={{ fontSize: '14px', color: '#6B7280' }}>
-                {t('wizard.step3.sponsors.addChoice.subtitle')}
-              </p>
-            </div>
-            <button
-              onClick={onClose}
-              style={{
-                width: '32px',
-                height: '32px',
-                border: 'none',
-                backgroundColor: 'transparent',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '6px',
-                transition: 'background-color 0.2s'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F3F4F6'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-            >
-              <X size={20} style={{ color: '#6B7280' }} />
-            </button>
-          </div>
-        </div>
-
-        {/* Modal Content */}
-        <div style={{ padding: '32px 24px' }}>
-          <div style={{ display: 'grid', gap: '16px' }}>
-            <button
-              onClick={onManual}
-              style={{
-                padding: '24px',
-                backgroundColor: '#FFFFFF',
-                border: '2px solid #E5E7EB',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#0684F5';
-                e.currentTarget.style.backgroundColor = '#F0F9FF';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = '#E5E7EB';
-                e.currentTarget.style.backgroundColor = '#FFFFFF';
-              }}
-            >
-              <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-                <div style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '8px',
-                  backgroundColor: '#DBEAFE',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0
-                }}>
-                  <Edit size={24} style={{ color: '#0684F5' }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#0B2641', marginBottom: '4px' }}>
-                    {t('wizard.step3.sponsors.addChoice.manual.title')}
-                  </h3>
-                  <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: '1.5' }}>
-                    {t('wizard.step3.sponsors.addChoice.manual.subtitle')}
-                  </p>
-                </div>
-              </div>
-            </button>
-
-            <button
-              onClick={onSendForm}
-              style={{
-                padding: '24px',
-                backgroundColor: '#FFFFFF',
-                border: '2px solid #E5E7EB',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#0684F5';
-                e.currentTarget.style.backgroundColor = '#F0F9FF';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = '#E5E7EB';
-                e.currentTarget.style.backgroundColor = '#FFFFFF';
-              }}
-            >
-              <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-                <div style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '8px',
-                  backgroundColor: '#EDE9FE',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0
-                }}>
-                  <Mail size={24} style={{ color: '#8B5CF6' }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#0B2641', marginBottom: '4px' }}>
-                    {t('wizard.step3.sponsors.addChoice.sendForm.title')}
-                  </h3>
-                  <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: '1.5' }}>
-                    {t('wizard.step3.sponsors.addChoice.sendForm.subtitle')}
-                  </p>
-                </div>
-              </div>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -1364,6 +1189,22 @@ function ManagePackagesModal({
     setFormData(formData.filter((_, i) => i !== index));
   };
 
+  const handleAddBenefit = (pkgIndex: number, benefit: string) => {
+    if (!benefit.trim()) return;
+    const updated = [...formData];
+    const existing = updated[pkgIndex].benefits || [];
+    if (!existing.includes(benefit.trim())) {
+      updated[pkgIndex].benefits = [...existing, benefit.trim()];
+      setFormData(updated);
+    }
+  };
+
+  const handleRemoveBenefit = (pkgIndex: number, benefitIndex: number) => {
+    const updated = [...formData];
+    updated[pkgIndex].benefits = updated[pkgIndex].benefits.filter((_, i) => i !== benefitIndex);
+    setFormData(updated);
+  };
+
   return (
     <div
       style={{
@@ -1546,24 +1387,89 @@ function ManagePackagesModal({
                     <label style={{ fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px', display: 'block' }}>
                       {t('wizard.step3.sponsors.packages.fields.benefits')}
                     </label>
-                    <textarea
-                      placeholder={t('wizard.step3.sponsors.packages.fields.benefitsPlaceholder')}
-                      value={pkg.benefits.join(', ')}
-                      onChange={(e) => handleInputChange(index, 'benefits', e.target.value.split(',').map(b => b.trim()).filter(b => b))}
-                      style={{
-                        width: '100%',
-                        height: '100px',
-                        padding: '12px 16px',
-                        fontSize: '14px',
-                        color: '#FFFFFF',
-                        backgroundColor: 'rgba(255,255,255,0.05)',
-                        border: '1.5px solid rgba(255,255,255,0.2)',
-                        borderRadius: '8px',
-                        outline: 'none',
-                        resize: 'vertical',
-                        fontFamily: 'inherit'
-                      }}
-                    />
+                    
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                      <input
+                        type="text"
+                        placeholder={t('wizard.step3.sponsors.packages.fields.benefitsPlaceholder')}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddBenefit(index, (e.target as HTMLInputElement).value);
+                            (e.target as HTMLInputElement).value = '';
+                          }
+                        }}
+                        style={{
+                          flex: 1,
+                          height: '44px',
+                          padding: '0 16px',
+                          fontSize: '14px',
+                          color: '#FFFFFF',
+                          backgroundColor: 'rgba(255,255,255,0.05)',
+                          border: '1.5px solid rgba(255,255,255,0.2)',
+                          borderRadius: '8px',
+                          outline: 'none'
+                        }}
+                      />
+                      <button
+                        onClick={(e) => {
+                          const input = (e.currentTarget.previousSibling as HTMLInputElement);
+                          handleAddBenefit(index, input.value);
+                          input.value = '';
+                        }}
+                        style={{
+                          width: '44px',
+                          height: '44px',
+                          backgroundColor: '#0684F5',
+                          border: 'none',
+                          borderRadius: '8px',
+                          color: 'white',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        <Plus size={20} />
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      {pkg.benefits.map((benefit, bIndex) => (
+                        <div
+                          key={bIndex}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '6px 12px',
+                            backgroundColor: 'rgba(255,255,255,0.1)',
+                            border: '1px solid rgba(255,255,255,0.15)',
+                            borderRadius: '20px',
+                            fontSize: '12px',
+                            color: '#FFFFFF'
+                          }}
+                        >
+                          <span>{benefit}</span>
+                          <button
+                            onClick={() => handleRemoveBenefit(index, bIndex)}
+                            style={{
+                              backgroundColor: 'transparent',
+                              border: 'none',
+                              color: 'rgba(255,255,255,0.5)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              padding: 0
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.color = '#EF4444'}
+                            onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255,255,255,0.5)'}
+                          >
+                            <XCircle size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>

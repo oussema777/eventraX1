@@ -528,7 +528,7 @@ export default function SessionsTab({ eventId, eventStartDate, eventEndDate }: S
 
       {/* Export Modal */} 
       {showExportModal && (
-        <ExportModal onClose={() => setShowExportModal(false)} />
+        <ExportModal onClose={() => setShowExportModal(false)} sessions={sessions} />
       )}
     </div>
   );
@@ -2346,10 +2346,137 @@ function SpeakerSelectionModal({ onClose, selectedSpeakers, setSelectedSpeakers,
 // Export Modal Component
 interface ExportModalProps {
   onClose: () => void;
+  sessions: Session[];
 }
 
-function ExportModal({ onClose }: ExportModalProps) {
+function ExportModal({ onClose, sessions }: ExportModalProps) {
   const { t } = useI18n();
+
+  const handleExportCSV = () => {
+    if (sessions.length === 0) {
+      toast.info('No sessions to export');
+      return;
+    }
+
+    const headers = ['Title', 'Type', 'Date', 'Start Time', 'End Time', 'Venue', 'Speakers', 'Capacity', 'Description'];
+    const rows = sessions.map(s => [
+      s.title,
+      s.type,
+      s.date,
+      s.startTime,
+      s.endTime,
+      s.venue || 'TBD',
+      s.speakers.map(sp => sp.full_name || (sp as any).name).join('; '),
+      s.capacity,
+      s.description.replace(/,/g, ';') // Simple escape for CSV
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(r => r.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'event-schedule.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Schedule exported as CSV');
+    onClose();
+  };
+
+  const handleExportPDF = () => {
+    if (sessions.length === 0) {
+      toast.info('No sessions to export');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error('Please allow popups to export PDF');
+      return;
+    }
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Event Schedule - PDF Export</title>
+        <style>
+          body { font-family: 'Inter', sans-serif; color: #1A1D1F; padding: 40px; }
+          .header { margin-bottom: 40px; border-bottom: 2px solid #0684F5; padding-bottom: 20px; }
+          .header h1 { margin: 0; color: #0B2641; font-size: 28px; }
+          .header p { margin: 5px 0 0; color: #6F767E; font-size: 14px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th { background-color: #F4F5F6; text-align: left; padding: 12px; font-size: 12px; font-weight: 700; text-transform: uppercase; color: #6F767E; border-bottom: 1px solid #E9EAEB; }
+          td { padding: 12px; font-size: 14px; border-bottom: 1px solid #E9EAEB; vertical-align: top; }
+          .session-title { font-weight: 700; color: #0B2641; margin-bottom: 4px; }
+          .session-type { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; background: #E0E7FF; color: #0684F5; }
+          .speaker-list { color: #6F767E; font-size: 13px; }
+          .time-cell { white-space: nowrap; font-weight: 500; }
+          @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Event Schedule</h1>
+          <p>Generated on ${new Date().toLocaleDateString()}</p>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th width="15%">Time</th>
+              <th width="40%">Session Details</th>
+              <th width="20%">Speakers</th>
+              <th width="25%">Venue</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sessions.map(s => `
+              <tr>
+                <td class="time-cell">
+                  <div>${s.date}</div>
+                  <div style="color: #6F767E; font-size: 12px;">${s.startTime} - ${s.endTime}</div>
+                </td>
+                <td>
+                  <div class="session-title">${s.title}</div>
+                  <div class="session-type">${s.type}</div>
+                  <div style="margin-top: 8px; font-size: 12px; color: #6F767E;">${s.description}</div>
+                </td>
+                <td>
+                  <div class="speaker-list">
+                    ${s.speakers.map(sp => sp.full_name || (sp as any).name).join('<br>')}
+                  </div>
+                </td>
+                <td>
+                  <div style="font-weight: 500;">${s.venue || 'TBD'}</div>
+                  <div style="font-size: 12px; color: #6F767E;">Capacity: ${s.capacity}</div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <script>
+          window.onload = function() {
+            window.print();
+            // Optional: window.close();
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+    onClose();
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -2381,24 +2508,19 @@ function ExportModal({ onClose }: ExportModalProps) {
         
         <div className="flex flex-col gap-3">
           <button 
-            className="p-3 rounded-lg flex items-center justify-between transition-colors"
+            onClick={handleExportCSV}
+            className="p-3 rounded-lg flex items-center justify-between transition-colors hover:bg-white/10"
             style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer' }}
           >
             <span>{t('wizard.step3.sessions.export.csv')}</span>
             <Download size={16} />
           </button>
           <button 
-            className="p-3 rounded-lg flex items-center justify-between transition-colors"
+            onClick={handleExportPDF}
+            className="p-3 rounded-lg flex items-center justify-between transition-colors hover:bg-white/10"
             style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer' }}
           >
             <span>{t('wizard.step3.sessions.export.pdf')}</span>
-            <Download size={16} />
-          </button>
-          <button 
-            className="p-3 rounded-lg flex items-center justify-between transition-colors"
-            style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer' }}
-          >
-            <span>{t('wizard.step3.sessions.export.ical')}</span>
             <Download size={16} />
           </button>
         </div>

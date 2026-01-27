@@ -20,6 +20,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
   const { getOrCreateThread, loading: isMessageLoading } = useMessageThread();
   
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [event, setEvent] = useState<any>(null);
   const [data, setData] = useState<any>(null);
   const [counts, setCounts] = useState({ agenda: 0, speakers: 0, exhibitors: 0, attendees: 0 });
@@ -27,6 +28,8 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
   const [mySessionIds, setMySessionIds] = useState<Set<string>>(new Set());
   const [attendeeId, setAttendeeId] = useState<string | null>(null);
   const [selectedAttendee, setSelectedAttendee] = useState<any>(null);
+  const [page, setPage] = useState(0);
+  const ITEMS_PER_PAGE = 50;
 
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
@@ -36,6 +39,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
     if (!eventId) return;
     const loadPublic = async () => {
       setIsLoadingData(true);
+      setPage(0);
       try {
         const { data: eventData } = await supabase.from('events').select('*').eq('id', eventId).single();
         setEvent(eventData);
@@ -57,50 +61,11 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
           const { data: sessions } = await supabase.from('event_sessions').select('*').eq('event_id', eventId).order('starts_at', { ascending: true });
           setData(sessions);
         } else if (type === 'speakers') {
-          const { data: speakers } = await supabase.from('event_speakers').select('*').eq('event_id', eventId);
-          setData(speakers);
+          await fetchSpeakerBatch(0, true);
         } else if (type === 'exhibitors') {
-          const { data: exhibitors } = await supabase.from('event_exhibitors').select('*').eq('event_id', eventId);
-          setData(exhibitors);
+          await fetchExhibitorBatch(0, true);
         } else if (type === 'attendees') {
-          console.log('Fetching attendees for event:', eventId);
-          // 1. Fetch Attendees
-          const { data: attendees, error } = await supabase
-            .from('event_attendees')
-            .select('id, profile_id, name, company, avatar_url, photo_url, meta')
-            .eq('event_id', eventId)
-            .limit(100);
-          
-          if (error) {
-            console.error('Error fetching attendees:', error);
-            setData([]);
-            return;
-          }
-
-          // 2. Fetch Profiles for avatars (Manual Join)
-          const profileIds = attendees.map((a: any) => a.profile_id).filter(Boolean);
-          let profileMap: Record<string, string> = {};
-          
-          if (profileIds.length > 0) {
-            const { data: profiles } = await supabase
-              .from('profiles')
-              .select('id, avatar_url')
-              .in('id', profileIds);
-            
-            if (profiles) {
-              profiles.forEach((p: any) => {
-                profileMap[p.id] = p.avatar_url;
-              });
-            }
-          }
-          
-          // 3. Merge Data
-          const mapped = attendees.map((a: any) => ({
-            ...a,
-            final_avatar: profileMap[a.profile_id] || a.avatar_url || a.photo_url
-          }));
-          
-          setData(mapped);
+          await fetchAttendeeBatch(0, true);
         }
       } catch (e) {
         console.error(e);
@@ -110,6 +75,116 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
     };
     loadPublic();
   }, [eventId, type]);
+
+  const fetchSpeakerBatch = async (pageNumber: number, isInitial: boolean = false) => {
+    if (!eventId) return;
+    const start = pageNumber * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE - 1;
+
+    const { data: speakers, error } = await supabase
+      .from('event_speakers')
+      .select('*')
+      .eq('event_id', eventId)
+      .order('full_name', { ascending: true })
+      .range(start, end);
+    
+    if (error) {
+      console.error('Error fetching speakers:', error);
+      if (isInitial) setData([]);
+      return;
+    }
+
+    if (isInitial) {
+      setData(speakers);
+    } else {
+      setData((prev: any) => [...(prev || []), ...speakers]);
+    }
+  };
+
+  const fetchExhibitorBatch = async (pageNumber: number, isInitial: boolean = false) => {
+    if (!eventId) return;
+    const start = pageNumber * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE - 1;
+
+    const { data: exhibitors, error } = await supabase
+      .from('event_exhibitors')
+      .select('*')
+      .eq('event_id', eventId)
+      .order('company_name', { ascending: true })
+      .range(start, end);
+    
+    if (error) {
+      console.error('Error fetching exhibitors:', error);
+      if (isInitial) setData([]);
+      return;
+    }
+
+    if (isInitial) {
+      setData(exhibitors);
+    } else {
+      setData((prev: any) => [...(prev || []), ...exhibitors]);
+    }
+  };
+
+  const fetchAttendeeBatch = async (pageNumber: number, isInitial: boolean = false) => {
+    if (!eventId) return;
+    const start = pageNumber * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE - 1;
+
+    const { data: attendees, error } = await supabase
+      .from('event_attendees')
+      .select('id, profile_id, name, company, avatar_url, photo_url, meta')
+      .eq('event_id', eventId)
+      .order('name', { ascending: true })
+      .range(start, end);
+    
+    if (error) {
+      console.error('Error fetching attendees:', error);
+      if (isInitial) setData([]);
+      return;
+    }
+
+    const profileIds = attendees.map((a: any) => a.profile_id).filter(Boolean);
+    let profileMap: Record<string, string> = {};
+    
+    if (profileIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, avatar_url')
+        .in('id', profileIds);
+      
+      if (profiles) {
+        profiles.forEach((p: any) => {
+          profileMap[p.id] = p.avatar_url;
+        });
+      }
+    }
+    
+    const mapped = attendees.map((a: any) => ({
+      ...a,
+      final_avatar: profileMap[a.profile_id] || a.avatar_url || a.photo_url
+    }));
+    
+    if (isInitial) {
+      setData(mapped);
+    } else {
+      setData((prev: any) => [...(prev || []), ...mapped]);
+    }
+  };
+
+  const loadMore = async () => {
+    setIsLoadingMore(true);
+    const nextPage = page + 1;
+    if (type === 'speakers') {
+      await fetchSpeakerBatch(nextPage);
+    } else if (type === 'exhibitors') {
+      await fetchExhibitorBatch(nextPage);
+    } else if (type === 'attendees') {
+      await fetchAttendeeBatch(nextPage);
+    }
+    setPage(nextPage);
+    setIsLoadingMore(false);
+  };
 
   // 2. Fetch Private Data
   useEffect(() => {
@@ -417,6 +492,40 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {(type === 'speakers' || type === 'exhibitors' || type === 'attendees') && (data || []).length < counts[type] && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '40px' }}>
+            <button
+              onClick={loadMore}
+              disabled={isLoadingMore}
+              style={{
+                padding: '12px 32px',
+                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '12px',
+                color: '#FFFFFF',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: isLoadingMore ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => !isLoadingMore && (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)')}
+              onMouseLeave={(e) => !isLoadingMore && (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)')}
+            >
+              {isLoadingMore ? (
+                <>
+                  <Loader2 className="animate-spin" size={18} />
+                  Loading...
+                </>
+              ) : (
+                `Load More (${counts[type] - (data?.length || 0)} remaining)`
+              )}
+            </button>
           </div>
         )}
       </div>
