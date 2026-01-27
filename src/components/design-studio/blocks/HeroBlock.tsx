@@ -19,6 +19,7 @@ interface HeroBlockProps {
   settings?: {
     title?: string;
     subtitle?: string;
+    backgroundImage?: string;
     button1?: { text: string; url: string; visible: boolean };
     button2?: { text: string; url: string; visible: boolean };
   };
@@ -46,6 +47,7 @@ export default function HeroBlock({
   const eventTitle = settings?.title || event?.name || t('wizard.designStudio.hero.title');
   const eventSubtitle = settings?.subtitle || event?.tagline || event?.description || t('wizard.designStudio.hero.subtitle');
   const eventTypeLabel = (event?.event_type || t('wizard.designStudio.hero.category')).toUpperCase();
+  const bgImage = settings?.backgroundImage;
 
   // Button 1 Config (Primary)
   const btn1Text = settings?.button1?.text || t('wizard.designStudio.hero.primaryCta');
@@ -60,7 +62,9 @@ export default function HeroBlock({
       style={{
         width: '100%',
         height: '600px',
-        background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+        background: bgImage ? `url(${bgImage})` : `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
         position: 'relative',
         display: 'flex',
         alignItems: 'center',
@@ -70,6 +74,18 @@ export default function HeroBlock({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
+      {/* Dark overlay for better text readability on images */}
+      {bgImage && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 0
+          }}
+        />
+      )}
+
       {/* Edit Module */}
       {isHovered && !isLocked && showEditControls && (
         <EditModule 
@@ -84,14 +100,16 @@ export default function HeroBlock({
       )}
 
       {/* Background Pattern */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          opacity: 0.1
-        }}
-      />
+      {!bgImage && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+            opacity: 0.1
+          }}
+        />
+      )}
 
       {/* Content */}
       <div style={{ textAlign: 'center', position: 'relative', zIndex: 1, maxWidth: '800px' }}>

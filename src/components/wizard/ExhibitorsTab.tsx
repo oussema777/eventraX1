@@ -1148,6 +1148,12 @@ function AddExhibitorModal({
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(exhibitor?.logo_url || null);
 
+  const isFormValid = 
+    formData.company.trim() !== '' && 
+    formData.industry.trim() !== '' && 
+    formData.email.trim() !== '' && 
+    formData.status.trim() !== '';
+
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -1158,6 +1164,14 @@ function AddExhibitorModal({
       setLogoFile(file);
       setLogoPreview(URL.createObjectURL(file));
     }
+  };
+
+  const handleSubmit = () => {
+    if (!isFormValid) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    onSave(formData, logoFile);
   };
 
   return (
@@ -1539,7 +1553,7 @@ function AddExhibitorModal({
             Cancel
           </button>
           <button
-            onClick={() => onSave(formData, logoFile)}
+            onClick={handleSubmit}
             style={{
               height: '40px',
               padding: '0 20px',
@@ -1549,8 +1563,11 @@ function AddExhibitorModal({
               fontSize: '14px',
               fontWeight: 600,
               color: '#FFFFFF',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              transition: 'all 0.2s'
             }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0570D6'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0684F5'}
           >
             {exhibitor
               ? t('wizard.step3.exhibitors.modal.save')

@@ -45,7 +45,8 @@ export default function SessionsTab({ eventId, eventStartDate, eventEndDate }: S
   
   // Custom venues state (persisted in local storage for the wizard session)
   const [customVenues, setCustomVenues] = useState<string[]>(() => {
-    const saved = localStorage.getItem('wizard_custom_venues');
+    if (!eventId) return [];
+    const saved = localStorage.getItem(`wizard_custom_venues_${eventId}`);
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -152,11 +153,11 @@ export default function SessionsTab({ eventId, eventStartDate, eventEndDate }: S
       // If a new venue was used, add it to our custom list if not already there
       // Note: createSession returns the raw DB record, where venue is called 'location'
       const venueName = savedRecord?.location || data.venue;
-      if (venueName) {
+      if (venueName && eventId) {
         setCustomVenues(prev => {
           if (!prev.includes(venueName)) {
             const updated = [...prev, venueName];
-            localStorage.setItem('wizard_custom_venues', JSON.stringify(updated));
+            localStorage.setItem(`wizard_custom_venues_${eventId}`, JSON.stringify(updated));
             return updated;
           }
           return prev;
@@ -504,10 +505,10 @@ export default function SessionsTab({ eventId, eventStartDate, eventEndDate }: S
           eventStartDate={eventStartDate}
           eventEndDate={eventEndDate}
           onSaveVenue={(venue) => {
-            if (!customVenues.includes(venue)) {
+            if (!customVenues.includes(venue) && eventId) {
               const updated = [...customVenues, venue];
               setCustomVenues(updated);
-              localStorage.setItem('wizard_custom_venues', JSON.stringify(updated));
+              localStorage.setItem(`wizard_custom_venues_${eventId}`, JSON.stringify(updated));
             }
           }}
           eventMaxCapacity={eventMaxCapacity}
@@ -1199,6 +1200,33 @@ function AddSessionModal({
       if (endDateTime <= startDateTime) {
           toast.error(t('wizard.step3.sessions.modal.errors.timeRange', "Oops! The session can't end before it starts. Please check your times."));
           return;
+      }
+
+      // Frontend Conflict Check for clearer notification
+      if (finalVenue && finalVenue !== 'TBD' && finalVenue !== '') {
+        const start = startDateTime.getTime();
+        const end = endDateTime.getTime();
+
+        const conflict = existingSessions.find(s => {
+          if (initialData && s.id === initialData.id) return false;
+          if (s.venue !== finalVenue) return false;
+          if (s.status === 'cancelled') return false;
+
+          const sStart = new Date(s.rawStartTime).getTime();
+          const sEnd = new Date(s.rawEndTime).getTime();
+          return (start < sEnd && end > sStart);
+        });
+
+        if (conflict) {
+          toast.error(
+            <div className="flex flex-col gap-1">
+              <span className="font-bold text-red-600">Schedule Conflict detected!</span>
+              <span className="text-sm">The room <span className="font-semibold">"{finalVenue}"</span> is already occupied by <span className="font-semibold">"{conflict.title}"</span> during this time.</span>
+            </div>,
+            { duration: 5000 }
+          );
+          return;
+        }
       }
 
       const payload = {

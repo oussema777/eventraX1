@@ -16,7 +16,7 @@ import { type WizardStep } from '../utils/wizardNavigation';
 import { toast } from 'sonner@2.0.3';
 import { useAuth } from '../contexts/AuthContext';
 import { useEventWizard } from '../hooks/useEventWizard';
-import { uploadEventLogo } from '../utils/storage';
+import { uploadEventLogo, uploadEventAsset } from '../utils/storage';
 import { usePlan } from '../hooks/usePlan';
 import { useI18n } from '../i18n/I18nContext';
 import { useSpeakers } from '../hooks/useSpeakers';
@@ -224,6 +224,26 @@ export default function WizardStep2DesignStudio() {
       toast.error(t('wizard.designStudio.errors.uploadFailed'));
     } finally {
       setIsLogoUploading(false);
+    }
+  };
+
+  const handleHeroImageUpload = async (file: File) => {
+    const id = eventData.id || eventId;
+    if (!id) {
+      toast.error(t('wizard.designStudio.errors.uploadFirst'));
+      return null;
+    }
+    try {
+      const url = await uploadEventAsset(id, file);
+      if (!url) {
+        toast.error(t('wizard.designStudio.errors.uploadFailed'));
+        return null;
+      }
+      return url;
+    } catch (error) {
+      console.error('Hero image upload failed:', error);
+      toast.error(t('wizard.designStudio.errors.uploadFailed'));
+      return null;
     }
   };
 
@@ -508,34 +528,6 @@ export default function WizardStep2DesignStudio() {
         {/* Right: Action Buttons */}
         <div style={{ display: 'flex', gap: '12px' }}>
           <button
-            onClick={handleSaveDraft}
-            style={{
-              height: '44px',
-              padding: '0 20px',
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              border: '1px solid #635BFF',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: 600,
-              color: '#FFFFFF',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(99, 91, 255, 0.2)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-            }}
-          >
-            <Save size={16} />
-            {t('wizard.common.saveDraft')}
-          </button>
-
-          <button
             onClick={handleSaveAndContinue}
             style={{
               height: '44px',
@@ -591,6 +583,7 @@ export default function WizardStep2DesignStudio() {
         onClose={() => setSettingsBlockId(null)}
         currentSettings={selectedBlock?.settings || {}}
         onSave={(data) => handleSaveBlockSettings('hero', data)}
+        onImageUpload={handleHeroImageUpload}
         isSaving={isEventSaving}
       />
 

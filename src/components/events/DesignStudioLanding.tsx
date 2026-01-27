@@ -314,7 +314,8 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
     const sharedProps = {
       showEditControls: false,
       brandColor: design.brandColor,
-      buttonRadius: design.buttonRadius
+      buttonRadius: design.buttonRadius,
+      logoUrl: design.logoUrl
     };
 
     switch (blockType) {

@@ -63,7 +63,6 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
   // View State
   const [isAdding, setIsAdding] = useState(false);
   const [isDesigningBadges, setIsDesigningBadges] = useState(false);
-  const [importing, setImporting] = useState(false);
   
   // Dynamic Data
   const [formFields, setFormFields] = useState<CustomField[]>([]);
@@ -76,8 +75,6 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
   const [selectedTicketId, setSelectedTicketId] = useState('');
   const [registrationStatus, setRegistrationStatus] = useState('approved');
   const [showSessions, setShowSessions] = useState(false);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchAttendees();
@@ -220,48 +217,6 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setImporting(true);
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const text = event.target?.result as string;
-        const rows = text.split('\n').slice(1);
-        const toInsert = rows.map(row => {
-          const cols = row.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-          const [name, email, ticketType] = cols;
-          if (!name || !email) return null;
-          return {
-            event_id: eventId,
-            name,
-            email,
-            ticket_type: ticketType || 'General Admission',
-            status: 'approved',
-            confirmation_code: generateConfirmationCode()
-          };
-        }).filter(Boolean);
-
-        if (toInsert.length > 0) {
-          const { error } = await supabase.from('event_attendees').insert(toInsert);
-          if (error) throw error;
-          toast.success(`Imported ${toInsert.length} attendees`);
-          fetchAttendees();
-        } else {
-          toast.warning('No valid rows found in CSV');
-        }
-      } catch (error) {
-        console.error('Import error:', error);
-        toast.error('Failed to import attendees');
-      } finally {
-        setImporting(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      }
-    };
-    reader.readAsText(file);
-  };
 
   const handleExport = () => {
     if (attendees.length === 0) {
@@ -336,66 +291,48 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
           </div>
         </div>
 
-        {/* ACTIONS ROW (Add, Import, Export) */}
+        {/* ACTIONS ROW (Add, Export) */}
         {!isAdding && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-2 gap-6 mb-8">
             <div 
-              className="p-6 rounded-xl border border-dashed border-emerald-500/20 flex flex-col items-center justify-center text-center hover:bg-emerald-500/5 hover:border-emerald-500/50 transition-all cursor-pointer group"
+              className="p-6 rounded-xl border border-dashed border-emerald-500/30 bg-emerald-500/5 flex flex-col items-center justify-center text-center hover:bg-emerald-500/10 hover:border-emerald-500/60 hover:-translate-y-1 hover:shadow-lg hover:shadow-emerald-500/10 transition-all cursor-pointer group duration-300"
               onClick={() => setIsAdding(true)}
             >
-              <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform group-hover:bg-emerald-500/20">
-                <Plus size={24} className="text-emerald-500" />
+              <div className="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 group-hover:bg-emerald-500/20 border border-emerald-500/20">
+                <Plus size={28} className="text-emerald-500" />
               </div>
-              <h3 className="font-semibold text-white mb-1 group-hover:text-emerald-500 transition-colors">Add Manually</h3>
-              <p className="text-sm text-gray-400">Register new attendee with form</p>
+              <h3 className="text-lg font-bold text-white mb-1 group-hover:text-emerald-400 transition-colors">Add Manually</h3>
+              <p className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">Register new attendee form</p>
             </div>
 
             <div 
-              className="p-6 rounded-xl border border-dashed border-white/20 flex flex-col items-center justify-center text-center hover:bg-white/5 hover:border-[#0684F5]/50 transition-all cursor-pointer group"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                className="hidden" 
-                accept=".csv" 
-                onChange={handleFileUpload} 
-              />
-              <div className="w-12 h-12 rounded-full bg-[#0684F5]/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform group-hover:bg-[#0684F5]/20">
-                {importing ? <Clock size={24} className="text-[#0684F5] animate-spin" /> : <Upload size={24} className="text-[#0684F5]" />}
-              </div>
-              <h3 className="font-semibold text-white mb-1 group-hover:text-[#0684F5] transition-colors">Import CSV</h3>
-              <p className="text-sm text-gray-400">Bulk upload list</p>
-            </div>
-
-            <div 
-              className="p-6 rounded-xl border border-dashed border-white/20 flex flex-col items-center justify-center text-center hover:bg-white/5 hover:border-purple-500/50 transition-all cursor-pointer group"
+              className="p-6 rounded-xl border border-dashed border-purple-500/30 bg-purple-500/5 flex flex-col items-center justify-center text-center hover:bg-purple-500/10 hover:border-purple-500/60 hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-500/10 transition-all cursor-pointer group duration-300"
               onClick={handleExport}
             >
-              <div className="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform group-hover:bg-purple-500/20">
-                <Download size={24} className="text-purple-500" />
+              <div className="w-14 h-14 rounded-full bg-purple-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 group-hover:bg-purple-500/20 border border-purple-500/20">
+                <Download size={28} className="text-purple-500" />
               </div>
-              <h3 className="font-semibold text-white mb-1 group-hover:text-purple-500 transition-colors">Export List</h3>
-              <p className="text-sm text-gray-400">Download CSV</p>
+              <h3 className="text-lg font-bold text-white mb-1 group-hover:text-purple-400 transition-colors">Export List</h3>
+              <p className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">Download CSV report</p>
             </div>
           </div>
         )}
 
         {/* INLINE ADD FORM */}
         {isAdding && (
-          <div className="mb-8 bg-[#0D243B] border border-white/10 rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300 shadow-2xl">
+          <div className="mb-8 bg-[#0D243B] border border-white/10 rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300 shadow-2xl ring-1 ring-white/5">
             {/* Header */}
             <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-[#0B2236]">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
                 <button 
                   onClick={() => setIsAdding(false)}
-                  className="p-2 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors"
+                  className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-all border border-white/5 hover:border-white/20"
                 >
                   <ArrowLeft size={18} />
                 </button>
                 <div>
                   <h3 className="text-lg font-bold text-white">Add New Attendee</h3>
-                  <p className="text-xs text-gray-400">Fill in details manually</p>
+                  <p className="text-xs text-gray-400">Enter guest details manually</p>
                 </div>
               </div>
             </div>
@@ -409,7 +346,7 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                        <div className="relative group">
                           <Ticket size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#0684F5] transition-colors" />
                           <select 
-                            className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-12 pr-10 py-3 text-white text-sm focus:outline-none focus:border-[#0684F5] transition-colors appearance-none cursor-pointer"
+                            className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-12 pr-10 py-3.5 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all appearance-none cursor-pointer hover:border-white/20"
                             value={selectedTicketId}
                             onChange={(e) => setSelectedTicketId(e.target.value)}
                           >
@@ -426,7 +363,7 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                        <div className="relative group">
                           <CheckCircle size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#0684F5] transition-colors" />
                           <select 
-                            className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-11 pr-10 py-3 text-white text-sm focus:outline-none focus:border-[#0684F5] transition-colors appearance-none cursor-pointer"
+                            className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-11 pr-10 py-3.5 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all appearance-none cursor-pointer hover:border-white/20"
                             value={registrationStatus}
                             onChange={(e) => setRegistrationStatus(e.target.value)}
                           >
@@ -438,7 +375,7 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                     </div>
                  </div>
 
-                 <div className="h-px bg-white/5 w-full"></div>
+                 <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent w-full"></div>
 
                  {/* Form Fields */}
                  <div className="space-y-5">
@@ -451,7 +388,7 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                          {field.type === 'textarea' ? (
                            <div className="relative group">
                              <textarea
-                               className="w-full bg-[#162C46] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#0684F5] transition-colors resize-none placeholder-gray-600 min-h-[100px]"
+                               className="w-full bg-[#162C46] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all resize-none placeholder-gray-600 min-h-[100px] hover:border-white/20"
                                placeholder={`Enter ${field.label.toLowerCase()}...`}
                                value={formData[field.label] || ''}
                                onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}
@@ -460,7 +397,7 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                          ) : field.type === 'dropdown' ? (
                            <div className="relative group">
                               <select
-                                className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-4 pr-10 py-3 text-white text-sm focus:outline-none focus:border-[#0684F5] transition-colors appearance-none cursor-pointer"
+                                className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-4 pr-10 py-3.5 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all appearance-none cursor-pointer hover:border-white/20"
                                 value={formData[field.label] || ''}
                                 onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}
                               >
@@ -475,7 +412,7 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                            <div className="relative group">
                               <input
                                 type={field.type === 'email' ? 'email' : 'text'}
-                                className="w-full bg-[#162C46] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#0684F5] transition-colors placeholder-gray-600 pl-12"
+                                className="w-full bg-[#162C46] border border-white/10 rounded-xl px-4 py-3.5 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all placeholder-gray-600 pl-12 hover:border-white/20"
                                 placeholder={field.label}
                                 value={formData[field.label] || ''}
                                 onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}
@@ -493,20 +430,20 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                  <div className="pt-2">
                     <button 
                       onClick={() => setShowSessions(!showSessions)}
-                      className="flex items-center justify-between w-full p-4 rounded-xl bg-[#162C46] border border-white/5 hover:border-white/10 transition-colors group"
+                      className="flex items-center justify-between w-full p-4 rounded-xl bg-[#162C46] border border-white/5 hover:border-white/10 hover:bg-[#1c3756] transition-all group"
                     >
                        <div className="flex items-center gap-3">
                           <div className="p-2 rounded-lg bg-[#0684F5]/10 text-[#0684F5] group-hover:bg-[#0684F5]/20 transition-colors">
                              <Calendar size={18} />
                           </div>
                           <div className="text-left">
-                             <span className="block text-sm font-bold text-white">Assign Sessions</span>
+                             <span className="block text-sm font-bold text-white group-hover:text-[#0684F5] transition-colors">Assign Sessions</span>
                              <span className="block text-xs text-gray-400">Optional: Pre-register attendee for specific agenda items</span>
                           </div>
                        </div>
                        <div className="flex items-center gap-3">
                           {selectedSessions.size > 0 && (
-                             <span className="text-[10px] bg-[#0684F5] text-white px-2.5 py-1 rounded-full font-bold">
+                             <span className="text-[10px] bg-[#0684F5] text-white px-2.5 py-1 rounded-full font-bold shadow-sm shadow-blue-500/20">
                                 {selectedSessions.size} Selected
                              </span>
                           )}
@@ -515,7 +452,7 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                     </button>
 
                     {showSessions && (
-                       <div className="mt-2 space-y-2 border border-white/10 rounded-xl p-3 max-h-[300px] overflow-y-auto bg-[#0B2236]">
+                       <div className="mt-2 space-y-2 border border-white/10 rounded-xl p-3 max-h-[300px] overflow-y-auto bg-[#0B2236] shadow-inner">
                           {sessions.length === 0 ? (
                              <p className="text-center text-xs text-gray-500 py-6">No sessions available.</p>
                           ) : (
@@ -532,11 +469,11 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                                    }}
                                    className={`p-3 rounded-lg border cursor-pointer transition-all flex items-start gap-3 ${ 
                                      isSelected 
-                                       ? 'bg-[#0684F5]/10 border-[#0684F5]' 
+                                       ? 'bg-[#0684F5]/10 border-[#0684F5] shadow-sm shadow-blue-500/10' 
                                        : 'bg-transparent border-transparent hover:bg-white/5'
                                    }`}
                                  >
-                                   <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors ${ 
+                                   <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-all ${ 
                                       isSelected ? 'bg-[#0684F5] border-[#0684F5]' : 'border-gray-600'
                                    }`}>
                                       {isSelected && <Check size={12} className="text-white" />}
@@ -560,19 +497,19 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
             </div>
 
             {/* Footer */}
-            <div className="px-8 py-6 border-t border-white/10 flex justify-end gap-3 bg-[#0B2236]">
+            <div className="px-8 py-6 border-t border-white/10 flex justify-end gap-4 bg-[#0B2236]">
               <button 
                 onClick={() => setIsAdding(false)}
-                className="px-6 py-2.5 rounded-xl text-gray-400 font-medium hover:text-white hover:bg-white/5 transition-colors border border-transparent"
+                className="px-6 py-2.5 rounded-xl text-gray-300 font-medium hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all active:scale-95"
               >
                 Discard Changes
               </button>
               <button 
                 onClick={handleAddAttendee}
-                className="px-12 py-2.5 bg-[#10B981] text-white rounded-xl font-bold hover:bg-[#0da06f] transition-all flex items-center gap-2 shadow-lg shadow-[#10B981]/25 active:scale-95"
+                className="px-8 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-bold hover:from-emerald-400 hover:to-emerald-500 transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/25 active:scale-95 border border-emerald-400/20"
               >
-                <Save size={20} />
-                Save Attendee Registration
+                <Save size={18} />
+                Save Registration
               </button>
             </div>
           </div>
