@@ -14,4 +14,7 @@ Platform Stability,,Auth Integration,Done,High,UI unmounts and data loss on tab 
 Registration (Payments),,Backend Related,Partial,High,Missing Stripe/Payment integration for paid tickets.,"CRITICAL: Replace simulation with real Stripe/PayPal Elements.",2026-01-20,
 Logistics (Calculators),,External API,Partial,Normal,Logic depends on missing environment variables.,Configure VITE_LOGISTICS_API_BASE in .env.,2026-01-20,
 Networking (Meetings),,Backend Connected,Done,Normal,BookMeetingModal is fully wired to b2b_meetings.,Monitor RLS performance.,2026-01-20,
-Access Control (RBAC),,Backend Related,Partial,High,Row Level Security (RLS) policies are too permissive.,"Harden Supabase policies for User vs Admin vs Business.",2026-01-20,
+Access Control (RBAC),,Backend Related,Partial,High,Row Level Security (RLS) policies are too permissive.,"Harden Supabase policies for User vs Admin vs Business.",2026-01-20,Event Creation (Wizard),,UI/UX Refined,Done,High,Fixed footer overlaps and substep persistence in Step 3.,Improved layout logic and localStorage usage.,2026-01-27,
+Event Creation (Design),,UI/UX Refined,Done,Normal,Hero background image upload and rendering enabled.,Added custom upload UI and overlay rendering.,2026-01-27,
+Admin Dashboard,,UI/UX Refined,Done,Normal,Upgraded request tables and tab switcher UI.,Added blurred glass theme and vibrant status badges.,2026-01-27,
+Landing Page,,Logic Related,Done,Normal,Implemented pagination for Attendees; Speakers; and Exhibitors.,Added Load More buttons with batch fetching.,2026-01-27,
