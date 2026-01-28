@@ -1,0 +1,42 @@
+-- FIX: Grant Event Owners full access to their attendees
+-- This ensures the "Attendees Tab" in the Wizard works for the organizer.
+
+-- 1. Enable RLS (just in case)
+ALTER TABLE public.event_attendees ENABLE ROW LEVEL SECURITY;
+
+-- 2. Allow Event Owners to do EVERYTHING (Select, Insert, Update, Delete) on attendees for their events
+DROP POLICY IF EXISTS "Event Owners manage their attendees" ON public.event_attendees;
+
+CREATE POLICY "Event Owners manage their attendees"
+ON public.event_attendees
+FOR ALL
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM events
+    WHERE events.id = event_attendees.event_id
+    AND events.owner_id = auth.uid()
+  )
+);
+
+-- 3. Ensure users can still see their own registration (for tickets, agenda)
+DROP POLICY IF EXISTS "Users view own attendance" ON public.event_attendees;
+
+CREATE POLICY "Users view own attendance"
+ON public.event_attendees
+FOR SELECT
+TO authenticated
+USING (
+  profile_id = auth.uid()
+);
+
+-- 4. Allow public/authenticated to see "registered" attendees (for Public Directory)
+-- This might overlap, but "Event Owners" policy takes precedence for owners due to "FOR ALL"
+DROP POLICY IF EXISTS "Public view registered attendees" ON public.event_attendees;
+
+CREATE POLICY "Public view registered attendees"
+ON public.event_attendees
+FOR SELECT
+USING (
+  status = 'approved' OR status = 'registered'
+);

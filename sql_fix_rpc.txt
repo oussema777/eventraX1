@@ -1,12 +1,25 @@
--- Fix missing RPC function
-CREATE OR REPLACE FUNCTION public.increment_ticket_sold(tid uuid, qty integer)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-BEGIN
-  UPDATE public.event_tickets
-  SET quantity_sold = quantity_sold + qty
-  WHERE id = tid;
-END;
-$$;
+-- SQL Fixes for B2B Connections and Notifications
+-- Run this in your Supabase SQL Editor
+
+-- 1. Fix b2b_connections unique constraint for UPSERT
+ALTER TABLE public.b2b_connections 
+ADD CONSTRAINT b2b_connections_profiles_unique UNIQUE (profile_a_id, profile_b_id);
+
+-- 2. Fix notifications RLS policy (403 Forbidden)
+-- Allow authenticated users to create notifications for other users
+DROP POLICY IF EXISTS "Users can create notifications" ON public.notifications;
+
+CREATE POLICY "Users can create notifications"
+ON public.notifications
+FOR INSERT
+TO authenticated
+WITH CHECK (true);
+
+-- Allow users to view their own notifications
+DROP POLICY IF EXISTS "Users can view own notifications" ON public.notifications;
+
+CREATE POLICY "Users can view own notifications"
+ON public.notifications
+FOR SELECT
+TO authenticated
+USING (auth.uid() = recipient_id);

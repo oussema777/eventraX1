@@ -6,15 +6,17 @@ import { useI18n } from '../../../i18n/I18nContext';
 interface AboutBlockProps {
   showEditControls?: boolean;
   brandColor?: string;
+  onEdit?: () => void;
   event?: {
     name?: string;
     tagline?: string;
     description?: string;
     features?: string[];
+    image?: string;
   };
 }
 
-export default function AboutBlock({ showEditControls = true, brandColor, event }: AboutBlockProps) {
+export default function AboutBlock({ showEditControls = true, brandColor, onEdit, event }: AboutBlockProps) {
   const { t, tList } = useI18n();
   const [isHovered, setIsHovered] = useState(false);
   const accentColor = brandColor || '#635BFF';
@@ -37,14 +39,17 @@ export default function AboutBlock({ showEditControls = true, brandColor, event 
       {isHovered && showEditControls && (
         <EditModule
           blockName={t('wizard.designStudio.about.blockName')}
+          onEdit={onEdit}
           quickActions={[
             {
               icon: <Image size={16} style={{ color: '#FFFFFF' }} />,
-              label: t('wizard.designStudio.about.actions.changeImage')
+              label: t('wizard.designStudio.about.actions.changeImage'),
+              onClick: onEdit
             },
             {
               icon: <FileText size={16} style={{ color: '#FFFFFF' }} />,
-              label: t('wizard.designStudio.about.actions.editContent')
+              label: t('wizard.designStudio.about.actions.editContent'),
+              onClick: onEdit
             }
           ]}
         />
@@ -62,21 +67,35 @@ export default function AboutBlock({ showEditControls = true, brandColor, event 
       >
         {/* Image */}
         <div>
-          <div
-            style={{
-              width: '100%',
-              aspectRatio: '4/3',
-              borderRadius: '16px',
-              background: 'linear-gradient(135deg, #E0E7FF 0%, #C7D2FE 100%)',
-              boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '48px'
-            }}
-          >
-            {t('wizard.designStudio.about.imagePlaceholder')}
-          </div>
+          {event?.image ? (
+            <img
+              src={event.image}
+              alt="Event About"
+              style={{
+                width: '100%',
+                aspectRatio: '4/3',
+                borderRadius: '16px',
+                objectFit: 'cover',
+                boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.1)'
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: '100%',
+                aspectRatio: '4/3',
+                borderRadius: '16px',
+                background: 'linear-gradient(135deg, #E0E7FF 0%, #C7D2FE 100%)',
+                boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '48px'
+              }}
+            >
+              {t('wizard.designStudio.about.imagePlaceholder')}
+            </div>
+          )}
         </div>
 
         {/* Content */}

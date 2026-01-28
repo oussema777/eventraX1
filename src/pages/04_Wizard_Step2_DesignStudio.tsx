@@ -16,7 +16,7 @@ import { type WizardStep } from '../utils/wizardNavigation';
 import { toast } from 'sonner@2.0.3';
 import { useAuth } from '../contexts/AuthContext';
 import { useEventWizard } from '../hooks/useEventWizard';
-import { uploadEventLogo } from '../utils/storage';
+import { uploadEventLogo, uploadEventAsset } from '../utils/storage';
 import { usePlan } from '../hooks/usePlan';
 import { useI18n } from '../i18n/I18nContext';
 import { useSpeakers } from '../hooks/useSpeakers';
@@ -24,6 +24,7 @@ import { useSessions } from '../hooks/useSessions';
 import { useTickets } from '../hooks/useTickets';
 import AboutBlockSettingsModal from '../components/design-studio/modals/AboutBlockSettingsModal';
 import FooterBlockSettingsModal from '../components/design-studio/modals/FooterBlockSettingsModal';
+import HeroBlockSettingsModal from '../components/design-studio/modals/HeroBlockSettingsModal';
 
 interface Block {
   id: string;
@@ -226,6 +227,26 @@ export default function WizardStep2DesignStudio() {
     }
   };
 
+  const handleHeroImageUpload = async (file: File) => {
+    const id = eventData.id || eventId;
+    if (!id) {
+      toast.error(t('wizard.designStudio.errors.uploadFirst'));
+      return null;
+    }
+    try {
+      const url = await uploadEventAsset(id, file);
+      if (!url) {
+        toast.error(t('wizard.designStudio.errors.uploadFailed'));
+        return null;
+      }
+      return url;
+    } catch (error) {
+      console.error('Hero image upload failed:', error);
+      toast.error(t('wizard.designStudio.errors.uploadFailed'));
+      return null;
+    }
+  };
+
   const handleBack = async () => {
     if (eventData.id) {
       navigate(`/create/details/${eventData.id}`);
@@ -311,19 +332,20 @@ export default function WizardStep2DesignStudio() {
 
     switch (block.type) {
       case 'hero':
-        return <HeroBlock key={block.id} isLocked={isLocked} event={eventData} brandColor={brandColor} brandColorSecondary={brandColorSecondary} buttonRadius={buttonRadius} logoUrl={logoUrl} />;
+        return <HeroBlock key={block.id} isLocked={isLocked} event={eventData} brandColor={brandColor} brandColorSecondary={brandColorSecondary} buttonRadius={buttonRadius} logoUrl={logoUrl} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />;
       case 'about':
         const aboutData = {
           name: block.settings?.title || eventData.name,
           tagline: block.settings?.subtitle || eventData.tagline,
           description: block.settings?.description || eventData.description,
-          features: block.settings?.features || undefined
+          features: block.settings?.features || undefined,
+          image: block.settings?.image
         };
-        return <AboutBlock key={block.id} event={aboutData} brandColor={brandColor} />;
+        return <AboutBlock key={block.id} event={aboutData} brandColor={brandColor} onEdit={() => handleOpenSettings(block.id)} />;
       case 'details':
-        return <EventDetailsBlock key={block.id} event={eventData} brandColor={brandColor} />;
+        return <EventDetailsBlock key={block.id} event={eventData} brandColor={brandColor} onEdit={() => handleOpenSettings(block.id)} />;
       case 'speakers':
-        return <SpeakersBlock key={block.id} speakers={mappedSpeakers} brandColor={brandColor} />;
+        return <SpeakersBlock key={block.id} speakers={mappedSpeakers} brandColor={brandColor} onEdit={() => handleOpenSettings(block.id)} />;
       case 'agenda':
         return (
           <AgendaBlock 
@@ -332,12 +354,13 @@ export default function WizardStep2DesignStudio() {
             sessions={mappedSessions} 
             brandColor={brandColor} 
             buttonRadius={buttonRadius} 
+            onEdit={() => handleOpenSettings(block.id)}
           />
         );
       case 'tickets':
-        return <TicketsBlock key={block.id} tickets={mappedTickets} brandColor={brandColor} buttonRadius={buttonRadius} />;
+        return <TicketsBlock key={block.id} tickets={mappedTickets} brandColor={brandColor} buttonRadius={buttonRadius} onEdit={() => handleOpenSettings(block.id)} />;
       case 'footer':
-        return <FooterBlock key={block.id} settings={block.settings} brandColor={brandColor} event={eventData} />;
+        return <FooterBlock key={block.id} settings={block.settings} brandColor={brandColor} event={eventData} onEdit={() => handleOpenSettings(block.id)} />;
       default:
         return (
           <div
@@ -505,34 +528,6 @@ export default function WizardStep2DesignStudio() {
         {/* Right: Action Buttons */}
         <div style={{ display: 'flex', gap: '12px' }}>
           <button
-            onClick={handleSaveDraft}
-            style={{
-              height: '44px',
-              padding: '0 20px',
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              border: '1px solid #635BFF',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: 600,
-              color: '#FFFFFF',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(99, 91, 255, 0.2)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-            }}
-          >
-            <Save size={16} />
-            {t('wizard.common.saveDraft')}
-          </button>
-
-          <button
             onClick={handleSaveAndContinue}
             style={{
               height: '44px',
@@ -570,9 +565,26 @@ export default function WizardStep2DesignStudio() {
         eventData={{
           name: selectedBlock?.settings?.title || eventData.name,
           tagline: selectedBlock?.settings?.subtitle || eventData.tagline,
-          description: selectedBlock?.settings?.description || eventData.description
+          description: selectedBlock?.settings?.description || eventData.description,
+          features: selectedBlock?.settings?.features,
+          image: selectedBlock?.settings?.image
         }}
-        onSave={(data) => handleSaveBlockSettings('about', { title: data.name, subtitle: data.tagline, description: data.description })}
+        onSave={(data) => handleSaveBlockSettings('about', { 
+          title: data.name, 
+          subtitle: data.tagline, 
+          description: data.description,
+          features: data.features,
+          image: data.image
+        })}
+      />
+
+      <HeroBlockSettingsModal
+        isOpen={settingsBlockId === 'hero'}
+        onClose={() => setSettingsBlockId(null)}
+        currentSettings={selectedBlock?.settings || {}}
+        onSave={(data) => handleSaveBlockSettings('hero', data)}
+        onImageUpload={handleHeroImageUpload}
+        isSaving={isEventSaving}
       />
 
       <FooterBlockSettingsModal

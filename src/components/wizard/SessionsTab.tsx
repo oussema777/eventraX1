@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { usePlan } from '../../hooks/usePlan';
 import { useI18n } from '../../i18n/I18nContext';
 import { useEventWizard } from '../../hooks/useEventWizard';
+import { escapeHTML, escapeCSV } from '../../utils/security';
 
 type ViewMode = 'timeline' | 'list';
 type SessionType = 'keynote' | 'workshop' | 'panel' | 'break' | 'hackathon' | 'pitching' | 'training' | 'other';
@@ -45,7 +46,8 @@ export default function SessionsTab({ eventId, eventStartDate, eventEndDate }: S
   
   // Custom venues state (persisted in local storage for the wizard session)
   const [customVenues, setCustomVenues] = useState<string[]>(() => {
-    const saved = localStorage.getItem('wizard_custom_venues');
+    if (!eventId) return [];
+    const saved = localStorage.getItem(`wizard_custom_venues_${eventId}`);
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -152,11 +154,11 @@ export default function SessionsTab({ eventId, eventStartDate, eventEndDate }: S
       // If a new venue was used, add it to our custom list if not already there
       // Note: createSession returns the raw DB record, where venue is called 'location'
       const venueName = savedRecord?.location || data.venue;
-      if (venueName) {
+      if (venueName && eventId) {
         setCustomVenues(prev => {
           if (!prev.includes(venueName)) {
             const updated = [...prev, venueName];
-            localStorage.setItem('wizard_custom_venues', JSON.stringify(updated));
+            localStorage.setItem(`wizard_custom_venues_${eventId}`, JSON.stringify(updated));
             return updated;
           }
           return prev;
@@ -504,10 +506,10 @@ export default function SessionsTab({ eventId, eventStartDate, eventEndDate }: S
           eventStartDate={eventStartDate}
           eventEndDate={eventEndDate}
           onSaveVenue={(venue) => {
-            if (!customVenues.includes(venue)) {
+            if (!customVenues.includes(venue) && eventId) {
               const updated = [...customVenues, venue];
               setCustomVenues(updated);
-              localStorage.setItem('wizard_custom_venues', JSON.stringify(updated));
+              localStorage.setItem(`wizard_custom_venues_${eventId}`, JSON.stringify(updated));
             }
           }}
           eventMaxCapacity={eventMaxCapacity}
@@ -527,7 +529,7 @@ export default function SessionsTab({ eventId, eventStartDate, eventEndDate }: S
 
       {/* Export Modal */} 
       {showExportModal && (
-        <ExportModal onClose={() => setShowExportModal(false)} />
+        <ExportModal onClose={() => setShowExportModal(false)} sessions={sessions} />
       )}
     </div>
   );
@@ -1074,12 +1076,12 @@ function AddSessionModal({
   }, [eventStartDate, eventEndDate]);
 
   // Parse initial dates
-  const initialDate = initialData ? new Date(initialData.rawStartTime) : (eventStartDate ? new Date(eventStartDate) : new Date());
-  const initialEndDate = initialData ? new Date(initialData.rawEndTime) : new Date(initialDate.getTime() + 3600000);
+  const initialDate = initialData ? new Date(initialData.rawStartTime) : null;
+  const initialEndDate = initialData ? new Date(initialData.rawEndTime) : null;
 
-  const [date, setDate] = useState(formatDateForInput(initialDate.toISOString()));
-  const [startTime, setStartTime] = useState(initialDate.toTimeString().slice(0, 5));
-  const [endTime, setEndTime] = useState(initialEndDate.toTimeString().slice(0, 5));
+  const [date, setDate] = useState(initialDate ? formatDateForInput(initialDate.toISOString()) : '');
+  const [startTime, setStartTime] = useState(initialDate ? initialDate.toTimeString().slice(0, 5) : '');
+  const [endTime, setEndTime] = useState(initialEndDate ? initialEndDate.toTimeString().slice(0, 5) : '');
 
   const [selectedVenue, setSelectedVenue] = useState(initialData?.venue || '');
   const [capacity, setCapacity] = useState(initialData?.capacity?.toString() || '');
@@ -1195,6 +1197,38 @@ function AddSessionModal({
       // Construct Date objects
       const startDateTime = new Date(`${date}T${startTime}`);
       const endDateTime = new Date(`${date}T${endTime}`);
+
+      if (endDateTime <= startDateTime) {
+          toast.error(t('wizard.step3.sessions.modal.errors.timeRange', "Oops! The session can't end before it starts. Please check your times."));
+          return;
+      }
+
+      // Frontend Conflict Check for clearer notification
+      if (finalVenue && finalVenue !== 'TBD' && finalVenue !== '') {
+        const start = startDateTime.getTime();
+        const end = endDateTime.getTime();
+
+        const conflict = existingSessions.find(s => {
+          if (initialData && s.id === initialData.id) return false;
+          if (s.venue !== finalVenue) return false;
+          if (s.status === 'cancelled') return false;
+
+          const sStart = new Date(s.rawStartTime).getTime();
+          const sEnd = new Date(s.rawEndTime).getTime();
+          return (start < sEnd && end > sStart);
+        });
+
+        if (conflict) {
+          toast.error(
+            <div className="flex flex-col gap-1">
+              <span className="font-bold text-red-600">Schedule Conflict detected!</span>
+              <span className="text-sm">The room <span className="font-semibold">"{finalVenue}"</span> is already occupied by <span className="font-semibold">"{conflict.title}"</span> during this time.</span>
+            </div>,
+            { duration: 5000 }
+          );
+          return;
+        }
+      }
 
       const payload = {
         title,
@@ -1420,7 +1454,7 @@ function AddSessionModal({
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label htmlFor="date" style={{ fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px', display: 'block' }}>
-                    {t('wizard.step3.sessions.modal.date')}
+                    {t('wizard.step3.sessions.modal.date', 'Session Date')}
                   </label>
                   {availableDates.length > 0 ? (
                     <select
@@ -1445,6 +1479,7 @@ function AddSessionModal({
                         backgroundSize: '16px'
                       }}
                     >
+                      <option value="" disabled>{t('wizard.step3.sessions.modal.selectDate', 'Select Date')}</option>
                       {availableDates.map(d => (
                         <option key={d} value={d} style={{ backgroundColor: '#0B2641' }}>
                           {new Date(d).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
@@ -2312,10 +2347,137 @@ function SpeakerSelectionModal({ onClose, selectedSpeakers, setSelectedSpeakers,
 // Export Modal Component
 interface ExportModalProps {
   onClose: () => void;
+  sessions: Session[];
 }
 
-function ExportModal({ onClose }: ExportModalProps) {
+function ExportModal({ onClose, sessions }: ExportModalProps) {
   const { t } = useI18n();
+
+  const handleExportCSV = () => {
+    if (sessions.length === 0) {
+      toast.info('No sessions to export');
+      return;
+    }
+
+    const headers = ['Title', 'Type', 'Date', 'Start Time', 'End Time', 'Venue', 'Speakers', 'Capacity', 'Description'];
+    const rows = sessions.map(s => [
+      escapeCSV(s.title),
+      escapeCSV(s.type),
+      escapeCSV(s.date),
+      escapeCSV(s.startTime),
+      escapeCSV(s.endTime),
+      escapeCSV(s.venue || 'TBD'),
+      escapeCSV(s.speakers.map(sp => sp.full_name || (sp as any).name).join('; ')),
+      s.capacity,
+      escapeCSV(s.description.replace(/,/g, ';'))
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(r => r.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'event-schedule.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Schedule exported as CSV');
+    onClose();
+  };
+
+  const handleExportPDF = () => {
+    if (sessions.length === 0) {
+      toast.info('No sessions to export');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error('Please allow popups to export PDF');
+      return;
+    }
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Event Schedule - PDF Export</title>
+        <style>
+          body { font-family: 'Inter', sans-serif; color: #1A1D1F; padding: 40px; }
+          .header { margin-bottom: 40px; border-bottom: 2px solid #0684F5; padding-bottom: 20px; }
+          .header h1 { margin: 0; color: #0B2641; font-size: 28px; }
+          .header p { margin: 5px 0 0; color: #6F767E; font-size: 14px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th { background-color: #F4F5F6; text-align: left; padding: 12px; font-size: 12px; font-weight: 700; text-transform: uppercase; color: #6F767E; border-bottom: 1px solid #E9EAEB; }
+          td { padding: 12px; font-size: 14px; border-bottom: 1px solid #E9EAEB; vertical-align: top; }
+          .session-title { font-weight: 700; color: #0B2641; margin-bottom: 4px; }
+          .session-type { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; background: #E0E7FF; color: #0684F5; }
+          .speaker-list { color: #6F767E; font-size: 13px; }
+          .time-cell { white-space: nowrap; font-weight: 500; }
+          @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Event Schedule</h1>
+          <p>Generated on ${new Date().toLocaleDateString()}</p>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th width="15%">Time</th>
+              <th width="40%">Session Details</th>
+              <th width="20%">Speakers</th>
+              <th width="25%">Venue</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sessions.map(s => `
+              <tr>
+                <td class="time-cell">
+                  <div>${escapeHTML(s.date)}</div>
+                  <div style="color: #6F767E; font-size: 12px;">${escapeHTML(s.startTime)} - ${escapeHTML(s.endTime)}</div>
+                </td>
+                <td>
+                  <div class="session-title">${escapeHTML(s.title)}</div>
+                  <div class="session-type">${escapeHTML(s.type)}</div>
+                  <div style="margin-top: 8px; font-size: 12px; color: #6F767E;">${escapeHTML(s.description)}</div>
+                </td>
+                <td>
+                  <div class="speaker-list">
+                    ${s.speakers.map(sp => escapeHTML(sp.full_name || (sp as any).name)).join('<br>')}
+                  </div>
+                </td>
+                <td>
+                  <div style="font-weight: 500;">${escapeHTML(s.venue || 'TBD')}</div>
+                  <div style="font-size: 12px; color: #6F767E;">Capacity: ${s.capacity}</div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <script>
+          window.onload = function() {
+            window.print();
+            // Optional: window.close();
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+    onClose();
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -2347,24 +2509,19 @@ function ExportModal({ onClose }: ExportModalProps) {
         
         <div className="flex flex-col gap-3">
           <button 
-            className="p-3 rounded-lg flex items-center justify-between transition-colors"
+            onClick={handleExportCSV}
+            className="p-3 rounded-lg flex items-center justify-between transition-colors hover:bg-white/10"
             style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer' }}
           >
             <span>{t('wizard.step3.sessions.export.csv')}</span>
             <Download size={16} />
           </button>
           <button 
-            className="p-3 rounded-lg flex items-center justify-between transition-colors"
+            onClick={handleExportPDF}
+            className="p-3 rounded-lg flex items-center justify-between transition-colors hover:bg-white/10"
             style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer' }}
           >
             <span>{t('wizard.step3.sessions.export.pdf')}</span>
-            <Download size={16} />
-          </button>
-          <button 
-            className="p-3 rounded-lg flex items-center justify-between transition-colors"
-            style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer' }}
-          >
-            <span>{t('wizard.step3.sessions.export.ical')}</span>
             <Download size={16} />
           </button>
         </div>

@@ -1,8 +1,10 @@
-import { X, CheckCircle, Upload, Star, Users as UsersIcon, Settings, User, Plus, XCircle } from 'lucide-react';
+import { X, CheckCircle, Upload, Star, Users as UsersIcon, Settings, User, Plus, XCircle, ChevronDown } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { uploadFile } from '../../../utils/storage';
 import { useI18n } from '../../../i18n/I18nContext';
+import { toast } from 'sonner';
+import { countries } from '../../../data/countries';
 
 interface Speaker {
   id?: string;
@@ -57,6 +59,7 @@ export default function AddEditSpeakerModal({ isOpen, onClose, onSave, speaker }
   const [shortBioCharCount, setShortBioCharCount] = useState(speaker?.shortBio?.length || 0);
   const [currentTag, setCurrentTag] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState('+1');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -84,6 +87,17 @@ export default function AddEditSpeakerModal({ isOpen, onClose, onSave, speaker }
     setBioCharCount(next.bio?.length || 0);
     setShortBioCharCount(next.shortBio?.length || 0);
     setCurrentTag('');
+    
+    // Extract country code if phone number exists
+    if (next.phone) {
+        // Simple logic: check if phone starts with a known code
+        const matchingCountry = countries.find(c => next.phone?.startsWith(c.phoneCode));
+        if (matchingCountry) {
+            setSelectedCountry(matchingCountry.phoneCode);
+            // Optionally strip the code from the input value if desired, 
+            // but for now we keep the full string in formData.phone
+        }
+    }
   }, [isOpen, speaker]);
 
   if (!isOpen) return null;
@@ -93,18 +107,52 @@ export default function AddEditSpeakerModal({ isOpen, onClose, onSave, speaker }
     if (!file) return;
     setIsUploading(true);
     try {
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const path = `events/${eventId || 'draft'}/speakers/${Date.now()}_${safeName}`;
+      // Security: Strictly sanitize filename to prevent path traversal (../)
+      // Only allow alphanumeric characters, dots, and hyphens.
+      const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      
+      // Security: Ensure eventId is a clean string to prevent directory manipulation
+      const cleanEventId = (eventId || 'draft').replace(/[^a-zA-Z0-9_-]/g, '');
+      
+      const path = `events/${cleanEventId}/speakers/${Date.now()}_${safeName}`;
       const url = await uploadFile('profiles', path, file);
       if (url) {
         setFormData((prev) => ({ ...prev, photo: url }));
+        toast.success(t('common.updated', 'Photo updated successfully'));
+      } else {
+        toast.error(t('common.error', 'Failed to upload photo'));
       }
+    } catch (error) {
+      toast.error(t('common.error', 'Failed to upload photo'));
     } finally {
       setIsUploading(false);
+      if (event.target) event.target.value = '';
     }
   };
 
   const handleSave = () => {
+    const requiredFields = [
+      { key: 'name', label: t('wizard.step3.speakers.modal.fields.name.label', 'Full Name') },
+      { key: 'title', label: t('wizard.step3.speakers.modal.fields.title.label', 'Job Title') },
+      { key: 'company', label: t('wizard.step3.speakers.modal.fields.company.label', 'Company') },
+      { key: 'email', label: t('wizard.step3.speakers.modal.fields.email.label', 'Email') },
+      { key: 'bio', label: t('wizard.step3.speakers.modal.fields.bio.label', 'Biography') }
+    ];
+
+    const missingFields = requiredFields.filter(field => !formData[field.key as keyof Speaker]?.toString().trim());
+
+    if (missingFields.length > 0) {
+      toast.error(t('wizard.step3.sessions.modal.requiredFields', 'Please fill in all required fields'));
+      return;
+    }
+
+    // Email Validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (formData.email && !emailRegex.test(formData.email)) {
+      toast.error(t('auth.errors.invalidEmail', 'Please enter a valid email address'));
+      return;
+    }
+
     onSave(formData);
     onClose();
   };
@@ -273,7 +321,7 @@ export default function AddEditSpeakerModal({ isOpen, onClose, onSave, speaker }
                   {/* Full Name */}
                   <div>
                     <label className="block text-sm mb-2" style={{ fontWeight: 500, color: '#0B2641' }}>
-                      {t('wizard.step3.speakers.modal.fields.name.label')}
+                      {t('wizard.step3.speakers.modal.fields.name.label')} *
                     </label>
                     <input
                       type="text"
@@ -288,7 +336,7 @@ export default function AddEditSpeakerModal({ isOpen, onClose, onSave, speaker }
                   {/* Email */}
                   <div>
                     <label className="block text-sm mb-2" style={{ fontWeight: 500, color: '#0B2641' }}>
-                      {t('wizard.step3.speakers.modal.fields.email.label')}
+                      {t('wizard.step3.speakers.modal.fields.email.label')} *
                     </label>
                     <input
                       type="email"
@@ -308,14 +356,53 @@ export default function AddEditSpeakerModal({ isOpen, onClose, onSave, speaker }
                     <label className="block text-sm mb-2" style={{ fontWeight: 500, color: '#0B2641' }}>
                       {t('wizard.step3.speakers.modal.fields.phone.label')}
                     </label>
-                    <input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder={t('wizard.step3.speakers.modal.fields.phone.placeholder')}
-                      className="w-full h-11 px-4 rounded-lg border outline-none transition-colors focus:border-blue-400"
-                      style={{ borderColor: '#E5E7EB', color: '#0B2641' }}
-                    />
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <div style={{ position: 'relative', width: '140px' }}>
+                        <select
+                          value={selectedCountry}
+                          onChange={(e) => setSelectedCountry(e.target.value)}
+                          style={{
+                            width: '100%',
+                            height: '44px',
+                            padding: '0 32px 0 12px',
+                            backgroundColor: '#FFFFFF',
+                            border: '1px solid #E5E7EB',
+                            borderRadius: '8px',
+                            fontFamily: 'Inter',
+                            fontSize: '14px',
+                            color: '#0B2641',
+                            outline: 'none',
+                            appearance: 'none',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {countries.map((country) => (
+                            <option key={`${country.code}-${country.phoneCode}`} value={country.phoneCode}>
+                              {country.code} ({country.phoneCode})
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown 
+                          size={16} 
+                          style={{ 
+                            position: 'absolute', 
+                            right: '12px', 
+                            top: '50%', 
+                            transform: 'translateY(-50%)', 
+                            color: '#6B7280', 
+                            pointerEvents: 'none' 
+                          }} 
+                        />
+                      </div>
+                      <input
+                        type="tel"
+                        value={formData.phone?.replace(selectedCountry, '') || ''}
+                        onChange={(e) => setFormData({ ...formData, phone: `${selectedCountry}${e.target.value}` })}
+                        placeholder={t('wizard.step3.speakers.modal.fields.phone.placeholder')}
+                        className="flex-1 h-11 px-4 rounded-lg border outline-none transition-colors focus:border-blue-400"
+                        style={{ borderColor: '#E5E7EB', color: '#0B2641' }}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -329,7 +416,7 @@ export default function AddEditSpeakerModal({ isOpen, onClose, onSave, speaker }
                   {/* Job Title */}
                   <div>
                     <label className="block text-sm mb-2" style={{ fontWeight: 500, color: '#0B2641' }}>
-                      {t('wizard.step3.speakers.modal.fields.title.label')}
+                      {t('wizard.step3.speakers.modal.fields.title.label')} *
                     </label>
                     <input
                       type="text"
@@ -344,7 +431,7 @@ export default function AddEditSpeakerModal({ isOpen, onClose, onSave, speaker }
                   {/* Company */}
                   <div>
                     <label className="block text-sm mb-2" style={{ fontWeight: 500, color: '#0B2641' }}>
-                      {t('wizard.step3.speakers.modal.fields.company.label')}
+                      {t('wizard.step3.speakers.modal.fields.company.label')} *
                     </label>
                     <input
                       type="text"
@@ -412,7 +499,7 @@ export default function AddEditSpeakerModal({ isOpen, onClose, onSave, speaker }
                   {/* Biography */}
                   <div>
                     <label className="block text-sm mb-2" style={{ fontWeight: 500, color: '#0B2641' }}>
-                      {t('wizard.step3.speakers.modal.fields.bio.label')}
+                      {t('wizard.step3.speakers.modal.fields.bio.label')} *
                     </label>
                     <textarea
                       value={formData.bio}

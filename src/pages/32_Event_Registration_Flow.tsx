@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Check,
@@ -15,6 +15,7 @@ import { supabase } from '../lib/supabase';
 import { toast } from 'sonner@2.0.3';
 import { createNotification } from '../lib/notifications';
 import { useAuth } from '../contexts/AuthContext';
+import { sendEmail, generateRegistrationEmailHtml } from '../lib/email';
 
 type RegistrationStep = 1 | 2 | 3;
 
@@ -49,15 +50,49 @@ export default function EventRegistrationFlow() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set());
   const [freeTicketId, setFreeTicketId] = useState<string | null>(null);
+  const [registeredAttendeeId, setRegisteredAttendeeId] = useState<string | null>(null);
+  const [confirmationCode, setConfirmationCode] = useState<string | null>(null);
   
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const generateConfirmationCode = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = 'EV-';
+    for (let i = 0; i < 6; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  };
 
   useEffect(() => {
     if (eventId) {
       fetchEventData();
     }
   }, [eventId, user, profile]);
+
+  // ... (keep existing fetchEventData)
+
+  const handleDownloadTicket = async () => {
+    if (!registeredAttendeeId) return;
+    try {
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${registeredAttendeeId}`;
+      const response = await fetch(qrUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Eventra-Ticket-${event?.name || 'Event'}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Ticket downloaded!');
+    } catch (e) {
+      console.error('Download failed:', e);
+      toast.error('Failed to download ticket');
+    }
+  };
 
   const fetchEventData = async () => {
     try {
@@ -182,8 +217,19 @@ export default function EventRegistrationFlow() {
     try {
       setIsSubmitting(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error('You must be logged in to register');
+      
+      // Get form data
+      const responses: Record<string, any> = {};
+      formFields.forEach(f => {
+        responses[f.label] = f.value;
+      });
+
+      const email = user?.email || formFields.find(f => f.type === 'email')?.value;
+      const name = profile?.full_name || formFields.find(f => f.label.toLowerCase().includes('name'))?.value;
+
+      if (!email || !name) {
+        toast.error('Name and Email are required');
+        setIsSubmitting(false);
         return;
       }
 
@@ -191,53 +237,115 @@ export default function EventRegistrationFlow() {
         console.warn('No ticket found, registration might be incomplete on analytics.');
       }
 
-      const responses: Record<string, any> = {};
-      formFields.forEach(f => {
-        responses[f.label] = f.value;
-      });
+      const code = generateConfirmationCode();
+      setConfirmationCode(code);
+      responses['confirmation_code'] = code;
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData?.session?.access_token;
-      if (!accessToken) {
-        toast.error('Missing session token');
-        return;
-      }
-
-      const apiBase = import.meta.env.VITE_REGISTRATION_API_URL || '';
-      if (!apiBase) {
-        toast.error('Registration email server is not configured');
-        return;
-      }
-
-      const payload = {
+      // 1. Insert Attendee
+      const attendeePayload = {
         event_id: eventId,
-        responses,
-        selected_session_ids: Array.from(selectedSessions),
-        attendee_name: profile?.full_name || user.email,
-        attendee_email: user.email
+        profile_id: user?.id || null,
+        ticket_type: 'General Admission', 
+        ticket_color: '#0684F5',
+        price: 0,
+        status: 'registered',
+        meta: responses, 
+        email: email, 
+        name: name
       };
 
-      const response = await fetch(`${apiBase}/api/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`
-        },
-        body: JSON.stringify(payload)
-      });
+      const { data: attendee, error: regError } = await supabase
+        .from('event_attendees')
+        .insert([attendeePayload])
+        .select()
+        .single();
 
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || 'Registration failed');
+      if (regError) {
+        if (regError.code === '23505') {
+          // Already registered - fetch existing record
+          toast.success("You're already registered! Updating your agenda...");
+          
+          let query = supabase
+            .from('event_attendees')
+            .select()
+            .eq('event_id', eventId);
+            
+          if (user) {
+            query = query.eq('profile_id', user.id);
+          } else {
+            query = query.eq('email', email);
+          }
+
+          const { data: existing } = await query.single();
+          
+          if (existing) {
+            setRegisteredAttendeeId(existing.id); // SAVE ID
+            const existingCode = existing.meta?.confirmation_code || code;
+            setConfirmationCode(existingCode);
+
+            const sessionInserts = Array.from(selectedSessions).map(sessionId => ({
+              attendee_id: existing.id,
+              session_id: sessionId
+            }));
+
+            await supabase.from('event_attendee_sessions').delete().eq('attendee_id', existing.id);
+            
+            if (sessionInserts.length > 0) {
+              await supabase.from('event_attendee_sessions').insert(sessionInserts);
+            }
+
+            const mySessions = sessions.filter(s => selectedSessions.has(s.id));
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${existing.id}`;
+            const emailHtml = generateRegistrationEmailHtml(event?.name || 'Event', existing.name || email || 'Attendee', qrUrl, mySessions);
+            
+            await sendEmail({
+              to: email || '',
+              subject: `Registration Confirmed: ${event?.name}`,
+              html: emailHtml
+            });
+            
+            setCurrentStep(3);
+            return;
+          }
+        }
+        throw regError;
+      }
+
+      try {
+        await supabase.rpc('increment_ticket_sold', { tid: freeTicketId, qty: 1 });
+      } catch (err) {
+        console.warn('Failed to update ticket count (RPC missing?):', err);
+      }
+
+      if (attendee) {
+        setRegisteredAttendeeId(attendee.id); // SAVE ID
+        const sessionInserts = Array.from(selectedSessions).map(sessionId => ({
+          attendee_id: attendee.id,
+          session_id: sessionId
+        }));
+        
+        if (sessionInserts.length > 0) {
+          await supabase.from('event_attendee_sessions').insert(sessionInserts);
+        }
+
+        const mySessions = sessions.filter(s => selectedSessions.has(s.id));
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${attendee.id}`;
+        const emailHtml = generateRegistrationEmailHtml(event?.name || 'Event', attendee.name || email || 'Attendee', qrUrl, mySessions);
+        
+        await sendEmail({
+          to: email || '',
+          subject: `Registration Confirmed: ${event?.name}`,
+          html: emailHtml
+        });
       }
 
       try {
         if (event?.owner_id) {
           await createNotification({
             recipient_id: event.owner_id,
-            actor_id: user.id,
+            actor_id: user?.id || null,
             title: 'New event registration',
-            body: `${user.email || 'An attendee'} registered for ${event.name || 'your event'}.`,
+            body: `${email || 'An attendee'} registered for ${event.name || 'your event'}.`,
             type: 'action',
             action_url: `/event/${eventId}`
           });
@@ -675,10 +783,33 @@ export default function EventRegistrationFlow() {
                 You're All Set!
               </h1>
 
-              <p className="mb-8 max-w-md mx-auto" style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '16px' }}>
+              <p className="mb-6 max-w-md mx-auto" style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '16px' }}>
                 Thank you for registering for <strong style={{ color: '#FFFFFF' }}>{event?.name}</strong>. 
                 A confirmation email has been sent to <strong style={{ color: '#FFFFFF' }}>{user?.email}</strong>.
               </p>
+
+              {/* QR Code Display */}
+              {registeredAttendeeId && (
+                <div 
+                  className="mb-8 p-6 rounded-xl border inline-block"
+                  style={{ backgroundColor: '#FFFFFF', borderColor: 'rgba(255, 255, 255, 0.1)' }}
+                >
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${registeredAttendeeId}`}
+                    alt="Check-in QR Code"
+                    style={{ width: '180px', height: '180px', display: 'block' }}
+                  />
+                  <p style={{ color: '#000000', fontSize: '13px', fontWeight: 600, marginTop: '12px' }}>
+                    Scan at entrance
+                  </p>
+                  {confirmationCode && (
+                    <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px dashed #E2E8F0' }}>
+                      <p style={{ color: '#64748B', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Confirmation Code</p>
+                      <p style={{ color: '#0B2641', fontSize: '24px', fontWeight: 800, letterSpacing: '0.1em' }}>{confirmationCode}</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {selectedSessions.size > 0 && (
                 <div 
@@ -703,6 +834,7 @@ export default function EventRegistrationFlow() {
 
               <div className="flex flex-col gap-3 max-w-xs mx-auto">
                 <button
+                  onClick={handleDownloadTicket}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -727,7 +859,7 @@ export default function EventRegistrationFlow() {
                   }}
                 >
                   <Calendar size={18} />
-                  Add to Calendar
+                  Download Ticket
                 </button>
 
                 <button

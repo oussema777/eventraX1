@@ -64,3 +64,13 @@ export async function uploadExhibitorLogo(eventId: string, exhibitorId: string, 
   const path = `events/${eventId}/exhibitors/${exhibitorId}/logo.${extension}`;
   return uploadFile('profiles', path, file);
 }
+
+/**
+ * Helper for generic event asset uploads (e.g., block images)
+ */
+export async function uploadEventAsset(eventId: string, file: File) {
+  const extension = file.name.split('.').pop();
+  const timestamp = Date.now();
+  const path = `events/${eventId}/assets/${timestamp}_${file.name.replace(/[^a-zA-Z0-9]/g, '_')}.${extension}`;
+  return uploadFile('profiles', path, file);
+}

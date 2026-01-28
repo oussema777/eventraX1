@@ -89,6 +89,9 @@ export const translations = {
           virtual: 'Virtual',
           hybrid: 'Hybrid'
         },
+        type: { // Added new type filter title
+          title: 'Type'
+        },
         category: {
           title: 'Category',
           business: 'Business',
@@ -106,7 +109,9 @@ export const translations = {
           title: 'Date',
           today: 'Today',
           'this-weekend': 'This weekend',
-          custom: 'Choose Date Range...'
+          custom: 'Choose Date Range...',
+          startDate: 'Start Date',
+          endDate: 'End Date'
         }
       },
       sort: {
@@ -3629,6 +3634,11 @@ export const translations = {
             capacityPlaceholder: 'e.g., 100',
             tags: 'Tags',
             tagsPlaceholder: 'Type a tag and press Enter',
+            selectDate: 'Pick a date',
+            errors: {
+              timeRange: "Wait! The session ends before it starts. Please check the time again.",
+              invalidDateTime: 'Please enter a valid date and time.'
+            },
             selectedSpeakers: 'Selected Speakers ({count})',
             speakerLine: '{title} • {company}',
             noSpeakersAssigned: 'No speakers assigned yet',
@@ -4735,7 +4745,10 @@ export const translations = {
         },
         nextStep: 'Continue to Design',
         errors: {
-          nameRequired: 'Event name is required.'
+          nameRequired: 'Event name is required.',
+          datesRequired: 'Please select start and end dates.',
+          startDatePast: 'Start date cannot be in the past.',
+          endDateBeforeStart: 'End date cannot be before start date.'
         }
       },
       designStudio: {
@@ -9356,6 +9369,11 @@ export const translations = {
             capacityPlaceholder: 'ex. 100',
             tags: 'Tags',
             tagsPlaceholder: 'Saisissez un tag et appuyez sur Entree',
+            selectDate: 'Choisissez une date',
+            errors: {
+              timeRange: "Attention ! La session finit avant d'avoir commence. Merci de verifier l'horaire.",
+              invalidDateTime: 'Veuillez saisir une date et une heure valides.'
+            },
             selectedSpeakers: 'Intervenants selectionnes ({count})',
             speakerLine: '{title} • {company}',
             noSpeakersAssigned: 'Aucun intervenant assigne',
@@ -10462,7 +10480,10 @@ export const translations = {
         },
         nextStep: 'Continuer vers le design',
         errors: {
-          nameRequired: "Le nom de l'evenement est obligatoire."
+          nameRequired: "Le nom de l'evenement est obligatoire.",
+          datesRequired: "Veuillez selectionner les dates de debut et de fin.",
+          startDatePast: "La date de debut ne peut pas etre dans le passe.",
+          endDateBeforeStart: "La date de fin ne peut pas etre anterieure a la date de debut."
         }
       },
       designStudio: {

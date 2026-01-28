@@ -23,6 +23,9 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
+import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';
+import ModalLogin from '../components/modals/ModalLogin';
+import ModalRegistrationEntry from '../components/modals/ModalRegistrationEntry';
 import { supabase } from '../lib/supabase';
 import { useI18n } from '../i18n/I18nContext';
 import { useMessageThread } from '../hooks/useMessageThread';
@@ -113,33 +116,6 @@ const buildTagline = (description: string | null | undefined, tags: string[]) =>
   return 'Built for modern event teams';
 };
 
-const buildLongDescription = (
-  description: string | null | undefined,
-  tags: string[],
-  copy: {
-    overviewTitle: string;
-    whatYouGetTitle: string;
-    whyItMattersTitle: string;
-    overviewFallback: string;
-    whyItMattersBody: string;
-    fallbackList: string[];
-  }
-) => {
-  const safeDescription = escapeHtml(description || '');
-  const listItems = (tags.length ? tags.slice(0, 6) : copy.fallbackList)
-    .map((item) => `<li>${escapeHtml(item)}</li>`)
-    .join('');
-
-  return `
-    <h3>${escapeHtml(copy.overviewTitle)}</h3>
-    <p>${safeDescription || escapeHtml(copy.overviewFallback)}</p>
-    <h3>${escapeHtml(copy.whatYouGetTitle)}</h3>
-    <ul>${listItems}</ul>
-    <h3>${escapeHtml(copy.whyItMattersTitle)}</h3>
-    <p>${escapeHtml(copy.whyItMattersBody)}</p>
-  `;
-};
-
 const resolveTypeLabel = (value: string | null | undefined, t: (key: string) => string) => {
   if (!value) return t('businessProductPage.types.product');
   return value === 'service'
@@ -207,8 +183,11 @@ export default function BusinessProductPage() {
   const navigate = useNavigate();
   const { businessId, productId } = useParams();
   const { t, tList } = useI18n();
-  const { user } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const { getOrCreateThread, loading: connecting } = useMessageThread();
+  
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isSaved, setIsSaved] = useState(false);
@@ -266,6 +245,26 @@ export default function BusinessProductPage() {
     fetchProduct();
   }, [businessId, productId, t]);
 
+  const handleLogout = async () => {
+    await signOut();
+  };
+
+  // Auth Handlers
+  const handleGoogleSignup = async () => setShowRegistrationModal(false);
+  const handleEmailSignup = async () => setShowRegistrationModal(false);
+  const handleLoginSuccess = () => setShowLoginModal(false);
+  const handleGoogleLogin = async () => setShowLoginModal(false);
+  
+  const handleSwitchToSignup = () => {
+    setShowLoginModal(false);
+    setShowRegistrationModal(true);
+  };
+
+  const handleSwitchToLogin = () => {
+    setShowRegistrationModal(false);
+    setShowLoginModal(true);
+  };
+
   const tags = useMemo(
     () => (Array.isArray(product?.tags) ? product?.tags.filter(Boolean) : []),
     [product?.tags]
@@ -297,11 +296,6 @@ export default function BusinessProductPage() {
       ])
     }),
     [t, tList]
-  );
-
-  const longDescription = useMemo(
-    () => buildLongDescription(product?.description, tags, longDescriptionCopy),
-    [product?.description, tags, longDescriptionCopy]
   );
 
   const features = useMemo(
@@ -372,7 +366,7 @@ export default function BusinessProductPage() {
 
   const handleContactSeller = async () => {
     if (!user?.id) {
-      toast.error(t('businessProductPage.errors.loginRequired'));
+      setShowLoginModal(true);
       return;
     }
     if (!business?.owner_profile_id) {
@@ -393,7 +387,7 @@ export default function BusinessProductPage() {
     const { data: sessionData } = await supabase.auth.getSession();
     const sessionUser = sessionData?.session?.user;
     if (!sessionUser?.id) {
-      toast.error(t('businessProductPage.errors.loginRequired'));
+      setShowLoginModal(true);
       return;
     }
     if (!business?.owner_profile_id) {
@@ -422,7 +416,14 @@ export default function BusinessProductPage() {
   if (isLoading) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#0B2641' }}>
-        <NavbarLoggedIn />
+        {user ? (
+          <NavbarLoggedIn onLogout={handleLogout} />
+        ) : (
+          <NavbarLoggedOut 
+            onSignUpClick={() => setShowRegistrationModal(true)}
+            onLoginClick={() => setShowLoginModal(true)}
+          />
+        )}
         <div className="flex items-center justify-center" style={{ minHeight: '70vh' }}>
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="animate-spin text-[#0684F5]" size={40} />
@@ -444,7 +445,14 @@ export default function BusinessProductPage() {
           justifyContent: 'center'
         }}
       >
-        <NavbarLoggedIn />
+        {user ? (
+          <NavbarLoggedIn onLogout={handleLogout} />
+        ) : (
+          <NavbarLoggedOut 
+            onSignUpClick={() => setShowRegistrationModal(true)}
+            onLoginClick={() => setShowLoginModal(true)}
+          />
+        )}
         <div style={{ textAlign: 'center', color: '#FFFFFF', padding: '40px' }}>
           <h1 style={{ fontSize: '24px', marginBottom: '16px' }}>{t('businessProductPage.notFound.title')}</h1>
           {loadError && (
@@ -470,7 +478,14 @@ export default function BusinessProductPage() {
 
   return (
     <div className="product-page" style={{ minHeight: '100vh', backgroundColor: '#0B2641' }}>
-      <NavbarLoggedIn />
+      {user ? (
+        <NavbarLoggedIn onLogout={handleLogout} />
+      ) : (
+        <NavbarLoggedOut 
+          onSignUpClick={() => setShowRegistrationModal(true)}
+          onLoginClick={() => setShowLoginModal(true)}
+        />
+      )}
 
       <style>{`
         @media (max-width: 1024px) {
@@ -1169,21 +1184,34 @@ export default function BusinessProductPage() {
             <div>
               {activeTab === 'description' && (
                 <div>
-                  <p style={{ fontSize: '15px', color: '#CBD5E1', lineHeight: 1.7, marginBottom: '24px' }}>
-                    {product.description || t('businessProductPage.longDescription.overviewFallback')}
-                  </p>
-                  
-                  {/* Long Description with HTML */}
-                  <div
-                    style={{ fontSize: '15px', color: '#CBD5E1', lineHeight: 1.7 }}
-                    dangerouslySetInnerHTML={{
-                      __html: longDescription
-                        .replace(/<h3>/g, '<h3 style="font-size: 18px; font-weight: 600; color: #E2E8F0; margin: 24px 0 12px;">')
-                        .replace(/<ul>/g, '<ul style="margin-left: 20px; margin-bottom: 16px;">')
-                        .replace(/<li>/g, '<li style="margin-bottom: 8px;">')
-                        .replace(/<p>/g, '<p style="margin-bottom: 16px;">')
-                    }}
-                  />
+                  <div className="mb-8">
+                    <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#E2E8F0', marginBottom: '12px' }}>
+                      {t('businessProductPage.longDescription.overviewTitle')}
+                    </h3>
+                    <p style={{ fontSize: '15px', color: '#CBD5E1', lineHeight: 1.7 }}>
+                      {product.description || t('businessProductPage.longDescription.overviewFallback')}
+                    </p>
+                  </div>
+
+                  <div className="mb-8">
+                    <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#E2E8F0', marginBottom: '12px' }}>
+                      {t('businessProductPage.longDescription.whatYouGetTitle')}
+                    </h3>
+                    <ul style={{ marginLeft: '20px', marginBottom: '16px', color: '#CBD5E1' }}>
+                      {(tags.length ? tags.slice(0, 6) : longDescriptionCopy.fallbackList).map((item, idx) => (
+                        <li key={idx} style={{ marginBottom: '8px', fontSize: '15px' }}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="mb-8">
+                    <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#E2E8F0', marginBottom: '12px' }}>
+                      {t('businessProductPage.longDescription.whyItMattersTitle')}
+                    </h3>
+                    <p style={{ fontSize: '15px', color: '#CBD5E1', lineHeight: 1.7 }}>
+                      {t('businessProductPage.longDescription.whyItMattersBody')}
+                    </p>
+                  </div>
 
                   {/* Key Features Grid */}
                   <div style={{ marginTop: '32px' }}>
@@ -1418,6 +1446,22 @@ export default function BusinessProductPage() {
           </div>
         </div>
       </div>
+
+      <ModalRegistrationEntry
+        isOpen={showRegistrationModal}
+        onClose={() => setShowRegistrationModal(false)}
+        onGoogleSignup={handleGoogleSignup}
+        onEmailSignup={handleEmailSignup}
+        onLoginClick={handleSwitchToLogin}
+      />
+
+      <ModalLogin
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onGoogleLogin={handleGoogleLogin}
+        onLoginSuccess={handleLoginSuccess}
+        onSignUpClick={handleSwitchToSignup}
+      />
     </div>
   );
 }

@@ -21,12 +21,12 @@ export default async function handler(req, res) {
 
   const { to, subject, html } = req.body;
   
-  // Use Environment Variable for Security
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  // Using the provided test key directly for verification
+  const resend = new Resend('re_7o32JXYU_4M3NHf6bJyeFyiaKdPWYhacf');
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'Eventra <onboarding@resend.dev>',
+      from: 'Eventra <onboarding@ilab.tn>',
       to: [to],
       subject: subject,
       html: html,

@@ -95,11 +95,8 @@ export default function EventManagementDashboard() {
     { id: 'speakers', label: t('manageEvent.nav.speakers.label'), icon: Mic, description: t('manageEvent.nav.speakers.desc') },
     { id: 'attendees', label: t('manageEvent.nav.attendees.label'), icon: Users, description: t('manageEvent.nav.attendees.desc') },
     { id: 'exhibitors', label: t('manageEvent.nav.exhibitors.label'), icon: Building, description: t('manageEvent.nav.exhibitors.desc') },
-    { id: 'ticketing', label: t('manageEvent.nav.ticketing.label'), icon: Ticket, description: t('manageEvent.nav.ticketing.desc') },
     { id: 'b2b', label: t('manageEvent.nav.b2b.label'), icon: Handshake, description: t('manageEvent.nav.b2b.desc') },
-    { id: 'marketing', label: t('manageEvent.nav.marketing.label'), icon: Megaphone, description: t('manageEvent.nav.marketing.desc') },
-    { id: 'dayof', label: t('manageEvent.nav.dayof.label'), icon: Wrench, description: t('manageEvent.nav.dayof.desc') },
-    { id: 'reporting', label: t('manageEvent.nav.reporting.label'), icon: BarChart3, description: t('manageEvent.nav.reporting.desc') }
+    { id: 'dayof', label: t('manageEvent.nav.dayof.label'), icon: Wrench, description: t('manageEvent.nav.dayof.desc') }
   ];
 
   useEffect(() => {
@@ -368,7 +365,6 @@ export default function EventManagementDashboard() {
           {activeTab === 'b2b' && <EventB2BMatchmakingTab eventId={eventId} />}
           {activeTab === 'marketing' && <EventMarketingTab eventId={eventId} />}
           {activeTab === 'dayof' && <EventDayOfTab eventId={eventId} />}
-          {activeTab === 'reporting' && <EventReportingTab eventId={eventId} />}
         </main>
       </div>
     </div>

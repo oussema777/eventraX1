@@ -55,7 +55,7 @@ import {
   Lightbulb,
   Crown
 } from 'lucide-react';
-import FieldEditorModal from './modals/FieldEditorModal';
+import FieldPropertiesPanel from './FieldPropertiesPanel';
 
 interface FormCard {
   id: string;
@@ -88,6 +88,7 @@ interface CustomField {
   required: boolean;
   options?: string[];
   isPro: boolean;
+  isSystem?: boolean;
 }
 
 interface DbEventFormRow {
@@ -193,7 +194,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
   const [newFormDescription, setNewFormDescription] = useState('');
 
   // Form Builder States
-  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+
   const [formFields, setFormFields] = useState<CustomField[]>([]);
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -259,6 +260,29 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
     const k = card.formKey ? String(card.formKey) : null;
     if (k && formsByKey.has(k)) return formsByKey.get(k) || null;
 
+    // Default fields for registration
+    let initialFields: CustomField[] = [];
+    if (k === 'default_registration') {
+      initialFields = [
+        {
+          id: 'default-name',
+          type: 'text',
+          label: t('wizard.step3.customForms.defaults.registration.fields.fullName') || 'Full Name',
+          required: true,
+          isPro: false,
+          isSystem: true
+        },
+        {
+          id: 'default-email',
+          type: 'email',
+          label: t('wizard.step3.customForms.defaults.registration.fields.email') || 'Email Address',
+          required: true,
+          isPro: false,
+          isSystem: true
+        }
+      ];
+    }
+
     const payload: any = {
       event_id: eventId,
       form_key: k,
@@ -270,7 +294,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
       is_template: !!card.isTemplate,
       is_free: card.isFree !== false,
       is_pro: !!card.isPro,
-      schema: { fields: [] }
+      schema: { fields: initialFields }
     };
 
     try {
@@ -387,7 +411,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
     return () => {
       if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     };
-  }, [showFormBuilder, currentFormRow?.id, builderTitle, builderDescription, builderType, customFields]);
+  }, [showFormBuilder, currentFormRow?.id, builderTitle, builderDescription, builderType, formFields]);
 
   const closeBuilder = async () => {
     try {
@@ -468,7 +492,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
       isPro: fieldType.isPro
     };
 
-    setCustomFields([...customFields, newField]);
+    setFormFields([...formFields, newField]);
   };
 
   const handleEditField = (field: CustomField) => {
@@ -477,12 +501,12 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
   };
 
   const handleSaveField = (updatedField: CustomField) => {
-    setCustomFields(prev => prev.map(f => (f.id === updatedField.id ? updatedField : f)));
-    setIsEditorOpen(false);
+    setFormFields(prev => prev.map(f => (f.id === updatedField.id ? updatedField : f)));
+    setEditingField(updatedField);
   };
 
   const handleDeleteField = (fieldId: string) => {
-    setCustomFields(prev => prev.filter(f => f.id !== fieldId));
+    setFormFields(prev => prev.filter(f => f.id !== fieldId));
   };
 
   const handleDragStart = (fieldId: string) => {
@@ -493,16 +517,16 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
     e.preventDefault();
     if (!draggedField || draggedField === targetFieldId) return;
 
-    const draggedIndex = customFields.findIndex(f => f.id === draggedField);
-    const targetIndex = customFields.findIndex(f => f.id === targetFieldId);
+    const draggedIndex = formFields.findIndex(f => f.id === draggedField);
+    const targetIndex = formFields.findIndex(f => f.id === targetFieldId);
 
     if (draggedIndex === -1 || targetIndex === -1) return;
 
-    const newFields = [...customFields];
+    const newFields = [...formFields];
     const [removed] = newFields.splice(draggedIndex, 1);
     newFields.splice(targetIndex, 0, removed);
 
-    setCustomFields(newFields);
+    setFormFields(newFields);
   };
 
   const handleDragEnd = () => {
@@ -1064,170 +1088,188 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
         {/* Form Builder Split View */}
         <div className="max-w-[1400px] mx-auto px-10 builder-layout-container">
           <div className="builder-layout flex gap-6">
-            {/* Left Panel - Field Library */}
+            {/* Left Panel - Field Library or Properties Panel */}
             <div className="builder-sidebar w-80 flex-shrink-0">
-              <div className="builder-sidebar-inner rounded-xl p-6 sticky top-6" style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <h3 className="text-lg mb-4" style={{ fontWeight: 600, color: '#FFFFFF' }}>
-                  {t('wizard.step3.customForms.builder.fieldLibrary.title')}
-                </h3>
-                <p className="text-sm mb-6" style={{ color: '#94A3B8' }}>
-                  {t('wizard.step3.customForms.builder.fieldLibrary.subtitle')}
-                </p>
+              <div className="builder-sidebar-inner rounded-xl p-6 sticky top-6" style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', height: 'calc(100vh - 140px)', overflowY: 'auto' }}>
+                {showFieldEditor && editingField ? (
+                  <FieldPropertiesPanel
+                    field={editingField}
+                    onSave={handleSaveField}
+                    onDelete={() => {
+                      if (editingField) handleDeleteField(editingField.id);
+                      setShowFieldEditor(false);
+                      setEditingField(null);
+                    }}
+                    onClose={() => {
+                      setShowFieldEditor(false);
+                      setEditingField(null);
+                    }}
+                  />
+                ) : (
+                  <>
+                    <h3 className="text-lg mb-4" style={{ fontWeight: 600, color: '#FFFFFF' }}>
+                      {t('wizard.step3.customForms.builder.fieldLibrary.title')}
+                    </h3>
+                    <p className="text-sm mb-6" style={{ color: '#94A3B8' }}>
+                      {t('wizard.step3.customForms.builder.fieldLibrary.subtitle')}
+                    </p>
 
-                {/* Field Categories */}
-                <div className="space-y-6">
-                  {/* Basic Fields */}
-                  <div>
-                    <h4 className="text-xs mb-3" style={{ fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      {t('wizard.step3.customForms.builder.categories.basic')}
-                    </h4>
-                    <div className="space-y-2">
-                      {[
-                        { icon: Type, label: t('wizard.step3.customForms.builder.fieldLabels.shortText'), type: 'text' },
-                        { icon: AlignLeft, label: t('wizard.step3.customForms.builder.fieldLabels.longText'), type: 'textarea' },
-                        { icon: Mail, label: t('wizard.step3.customForms.builder.fieldLabels.email'), type: 'email' },
-                        { icon: Phone, label: t('wizard.step3.customForms.builder.fieldLabels.phone'), type: 'phone' },
-                        { icon: Hash, label: t('wizard.step3.customForms.builder.fieldLabels.number'), type: 'number' },
-                        { icon: Calendar, label: t('wizard.step3.customForms.builder.fieldLabels.date'), type: 'date' }
-                      ].map((field, idx) => {
-                        const FieldIcon = field.icon;
-                        return (
-                          <div
-                            key={idx}
-                            draggable
-                            onDragStart={(e) => {
-                              e.dataTransfer.setData('fieldType', field.type);
-                              e.dataTransfer.effectAllowed = 'copy';
-                            }}
-                            className="flex items-center gap-3 p-3 rounded-lg border cursor-move transition-all hover:border-blue-400"
-                            style={{ borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.03)' }}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(6,132,245,0.1)'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'}
-                          >
-                            <GripVertical size={16} style={{ color: '#9CA3AF' }} />
-                            <FieldIcon size={18} style={{ color: '#0684F5' }} />
-                            <span className="text-sm" style={{ fontWeight: 500, color: '#FFFFFF' }}>
-                              {field.label}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                    {/* Field Categories */}
+                    <div className="space-y-6">
+                      {/* Basic Fields */}
+                      <div>
+                        <h4 className="text-xs mb-3" style={{ fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          {t('wizard.step3.customForms.builder.categories.basic')}
+                        </h4>
+                        <div className="space-y-2">
+                          {[
+                            { icon: Type, label: t('wizard.step3.customForms.builder.fieldLabels.shortText'), type: 'text' },
+                            { icon: AlignLeft, label: t('wizard.step3.customForms.builder.fieldLabels.longText'), type: 'textarea' },
+                            { icon: Mail, label: t('wizard.step3.customForms.builder.fieldLabels.email'), type: 'email' },
+                            { icon: Phone, label: t('wizard.step3.customForms.builder.fieldLabels.phone'), type: 'phone' },
+                            { icon: Hash, label: t('wizard.step3.customForms.builder.fieldLabels.number'), type: 'number' },
+                            { icon: Calendar, label: t('wizard.step3.customForms.builder.fieldLabels.date'), type: 'date' }
+                          ].map((field, idx) => {
+                            const FieldIcon = field.icon;
+                            return (
+                              <div
+                                key={idx}
+                                draggable
+                                onDragStart={(e) => {
+                                  e.dataTransfer.setData('fieldType', field.type);
+                                  e.dataTransfer.effectAllowed = 'copy';
+                                }}
+                                className="flex items-center gap-3 p-3 rounded-lg border cursor-move transition-all hover:border-blue-400"
+                                style={{ borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.03)' }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(6,132,245,0.1)'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'}
+                              >
+                                <GripVertical size={16} style={{ color: '#9CA3AF' }} />
+                                <FieldIcon size={18} style={{ color: '#0684F5' }} />
+                                <span className="text-sm" style={{ fontWeight: 500, color: '#FFFFFF' }}>
+                                  {field.label}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
 
-                  {/* Choice Fields */}
-                  <div>
-                    <h4 className="text-xs mb-3" style={{ fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      {t('wizard.step3.customForms.builder.categories.choice')}
-                    </h4>
-                    <div className="space-y-2">
-                      {[
-                        { icon: ChevronDown, label: t('wizard.step3.customForms.builder.fieldLabels.dropdown'), type: 'dropdown' },
-                        { icon: Circle, label: t('wizard.step3.customForms.builder.fieldLabels.multipleChoice'), type: 'radio' },
-                        { icon: CheckSquare, label: t('wizard.step3.customForms.builder.fieldLabels.checkboxes'), type: 'checkbox' }
-                      ].map((field, idx) => {
-                        const FieldIcon = field.icon;
-                        return (
-                          <div
-                            key={idx}
-                            draggable
-                            onDragStart={(e) => {
-                              e.dataTransfer.setData('fieldType', field.type);
-                              e.dataTransfer.effectAllowed = 'copy';
-                            }}
-                            className="flex items-center gap-3 p-3 rounded-lg border cursor-move transition-all hover:border-blue-400"
-                            style={{ borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.03)' }}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(6,132,245,0.1)'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'}
-                          >
-                            <GripVertical size={16} style={{ color: '#9CA3AF' }} />
-                            <FieldIcon size={18} style={{ color: '#0684F5' }} />
-                            <span className="text-sm" style={{ fontWeight: 500, color: '#FFFFFF' }}>
-                              {field.label}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                      {/* Choice Fields */}
+                      <div>
+                        <h4 className="text-xs mb-3" style={{ fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          {t('wizard.step3.customForms.builder.categories.choice')}
+                        </h4>
+                        <div className="space-y-2">
+                          {[
+                            { icon: ChevronDown, label: t('wizard.step3.customForms.builder.fieldLabels.dropdown'), type: 'dropdown' },
+                            { icon: Circle, label: t('wizard.step3.customForms.builder.fieldLabels.multipleChoice'), type: 'radio' },
+                            { icon: CheckSquare, label: t('wizard.step3.customForms.builder.fieldLabels.checkboxes'), type: 'checkbox' }
+                          ].map((field, idx) => {
+                            const FieldIcon = field.icon;
+                            return (
+                              <div
+                                key={idx}
+                                draggable
+                                onDragStart={(e) => {
+                                  e.dataTransfer.setData('fieldType', field.type);
+                                  e.dataTransfer.effectAllowed = 'copy';
+                                }}
+                                className="flex items-center gap-3 p-3 rounded-lg border cursor-move transition-all hover:border-blue-400"
+                                style={{ borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.03)' }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(6,132,245,0.1)'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'}
+                              >
+                                <GripVertical size={16} style={{ color: '#9CA3AF' }} />
+                                <FieldIcon size={18} style={{ color: '#0684F5' }} />
+                                <span className="text-sm" style={{ fontWeight: 500, color: '#FFFFFF' }}>
+                                  {field.label}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
 
-                  {/* Advanced Fields */}
-                  <div>
-                    <h4 className="text-xs mb-3" style={{ fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      {t('wizard.step3.customForms.builder.categories.advanced')}
-                    </h4>
-                    <div className="space-y-2">
-                      {[
-                        { icon: Upload, label: t('wizard.step3.customForms.builder.fieldLabels.fileUpload'), type: 'file' },
-                        { icon: Globe, label: t('wizard.step3.customForms.builder.fieldLabels.websiteUrl'), type: 'url' },
-                        { icon: MapPin, label: t('wizard.step3.customForms.builder.fieldLabels.address'), type: 'address' }
-                      ].map((field, idx) => {
-                        const FieldIcon = field.icon;
-                        const isPROLocked = !hasPro;
-                        return (
-                          <div
-                            key={idx}
-                            draggable={!isPROLocked}
-                            onDragStart={(e) => {
-                              if (!isPROLocked) {
-                                e.dataTransfer.setData('fieldType', field.type);
-                                e.dataTransfer.effectAllowed = 'copy';
-                              }
-                            }}
-                            onClick={() => {
-                              if (isPROLocked) {
-                                setShowUpgradeModal(true);
-                              }
-                            }}
-                            className="relative flex items-center gap-3 p-3 rounded-lg border transition-all"
-                            style={{ 
-                              borderColor: 'rgba(255,255,255,0.1)',
-                              backgroundColor: 'rgba(255,255,255,0.03)',
-                              cursor: isPROLocked ? 'pointer' : 'move',
-                              opacity: isPROLocked ? 0.6 : 1
-                            }}
-                          >
-                            <GripVertical size={16} style={{ color: '#9CA3AF' }} />
-                            <FieldIcon size={18} style={{ color: '#0684F5' }} />
-                            <div className="flex-1 flex items-center justify-between">
-                              <span className="text-sm" style={{ fontWeight: 500, color: '#FFFFFF' }}>
-                                {field.label}
-                              </span>
-                              <span
-                                className="px-2 py-0.5 rounded text-xs ml-2"
-                                style={{
-                                  backgroundColor: '#FEF3C7',
-                                  color: '#F59E0B',
-                                  fontWeight: 700
+                      {/* Advanced Fields */}
+                      <div>
+                        <h4 className="text-xs mb-3" style={{ fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          {t('wizard.step3.customForms.builder.categories.advanced')}
+                        </h4>
+                        <div className="space-y-2">
+                          {[
+                            { icon: Upload, label: t('wizard.step3.customForms.builder.fieldLabels.fileUpload'), type: 'file' },
+                            { icon: Globe, label: t('wizard.step3.customForms.builder.fieldLabels.websiteUrl'), type: 'url' },
+                            { icon: MapPin, label: t('wizard.step3.customForms.builder.fieldLabels.address'), type: 'address' }
+                          ].map((field, idx) => {
+                            const FieldIcon = field.icon;
+                            const isPROLocked = !hasPro;
+                            return (
+                              <div
+                                key={idx}
+                                draggable={!isPROLocked}
+                                onDragStart={(e) => {
+                                  if (!isPROLocked) {
+                                    e.dataTransfer.setData('fieldType', field.type);
+                                    e.dataTransfer.effectAllowed = 'copy';
+                                  }
+                                }}
+                                onClick={() => {
+                                  if (isPROLocked) {
+                                    setShowUpgradeModal(true);
+                                  }
+                                }}
+                                className="relative flex items-center gap-3 p-3 rounded-lg border transition-all"
+                                style={{ 
+                                  borderColor: 'rgba(255,255,255,0.1)',
+                                  backgroundColor: 'rgba(255,255,255,0.03)',
+                                  cursor: isPROLocked ? 'pointer' : 'move',
+                                  opacity: isPROLocked ? 0.6 : 1
                                 }}
                               >
-                                {t('wizard.step3.customForms.badges.pro')}
-                              </span>
-                            </div>
-                            {isPROLocked && (
-                              <Lock size={14} style={{ color: '#F59E0B' }} />
-                            )}
-                          </div>
-                        );
-                      })}
+                                <GripVertical size={16} style={{ color: '#9CA3AF' }} />
+                                <FieldIcon size={18} style={{ color: '#0684F5' }} />
+                                <div className="flex-1 flex items-center justify-between">
+                                  <span className="text-sm" style={{ fontWeight: 500, color: '#FFFFFF' }}>
+                                    {field.label}
+                                  </span>
+                                  <span
+                                    className="px-2 py-0.5 rounded text-xs ml-2"
+                                    style={{
+                                      backgroundColor: '#FEF3C7',
+                                      color: '#F59E0B',
+                                      fontWeight: 700
+                                    }}
+                                  >
+                                    {t('wizard.step3.customForms.badges.pro')}
+                                  </span>
+                                </div>
+                                {isPROLocked && (
+                                  <Lock size={14} style={{ color: '#F59E0B' }} />
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
 
-                {/* Quick Tips */}
-                <div className="mt-6 p-4 rounded-lg" style={{ backgroundColor: 'rgba(6,132,245,0.1)' }}>
-                  <div className="flex gap-2 mb-2">
-                    <Lightbulb size={18} style={{ color: '#0684F5' }} />
-                    <h4 className="text-sm" style={{ fontWeight: 600, color: '#FFFFFF' }}>
-                      {t('wizard.step3.customForms.builder.quickTips.title')}
-                    </h4>
-                  </div>
-                  <ul className="text-xs space-y-1.5" style={{ color: '#94A3B8' }}>
-                    <li>{t('wizard.step3.customForms.builder.quickTips.items.drag')}</li>
-                    <li>{t('wizard.step3.customForms.builder.quickTips.items.edit')}</li>
-                    <li>{t('wizard.step3.customForms.builder.quickTips.items.reorder')}</li>
-                  </ul>
-                </div>
+                    {/* Quick Tips */}
+                    <div className="mt-6 p-4 rounded-lg" style={{ backgroundColor: 'rgba(6,132,245,0.1)' }}>
+                      <div className="flex gap-2 mb-2">
+                        <Lightbulb size={18} style={{ color: '#0684F5' }} />
+                        <h4 className="text-sm" style={{ fontWeight: 600, color: '#FFFFFF' }}>
+                          {t('wizard.step3.customForms.builder.quickTips.title')}
+                        </h4>
+                      </div>
+                      <ul className="text-xs space-y-1.5" style={{ color: '#94A3B8' }}>
+                        <li>{t('wizard.step3.customForms.builder.quickTips.items.drag')}</li>
+                        <li>{t('wizard.step3.customForms.builder.quickTips.items.edit')}</li>
+                        <li>{t('wizard.step3.customForms.builder.quickTips.items.reorder')}</li>
+                      </ul>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -1374,27 +1416,40 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                         >
                           {/* Field Controls */}
                           <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => {
-                                setEditingField(field);
-                                setShowFieldEditor(true);
-                              }}
-                              className="w-9 h-9 rounded-lg flex items-center justify-center transition-all hover:scale-105"
-                              style={{ backgroundColor: 'rgba(6,132,245,0.1)', color: '#0684F5' }}
-                              title={t('wizard.step3.customForms.builder.fieldActions.editProperties')}
-                            >
-                              <Edit2 size={18} />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setFormFields(formFields.filter(f => f.id !== field.id));
-                              }}
-                              className="w-9 h-9 rounded-lg flex items-center justify-center transition-all hover:scale-105"
-                              style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#EF4444' }}
-                              title={t('wizard.step3.customForms.builder.fieldActions.deleteField')}
-                            >
-                              <Trash2 size={18} />
-                            </button>
+                            {!field.isSystem && (
+                              <button
+                                onClick={() => {
+                                  setEditingField(field);
+                                  setShowFieldEditor(true);
+                                }}
+                                className="w-9 h-9 rounded-lg flex items-center justify-center transition-all hover:scale-105"
+                                style={{ backgroundColor: 'rgba(6,132,245,0.1)', color: '#0684F5' }}
+                                title={t('wizard.step3.customForms.builder.fieldActions.editProperties')}
+                              >
+                                <Edit2 size={18} />
+                              </button>
+                            )}
+                            {!field.isSystem && (
+                              <button
+                                onClick={() => {
+                                  setFormFields(formFields.filter(f => f.id !== field.id));
+                                }}
+                                className="w-9 h-9 rounded-lg flex items-center justify-center transition-all hover:scale-105"
+                                style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#EF4444' }}
+                                title={t('wizard.step3.customForms.builder.fieldActions.deleteField')}
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            )}
+                            {field.isSystem && (
+                              <div
+                                className="w-9 h-9 rounded-lg flex items-center justify-center"
+                                style={{ backgroundColor: 'rgba(255,255,255,0.05)', cursor: 'not-allowed' }}
+                                title={t('wizard.step3.customForms.builder.fieldActions.systemLocked')}
+                              >
+                                <Lock size={16} style={{ color: '#94A3B8' }} />
+                              </div>
+                            )}
                             <div
                               className="cursor-move w-9 h-9 rounded-lg flex items-center justify-center"
                               style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
@@ -1423,18 +1478,33 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                                 {t('wizard.step3.customForms.badges.pro')}
                                 </span>
                               )}
+                              {field.isSystem && (
+                                <span
+                                  className="px-2 py-0.5 rounded text-xs flex items-center gap-1"
+                                  style={{
+                                    backgroundColor: 'rgba(255,255,255,0.1)',
+                                    color: '#94A3B8',
+                                    fontWeight: 600
+                                  }}
+                                >
+                                  <Lock size={10} />
+                                  Default
+                                </span>
+                              )}
                             </label>
-                            <button
-                              onClick={() => {
-                                setEditingField(field);
-                                setShowFieldEditor(true);
-                              }}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity w-7 h-7 rounded flex items-center justify-center hover:bg-blue-500/10"
-                              title={t('wizard.step3.customForms.builder.fieldActions.editSettings')}
-                              style={{ color: '#0684F5' }}
-                            >
-                              <Pencil size={16} />
-                            </button>
+                            {!field.isSystem && (
+                              <button
+                                onClick={() => {
+                                  setEditingField(field);
+                                  setShowFieldEditor(true);
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity w-7 h-7 rounded flex items-center justify-center hover:bg-blue-500/10"
+                                title={t('wizard.step3.customForms.builder.fieldActions.editSettings')}
+                                style={{ color: '#0684F5' }}
+                              >
+                                <Pencil size={16} />
+                              </button>
+                            )}
                           </div>
                           
                           {/* Help Text */}
@@ -1631,25 +1701,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
           </div>
         </div>
 
-      {/* Field Editor Modal */}
-      {showFieldEditor && editingField && (
-        <FieldEditorModal
-          isOpen={showFieldEditor}
-          onClose={() => {
-            setShowFieldEditor(false);
-            setEditingField(null);
-          }}
-          onSave={(updatedField) => {
-            setFormFields((prev) => prev.map((f) => (f.id === updatedField.id ? updatedField : f)));
-          }}
-          onDelete={() => {
-            if (editingField) setFormFields((prev) => prev.filter((f) => f.id !== editingField.id));
-            setShowFieldEditor(false);
-            setEditingField(null);
-          }}
-          field={editingField}
-        />
-      )}
+
 
       </div>
     );
@@ -2066,27 +2118,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
         </div>
       )}
 
-      {/* Field Editor Modal */}
-      {showFieldEditor && editingField && (
-        <FieldEditorModal
-          isOpen={showFieldEditor}
-          onClose={() => {
-            setShowFieldEditor(false);
-            setEditingField(null);
-          }}
-          onSave={(updatedField) => {
-            setFormFields(formFields.map(f => 
-              f.id === updatedField.id ? updatedField : f
-            ));
-          }}
-          onDelete={() => {
-            if (editingField) setFormFields(formFields.filter(f => f.id !== editingField.id));
-            setShowFieldEditor(false);
-            setEditingField(null);
-          }}
-          field={editingField}
-        />
-      )}
+
 
       {/* PRO Upgrade Modal */}
       {showUpgradeModal && (

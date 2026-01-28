@@ -1,18 +1,14 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useProfile } from '../../hooks/useProfile';
 import { Loader2 } from 'lucide-react';
-
-// Define allowed admin emails
-const ADMIN_EMAILS = [
-  'admin@eventra.com',
-  'demo@eventra.com', 
-  'marketing@redstart.tn'
-];
+import { isEmailAdmin } from '../../config/admin';
 
 export default function AdminRoute() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  const { profile, isLoading: profileLoading } = useProfile(user?.id);
 
-  if (isLoading) {
+  if (authLoading || (user && profileLoading)) {
     return (
       <div className="h-screen flex items-center justify-center bg-[#0B2641]">
         <Loader2 className="animate-spin text-white" size={40} />
@@ -20,11 +16,10 @@ export default function AdminRoute() {
     );
   }
 
-  // Check if user is logged in and is an admin
-  const isAdmin = user?.email && (
-    ADMIN_EMAILS.includes(user.email) || 
-    user.email.endsWith('@eventra.com') // Allow all domain emails for dev
-  );
+  // Secure authorization check: 
+  // 1. Check if role is 'admin' in database (Secure)
+  // 2. Check if email is in the admin config list (Flexible)
+  const isAdmin = profile?.role === 'admin' || isEmailAdmin(user?.email);
 
   if (!user || !isAdmin) {
     // Redirect unauthorized users to dashboard

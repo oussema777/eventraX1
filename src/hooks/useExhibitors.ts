@@ -12,7 +12,7 @@ export interface Exhibitor {
   phone: string; // db: contact_phone
   website: string; // db: website_url
   description: string;
-  logo?: string; // db: logo_url
+  logo_url?: string; // db: logo_url
   note?: string; // db: notes
   boothLocation?: string; // db: booth_location
 }
@@ -48,7 +48,7 @@ export function useExhibitors(propsEventId?: string) {
           phone: item.contact_phone || '',
           website: item.website_url || '',
           description: item.description || '',
-          logo: item.logo_url,
+          logo_url: item.logo_url,
           note: item.notes,
           boothLocation: item.booth_location
         })));
@@ -80,7 +80,7 @@ export function useExhibitors(propsEventId?: string) {
         contact_phone: exhibitor.phone,
         website_url: exhibitor.website,
         description: exhibitor.description,
-        logo_url: exhibitor.logo,
+        logo_url: exhibitor.logo_url,
         notes: exhibitor.note,
         booth_location: exhibitor.boothLocation
       };
@@ -103,7 +103,7 @@ export function useExhibitors(propsEventId?: string) {
           phone: data.contact_phone || '',
           website: data.website_url || '',
           description: data.description || '',
-          logo: data.logo_url,
+          logo_url: data.logo_url,
           note: data.notes,
           boothLocation: data.booth_location
         };
@@ -126,7 +126,7 @@ export function useExhibitors(propsEventId?: string) {
       if (updates.phone !== undefined) payload.contact_phone = updates.phone;
       if (updates.website !== undefined) payload.website_url = updates.website;
       if (updates.description !== undefined) payload.description = updates.description;
-      if (updates.logo !== undefined) payload.logo_url = updates.logo;
+      if (updates.logo_url !== undefined) payload.logo_url = updates.logo_url;
       if (updates.note !== undefined) payload.notes = updates.note;
       if (updates.boothLocation !== undefined) payload.booth_location = updates.boothLocation;
 

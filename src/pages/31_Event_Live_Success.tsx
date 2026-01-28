@@ -9,6 +9,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
+import { useEventStats } from '../hooks/useEventStats';
 
 // Confetti component for celebration effect
 function ConfettiAnimation() {
@@ -70,6 +71,7 @@ export default function EventLiveSuccess() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const eventId = searchParams.get('eventId');
+  const { baseStats } = useEventStats(eventId || undefined);
 
   // Hide confetti after 4 seconds
   useEffect(() => {
@@ -159,7 +161,7 @@ export default function EventLiveSuccess() {
                 <Users size={24} style={{ color: '#8B5CF6' }} />
               </div>
               <div className="text-3xl mb-1" style={{ fontWeight: 700, color: '#FFFFFF' }}>
-                12
+                {baseStats.speakers}
               </div>
               <div className="text-sm" style={{ color: '#94A3B8' }}>
                 Speakers
@@ -186,7 +188,7 @@ export default function EventLiveSuccess() {
                 <Store size={24} style={{ color: '#0684F5' }} />
               </div>
               <div className="text-3xl mb-1" style={{ fontWeight: 700, color: '#FFFFFF' }}>
-                5
+                {baseStats.exhibitors}
               </div>
               <div className="text-sm" style={{ color: '#94A3B8' }}>
                 Exhibitors
@@ -213,7 +215,7 @@ export default function EventLiveSuccess() {
                 <Calendar size={24} style={{ color: '#10B981' }} />
               </div>
               <div className="text-3xl mb-1" style={{ fontWeight: 700, color: '#FFFFFF' }}>
-                8
+                {baseStats.sessions}
               </div>
               <div className="text-sm" style={{ color: '#94A3B8' }}>
                 Sessions

@@ -89,6 +89,29 @@ export function useSessions(manualEventId?: string) {
       return;
     }
     try {
+      // Conflict Check
+      if (session.venue && session.venue !== 'TBD' && session.venue !== '' && session.startTime && session.endTime) {
+        const start = new Date(session.startTime).getTime();
+        const end = new Date(session.endTime).getTime();
+
+        const { data: conflicts } = await supabase
+          .from('event_sessions')
+          .select('id, title, starts_at, ends_at')
+          .eq('event_id', eventId)
+          .eq('location', session.venue)
+          .neq('status', 'cancelled');
+
+        const conflictingSession = conflicts?.find(s => {
+          const sStart = new Date(s.starts_at).getTime();
+          const sEnd = new Date(s.ends_at).getTime();
+          return (start < sEnd && end > sStart);
+        });
+
+        if (conflictingSession) {
+          throw new Error(`Schedule Conflict: The session "${conflictingSession.title}" is already booked in "${session.venue}" during this time slot.`);
+        }
+      }
+
       // Convert frontend model to DB model
       const dbPayload: any = {
         event_id: eventId,
@@ -115,14 +138,41 @@ export function useSessions(manualEventId?: string) {
       await loadSessions();
       toast.success('Session created');
       return data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating session:', error);
-      toast.error('Failed to create session');
+      toast.error(error.message || 'Failed to create session');
     }
   };
 
   const updateSession = async (id: string, session: Partial<Session>) => {
     try {
+      // Conflict Check (if venue or time is being updated)
+      if ((session.venue || session.startTime || session.endTime) && (session.venue !== 'TBD' && session.venue !== '')) {
+        // For simple update logic, we ensure we have all fields for check or skip
+        if (session.startTime && session.endTime && session.venue) {
+           const start = new Date(session.startTime).getTime();
+           const end = new Date(session.endTime).getTime();
+
+           const { data: conflicts } = await supabase
+            .from('event_sessions')
+            .select('id, title, starts_at, ends_at')
+            .eq('event_id', eventId!)
+            .eq('location', session.venue)
+            .neq('status', 'cancelled');
+
+           const conflictingSession = conflicts?.find(s => {
+            if (s.id === id) return false; // Ignore self
+            const sStart = new Date(s.starts_at).getTime();
+            const sEnd = new Date(s.ends_at).getTime();
+            return (start < sEnd && end > sStart);
+           });
+
+           if (conflictingSession) {
+             throw new Error(`Schedule Conflict: The session "${conflictingSession.title}" is already booked in "${session.venue}" during this time slot.`);
+           }
+        }
+      }
+
       const dbPayload: any = {};
       if (session.title !== undefined) dbPayload.title = session.title;
       if (session.description !== undefined) dbPayload.description = session.description;
@@ -147,9 +197,9 @@ export function useSessions(manualEventId?: string) {
       await loadSessions();
       toast.success('Session updated');
       return data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating session:', error);
-      toast.error('Failed to update session');
+      toast.error(error.message || 'Failed to update session');
     }
   };
 

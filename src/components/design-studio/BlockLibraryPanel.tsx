@@ -566,6 +566,7 @@ export default function BlockLibraryPanel({
 
             {/* Apply Button */}
             <button
+              onClick={() => setShowBrandingSettings(false)}
               style={{
                 width: '100%',
                 height: '40px',

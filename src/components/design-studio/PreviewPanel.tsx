@@ -5,10 +5,8 @@ import {
   Smartphone,
   ZoomIn,
   ZoomOut,
-  Maximize,
   ExternalLink,
-  RotateCcw,
-  Globe
+  RotateCcw
 } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext';
 
@@ -91,22 +89,6 @@ export default function PreviewPanel({ children, activeBlocks = [], brandColor =
     setDevice('desktop');
   };
 
-  const handleFullscreen = () => {
-    const elem = document.getElementById('preview-canvas');
-    if (elem) {
-      // Check if fullscreen is supported and allowed
-      if (elem.requestFullscreen) {
-        elem.requestFullscreen().catch((err) => {
-          console.warn('Fullscreen request failed:', err);
-          // Fallback: Open in new tab instead
-          handlePreviewNewTab();
-        });
-      } else {
-        // Fallback: Open in new tab if fullscreen not supported
-        handlePreviewNewTab();
-      }
-    }
-  };
 
   const handlePreviewNewTab = () => {
     // Save preview data to localStorage
@@ -141,16 +123,6 @@ export default function PreviewPanel({ children, activeBlocks = [], brandColor =
     }
   };
 
-  const handleLivePreview = async () => {
-    if (!eventId) {
-      console.warn('Missing event id for live preview.');
-      return;
-    }
-    const livePort = import.meta.env.VITE_EVENTS_APP_PORT || '3001';
-    const liveUrl = new URL(`${window.location.protocol}//${window.location.hostname}:${livePort}/`);
-    liveUrl.searchParams.set('eventId', eventId);
-    window.open(liveUrl.toString(), '_blank', 'noopener,noreferrer');
-  };
 
   return (
     <div
@@ -322,56 +294,6 @@ export default function PreviewPanel({ children, activeBlocks = [], brandColor =
           {/* Right: Preview Actions */}
           <div style={{ display: 'flex', gap: '6px' }}>
             <button
-              onClick={handleLivePreview}
-              title={t('wizard.designStudio.preview.live')}
-              style={{
-                width: '36px',
-                height: '36px',
-                backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-              }}
-            >
-              <Globe size={16} style={{ color: 'rgba(255, 255, 255, 0.8)' }} />
-            </button>
-
-            <button
-              onClick={handleFullscreen}
-              title={t('wizard.designStudio.preview.fullscreen')}
-              style={{
-                width: '36px',
-                height: '36px',
-                backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                borderRadius: '8px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-              }}
-            >
-              <Maximize size={16} style={{ color: 'rgba(255, 255, 255, 0.8)' }} />
-            </button>
-
-            <button
               onClick={handlePreviewNewTab}
               title={t('wizard.designStudio.preview.newTab')}
               style={{
@@ -432,6 +354,11 @@ export default function PreviewPanel({ children, activeBlocks = [], brandColor =
               fontFamily: getFontFamily(fontFamily)
             }}
           >
+            <style>{`
+              #preview-canvas, #preview-canvas * {
+                font-family: ${getFontFamily(fontFamily)} !important;
+              }
+            `}</style>
             {/* Browser Chrome Mockup */}
             <div
               style={{

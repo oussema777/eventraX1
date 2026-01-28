@@ -41,7 +41,6 @@ export default function ExhibitorsTab({ eventId }: ExhibitorsTabProps) {
 
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showChoiceModal, setShowChoiceModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showFormPreviewModal, setShowFormPreviewModal] = useState(false);
   const [selectedExhibitor, setSelectedExhibitor] = useState<Exhibitor | null>(null);
@@ -201,7 +200,7 @@ export default function ExhibitorsTab({ eventId }: ExhibitorsTabProps) {
 
             {/* Add Exhibitor Button */}
             <button
-              onClick={() => setShowChoiceModal(true)}
+              onClick={() => setShowAddModal(true)}
               className="exhibitors-add-btn"
               style={{
                 height: '44px',
@@ -519,21 +518,6 @@ export default function ExhibitorsTab({ eventId }: ExhibitorsTabProps) {
           </div>
         )}
 
-        {/* Choice Modal - Add Manually or Send Form */}
-        {showChoiceModal && (
-          <AddChoiceModal
-            onClose={() => setShowChoiceModal(false)}
-            onManual={() => {
-              setShowChoiceModal(false);
-              setShowAddModal(true);
-            }}
-            onSendForm={() => {
-              setShowChoiceModal(false);
-              setShowFormPreviewModal(true);
-            }}
-          />
-        )}
-
         {/* Add/Edit Modal */}
         {showAddModal && (
           <AddExhibitorModal
@@ -768,180 +752,6 @@ function getStatusBadgeStyle(status: string) {
   return styles[status as keyof typeof styles] || styles.pending;
 }
 
-// Add Choice Modal Component
-function AddChoiceModal({ 
-  onClose, 
-  onManual, 
-  onSendForm 
-}: { 
-  onClose: () => void;
-  onManual: () => void;
-  onSendForm: () => void;
-}) {
-  const { t } = useI18n();
-
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-        padding: '20px'
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          width: 'min(600px, 92vw)',
-          backgroundColor: '#FFFFFF',
-          borderRadius: '12px',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.3)',
-          overflow: 'hidden'
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Modal Header */}
-        <div style={{ 
-          padding: '24px', 
-          borderBottom: '1px solid #E5E7EB'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <h2 style={{ fontSize: '24px', fontWeight: 600, color: '#0B2641', marginBottom: '4px' }}>
-                {t('wizard.step3.exhibitors.addChoice.title')}
-              </h2>
-              <p style={{ fontSize: '14px', color: '#6B7280' }}>
-                {t('wizard.step3.exhibitors.addChoice.subtitle')}
-              </p>
-            </div>
-            <button
-              onClick={onClose}
-              style={{
-                width: '32px',
-                height: '32px',
-                border: 'none',
-                backgroundColor: 'transparent',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '6px',
-                transition: 'background-color 0.2s'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F3F4F6'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-            >
-              <X size={20} style={{ color: '#6B7280' }} />
-            </button>
-          </div>
-        </div>
-
-        {/* Modal Content */}
-        <div style={{ padding: '32px 24px' }}>
-          <div style={{ display: 'grid', gap: '16px' }}>
-            {/* Manual Option */}
-            <button
-              onClick={onManual}
-              style={{
-                padding: '24px',
-                backgroundColor: '#FFFFFF',
-                border: '2px solid #E5E7EB',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#0684F5';
-                e.currentTarget.style.backgroundColor = '#F0F9FF';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = '#E5E7EB';
-                e.currentTarget.style.backgroundColor = '#FFFFFF';
-              }}
-            >
-              <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-                <div style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '8px',
-                  backgroundColor: '#DBEAFE',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0
-                }}>
-                  <Edit size={24} style={{ color: '#0684F5' }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#0B2641', marginBottom: '4px' }}>
-                    {t('wizard.step3.exhibitors.addChoice.manual.title')}
-                  </h3>
-                  <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: '1.5' }}>
-                    {t('wizard.step3.exhibitors.addChoice.manual.subtitle')}
-                  </p>
-                </div>
-              </div>
-            </button>
-
-            {/* Send Form Option */}
-            <button
-              onClick={onSendForm}
-              style={{
-                padding: '24px',
-                backgroundColor: '#FFFFFF',
-                border: '2px solid #E5E7EB',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#0684F5';
-                e.currentTarget.style.backgroundColor = '#F0F9FF';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = '#E5E7EB';
-                e.currentTarget.style.backgroundColor = '#FFFFFF';
-              }}
-            >
-              <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-                <div style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '8px',
-                  backgroundColor: '#EDE9FE',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0
-                }}>
-                  <Mail size={24} style={{ color: '#8B5CF6' }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#0B2641', marginBottom: '4px' }}>
-                    {t('wizard.step3.exhibitors.addChoice.sendForm.title')}
-                  </h3>
-                  <p style={{ fontSize: '14px', color: '#6B7280', lineHeight: '1.5' }}>
-                    {t('wizard.step3.exhibitors.addChoice.sendForm.subtitle')}
-                  </p>
-                </div>
-              </div>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // Exhibitor Form Preview Modal Component
 function ExhibitorFormPreviewModal({ 
   onClose,
@@ -1148,6 +958,12 @@ function AddExhibitorModal({
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(exhibitor?.logo_url || null);
 
+  const isFormValid = 
+    formData.company.trim() !== '' && 
+    formData.industry.trim() !== '' && 
+    formData.email.trim() !== '' && 
+    formData.status.trim() !== '';
+
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -1158,6 +974,14 @@ function AddExhibitorModal({
       setLogoFile(file);
       setLogoPreview(URL.createObjectURL(file));
     }
+  };
+
+  const handleSubmit = () => {
+    if (!isFormValid) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    onSave(formData, logoFile);
   };
 
   return (
@@ -1539,7 +1363,7 @@ function AddExhibitorModal({
             Cancel
           </button>
           <button
-            onClick={() => onSave(formData, logoFile)}
+            onClick={handleSubmit}
             style={{
               height: '40px',
               padding: '0 20px',
@@ -1549,8 +1373,11 @@ function AddExhibitorModal({
               fontSize: '14px',
               fontWeight: 600,
               color: '#FFFFFF',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              transition: 'all 0.2s'
             }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0570D6'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0684F5'}
           >
             {exhibitor
               ? t('wizard.step3.exhibitors.modal.save')

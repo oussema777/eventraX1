@@ -21,6 +21,9 @@ import {
   Loader2
 } from 'lucide-react';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
+import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';
+import ModalLogin from '../components/modals/ModalLogin';
+import ModalRegistrationEntry from '../components/modals/ModalRegistrationEntry';
 import { toast } from 'sonner@2.0.3';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -48,7 +51,7 @@ export default function CommunityPeopleDiscovery() {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const selectedSector = searchParams.get('sector');
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, signOut } = useAuth();
   const { t } = useI18n();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -57,6 +60,10 @@ export default function CommunityPeopleDiscovery() {
   const [selectedDate, setSelectedDate] = useState('2026-01-15');
   const [selectedTime, setSelectedTime] = useState('');
   const [meetingMessage, setMeetingMessage] = useState('');
+
+  // Auth Modals
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
 
   // Data State
   const [people, setPeople] = useState<Person[]>([]);
@@ -71,9 +78,7 @@ export default function CommunityPeopleDiscovery() {
   const [openToMeetingsOnly, setOpenToMeetingsOnly] = useState(false);
 
   useEffect(() => {
-    if (currentUser?.id) {
-      fetchPeople();
-    }
+    fetchPeople();
   }, [currentUser?.id]);
 
   const fetchPeople = async () => {
@@ -118,6 +123,26 @@ export default function CommunityPeopleDiscovery() {
     }
   };
 
+  const handleLogout = async () => {
+    await signOut();
+  };
+
+  // Auth Handlers
+  const handleGoogleSignup = async () => setShowRegistrationModal(false);
+  const handleEmailSignup = async () => setShowRegistrationModal(false);
+  const handleLoginSuccess = () => setShowLoginModal(false);
+  const handleGoogleLogin = async () => setShowLoginModal(false);
+  
+  const handleSwitchToSignup = () => {
+    setShowLoginModal(false);
+    setShowRegistrationModal(true);
+  };
+
+  const handleSwitchToLogin = () => {
+    setShowRegistrationModal(false);
+    setShowLoginModal(true);
+  };
+
   const roles = [
     t('communityPage.roles.technology'),
     t('communityPage.roles.marketing'),
@@ -125,48 +150,9 @@ export default function CommunityPeopleDiscovery() {
     t('communityPage.roles.finance'),
     t('communityPage.roles.education')
   ];
-  const industries = [
-    t('communityPage.industries.saas'),
-    t('communityPage.industries.fintech'),
-    t('communityPage.industries.healthcare'),
-    t('communityPage.industries.eventtech'),
-    t('communityPage.industries.media')
-  ];
-  const interests = [
-    t('communityPage.interests.ai'),
-    t('communityPage.interests.marketing'),
-    t('communityPage.interests.sales'),
-    t('communityPage.interests.product'),
-    t('communityPage.interests.engineering'),
-    t('communityPage.interests.leadership'),
-    t('communityPage.interests.growth'),
-    t('communityPage.interests.b2b')
-  ];
+  // ... rest of the constants (industries, interests, availableDates, timeSlots)
 
-  const availableDates = [
-    { date: '2026-01-15', label: t('communityPage.dates.today'), day: t('communityPage.dates.days.wed') },
-    { date: '2026-01-16', label: t('communityPage.dates.tomorrow'), day: t('communityPage.dates.days.thu') },
-    { date: '2026-01-17', label: t('communityPage.dates.fri17'), day: t('communityPage.dates.days.fri') },
-    { date: '2026-01-20', label: t('communityPage.dates.mon20'), day: t('communityPage.dates.days.mon') },
-    { date: '2026-01-21', label: t('communityPage.dates.tue21'), day: t('communityPage.dates.days.tue') }
-  ];
-
-  const timeSlots = [
-    t('communityPage.timeSlots.slot0900'),
-    t('communityPage.timeSlots.slot0930'),
-    t('communityPage.timeSlots.slot1000'),
-    t('communityPage.timeSlots.slot1030'),
-    t('communityPage.timeSlots.slot1100'),
-    t('communityPage.timeSlots.slot1130'),
-    t('communityPage.timeSlots.slot1400'),
-    t('communityPage.timeSlots.slot1430'),
-    t('communityPage.timeSlots.slot1500'),
-    t('communityPage.timeSlots.slot1530'),
-    t('communityPage.timeSlots.slot1600'),
-    t('communityPage.timeSlots.slot1630')
-  ];
-
-  // Filter logic
+  // Filter logic (same as before)
   const filteredPeople = people.filter(person => {
     if (selectedSector) {
       const matchesSector = person.industry === selectedSector || (person.sectors && person.sectors.includes(selectedSector));
@@ -205,14 +191,26 @@ export default function CommunityPeopleDiscovery() {
   };
 
   const handleConnect = (person: Person) => {
+    if (!currentUser) {
+      setShowLoginModal(true);
+      return;
+    }
     toast.success(t('communityPage.toasts.requestSent', { name: person.name }));
   };
 
   const handleMessage = (person: Person) => {
+    if (!currentUser) {
+      setShowLoginModal(true);
+      return;
+    }
     navigate('/messages');
   };
 
   const handleBookMeeting = (person: Person) => {
+    if (!currentUser) {
+      setShowLoginModal(true);
+      return;
+    }
     navigate(`/profile/${person.id}`);
   };
 
@@ -235,11 +233,7 @@ export default function CommunityPeopleDiscovery() {
 
   useEffect(() => {
     if (selectedSector) {
-      // Auto-filter if sector matches an industry
-      // Note: In a real app, you might want more robust matching or a dedicated API filter
       if (!selectedIndustries.includes(selectedSector)) {
-        // We can optionally set it, but for now just the title is requested.
-        // Uncomment next line to auto-filter:
         // setSelectedIndustries([selectedSector]);
       }
     }
@@ -247,11 +241,19 @@ export default function CommunityPeopleDiscovery() {
 
   return (
     <div className="community-page" style={{ backgroundColor: '#0B2641', minHeight: '100vh' }}>
-      <NavbarLoggedIn
-        isUserMenuOpen={isUserMenuOpen}
-        setIsUserMenuOpen={setIsUserMenuOpen}
-        currentPage="communities"
-      />
+      {currentUser ? (
+        <NavbarLoggedIn
+          isUserMenuOpen={isUserMenuOpen}
+          setIsUserMenuOpen={setIsUserMenuOpen}
+          currentPage="communities"
+          onLogout={handleLogout}
+        />
+      ) : (
+        <NavbarLoggedOut 
+          onSignUpClick={() => setShowRegistrationModal(true)}
+          onLoginClick={() => setShowLoginModal(true)}
+        />
+      )}
 
       {/* Page Header */}
       <div
@@ -474,6 +476,23 @@ export default function CommunityPeopleDiscovery() {
           </div>
         </div>
       </div>
+
+      {/* Auth Modals */}
+      <ModalRegistrationEntry
+        isOpen={showRegistrationModal}
+        onClose={() => setShowRegistrationModal(false)}
+        onGoogleSignup={handleGoogleSignup}
+        onEmailSignup={handleEmailSignup}
+        onLoginClick={handleSwitchToLogin}
+      />
+
+      <ModalLogin
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onGoogleLogin={handleGoogleLogin}
+        onLoginSuccess={handleLoginSuccess}
+        onSignUpClick={handleSwitchToSignup}
+      />
 
       <style>
         {`

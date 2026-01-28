@@ -6,15 +6,14 @@ import {
   Plus,
   Grid3x3,
   List,
-  Search,
-  Filter,
-  ChevronDown,
   Edit2,
   Eye,
   MoreVertical,
   Mail,
   Trash2,
-  Download
+  Download,
+  Mic,
+  Layers
 } from 'lucide-react';
 import AddEditSpeakerModal from './modals/AddEditSpeakerModal';
 import SpeakerProfileModal from './modals/SpeakerProfileModal';
@@ -143,10 +142,6 @@ export default function SpeakersTab() {
           .speakers-filter-bar { flex-direction: column !important; align-items: stretch !important; gap: 1rem !important; }
           .speakers-filter-tabs { overflow-x: auto !important; padding-bottom: 0.5rem !important; }
           .speakers-filter-tabs button { white-space: nowrap !important; }
-          .speakers-search-controls { flex-direction: column !important; width: 100% !important; }
-          .speakers-search-wrapper { width: 100% !important; }
-          .speakers-other-controls { width: 100% !important; }
-          .speakers-other-controls button { flex: 1 !important; }
           .speakers-grid { grid-template-columns: 1fr !important; }
           .speaker-list-view { overflow-x: auto !important; }
           .speaker-list-inner { min-width: 800px !important; }
@@ -209,69 +204,32 @@ export default function SpeakersTab() {
         </div>
       </div>
 
-      {/* FILTER & SEARCH BAR */}
-      <div className="speakers-filter-bar flex items-center justify-between mb-6">
-        {/* Filter Tabs */}
+      {/* FILTER BAR - Icons Only */}
+      <div className="speakers-filter-bar flex items-center justify-start mb-6">
         <div className="speakers-filter-tabs flex items-center gap-2">
           {[
-            { id: 'all', label: t('manageEvent.speakers.tabs.all') },
-            { id: 'keynote', label: t('manageEvent.speakers.allSpeakers.filters.keynote') },
-            { id: 'panel', label: t('manageEvent.speakers.allSpeakers.filters.panel') },
-            { id: 'workshop', label: t('manageEvent.speakers.allSpeakers.filters.workshop') }
-          ].map((filter) => (
-            <button
-              key={filter.id}
-              onClick={() => setActiveFilter(filter.id as any)}
-              className="px-5 py-2.5 rounded-lg transition-colors"
-              style={{
-                backgroundColor: activeFilter === filter.id ? 'var(--primary)' : 'transparent',
-                color: activeFilter === filter.id ? '#FFFFFF' : '#6B7280',
-                fontWeight: 600
-              }}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Search & Controls */}
-        <div className="speakers-search-controls flex items-center gap-3">
-          {/* Search Input */}
-          <div className="speakers-search-wrapper relative" style={{ width: '320px' }}>
-            <Search 
-              size={18} 
-              style={{ 
-                position: 'absolute',
-                left: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: '#9CA3AF'
-              }}
-            />
-            <input
-              type="text"
-              placeholder={t('manageEvent.speakers.allSpeakers.search')}
-              className="w-full h-11 pl-10 pr-4 rounded-lg border outline-none"
-              style={{ 
-                borderColor: '#E5E7EB',
-                backgroundColor: '#FFFFFF',
-                color: '#0B2641'
-              }}
-            />
-          </div>
-
-          <div className="speakers-other-controls flex items-center gap-3">
-            {/* Filter Button */}
-            <button className="w-11 h-11 rounded-lg border flex items-center justify-center transition-colors hover:bg-gray-50">
-                <Filter size={18} style={{ color: '#6B7280' }} />
-            </button>
-
-            {/* Sort Dropdown */}
-            <button className="flex items-center gap-2 px-4 h-11 rounded-lg border transition-colors hover:bg-gray-50">
-                <span style={{ color: '#6B7280', fontWeight: 500 }}>{t('manageEvent.speakers.allSpeakers.sort', { order: '' })}</span>
-                <ChevronDown size={16} style={{ color: '#6B7280' }} />
-            </button>
-          </div>
+            { id: 'all', icon: Layers, label: t('manageEvent.speakers.tabs.all') },
+            { id: 'keynote', icon: Star, label: t('manageEvent.speakers.allSpeakers.filters.keynote') },
+            { id: 'panel', icon: Mic, label: t('manageEvent.speakers.allSpeakers.filters.panel') },
+            { id: 'workshop', icon: Calendar, label: t('manageEvent.speakers.allSpeakers.filters.workshop') }
+          ].map((filter) => {
+            const Icon = filter.icon;
+            return (
+              <button
+                key={filter.id}
+                onClick={() => setActiveFilter(filter.id as any)}
+                title={filter.label}
+                className="w-11 h-11 rounded-lg flex items-center justify-center transition-all"
+                style={{
+                  backgroundColor: activeFilter === filter.id ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+                  color: activeFilter === filter.id ? '#FFFFFF' : '#94A3B8',
+                  border: activeFilter === filter.id ? 'none' : '1px solid rgba(255,255,255,0.1)'
+                }}
+              >
+                <Icon size={20} />
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -643,45 +601,6 @@ export default function SpeakersTab() {
                 </div>
               );
             })}
-          </div>
-        </div>
-      )}
-
-      {/* BULK ACTIONS BAR */}
-      {selectedSpeakers.size > 0 && (
-        <div 
-          className="speaker-bulk-bar fixed bottom-0 left-0 right-0 p-4 flex items-center justify-between shadow-lg"
-          style={{ 
-            backgroundColor: '#FFFFFF',
-            borderTop: '1px solid #E5E7EB',
-            zIndex: 50
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <span className="text-sm" style={{ color: '#0B2641', fontWeight: 500 }}>
-              {t('manageEvent.speakers.bulk.selected', { count: selectedSpeakers.size })}
-            </span>
-            <button
-              onClick={() => setSelectedSpeakers(new Set())}
-              className="text-xs transition-colors hover:underline"
-              style={{ color: 'var(--primary)', fontWeight: 600 }}
-            >
-              {t('manageEvent.speakers.bulk.deselect')}
-            </button>
-          </div>
-          <div className="speaker-bulk-actions flex items-center gap-2">
-            <button className="speaker-bulk-btn flex items-center gap-2 px-4 h-9 rounded-lg transition-colors hover:bg-gray-50">
-              <Download size={16} style={{ color: '#6B7280' }} />
-              <span className="text-sm" style={{ color: '#6B7280', fontWeight: 600 }}>{t('manageEvent.speakers.bulk.export')}</span>
-            </button>
-            <button className="speaker-bulk-btn flex items-center gap-2 px-4 h-9 rounded-lg transition-colors hover:bg-gray-50">
-              <Mail size={16} style={{ color: '#6B7280' }} />
-              <span className="text-sm" style={{ color: '#6B7280', fontWeight: 600 }}>{t('manageEvent.speakers.bulk.sendEmail')}</span>
-            </button>
-            <button className="speaker-bulk-btn flex items-center gap-2 px-4 h-9 rounded-lg transition-colors hover:bg-red-50">
-              <Trash2 size={16} style={{ color: '#EF4444' }} />
-              <span className="text-sm" style={{ color: '#EF4444', fontWeight: 600 }}>{t('manageEvent.speakers.bulk.delete')}</span>
-            </button>
           </div>
         </div>
       )}

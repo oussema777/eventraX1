@@ -1,6 +1,11 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner@2.0.3';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
+import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';
+import ModalLogin from '../components/modals/ModalLogin';
+import ModalRegistrationEntry from '../components/modals/ModalRegistrationEntry';
+import { useAuth } from '../contexts/AuthContext';
+import { useI18n } from '../i18n/I18nContext';
 
 const LOGISTICS_API_BASE = import.meta.env.VITE_LOGISTICS_API_BASE || '';
 const FREIGHT_EXPORT_ENDPOINT =
@@ -11,6 +16,11 @@ const MODES = ['Air', 'Sea', 'Road'];
 const CARGO_TYPES = ['General', 'Perishable', 'Hazardous', 'Oversized'];
 
 export default function FreightCalculatorPage() {
+  const { user, profile, signOut } = useAuth();
+  const { t } = useI18n();
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   const [mode, setMode] = useState(MODES[0]);
@@ -67,9 +77,42 @@ export default function FreightCalculatorPage() {
     }
   };
 
+  const handleLogout = async () => {
+    await signOut();
+  };
+
+  // Auth Handlers
+  const handleGoogleSignup = async () => setShowRegistrationModal(false);
+  const handleEmailSignup = async () => setShowRegistrationModal(false);
+  const handleLoginSuccess = () => setShowLoginModal(false);
+  const handleGoogleLogin = async () => setShowLoginModal(false);
+  
+  const handleSwitchToSignup = () => {
+    setShowLoginModal(false);
+    setShowRegistrationModal(true);
+  };
+
+  const handleSwitchToLogin = () => {
+    setShowRegistrationModal(false);
+    setShowLoginModal(true);
+  };
+
   return (
     <>
-      <NavbarLoggedIn />
+      {user ? (
+        <NavbarLoggedIn 
+          userName={profile?.full_name || user.user_metadata?.full_name || t('nav.placeholders.userName')}
+          userEmail={user.email}
+          hasUnreadNotifications={true}
+          onLogout={handleLogout}
+        />
+      ) : (
+        <NavbarLoggedOut 
+          onSignUpClick={() => setShowRegistrationModal(true)}
+          onLoginClick={() => setShowLoginModal(true)}
+        />
+      )}
+
       <div style={{ backgroundColor: '#0B2641', minHeight: '100vh', paddingTop: '72px' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px 80px' }}>
           <div className="freight-calc__header" style={{ marginBottom: '24px' }}>
@@ -380,6 +423,23 @@ export default function FreightCalculatorPage() {
           }
         }
       `}</style>
+
+      {/* Auth Modals */}
+      <ModalRegistrationEntry
+        isOpen={showRegistrationModal}
+        onClose={() => setShowRegistrationModal(false)}
+        onGoogleSignup={handleGoogleSignup}
+        onEmailSignup={handleEmailSignup}
+        onLoginClick={handleSwitchToLogin}
+      />
+
+      <ModalLogin
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onGoogleLogin={handleGoogleLogin}
+        onLoginSuccess={handleLoginSuccess}
+        onSignUpClick={handleSwitchToSignup}
+      />
     </>
   );
 }

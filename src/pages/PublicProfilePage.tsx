@@ -35,6 +35,8 @@ import {
 import { useProfile } from '../hooks/useProfile';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';
+import ModalLogin from '../components/modals/ModalLogin';
+import ModalRegistrationEntry from '../components/modals/ModalRegistrationEntry';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { useI18n } from '../i18n/I18nContext';
@@ -42,12 +44,36 @@ import { useI18n } from '../i18n/I18nContext';
 export default function PublicProfilePage() {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, signOut } = useAuth();
   const { t } = useI18n();
   const { profile, isLoading, error } = useProfile(userId);
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [selectedDuration, setSelectedDuration] = useState('30 min');
+
+  // Auth Modals
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+
+  const handleLogout = async () => {
+    await signOut();
+  };
+
+  // Auth Handlers
+  const handleGoogleSignup = async () => setShowRegistrationModal(false);
+  const handleEmailSignup = async () => setShowRegistrationModal(false);
+  const handleLoginSuccess = () => setShowLoginModal(false);
+  const handleGoogleLogin = async () => setShowLoginModal(false);
+  
+  const handleSwitchToSignup = () => {
+    setShowLoginModal(false);
+    setShowRegistrationModal(true);
+  };
+
+  const handleSwitchToLogin = () => {
+    setShowRegistrationModal(false);
+    setShowLoginModal(true);
+  };
 
   if (isLoading) {
     return (
@@ -151,7 +177,14 @@ export default function PublicProfilePage() {
 
   return (
     <div style={{ backgroundColor: '#0B2641', minHeight: '100vh' }}>
-      {currentUser ? <NavbarLoggedIn /> : <NavbarLoggedOut />}
+      {currentUser ? (
+        <NavbarLoggedIn onLogout={handleLogout} />
+      ) : (
+        <NavbarLoggedOut 
+          onSignUpClick={() => setShowRegistrationModal(true)}
+          onLoginClick={() => setShowLoginModal(true)}
+        />
+      )}
 
       <div style={{ paddingTop: '112px', maxWidth: '1200px', margin: '0 auto', padding: '112px 40px 80px' }}>
         
@@ -297,7 +330,13 @@ export default function PublicProfilePage() {
               {!isOwnProfile && (
                 <>
                   <button
-                    onClick={() => setShowMeetingModal(true)}
+                    onClick={() => {
+                      if (!currentUser) {
+                        setShowLoginModal(true);
+                        return;
+                      }
+                      setShowMeetingModal(true);
+                    }}
                     style={{
                       padding: '12px 24px',
                       borderRadius: '8px',
@@ -834,6 +873,23 @@ export default function PublicProfilePage() {
           </div>
         </div>
       )}
+
+      {/* Auth Modals */}
+      <ModalRegistrationEntry
+        isOpen={showRegistrationModal}
+        onClose={() => setShowRegistrationModal(false)}
+        onGoogleSignup={handleGoogleSignup}
+        onEmailSignup={handleEmailSignup}
+        onLoginClick={handleSwitchToLogin}
+      />
+
+      <ModalLogin
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onGoogleLogin={handleGoogleLogin}
+        onLoginSuccess={handleLoginSuccess}
+        onSignUpClick={handleSwitchToSignup}
+      />
     </div>
   );
 }

@@ -1954,125 +1954,7 @@ export default function EventSpeakersTab({ eventId }: { eventId: string }) {
         />
       )}
 
-      {/* BULK ACTIONS BAR */}
-      {selectedSpeakers.size > 0 && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '20px',
-            left: '280px',
-            right: '20px',
-            backgroundColor: '#0684F5',
-            padding: '16px 32px',
-            borderRadius: '12px 12px 0 0',
-            boxShadow: '0px -4px 16px rgba(0,0,0,0.3)',
-            zIndex: 100,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ fontSize: '15px', fontWeight: 500, color: '#FFFFFF' }}>
-              {t('manageEvent.speakers.bulk.selected', { count: selectedSpeakers.size })}
-            </span>
-            <button
-              onClick={() => setSelectedSpeakers(new Set())}
-              style={{
-                padding: '0',
-                border: 'none',
-                background: 'none',
-                color: '#FFFFFF',
-                fontSize: '13px',
-                textDecoration: 'underline',
-                cursor: 'pointer'
-              }}
-            >
-              {t('manageEvent.speakers.bulk.deselect')}
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button
-              onClick={() => openCompose(selectedSpeakerList)}
-              style={{
-                height: '40px',
-                padding: '0 20px',
-                backgroundColor: '#FFFFFF',
-                border: 'none',
-                borderRadius: '8px',
-                color: '#0684F5',
-                fontSize: '14px',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                cursor: 'pointer'
-              }}
-            >
-              <Mail size={16} />
-              {t('manageEvent.speakers.bulk.sendEmail')}
-            </button>
-            <button
-              onClick={() => exportSpeakers(selectedSpeakerList)}
-              style={{
-                height: '40px',
-                padding: '0 20px',
-                backgroundColor: '#FFFFFF',
-                border: 'none',
-                borderRadius: '8px',
-                color: '#10B981',
-                fontSize: '14px',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                cursor: 'pointer'
-              }}
-            >
-              <Download size={16} />
-              {t('manageEvent.speakers.bulk.export')}
-            </button>
-            <button
-              onClick={() => setStatusModalOpen(true)}
-              style={{
-                height: '40px',
-                padding: '0 20px',
-                backgroundColor: 'transparent',
-                border: '1px solid #FFFFFF',
-                borderRadius: '8px',
-                color: '#FFFFFF',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              {t('manageEvent.speakers.bulk.changeStatus')}
-            </button>
-            <button
-              onClick={deleteSelected}
-              style={{
-                height: '40px',
-                padding: '0 20px',
-                backgroundColor: 'transparent',
-                border: '1px solid #EF4444',
-                borderRadius: '8px',
-                color: '#FFFFFF',
-                fontSize: '14px',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                cursor: 'pointer'
-              }}
-            >
-              <Trash2 size={16} />
-              {t('manageEvent.speakers.bulk.delete')}
-            </button>
-          </div>
-        </div>
-      )}
-
+            {/* Modals */}
       {/* FLOATING COMPOSE BUTTON */}
       <button
         onClick={() => openCompose(speakers)}
@@ -2430,13 +2312,13 @@ function SpeakerCard({ speaker, onView, onSelect, isSelected, onContact, onEdit,
             alignItems: 'center',
             gap: '6px',
             padding: '6px 12px',
-            backgroundColor: statusColors[speaker.status].bg,
+            backgroundColor: (statusColors[speaker.status] || statusColors.pending).bg,
             borderRadius: '12px',
             marginBottom: '12px'
           }}
         >
-          <CheckCircle size={12} style={{ color: statusColors[speaker.status].text }} />
-          <span style={{ fontSize: '12px', fontWeight: 500, color: statusColors[speaker.status].text, textTransform: 'capitalize' }}>
+          <CheckCircle size={12} style={{ color: (statusColors[speaker.status] || statusColors.pending).text }} />
+          <span style={{ fontSize: '12px', fontWeight: 500, color: (statusColors[speaker.status] || statusColors.pending).text, textTransform: 'capitalize' }}>
             {speaker.status}
           </span>
         </div>

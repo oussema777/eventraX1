@@ -13,7 +13,6 @@ interface EventBasicDetails {
   venueAddress?: string;
   startDate?: string;
   endDate?: string;
-  timezone?: string;
   maxAttendees?: number;
   hasCapacityLimit: boolean;
   enableWaitlist: boolean;

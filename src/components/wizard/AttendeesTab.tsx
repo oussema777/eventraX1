@@ -1,1121 +1,650 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users,
-  Star,
-  Mic,
-  Camera,
-  Clock,
-  Info,
-  Lock,
-  Edit2,
-  Trash2,
   Plus,
+  Download,
+  Upload,
+  Search,
+  Printer,
+  CreditCard,
+  CheckCircle,
+  Clock,
+  MoreVertical,
+  Calendar,
   X,
-  Crown
+  User,
+  Mail,
+  Ticket,
+  Check,
+  BadgeCheck,
+  ChevronDown,
+  ChevronUp,
+  Save,
+  ArrowLeft
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
-import { useAttendees, Category } from '../../hooks/useAttendees';
-import { useProfile } from '../../hooks/useProfile';
+import { supabase } from '../../lib/supabase';
 import { useI18n } from '../../i18n/I18nContext';
+import BadgeEditorSimple from './BadgeEditorSimple';
 
 interface AttendeesTabProps {
-  eventId?: string;
+  eventId: string;
+}
+
+interface CustomField {
+  id: string;
+  type: string;
+  label: string;
+  required: boolean;
+  options?: string[];
+}
+
+interface Session {
+  id: string;
+  title: string;
+  starts_at: string;
+  ends_at: string;
+}
+
+interface TicketType {
+  id: string;
+  name: string;
+  price: number;
 }
 
 export default function AttendeesTab({ eventId }: AttendeesTabProps) {
-  const navigate = useNavigate();
   const { t } = useI18n();
-  const { profile } = useProfile();
-  const hasPro = !!profile?.has_pro;
-  const planRoute = '/select-plan';
-  const { 
-    categories, 
-    settings, 
-    isLoading, 
-    createCategory, 
-    updateCategory, 
-    deleteCategory, 
-    updateSettings 
-  } = useAttendees(eventId);
+  const navigate = useNavigate();
+  const [attendees, setAttendees] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // View State
+  const [isAdding, setIsAdding] = useState(false);
+  const [isDesigningBadges, setIsDesigningBadges] = useState(false);
+  
+  // Dynamic Data
+  const [formFields, setFormFields] = useState<CustomField[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [tickets, setTickets] = useState<TicketType[]>([]);
+  
+  // New Attendee Form State
+  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set());
+  const [selectedTicketId, setSelectedTicketId] = useState('');
+  const [registrationStatus, setRegistrationStatus] = useState('approved');
+  const [showSessions, setShowSessions] = useState(false);
 
-  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  useEffect(() => {
+    fetchAttendees();
+    fetchEventMetadata();
+  }, [eventId]);
 
-  const [newCategory, setNewCategory] = useState({
-    name: '',
-    description: '',
-    color: '#0684F5',
-    icon: 'Users',
-    assignmentCriteria: 'manual'
-  });
-
-  const getIconComponent = (iconName: string) => {
-    const icons: { [key: string]: any } = {
-      Users,
-      Star,
-      Mic,
-      Camera,
-      Clock
-    };
-    return icons[iconName] || Users;
-  };
-
-  const handleDeleteCategory = async (id: string) => {
+  const fetchAttendees = async () => {
     try {
-      await deleteCategory(id);
-      toast.success(t('wizard.step3.attendees.toasts.categoryDeleted'));
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('event_attendees')
+        .select('*')
+        .eq('event_id', eventId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setAttendees(data || []);
     } catch (error) {
-      toast.error(t('wizard.step3.attendees.toasts.categoryDeleteFailed'));
+      console.error('Error fetching attendees:', error);
+      toast.error(t('manageEvent.attendees.toasts.loadError'));
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSaveCategory = async () => {
-    if (!newCategory.name.trim()) {
-      toast.error(t('wizard.step3.attendees.toasts.categoryNameRequired'));
+  const fetchEventMetadata = async () => {
+    try {
+      // 1. Fetch Form Schema
+      const { data: forms } = await supabase
+        .from('event_forms')
+        .select('*')
+        .eq('event_id', eventId)
+        .eq('status', 'active');
+      
+      const registrationForm = forms?.find(f => f.form_type === 'registration') || forms?.find(f => f.is_default);
+      
+      const defaultFields = [
+        { id: 'full_name', type: 'text', label: 'Full Name', required: true },
+        { id: 'email', type: 'email', label: 'Email Address', required: true }
+      ];
+
+      if (registrationForm?.schema?.fields) {
+        const custom = registrationForm.schema.fields.filter((f: any) => 
+          f.label !== 'Full Name' && f.label !== 'Email Address'
+        );
+        setFormFields([...defaultFields, ...custom]);
+      } else {
+        setFormFields(defaultFields);
+      }
+
+      // 2. Fetch Sessions
+      const { data: sessionData } = await supabase
+        .from('event_sessions')
+        .select('*')
+        .eq('event_id', eventId)
+        .order('starts_at', { ascending: true });
+      setSessions(sessionData || []);
+
+      // 3. Fetch Tickets
+      const { data: ticketData } = await supabase
+        .from('event_tickets')
+        .select('*')
+        .eq('event_id', eventId);
+      setTickets(ticketData || []);
+      if (ticketData && ticketData.length > 0) {
+        setSelectedTicketId(ticketData[0].id);
+      }
+
+    } catch (error) {
+      console.error('Error loading metadata:', error);
+    }
+  };
+
+  const generateConfirmationCode = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = 'EV-';
+    for (let i = 0; i < 6; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  };
+
+  const handleAddAttendee = async () => {
+    const name = formData['Full Name'];
+    const email = formData['Email Address'];
+
+    if (!name || !email) {
+      toast.error('Full Name and Email are required');
+      return;
+    }
+
+    // Email Validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
+    const missing = formFields.filter(f => f.required && !formData[f.label]);
+    if (missing.length > 0) {
+      toast.error(`Missing required field: ${missing[0].label}`);
       return;
     }
 
     try {
-      if (editingCategory) {
-        await updateCategory(editingCategory.id, {
-          name: newCategory.name,
-          description: newCategory.description,
-          color: newCategory.color,
-          icon: newCategory.icon,
-          assignmentCriteria: newCategory.assignmentCriteria
-        });
-        toast.success(t('wizard.step3.attendees.toasts.categoryUpdated'));
-      } else {
-        await createCategory({
-          name: newCategory.name,
-          description: newCategory.description,
-          color: newCategory.color,
-          icon: newCategory.icon,
-          isDefault: false,
-          isActive: true,
-          assignmentCriteria: newCategory.assignmentCriteria
-        });
-        toast.success(t('wizard.step3.attendees.toasts.categoryCreated'));
+      const ticket = tickets.find(t => t.id === selectedTicketId);
+      const confirmationCode = generateConfirmationCode();
+      const metaData = { ...formData, confirmationCode };
+
+      const { data: newAttendee, error } = await supabase
+        .from('event_attendees')
+        .insert([
+          {
+            event_id: eventId,
+            name: name,
+            email: email,
+            ticket_type: ticket?.name || 'General Admission',
+            ticket_color: '#0684F5',
+            price: ticket?.price || 0,
+            status: registrationStatus,
+            checked_in: false,
+            confirmation_code: confirmationCode,
+            meta: metaData
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (selectedSessions.size > 0 && newAttendee) {
+        const sessionInserts = Array.from(selectedSessions).map(sessionId => ({
+          attendee_id: newAttendee.id,
+          session_id: sessionId
+        }));
+        await supabase.from('event_attendee_sessions').insert(sessionInserts);
       }
 
-      setShowAddCategoryModal(false);
-      setEditingCategory(null);
-      setNewCategory({
-        name: '',
-        description: '',
-        color: '#0684F5',
-        icon: 'Users',
-        assignmentCriteria: 'manual'
-      });
+      toast.success('Attendee added successfully');
+      setIsAdding(false);
+      setFormData({});
+      setSelectedSessions(new Set());
+      fetchAttendees();
     } catch (error) {
-      toast.error(t('wizard.step3.attendees.toasts.categorySaveFailed'));
+      console.error('Error adding attendee:', error);
+      toast.error('Failed to add attendee');
     }
   };
 
-  const handleEditCategory = (category: Category) => {
-    setEditingCategory(category);
-    setNewCategory({
-      name: category.name,
-      description: category.description,
-      color: category.color,
-      icon: category.icon,
-      assignmentCriteria: category.assignmentCriteria
-    });
-    setShowAddCategoryModal(true);
+
+  const handleExport = () => {
+    if (attendees.length === 0) {
+      toast.info('No attendees to export');
+      return;
+    }
+    const headers = ['Name', 'Email', 'Ticket Type', 'Status', 'Checked In', 'Confirmation Code'];
+    const csvContent = [
+      headers.join(','),
+      ...attendees.map(a => 
+        `"${a.name}","${a.email}","${a.ticket_type}","${a.status}","${a.checked_in ? 'Yes' : 'No'}","${a.confirmation_code || ''}"`
+      )
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `attendees-${eventId}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    toast.success('Export started');
   };
 
-  const ToggleSwitch = ({ checked, onChange, disabled = false }: { checked: boolean; onChange: (val: boolean) => void; disabled?: boolean }) => (
-    <div
-      onClick={() => !disabled && onChange(!checked)}
-      style={{
-        width: '48px',
-        height: '24px',
-        backgroundColor: checked ? '#0684F5' : 'rgba(107,114,128,0.5)',
-        borderRadius: '12px',
-        position: 'relative',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.5 : 1,
-        transition: 'background-color 0.2s'
-      }}
-    >
-      <div
-        style={{
-          width: '20px',
-          height: '20px',
-          backgroundColor: '#FFFFFF',
-          borderRadius: '50%',
-          position: 'absolute',
-          top: '2px',
-          left: checked ? '26px' : '2px',
-          transition: 'left 0.2s'
-        }}
-      />
-    </div>
+  const filteredAttendees = attendees.filter(a => 
+    a.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    a.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (isLoading) {
-    return <div style={{ padding: '40px', color: '#FFFFFF' }}>{t('wizard.step3.attendees.loading')}</div>;
+  if (isDesigningBadges) {
+    return <BadgeEditorSimple eventId={eventId} onBack={() => setIsDesigningBadges(false)} />;
   }
 
   return (
-    <div style={{ padding: 'clamp(20px, 4vw, 40px) clamp(16px, 4vw, 40px) 80px', backgroundColor: '#0B2641', minHeight: 'calc(100vh - 300px)' }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        
-        {/* PAGE HEADER */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
+    <div className="attendees-tab space-y-8">
+      
+      {/* HEADER SECTION */}
+      <section>
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 style={{ fontSize: '28px', fontWeight: 600, color: '#FFFFFF', marginBottom: '8px' }}>
-              {t('wizard.step3.attendees.title')}
+            <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>
+              Attendee Management
             </h2>
-            <p style={{ fontSize: '16px', color: '#94A3B8' }}>
-              {t('wizard.step3.attendees.subtitle')}
-            </p>
-          </div>
-
-          <button
-            title={t('wizard.step3.attendees.infoTitle')}
-            style={{
-              width: '40px',
-              height: '40px',
-              backgroundColor: 'transparent',
-              border: 'none',
-              borderRadius: '8px',
-              color: '#FFFFFF',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center', 
-              justifyContent: 'center'
-            }}
-          >
-            <Info size={20} />
-          </button>
-        </div>
-
-        {/* SECTION 1: ATTENDEE CATEGORIES */}
-        <div style={{ marginBottom: '40px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
-            <div>
-              <h3 style={{ fontSize: '22px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
-                {t('wizard.step3.attendees.categories.title')}
-              </h3>
-              <p style={{ fontSize: '14px', color: '#94A3B8' }}>
-                {t('wizard.step3.attendees.categories.subtitle')}
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                setEditingCategory(null);
-                setNewCategory({
-                  name: '',
-                  description: '',
-                  color: '#0684F5',
-                  icon: 'Users',
-                  assignmentCriteria: 'manual'
-                });
-                setShowAddCategoryModal(true);
-              }}
-              style={{
-                height: '44px',
-                padding: '0 24px',
-                backgroundColor: '#0684F5',
-                border: 'none',
-                borderRadius: '8px',
-                color: '#FFFFFF',
-                fontSize: '15px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-            >
-              <Plus size={18} />
-              {t('wizard.step3.attendees.categories.addButton')}
-            </button>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
-            {categories.map((category) => {
-              const IconComponent = getIconComponent(category.icon);
-              return (
-                <div
-                  key={category.id}
-                  style={{
-                    backgroundColor: 'rgba(255,255,255,0.05)',
-                    borderRadius: '12px',
-                    border: `1px solid ${category.color}40`,
-                    borderLeft: `4px solid ${category.color}`,
-                    padding: '24px',
-                    position: 'relative',
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                    cursor: 'pointer'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                  onClick={() => handleEditCategory(category)}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                    <div
-                      style={{
-                        width: '48px',
-                        height: '48px',
-                        borderRadius: '12px',
-                        backgroundColor: `${category.color}20`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: category.color
-                      }}
-                    >
-                      <IconComponent size={24} />
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditCategory(category);
-                        }}
-                        style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '8px',
-                          border: 'none',
-                          backgroundColor: 'rgba(255,255,255,0.1)',
-                          color: '#FFFFFF',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteCategory(category.id);
-                        }}
-                        style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '8px',
-                          border: 'none',
-                          backgroundColor: 'rgba(239,68,68,0.1)',
-                          color: '#EF4444',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                  <h4 style={{ fontSize: '18px', fontWeight: 600, color: '#FFFFFF', marginBottom: '8px' }}>
-                    {category.name}
-                  </h4>
-                  <p style={{ fontSize: '14px', color: '#94A3B8', lineHeight: '1.5', minHeight: '42px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                    {category.description || t('wizard.step3.attendees.categories.noDescription')}
-                  </p>
-                  <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '12px', color: '#94A3B8' }}>{t('wizard.step3.attendees.categories.assignment')}:</span>
-                    <span style={{ fontSize: '12px', color: '#FFFFFF', fontWeight: 500, textTransform: 'capitalize' }}>{category.assignmentCriteria}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        
-
-        {/* SECTION 2: ATTENDEE PERMISSIONS */}
-        <div
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.05)',
-            padding: 'clamp(20px, 4vw, 32px)',
-            borderRadius: '12px',
-            border: '1px solid rgba(255,255,255,0.1)',
-            marginBottom: '32px'
-          }}
-        >
-          <div style={{ marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '22px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
-              {t('wizard.step3.attendees.permissions.title')}
-            </h3>
             <p style={{ fontSize: '14px', color: '#94A3B8' }}>
-              {t('wizard.step3.attendees.permissions.subtitle')}
+              Manage your guest list, registrations, and check-ins
             </p>
           </div>
-          <div style={{ width: '100%', height: '1px', backgroundColor: 'rgba(255,255,255,0.1)', marginBottom: '24px' }} />
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {/* Permission 1: Self Check-in */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ flex: 1 }}>
-                <p style={{ fontSize: '16px', fontWeight: 500, color: '#FFFFFF', marginBottom: '4px' }}>
-                  {t('wizard.step3.attendees.permissions.selfCheckin.title')}
-                </p>
-                <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '4px' }}>
-                  {t('wizard.step3.attendees.permissions.selfCheckin.subtitle')}
-                </p>
-                <p style={{ fontSize: '12px', color: '#6B7280', fontStyle: 'italic' }}>
-                  {t('wizard.step3.attendees.permissions.selfCheckin.note')}
-                </p>
-              </div>
-              <ToggleSwitch checked={settings.allowSelfCheckin} onChange={(val) => updateSettings({ allowSelfCheckin: val })} />
-            </div>
-
-            {/* Permission 2: Profile Editing */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: '16px', fontWeight: 500, color: '#FFFFFF', marginBottom: '4px' }}>
-                    {t('wizard.step3.attendees.permissions.profileEditing.title')}
-                  </p>
-                  <p style={{ fontSize: '13px', color: '#94A3B8' }}>
-                    {t('wizard.step3.attendees.permissions.profileEditing.subtitle')}
-                  </p>
-                </div>
-                <ToggleSwitch checked={settings.allowProfileEditing} onChange={(val) => updateSettings({ allowProfileEditing: val })} />
-              </div>
-
-              {settings.allowProfileEditing && (
-                <div style={{ marginLeft: 'clamp(16px, 6vw, 48px)', marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {[
-                    { key: 'contact', label: t('wizard.step3.attendees.permissions.profileEditing.options.contact') },
-                    { key: 'dietary', label: t('wizard.step3.attendees.permissions.profileEditing.options.dietary') },
-                    { key: 'requirements', label: t('wizard.step3.attendees.permissions.profileEditing.options.requirements') },
-                    { key: 'company', label: t('wizard.step3.attendees.permissions.profileEditing.options.company') }
-                  ].map((item) => (
-                    <label key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={settings.profileEditPerms[item.key as keyof typeof settings.profileEditPerms]}
-                        onChange={(e) => updateSettings({
-                          profileEditPerms: { ...settings.profileEditPerms, [item.key]: e.target.checked }
-                        })}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                      />
-                      <span style={{ fontSize: '15px', color: '#FFFFFF' }}>{item.label}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Permission 3: Session Registration */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ flex: 1 }}>
-                <p style={{ fontSize: '16px', fontWeight: 500, color: '#FFFFFF', marginBottom: '4px' }}>
-                  {t('wizard.step3.attendees.permissions.sessionRegistration.title')}
-                </p>
-                <p style={{ fontSize: '13px', color: '#94A3B8' }}>
-                  {t('wizard.step3.attendees.permissions.sessionRegistration.subtitle')}
-                </p>
-              </div>
-              <ToggleSwitch checked={settings.sessionRegistration} onChange={(val) => updateSettings({ sessionRegistration: val })} />
-            </div>
-
-            {/* Permission 4: B2B Networking */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: '16px', fontWeight: 500, color: '#FFFFFF', marginBottom: '4px' }}>
-                    {t('wizard.step3.attendees.permissions.b2b.title')}
-                  </p>
-                  <p style={{ fontSize: '13px', color: '#94A3B8' }}>
-                    {t('wizard.step3.attendees.permissions.b2b.subtitle')}
-                  </p>
-                </div>
-                <ToggleSwitch checked={settings.b2bAccess} onChange={(val) => updateSettings({ b2bAccess: val })} />
-              </div>
-
-              {settings.b2bAccess && (
-                <div style={{ marginLeft: 'clamp(16px, 6vw, 48px)', marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {[
-                    { value: 'all', label: t('wizard.step3.attendees.permissions.b2b.options.all'), checked: true },
-                    { value: 'categories', label: t('wizard.step3.attendees.permissions.b2b.options.categories'), checked: false },
-                    { value: 'approval', label: t('wizard.step3.attendees.permissions.b2b.options.approval'), checked: false }
-                  ].map((option) => (
-                    <label key={option.value} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
-                      <input
-                        type="radio"
-                        name="b2b-access"
-                        defaultChecked={option.checked}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                      />
-                      <span style={{ fontSize: '15px', color: '#FFFFFF' }}>{option.label}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Permission 5: Download Materials */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ flex: 1 }}>
-                <p style={{ fontSize: '16px', fontWeight: 500, color: '#FFFFFF', marginBottom: '4px' }}>
-                  {t('wizard.step3.attendees.permissions.download.title')}
-                </p>
-                <p style={{ fontSize: '13px', color: '#94A3B8' }}>
-                  {t('wizard.step3.attendees.permissions.download.subtitle')}
-                </p>
-              </div>
-              <ToggleSwitch checked={settings.downloadAccess} onChange={(val) => updateSettings({ downloadAccess: val })} />
-            </div>
-
-            {/* Permission 6: Public Directory (PRO) */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <p style={{ fontSize: '16px', fontWeight: 500, color: '#FFFFFF' }}>
-                    {t('wizard.step3.attendees.permissions.publicDirectory.title')}
-                  </p>
-                  <span
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: '12px',
-                      backgroundColor: 'rgba(245,158,11,0.15)',
-                      color: '#F59E0B',
-                      fontSize: '10px',
-                      fontWeight: 600,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                  >
-                    <Crown size={10} />
-                    PRO
-                  </span>
-                </div>
-                <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '4px' }}>
-                  {t('wizard.step3.attendees.permissions.publicDirectory.subtitle')}
-                </p>
-                <button
-                  onClick={() => navigate(planRoute)}
-                  style={{ fontSize: '12px', color: '#F59E0B', textDecoration: 'none', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-                >
-                  {t('wizard.step3.attendees.permissions.publicDirectory.upgrade')}
-                </button>
-              </div>
-              <div style={{ position: 'relative' }}>
-                {!hasPro && (
-                  <Lock size={16} style={{ position: 'absolute', top: '4px', left: '16px', color: '#6B7280', zIndex: 1 }} />
-                )}
-                <ToggleSwitch
-                  checked={settings.publicDirectory}
-                  onChange={(val) => {
-                    if (!hasPro) {
-                      navigate(planRoute);
-                      return;
-                    }
-                    updateSettings({ publicDirectory: val });
-                  }}
-                  disabled={!hasPro}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* SECTION 3: COMMUNICATION PREFERENCES */}
-        <div
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.05)',
-            padding: 'clamp(20px, 4vw, 32px)',
-            borderRadius: '12px',
-            border: '1px solid rgba(255,255,255,0.1)',
-            marginBottom: '32px'
-          }}
-        >
-          <div style={{ marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '22px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
-              {t('wizard.step3.attendees.communication.title')}
-            </h3>
-            <p style={{ fontSize: '14px', color: '#94A3B8' }}>
-              {t('wizard.step3.attendees.communication.subtitle')}
-            </p>
-          </div>
-          <div style={{ width: '100%', height: '1px', backgroundColor: 'rgba(255,255,255,0.1)', marginBottom: '24px' }} />
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {/* Automated Emails */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: '16px', fontWeight: 500, color: '#FFFFFF', marginBottom: '4px' }}>
-                    {t('wizard.step3.attendees.communication.automatedEmails.title')}
-                  </p>
-                  <p style={{ fontSize: '13px', color: '#94A3B8' }}>
-                    {t('wizard.step3.attendees.communication.automatedEmails.subtitle')}
-                  </p>
-                </div>
-                <ToggleSwitch checked={settings.automatedEmails} onChange={(val) => updateSettings({ automatedEmails: val })} />
-              </div>
-
-              {settings.automatedEmails && (
-                <div style={{ marginLeft: 'clamp(16px, 6vw, 48px)', marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {[
-                    {
-                      key: 'registration',
-                      label: t('wizard.step3.attendees.communication.automatedEmails.triggers.registration.label'),
-                      sub: t('wizard.step3.attendees.communication.automatedEmails.triggers.registration.sub')
-                    },
-                    {
-                      key: 'reminder',
-                      label: t('wizard.step3.attendees.communication.automatedEmails.triggers.reminder.label'),
-                      sub: t('wizard.step3.attendees.communication.automatedEmails.triggers.reminder.sub')
-                    },
-                    {
-                      key: 'checkin',
-                      label: t('wizard.step3.attendees.communication.automatedEmails.triggers.checkin.label'),
-                      sub: t('wizard.step3.attendees.communication.automatedEmails.triggers.checkin.sub')
-                    }
-                  ].map((trigger) => (
-                    <div key={trigger.key}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={settings.emailTriggers[trigger.key as keyof typeof settings.emailTriggers]}
-                          onChange={(e) => updateSettings({
-                            emailTriggers: { ...settings.emailTriggers, [trigger.key]: e.target.checked }
-                          })}
-                          style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                        />
-                        <span style={{ fontSize: '14px', color: '#FFFFFF' }}>{trigger.label}</span>
-                      </label>
-                      <p style={{ fontSize: '12px', color: '#94A3B8', marginLeft: '30px' }}>
-                        {trigger.sub}
-                      </p>
-                      <a href="#" style={{ fontSize: '12px', color: '#0684F5', marginLeft: '30px', textDecoration: 'none' }}>
-                        {t('wizard.step3.attendees.communication.automatedEmails.editTemplate')}
-                      </a>
-                    </div>
-                  ))}
-
-                  {/* PRO Trigger */}
-                  <div>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'not-allowed', opacity: 0.6 }}>
-                      <input
-                        type="checkbox"
-                        disabled
-                        style={{ width: '18px', height: '18px' }}
-                      />
-                      <span style={{ fontSize: '14px', color: '#FFFFFF' }}>
-                        {t('wizard.step3.attendees.communication.automatedEmails.triggers.thankYou.label')}
-                      </span>
-                      <span
-                        style={{
-                          padding: '2px 6px',
-                          borderRadius: '8px',
-                          backgroundColor: 'rgba(245,158,11,0.15)',
-                          color: '#F59E0B',
-                          fontSize: '9px',
-                          fontWeight: 600,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '2px'
-                        }}
-                      >
-                        <Crown size={8} />
-                        PRO
-                      </span>
-                    </label>
-                    <p style={{ fontSize: '12px', color: '#94A3B8', marginLeft: '30px' }}>
-                      {t('wizard.step3.attendees.communication.automatedEmails.triggers.thankYou.sub')}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* SMS Notifications (PRO) */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <p style={{ fontSize: '16px', fontWeight: 500, color: '#FFFFFF' }}>
-                    {t('wizard.step3.attendees.communication.sms.title')}
-                  </p>
-                  <span
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: '12px',
-                      backgroundColor: 'rgba(245,158,11,0.15)',
-                      color: '#F59E0B',
-                      fontSize: '10px',
-                      fontWeight: 600,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                  >
-                    <Crown size={10} />
-                    PRO
-                  </span>
-                </div>
-                <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '4px' }}>
-                  {t('wizard.step3.attendees.communication.sms.subtitle')}
-                </p>
-                <button
-                  onClick={() => navigate(planRoute)}
-                  style={{ fontSize: '12px', color: '#F59E0B', textDecoration: 'none', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-                >
-                  {t('wizard.step3.attendees.communication.sms.upgrade')}
-                </button>
-              </div>
-              <div style={{ position: 'relative' }}>
-                {!hasPro && (
-                  <Lock size={16} style={{ position: 'absolute', top: '4px', left: '16px', color: '#6B7280', zIndex: 1 }} />
-                )}
-                <ToggleSwitch
-                  checked={settings.smsNotifications}
-                  onChange={(val) => {
-                    if (!hasPro) {
-                      navigate(planRoute);
-                      return;
-                    }
-                    updateSettings({ smsNotifications: val });
-                  }}
-                  disabled={!hasPro}
-                />
-              </div>
-            </div>
-
-            {/* In-App Notifications */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: '16px', fontWeight: 500, color: '#FFFFFF', marginBottom: '4px' }}>
-                    {t('wizard.step3.attendees.communication.inApp.title')}
-                  </p>
-                  <p style={{ fontSize: '13px', color: '#94A3B8' }}>
-                    {t('wizard.step3.attendees.communication.inApp.subtitle')}
-                  </p>
-                </div>
-                <ToggleSwitch checked={settings.inAppNotifications} onChange={(val) => updateSettings({ inAppNotifications: val })} />
-              </div>
-
-              {settings.inAppNotifications && (
-                <div style={{ marginLeft: '48px', marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {[
-                    { key: 'sessionStart', label: t('wizard.step3.attendees.communication.inApp.options.sessionStart') },
-                    { key: 'scheduleChanges', label: t('wizard.step3.attendees.communication.inApp.options.scheduleChanges') },
-                    { key: 'b2bReminders', label: t('wizard.step3.attendees.communication.inApp.options.b2bReminders') },
-                    { key: 'networking', label: t('wizard.step3.attendees.communication.inApp.options.networking') }
-                  ].map((item) => (
-                    <label key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={settings.inAppTypes[item.key as keyof typeof settings.inAppTypes]}
-                        onChange={(e) => updateSettings({
-                          inAppTypes: { ...settings.inAppTypes, [item.key]: e.target.checked }
-                        })}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                      />
-                      <span style={{ fontSize: '15px', color: '#FFFFFF' }}>{item.label}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* SECTION 4: DATA & PRIVACY SETTINGS */}
-        <div
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.05)',
-            padding: 'clamp(20px, 4vw, 32px)',
-            borderRadius: '12px',
-            border: '1px solid rgba(255,255,255,0.1)',
-            marginBottom: '80px'
-          }}
-        >
-          <div style={{ marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '22px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
-              {t('wizard.step3.attendees.privacy.title')}
-            </h3>
-            <p style={{ fontSize: '14px', color: '#94A3B8' }}>
-              {t('wizard.step3.attendees.privacy.subtitle')}
-            </p>
-          </div>
-          <div style={{ width: '100%', height: '1px', backgroundColor: 'rgba(255,255,255,0.1)', marginBottom: '24px' }} />
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {/* Additional Data Fields */}
-            <div>
-              <p style={{ fontSize: '16px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px' }}>
-                {t('wizard.step3.attendees.privacy.additionalData.title')}
-              </p>
-              <div
-                style={{
-                  backgroundColor: 'rgba(6,132,245,0.08)',
-                  padding: '12px',
-                  borderRadius: '6px',
-                  marginBottom: '16px',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '8px'
-                }}
-              >
-                <Info size={16} style={{ color: '#0684F5', flexShrink: 0, marginTop: '2px' }} />
-                <p style={{ fontSize: '12px', color: '#FFFFFF' }}>
-                  {t('wizard.step3.attendees.privacy.additionalData.note')}
-                </p>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {[
-                  { key: 'companyName', label: t('wizard.step3.attendees.privacy.additionalData.fields.companyName'), sub: '' },
-                  { key: 'jobTitle', label: t('wizard.step3.attendees.privacy.additionalData.fields.jobTitle'), sub: '' },
-                  { key: 'industry', label: t('wizard.step3.attendees.privacy.additionalData.fields.industry'), sub: '' },
-                  { key: 'companySize', label: t('wizard.step3.attendees.privacy.additionalData.fields.companySize'), sub: '' },
-                  { key: 'businessGoals', label: t('wizard.step3.attendees.privacy.additionalData.fields.businessGoals'), sub: '' },
-                  { key: 'linkedin', label: t('wizard.step3.attendees.privacy.additionalData.fields.linkedin'), sub: t('wizard.step3.attendees.privacy.additionalData.fields.linkedinSub') }
-                ].map((field) => (
-                  <div key={field.key}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={settings.additionalData[field.key as keyof typeof settings.additionalData]}
-                        onChange={(e) => updateSettings({
-                          additionalData: { ...settings.additionalData, [field.key]: e.target.checked }
-                        })}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                      />
-                      <span style={{ fontSize: '14px', color: '#FFFFFF' }}>{field.label}</span>
-                    </label>
-                    {field.sub && (
-                      <p style={{ fontSize: '12px', color: '#94A3B8', marginLeft: '30px' }}>
-                        {field.sub}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Data Retention */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ flex: 1 }}>
-                <p style={{ fontSize: '16px', fontWeight: 500, color: '#FFFFFF', marginBottom: '4px' }}>
-                  {t('wizard.step3.attendees.privacy.retention.title')}
-                </p>
-                <p style={{ fontSize: '13px', color: '#94A3B8' }}>
-                  {t('wizard.step3.attendees.privacy.retention.subtitle')}
-                </p>
-              </div>
-              <select
-                defaultValue="1-year"
-                style={{
-                  height: '44px',
-                  padding: '0 16px',
-                  backgroundColor: 'rgba(255,255,255,0.08)',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  borderRadius: '8px',
-                  color: '#FFFFFF',
-                  fontSize: '15px',
-                  minWidth: 'min(200px, 100%)'
-                }}
-              >
-                <option value="30-days">{t('wizard.step3.attendees.privacy.retention.options.days30')}</option>
-                <option value="90-days">{t('wizard.step3.attendees.privacy.retention.options.days90')}</option>
-                <option value="6-months">{t('wizard.step3.attendees.privacy.retention.options.months6')}</option>
-                <option value="1-year">{t('wizard.step3.attendees.privacy.retention.options.year1')}</option>
-                <option value="2-years">{t('wizard.step3.attendees.privacy.retention.options.year2')}</option>
-                <option value="forever">{t('wizard.step3.attendees.privacy.retention.options.forever')}</option>
-              </select>
-            </div>
-
-            {/* GDPR Compliance */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: '16px', fontWeight: 500, color: '#FFFFFF', marginBottom: '4px' }}>
-                    {t('wizard.step3.attendees.privacy.gdpr.title')}
-                  </p>
-                  <p style={{ fontSize: '13px', color: '#94A3B8' }}>
-                    {t('wizard.step3.attendees.privacy.gdpr.subtitle')}
-                  </p>
-                </div>
-                <ToggleSwitch checked={settings.gdprCompliance} onChange={(val) => updateSettings({ gdprCompliance: val })} />
-              </div>
-
-              {settings.gdprCompliance && (
-                <div style={{ marginLeft: 'clamp(16px, 6vw, 48px)', marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {[
-                    { key: 'consent', label: t('wizard.step3.attendees.privacy.gdpr.options.consent') },
-                    { key: 'deletion', label: t('wizard.step3.attendees.privacy.gdpr.options.deletion') },
-                    { key: 'privacy', label: t('wizard.step3.attendees.privacy.gdpr.options.privacy') }
-                  ].map((item) => (
-                    <label key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={settings.gdprSettings[item.key as keyof typeof settings.gdprSettings]}
-                        onChange={(e) => updateSettings({
-                          gdprSettings: { ...settings.gdprSettings, [item.key]: e.target.checked }
-                        })}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                      />
-                      <span style={{ fontSize: '15px', color: '#FFFFFF' }}>{item.label}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Data Export Access */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ flex: 1 }}>
-                <p style={{ fontSize: '16px', fontWeight: 500, color: '#FFFFFF', marginBottom: '4px' }}>
-                  {t('wizard.step3.attendees.privacy.export.title')}
-                </p>
-                <p style={{ fontSize: '13px', color: '#94A3B8' }}>
-                  {t('wizard.step3.attendees.privacy.export.subtitle')}
-                </p>
-              </div>
-              <ToggleSwitch checked={settings.dataExportAccess} onChange={(val) => updateSettings({ dataExportAccess: val })} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ADD/EDIT CATEGORY MODAL */}
-      {showAddCategoryModal && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(11,38,65,0.90)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 200
-          }}
-          onClick={() => {
-            setShowAddCategoryModal(false);
-            setEditingCategory(null);
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: 'min(600px, 92vw)',
-              backgroundColor: '#1E3A5F',
-              borderRadius: '12px',
-              border: '1px solid rgba(255,255,255,0.15)',
-              overflow: 'hidden'
-            }}
-          >
-            <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <h2 style={{ fontSize: '24px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
-                    {editingCategory
-                      ? t('wizard.step3.attendees.categoryModal.editTitle')
-                      : t('wizard.step3.attendees.categoryModal.createTitle')}
-                  </h2>
-                  <p style={{ fontSize: '14px', color: '#94A3B8' }}>
-                    {t('wizard.step3.attendees.categoryModal.subtitle')}
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    setShowAddCategoryModal(false);
-                    setEditingCategory(null);
-                  }}
-                  style={{ background: 'none', border: 'none', color: '#FFFFFF', cursor: 'pointer' }}
-                >
-                  <X size={24} />
-                </button>
-              </div>
-            </div>
-
-            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              {/* Category Name */}
-              <div>
-                <label style={{ fontSize: '14px', fontWeight: 500, color: '#94A3B8', display: 'block', marginBottom: '8px' }}>
-                  {t('wizard.step3.attendees.categoryModal.fields.name')}
-                </label>
+          
+          <div className="flex items-center gap-3">
+             <div className="relative group">
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#0684F5] transition-colors" />
                 <input
                   type="text"
-                  value={newCategory.name}
-                  onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                  placeholder={t('wizard.step3.attendees.categoryModal.fields.namePlaceholder')}
+                  placeholder="Search attendees..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   style={{
-                    width: '100%',
-                    height: '48px',
-                    padding: '0 16px',
-                    backgroundColor: 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    borderRadius: '8px',
-                    color: '#FFFFFF',
-                    fontSize: '15px'
-                  }}
-                />
-                <p style={{ fontSize: '12px', color: '#6B7280', marginTop: '4px', textAlign: 'right' }}>
-                  {newCategory.name.length}/50
-                </p>
-              </div>
-
-              {/* Description */}
-              <div>
-                <label style={{ fontSize: '14px', fontWeight: 500, color: '#94A3B8', display: 'block', marginBottom: '8px' }}>
-                  {t('wizard.step3.attendees.categoryModal.fields.description')}
-                </label>
-                <textarea
-                  value={newCategory.description}
-                  onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
-                  placeholder={t('wizard.step3.attendees.categoryModal.fields.descriptionPlaceholder')}
-                  style={{
-                    width: '100%',
-                    height: '100px',
-                    padding: '12px 16px',
-                    backgroundColor: 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    borderRadius: '8px',
-                    color: '#FFFFFF',
-                    fontSize: '15px',
-                    fontFamily: 'inherit',
-                    resize: 'vertical'
-                  }}
-                />
-                <p style={{ fontSize: '12px', color: '#6B7280', marginTop: '4px', textAlign: 'right' }}>
-                  {newCategory.description.length}/200
-                </p>
-              </div>
-
-              {/* Category Color */}
-              <div>
-                <label style={{ fontSize: '14px', fontWeight: 500, color: '#94A3B8', display: 'block', marginBottom: '8px' }}>
-                  {t('wizard.step3.attendees.categoryModal.fields.color')}
-                </label>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {['#0684F5', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6', '#EF4444', '#FBBF24'].map((color) => (
-                    <div
-                      key={color}
-                      onClick={() => setNewCategory({ ...newCategory, color })}
-                      style={{
-                        width: '48px',
-                        height: '48px',
-                        backgroundColor: color,
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        border: newCategory.color === color ? '3px solid #FFFFFF' : 'none'
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Assignment Criteria */}
-              <div>
-                <label style={{ fontSize: '14px', fontWeight: 500, color: '#94A3B8', display: 'block', marginBottom: '12px' }}>
-                  {t('wizard.step3.attendees.categoryModal.fields.assignment')}
-                </label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {[
-                    { value: 'manual', label: t('wizard.step3.attendees.categoryModal.assignmentOptions.manual') },
-                    { value: 'ticket', label: t('wizard.step3.attendees.categoryModal.assignmentOptions.ticket') },
-                    { value: 'date', label: t('wizard.step3.attendees.categoryModal.assignmentOptions.date') },
-                    { value: 'field', label: t('wizard.step3.attendees.categoryModal.assignmentOptions.field') }
-                  ].map((option) => (
-                    <label key={option.value} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
-                      <input
-                        type="radio"
-                        name="assignment"
-                        checked={newCategory.assignmentCriteria === option.value}
-                        onChange={() => setNewCategory({ ...newCategory, assignmentCriteria: option.value })}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                      />
-                      <span style={{ fontSize: '15px', color: '#FFFFFF' }}>{option.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div style={{ padding: '24px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-              {editingCategory && (
-                <button
-                  onClick={() => {
-                    handleDeleteCategory(editingCategory.id);
-                    setShowAddCategoryModal(false);
-                    setEditingCategory(null);
-                  }}
-                  style={{
-                    padding: '0 20px',
-                    height: '40px',
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#EF4444',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    cursor: 'pointer'
-                  }}
-                >
-                  {t('wizard.step3.attendees.categoryModal.delete')}
-                </button>
-              )}
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: '12px' }}>
-                <button
-                  onClick={() => {
-                    setShowAddCategoryModal(false);
-                    setEditingCategory(null);
-                  }}
-                  style={{
-                    height: '40px',
-                    padding: '0 20px',
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    borderRadius: '8px',
+                    height: '42px',
+                    paddingLeft: '40px',
+                    paddingRight: '16px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '10px',
                     color: '#FFFFFF',
                     fontSize: '14px',
-                    fontWeight: 600,
-                    cursor: 'pointer'
+                    minWidth: '260px',
+                    outline: 'none'
                   }}
-                >
-                  {t('wizard.step3.attendees.categoryModal.cancel')}
-                </button>
-                <button
-                  onClick={handleSaveCategory}
-                  style={{
-                    height: '44px',
-                    padding: '0 24px',
-                    backgroundColor: '#0684F5',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#FFFFFF',
-                    fontSize: '15px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  <Plus size={18} />
-                  {editingCategory
-                    ? t('wizard.step3.attendees.categoryModal.save')
-                    : t('wizard.step3.attendees.categoryModal.create')}
-                </button>
-              </div>
-            </div>
+                  className="focus:border-[#0684F5] transition-colors"
+                />
+             </div>
           </div>
         </div>
+
+        {/* ACTIONS ROW (Add, Export) */}
+        {!isAdding && (
+          <div className="grid grid-cols-2 gap-6 mb-8">
+            <div 
+              className="p-6 rounded-xl border border-dashed border-emerald-500/30 bg-emerald-500/5 flex flex-col items-center justify-center text-center hover:bg-emerald-500/10 hover:border-emerald-500/60 hover:-translate-y-1 hover:shadow-lg hover:shadow-emerald-500/10 transition-all cursor-pointer group duration-300"
+              onClick={() => setIsAdding(true)}
+            >
+              <div className="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 group-hover:bg-emerald-500/20 border border-emerald-500/20">
+                <Plus size={28} className="text-emerald-500" />
+              </div>
+              <h3 className="text-lg font-bold text-white mb-1 group-hover:text-emerald-400 transition-colors">Add Manually</h3>
+              <p className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">Register new attendee form</p>
+            </div>
+
+            <div 
+              className="p-6 rounded-xl border border-dashed border-purple-500/30 bg-purple-500/5 flex flex-col items-center justify-center text-center hover:bg-purple-500/10 hover:border-purple-500/60 hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-500/10 transition-all cursor-pointer group duration-300"
+              onClick={handleExport}
+            >
+              <div className="w-14 h-14 rounded-full bg-purple-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 group-hover:bg-purple-500/20 border border-purple-500/20">
+                <Download size={28} className="text-purple-500" />
+              </div>
+              <h3 className="text-lg font-bold text-white mb-1 group-hover:text-purple-400 transition-colors">Export List</h3>
+              <p className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">Download CSV report</p>
+            </div>
+          </div>
+        )}
+
+        {/* INLINE ADD FORM */}
+        {isAdding && (
+          <div className="mb-8 bg-[#0D243B] border border-white/10 rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300 shadow-2xl ring-1 ring-white/5">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-[#0B2236]">
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => setIsAdding(false)}
+                  className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-all border border-white/5 hover:border-white/20"
+                >
+                  <ArrowLeft size={18} />
+                </button>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Add New Attendee</h3>
+                  <p className="text-xs text-gray-400">Enter guest details manually</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-8">
+              <div className="max-w-3xl mx-auto space-y-8">
+                 {/* Ticket & Status */}
+                 <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                       <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Ticket Type</label>
+                       <div className="relative group">
+                          <Ticket size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#0684F5] transition-colors" />
+                          <select 
+                            className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-12 pr-10 py-3.5 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all appearance-none cursor-pointer hover:border-white/20"
+                            value={selectedTicketId}
+                            onChange={(e) => setSelectedTicketId(e.target.value)}
+                          >
+                             {tickets.map(t => (
+                               <option key={t.id} value={t.id}>{t.name} • ${t.price}</option>
+                             ))}
+                             {tickets.length === 0 && <option value="">General Admission</option>}
+                          </select>
+                          <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                       </div>
+                    </div>
+                    <div className="space-y-2">
+                       <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Status</label>
+                       <div className="relative group">
+                          <CheckCircle size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#0684F5] transition-colors" />
+                          <select 
+                            className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-11 pr-10 py-3.5 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all appearance-none cursor-pointer hover:border-white/20"
+                            value={registrationStatus}
+                            onChange={(e) => setRegistrationStatus(e.target.value)}
+                          >
+                             <option value="approved">Approved</option>
+                             <option value="pending">Pending</option>
+                          </select>
+                          <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                       </div>
+                    </div>
+                 </div>
+
+                 <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent w-full"></div>
+
+                 {/* Form Fields */}
+                 <div className="space-y-5">
+                    {formFields.map((field) => (
+                      <div key={field.id} className="space-y-2">
+                         <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">
+                           {field.label} {field.required && <span className="text-emerald-500">*</span>}
+                         </label>
+                         
+                         {field.type === 'textarea' ? (
+                           <div className="relative group">
+                             <textarea
+                               className="w-full bg-[#162C46] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all resize-none placeholder-gray-600 min-h-[100px] hover:border-white/20"
+                               placeholder={`Enter ${field.label.toLowerCase()}...`}
+                               value={formData[field.label] || ''}
+                               onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}
+                             />
+                           </div>
+                         ) : field.type === 'dropdown' ? (
+                           <div className="relative group">
+                              <select
+                                className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-4 pr-10 py-3.5 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all appearance-none cursor-pointer hover:border-white/20"
+                                value={formData[field.label] || ''}
+                                onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}
+                              >
+                                <option value="">Select option...</option>
+                                {field.options?.map(opt => (
+                                  <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                              </select>
+                              <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                           </div>
+                         ) : (
+                           <div className="relative group">
+                              <input
+                                type={field.type === 'email' ? 'email' : 'text'}
+                                className="w-full bg-[#162C46] border border-white/10 rounded-xl px-4 py-3.5 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all placeholder-gray-600 pl-12 hover:border-white/20"
+                                placeholder={field.label}
+                                value={formData[field.label] || ''}
+                                onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}
+                              />
+                              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#0684F5] transition-colors pointer-events-none">
+                                 {field.type === 'email' ? <Mail size={18} /> : <User size={18} />}
+                              </div>
+                           </div>
+                         )}
+                      </div>
+                    ))}
+                 </div>
+
+                 {/* Collapsible Agenda Section */}
+                 <div className="pt-2">
+                    <button 
+                      onClick={() => setShowSessions(!showSessions)}
+                      className="flex items-center justify-between w-full p-4 rounded-xl bg-[#162C46] border border-white/5 hover:border-white/10 hover:bg-[#1c3756] transition-all group"
+                    >
+                       <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-[#0684F5]/10 text-[#0684F5] group-hover:bg-[#0684F5]/20 transition-colors">
+                             <Calendar size={18} />
+                          </div>
+                          <div className="text-left">
+                             <span className="block text-sm font-bold text-white group-hover:text-[#0684F5] transition-colors">Assign Sessions</span>
+                             <span className="block text-xs text-gray-400">Optional: Pre-register attendee for specific agenda items</span>
+                          </div>
+                       </div>
+                       <div className="flex items-center gap-3">
+                          {selectedSessions.size > 0 && (
+                             <span className="text-[10px] bg-[#0684F5] text-white px-2.5 py-1 rounded-full font-bold shadow-sm shadow-blue-500/20">
+                                {selectedSessions.size} Selected
+                             </span>
+                          )}
+                          {showSessions ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
+                       </div>
+                    </button>
+
+                    {showSessions && (
+                       <div className="mt-2 space-y-2 border border-white/10 rounded-xl p-3 max-h-[300px] overflow-y-auto bg-[#0B2236] shadow-inner">
+                          {sessions.length === 0 ? (
+                             <p className="text-center text-xs text-gray-500 py-6">No sessions available.</p>
+                          ) : (
+                             sessions.map(session => {
+                               const isSelected = selectedSessions.has(session.id);
+                               return (
+                                 <div 
+                                   key={session.id}
+                                   onClick={() => {
+                                     const next = new Set(selectedSessions);
+                                     if (isSelected) next.delete(session.id);
+                                     else next.add(session.id);
+                                     setSelectedSessions(next);
+                                   }}
+                                   className={`p-3 rounded-lg border cursor-pointer transition-all flex items-start gap-3 ${ 
+                                     isSelected 
+                                       ? 'bg-[#0684F5]/10 border-[#0684F5] shadow-sm shadow-blue-500/10' 
+                                       : 'bg-transparent border-transparent hover:bg-white/5'
+                                   }`}
+                                 >
+                                   <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-all ${ 
+                                      isSelected ? 'bg-[#0684F5] border-[#0684F5]' : 'border-gray-600'
+                                   }`}>
+                                      {isSelected && <Check size={12} className="text-white" />}
+                                   </div>
+                                   <div className="min-w-0">
+                                     <p className={`text-sm font-medium truncate ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+                                        {session.title}
+                                     </p>
+                                     <p className="text-xs text-gray-500 mt-0.5">
+                                       {new Date(session.starts_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                     </p>
+                                   </div>
+                                 </div>
+                               );
+                             })
+                          )}
+                       </div>
+                    )}
+                 </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-8 py-6 border-t border-white/10 flex justify-end gap-4 bg-[#0B2236]">
+              <button 
+                onClick={() => setIsAdding(false)}
+                className="px-6 py-2.5 rounded-xl text-gray-300 font-medium hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all active:scale-95"
+              >
+                Discard Changes
+              </button>
+              <button 
+                onClick={handleAddAttendee}
+                className="px-8 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-bold hover:from-emerald-400 hover:to-emerald-500 transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/25 active:scale-95 border border-emerald-400/20"
+              >
+                <Save size={18} />
+                Save Registration
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ATTENDEE TABLE */}
+        <div 
+          className="rounded-xl border overflow-hidden backdrop-blur-sm"
+          style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.03)',
+            borderColor: 'rgba(255, 255, 255, 0.1)'
+          }}
+        >
+          {loading ? (
+            <div className="p-12 text-center text-gray-400">Loading attendees...</div>
+          ) : attendees.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-16 text-center">
+              <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 ring-1 ring-white/10">
+                <Users size={32} className="text-gray-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-white mb-2">No attendees yet</h3>
+              <p className="text-gray-400 max-w-md mx-auto mb-6">
+                Your attendee list is empty. As soon as people register for your event, they will appear here automatically.
+              </p>
+              {!isAdding && (
+                <button
+                  onClick={() => setIsAdding(true)}
+                  className="px-6 py-2.5 bg-[#10B981] text-white rounded-lg font-bold hover:bg-[#0da06f] transition-all shadow-lg shadow-[#10B981]/20"
+                >
+                  Add First Attendee
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}>
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Name</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Ticket</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Checked In</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/10">
+                  {filteredAttendees.map((attendee) => (
+                    <tr key={attendee.id} className="hover:bg-white/5 transition-colors group">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                            {attendee.name?.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="ml-1">
+                            <div className="text-sm font-medium text-white">{attendee.name}</div>
+                            <div className="text-sm text-gray-400">{attendee.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="px-2.5 py-1 text-xs font-medium rounded-md bg-white/10 text-gray-300 border border-white/5">
+                          {attendee.ticket_type}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                         {attendee.status === 'approved' ? (
+                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                             <CheckCircle size={12} /> Approved
+                           </span>
+                         ) : (
+                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                             <Clock size={12} /> Pending
+                           </span>
+                         )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {attendee.checked_in ? (
+                          <span className="text-emerald-500 text-sm flex items-center gap-1.5 font-medium">
+                            <CheckCircle size={14} /> Yes
+                          </span>
+                        ) : (
+                          <span className="text-gray-500 text-sm">No</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button className="text-gray-500 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg">
+                          <MoreVertical size={18} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* SECTION 3: BADGES & CHECK-IN */}
+      {!isAdding && (
+        <section className="mt-12">
+          <div className="mb-4 flex items-end gap-2">
+             <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF' }}>
+               Badges & Check-in
+             </h3>
+             <div className="h-px bg-white/10 flex-1 mb-2"></div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div 
+               className="p-6 rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-transparent hover:from-white/10 hover:to-white/5 transition-all cursor-pointer relative overflow-hidden group shadow-lg"
+               onClick={() => setIsDesigningBadges(true)}
+             >
+                <div className="relative z-10 flex items-start justify-between">
+                   <div>
+                      <h4 className="text-lg font-bold text-white mb-2 group-hover:text-[#0684F5] transition-colors">Design Badges</h4>
+                      <p className="text-sm text-gray-400 mb-4 max-w-[80%]">Customize the layout, colors, and logos for your event badges.</p>
+                      <span className="text-[#0684F5] font-medium text-sm flex items-center gap-2 group-hover:gap-3 transition-all">
+                         <CreditCard size={16} /> Open Editor
+                      </span>
+                   </div>
+                   <div className="p-3 bg-white/5 rounded-lg group-hover:bg-[#0684F5]/20 transition-colors">
+                      <BadgeCheck size={24} className="text-white group-hover:text-[#0684F5]" />
+                   </div>
+                </div>
+             </div>
+          </div>
+        </section>
       )}
     </div>
   );

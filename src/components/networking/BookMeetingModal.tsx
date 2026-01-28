@@ -9,19 +9,25 @@ interface BookMeetingModalProps {
   onClose: () => void;
   currentUser: any;
   recipient: { id: string; name: string };
-  existingMeeting?: any; // Optional: for rescheduling
+  existingMeeting?: any;
+  eventId?: string;
 }
 
-const MEETINGS_TABLE = 'b2b_meetings';
+const MEETINGS_TABLE = 'event_b2b_meetings';
 
-export default function BookMeetingModal({ isOpen, onClose, currentUser, recipient, existingMeeting }: BookMeetingModalProps) {
+export default function BookMeetingModal({ isOpen, onClose, currentUser, recipient, existingMeeting, eventId }: BookMeetingModalProps) {
   const [meetingType, setMeetingType] = useState<'video' | 'in-person' | 'hybrid' | ''>('');
   const [meetingDate, setMeetingDate] = useState('');
   const [meetingTime, setMeetingTime] = useState('');
-  const [meetingEventId, setMeetingEventId] = useState<string | null>(null);
+  const [meetingEventId, setMeetingEventId] = useState<string | null>(eventId || null);
   const [meetingSessionId, setMeetingSessionId] = useState<string | null>(null);
   const [meetingEditId, setMeetingEditId] = useState<string | null>(null);
   const [meetingMessage, setMeetingMessage] = useState('');
+  
+  // Logistics State
+  const [venueConfig, setVenueConfig] = useState<any>(null);
+  const [generatedSlots, setGeneratedSlots] = useState<any[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<any>(null);
   
   // Data State
   const [eventCatalog, setEventCatalog] = useState<any[]>([]);
@@ -44,75 +50,153 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
           setMeetingDate(date.toISOString().slice(0, 10));
           setMeetingTime(date.toTimeString().slice(0, 5));
         }
-        setMeetingEventId(existingMeeting.eventId || null);
+        setMeetingEventId(existingMeeting.eventId || eventId || null);
         setMeetingSessionId(existingMeeting.sessionId || null);
       } else {
         resetForm();
       }
     }
-  }, [isOpen, existingMeeting]);
+  }, [isOpen, existingMeeting, eventId]);
 
   const resetForm = () => {
     setMeetingType('');
     setMeetingDate('');
     setMeetingTime('');
-    setMeetingEventId(null);
+    setMeetingEventId(eventId || null);
     setMeetingSessionId(null);
     setMeetingEditId(null);
     setMeetingMessage('');
+    setGeneratedSlots([]);
+    setSelectedSlot(null);
   };
 
   const loadEventData = async () => {
     setIsLoadingEvents(true);
     try {
+      // 1. Fetch Event Details
       const { data: eventData } = await supabase
         .from('events')
-        .select('id, name, start_date, location, city, country, event_type, status')
-        .eq('status', 'published');
+        .select('id, name, start_date, end_date, location, city, country, event_type, status')
+        .eq('id', eventId || '')
+        .maybeSingle();
 
-      const catalog = (eventData || []).map((e: any) => ({
-        id: e.id,
-        name: e.name,
-        startDate: e.start_date,
-        location: e.city || e.location || 'Online',
-        country: e.country || '',
-        format: e.event_type === 'virtual' ? 'Online' : 'In-person',
-        capacity: 100 // Mock capacity for now
-      }));
-      setEventCatalog(catalog);
-
-      // Fetch sessions for these events
-      const eventIds = catalog.map(e => e.id);
-      if (eventIds.length > 0) {
-        const { data: sessionData } = await supabase
-          .from('event_sessions')
-          .select('id, event_id, title, starts_at, ends_at, capacity, location')
-          .in('event_id', eventIds);
-        
-        setEventSessions((sessionData || []).map((s: any) => ({
-          id: s.id,
-          eventId: s.event_id,
-          title: s.title,
-          startsAt: s.starts_at,
-          endsAt: s.ends_at,
-          capacity: s.capacity,
-          location: s.location
-        })));
-
-        // Fetch meeting counts (mock or real)
-        const { data: meetingsData } = await supabase
-          .from(MEETINGS_TABLE)
-          .select('event_id')
-          .in('event_id', eventIds);
-        
-        const counts: Record<string, number> = {};
-        (meetingsData || []).forEach((m: any) => {
-          if (m.event_id) counts[m.event_id] = (counts[m.event_id] || 0) + 1;
-        });
-        setEventMeetingCounts(counts);
+      if (eventData) {
+        setEventCatalog([{
+          id: eventData.id,
+          name: eventData.name,
+          startDate: eventData.start_date,
+          endDate: eventData.end_date,
+          location: eventData.city || eventData.location || 'Online',
+          country: eventData.country || '',
+          format: eventData.event_type === 'virtual' ? 'Online' : 'In-person',
+          capacity: 100
+        }]);
       }
+
+      // 2. Fetch Venue Config
+      if (eventId) {
+        const { data: settings } = await supabase
+          .from('event_b2b_settings')
+          .select('venue_config')
+          .eq('event_id', eventId)
+          .maybeSingle();
+        
+        if (settings?.venue_config) {
+          setVenueConfig(settings.venue_config);
+        }
+      }
+
     } catch (err) {
       console.error('Error loading events:', err);
+    } finally {
+      setIsLoadingEvents(false);
+    }
+  };
+
+  const generateSlots = async (dateStr: string) => {
+    if (!venueConfig || !eventId) return;
+    setIsLoadingEvents(true);
+    
+    try {
+      const matchingSchedules = venueConfig.schedules?.filter((s: any) => s.date === dateStr) || [];
+      if (matchingSchedules.length === 0) {
+        setGeneratedSlots([]);
+        setIsLoadingEvents(false);
+        return;
+      }
+
+      const duration = venueConfig.slotDuration || 30;
+      const tables = venueConfig.tableCount || 10;
+      
+      // Fetch existing meetings for this date once
+      const nextDay = new Date(dateStr);
+      nextDay.setDate(nextDay.getDate() + 1);
+      
+      const { data: existing } = await supabase
+        .from('event_b2b_meetings')
+        .select('start_at, location')
+        .eq('event_id', eventId)
+        .eq('status', 'confirmed') 
+        .gte('start_at', `${dateStr}T00:00:00`)
+        .lt('start_at', nextDay.toISOString().split('T')[0] + 'T00:00:00');
+
+      const counts: Record<string, number> = {};
+      const occupiedTables: Record<string, Set<number>> = {}; 
+
+      (existing || []).forEach((m: any) => {
+        const key = new Date(m.start_at).toISOString();
+        counts[key] = (counts[key] || 0) + 1;
+        if (m.location) {
+          const match = m.location.match(/(\d+)$/);
+          if (match) {
+            if (!occupiedTables[key]) occupiedTables[key] = new Set();
+            occupiedTables[key].add(parseInt(match[1]));
+          }
+        }
+      });
+
+      const allSlots: any[] = [];
+
+      matchingSchedules.forEach((schedule: any) => {
+        const start = new Date(`${dateStr}T${schedule.start}:00`);
+        const end = new Date(`${dateStr}T${schedule.end}:00`);
+        let current = new Date(start);
+
+        while (current < end) {
+          const slotIso = current.toISOString();
+          const booked = counts[slotIso] || 0;
+          const availableCount = tables - booked;
+          
+          const occupied = occupiedTables[slotIso] || new Set();
+          const availableTables = [];
+          for (let i = 1; i <= tables; i++) {
+            if (!occupied.has(i)) {
+              const num = i < 10 ? `0${i}` : `${i}`;
+              availableTables.push(`${venueConfig.tablePrefix || 'Table-'}${num}`);
+            }
+          }
+          if (availableTables.length < availableCount) {
+               for (let k = availableTables.length; k < availableCount; k++) {
+                   availableTables.push(`${venueConfig.tablePrefix || 'Table-'}${k+1}`);
+               }
+          }
+
+          allSlots.push({
+            time: current.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            iso: slotIso,
+            available: availableCount,
+            total: tables,
+            nextTable: availableTables[0]
+          });
+          current = new Date(current.getTime() + duration * 60000);
+        }
+      });
+
+      // Sort all slots by time across all blocks
+      allSlots.sort((a, b) => a.iso.localeCompare(b.iso));
+      setGeneratedSlots(allSlots);
+    } catch (e) {
+      console.error(e);
     } finally {
       setIsLoadingEvents(false);
     }
@@ -125,87 +209,96 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
       return;
     }
 
-    const isVirtual = meetingType === 'video';
-    if (isVirtual && (!meetingDate || !meetingTime)) {
-      toast.error('Select a meeting date and time.');
-      return;
-    }
-    if (!isVirtual && !meetingEventId) {
-      toast.error('Select an event for in-person or hybrid meetings.');
-      return;
-    }
-    if (!isVirtual && !meetingSessionId) {
-      toast.error('Select a meeting slot.');
-      return;
-    }
-
     let startAt: Date;
     let endAt: Date;
     let location = 'Video Call';
 
-    if (isVirtual) {
-      startAt = new Date(`${meetingDate}T${meetingTime}:00`);
-      if (Number.isNaN(startAt.getTime())) {
+    if (meetingType === 'video') {
+       if (!meetingDate || !meetingTime) { toast.error('Select date/time'); return; }
+       startAt = new Date(`${meetingDate}T${meetingTime}:00`);
+       if (Number.isNaN(startAt.getTime())) {
         toast.error('Invalid meeting date/time.');
         return;
       }
-      endAt = new Date(startAt.getTime() + 30 * 60000); // 30 min default
+       endAt = new Date(startAt.getTime() + 30 * 60000);
     } else {
-      const slot = eventSessions.find((session) => session.id === meetingSessionId);
-      if (!slot?.startsAt) {
-        toast.error('Selected slot has no time assigned.');
-        return;
-      }
-      startAt = new Date(slot.startsAt);
-      endAt = slot.endsAt ? new Date(slot.endsAt) : new Date(startAt.getTime() + 30 * 60000);
-      location = slot.location || eventCatalog.find((event) => event.id === meetingEventId)?.location || 'On-site';
+       // In-person logic using generated slots
+       if (!selectedSlot) {
+         toast.error('Please select a time slot.');
+         return;
+       }
+       startAt = new Date(selectedSlot.iso);
+       const duration = venueConfig?.slotDuration || 30;
+       endAt = new Date(startAt.getTime() + duration * 60000);
+       location = selectedSlot.nextTable || `Networking Area`; 
     }
 
-    const payload = {
-      organizer_id: currentUser.id,
-      profile_a_id: currentUser.id,
-      profile_b_id: recipient.id,
-      event_id: isVirtual ? null : meetingEventId,
-      start_at: startAt.toISOString(),
-      end_at: endAt.toISOString(),
-      meeting_type: isVirtual ? 'video' : 'in-person',
-      location,
-      status: 'pending',
-      meta: {
-        meeting_format: meetingType,
-        session_id: isVirtual ? null : meetingSessionId,
-        message: meetingMessage
-      }
-    };
+    // Resolve Attendee IDs
+    const targetEventId = isVirtual(meetingType) ? (meetingEventId || eventCatalog[0]?.id) : (eventId || meetingEventId);
+    
+    if (!targetEventId) {
+        toast.error("Event context missing.");
+        return;
+    }
 
     try {
-      if (meetingEditId) {
-        const { error } = await supabase.from(MEETINGS_TABLE).update(payload).eq('id', meetingEditId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from(MEETINGS_TABLE).insert([payload]);
-        if (error) throw error;
-      }
+        const [resA, resB] = await Promise.all([
+            supabase.from('event_attendees').select('id').eq('event_id', targetEventId).eq('profile_id', currentUser.id).single(),
+            supabase.from('event_attendees').select('id').eq('event_id', targetEventId).eq('profile_id', recipient.id).single()
+        ]);
 
-      try {
-        await createNotification({
-          recipient_id: recipient.id,
-          type: 'action',
-          title: meetingEditId ? 'Meeting rescheduled' : 'Meeting requested',
-          body: `${currentUser.full_name || currentUser.email} ${meetingEditId ? 'rescheduled' : 'scheduled'} a meeting with you.`,
-          action_url: '/my-networking',
-          actor_id: currentUser.id
-        });
-      } catch (notifyError) {
-        console.warn('Failed to send notification (likely RLS):', notifyError);
-      }
+        if (resA.error || resB.error) {
+            console.error(resA.error, resB.error);
+            toast.error("Could not verify registration for one or both users.");
+            return;
+        }
 
-      toast.success(meetingEditId ? 'Meeting rescheduled' : 'Meeting requested');
-      onClose();
+        const payload = {
+          attendee_a_id: resA.data.id,
+          attendee_b_id: resB.data.id,
+          event_id: targetEventId,
+          start_at: startAt.toISOString(),
+          end_at: endAt.toISOString(),
+          location,
+          status: 'confirmed',
+          meta: {
+            meeting_type: meetingType === 'video' ? 'video' : 'in-person',
+            meeting_format: meetingType,
+            session_id: meetingType === 'video' ? null : meetingSessionId,
+            message: meetingMessage
+          }
+        };
+
+        if (meetingEditId) {
+            const { error } = await supabase.from(MEETINGS_TABLE).update(payload).eq('id', meetingEditId);
+            if (error) throw error;
+        } else {
+            const { error } = await supabase.from(MEETINGS_TABLE).insert([payload]);
+            if (error) throw error;
+        }
+
+        try {
+            await createNotification({
+            recipient_id: recipient.id,
+            type: 'action',
+            title: meetingEditId ? 'Meeting rescheduled' : 'Meeting requested',
+            body: `${currentUser.full_name || currentUser.email} ${meetingEditId ? 'rescheduled' : 'scheduled'} a meeting with you.`,
+            action_url: '/my-networking',
+            actor_id: currentUser.id
+            });
+        } catch (notifyError) {
+            console.warn('Failed to send notification (likely RLS):', notifyError);
+        }
+
+        toast.success(meetingEditId ? 'Meeting rescheduled' : 'Meeting requested');
+        onClose();
+
     } catch (err: any) {
-      toast.error(err.message || 'Failed to schedule meeting');
+        toast.error(err.message || 'Failed to schedule meeting');
     }
   };
+
+  const isVirtual = (type: string) => type === 'video';
 
   // Filter Logic
   const eventCountries = useMemo(() => {
@@ -216,17 +309,9 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
     return eventCatalog.filter((event) => {
       if (eventFilterCountry && event.country !== eventFilterCountry) return false;
       if (eventFilterDate && event.startDate && !event.startDate.startsWith(eventFilterDate)) return false;
-      // Exclude passed events if needed, but keeping for now
       return true;
     });
   }, [eventCatalog, eventFilterCountry, eventFilterDate]);
-
-  const filteredEventSessions = useMemo(() => {
-    if (!meetingEventId) return [];
-    return eventSessions
-      .filter((session) => session.eventId === meetingEventId)
-      .sort((a, b) => (a.startsAt > b.startsAt ? 1 : -1));
-  }, [eventSessions, meetingEventId]);
 
   if (!isOpen) return null;
 
@@ -300,138 +385,76 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
 
           {meetingType && meetingType !== 'video' && (
             <div className="mb-5">
-              <div className="flex items-center gap-3 mb-3">
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>Filter by country</label>
-                  <select
-                    value={eventFilterCountry}
-                    onChange={(event) => setEventFilterCountry(event.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border outline-none mt-1"
-                    style={{
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      borderColor: 'rgba(255,255,255,0.15)',
-                      color: '#FFFFFF',
-                      fontSize: '13px'
-                    }}
-                  >
-                    <option value="">All Countries</option>
-                    {eventCountries.map((country) => (
-                      <option key={country} value={country}>
-                        {country}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>Filter by date</label>
-                  <input
-                    type="date"
-                    value={eventFilterDate}
-                    onChange={(event) => setEventFilterDate(event.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border outline-none mt-1"
-                    style={{
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      borderColor: 'rgba(255,255,255,0.15)',
-                      color: '#FFFFFF',
-                      fontSize: '13px'
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                {isLoadingEvents && (
-                  <div style={{ color: '#94A3B8', fontSize: '13px' }}>Loading events...</div>
-                )}
-                {!isLoadingEvents && filteredEventCatalog.length === 0 && (
-                  <div style={{ color: '#94A3B8', fontSize: '13px' }}>
-                    No events available for in-person meetings.
-                  </div>
-                )}
-                {!isLoadingEvents &&
-                  filteredEventCatalog.map((event) => {
-                    const capacity = event.capacity || null;
-                    const used = eventMeetingCounts[event.id] || 0;
-                    const remaining = capacity ? Math.max(capacity - used, 0) : null;
-                    const isFull = remaining !== null && remaining <= 0;
+              {/* Date Selection */}
+              <div className="mb-4">
+                <label style={{ fontSize: '12px', color: '#94A3B8', display: 'block', marginBottom: '8px' }}>Select Date</label>
+                <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px' }}>
+                  {venueConfig?.schedules?.map((s: any) => {
+                    const isSelected = meetingDate === s.date;
                     return (
                       <button
-                        key={event.id}
+                        key={s.date}
                         onClick={() => {
-                          if (isFull) return;
-                          setMeetingEventId(event.id);
-                          setMeetingSessionId(null);
-                          if (!meetingDate && event.startDate) {
-                            setMeetingDate(new Date(event.startDate).toISOString().slice(0, 10));
-                          }
-                          if (!meetingTime && event.startDate) {
-                            setMeetingTime(new Date(event.startDate).toTimeString().slice(0, 5));
-                          }
+                          setMeetingDate(s.date);
+                          setSelectedSlot(null);
+                          generateSlots(s.date);
                         }}
-                        className="w-full text-left rounded-lg p-3 transition-colors"
                         style={{
-                          backgroundColor:
-                            meetingEventId === event.id ? 'rgba(6, 132, 245, 0.15)' : 'rgba(255,255,255,0.04)',
-                          border: '1px solid rgba(255,255,255,0.12)',
-                          opacity: isFull ? 0.5 : 1
+                          padding: '8px 16px',
+                          borderRadius: '8px',
+                          backgroundColor: isSelected ? '#0684F5' : 'rgba(255,255,255,0.05)',
+                          border: isSelected ? 'none' : '1px solid rgba(255,255,255,0.1)',
+                          color: isSelected ? '#FFFFFF' : '#94A3B8',
+                          fontSize: '13px',
+                          fontWeight: 500,
+                          whiteSpace: 'nowrap'
                         }}
                       >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF' }}>{event.name}</p>
-                            <p style={{ fontSize: '12px', color: '#94A3B8' }}>
-                              {event.location || 'On-site'} • {event.format || 'In-person'}
-                            </p>
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            {remaining !== null ? (
-                              <p style={{ fontSize: '12px', color: remaining > 0 ? '#10B981' : '#EF4444' }}>
-                                {remaining} slots left
-                              </p>
-                            ) : (
-                              <p style={{ fontSize: '12px', color: '#94A3B8' }}>No capacity limit</p>
-                            )}
-                            {isFull && (
-                              <p style={{ fontSize: '11px', color: '#EF4444' }}>Full</p>
-                            )}
-                          </div>
-                        </div>
+                        {new Date(s.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
                       </button>
                     );
                   })}
+                  {!venueConfig && <p style={{color: '#94A3B8', fontSize: '13px'}}>No networking schedule configured by organizer.</p>}
+                </div>
               </div>
 
-              {meetingEventId && (
-                <div className="mt-4">
-                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>Meeting Slot</label>
-                  <select
-                    value={meetingSessionId || ''}
-                    onChange={(event) => setMeetingSessionId(event.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border outline-none mt-1"
-                    style={{
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      borderColor: 'rgba(255,255,255,0.15)',
-                      color: '#FFFFFF',
-                      fontSize: '13px'
-                    }}
-                  >
-                    <option value="">Select a slot</option>
-                    {filteredEventSessions.map((session) => {
-                      const start = session.startsAt ? new Date(session.startsAt) : null;
-                      const end = session.endsAt ? new Date(session.endsAt) : null;
-                      const slotLabel = start
-                        ? `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • ${start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}${end ? ` - ${end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : ''}`
-                        : 'TBD';
-                      const remaining =
-                        session.capacity ? Math.max(session.capacity - (session.attendees || 0), 0) : null;
-                      return (
-                        <option key={session.id} value={session.id} disabled={remaining !== null && remaining <= 0}>
-                          {slotLabel} • {session.title}
-                          {remaining !== null ? ` (${remaining} left)` : ''}
-                        </option>
-                      );
-                    })}
-                  </select>
+              {/* Slots Grid */}
+              {meetingDate && (
+                <div>
+                  <label style={{ fontSize: '12px', color: '#94A3B8', display: 'block', marginBottom: '8px' }}>Select Time Slot</label>
+                  {isLoadingEvents ? (
+                    <div style={{ color: '#94A3B8', fontSize: '13px' }}>Loading slots...</div>
+                  ) : generatedSlots.length > 0 ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                      {generatedSlots.map((slot, idx) => (
+                        <button
+                          key={idx}
+                          disabled={slot.available <= 0}
+                          onClick={() => setSelectedSlot(slot)}
+                          style={{
+                            padding: '10px',
+                            borderRadius: '8px',
+                            backgroundColor: selectedSlot?.iso === slot.iso ? '#0684F5' : slot.available > 0 ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)',
+                            border: selectedSlot?.iso === slot.iso ? 'none' : '1px solid rgba(255,255,255,0.1)',
+                            color: selectedSlot?.iso === slot.iso ? '#FFFFFF' : slot.available > 0 ? '#FFFFFF' : 'rgba(255,255,255,0.2)',
+                            fontSize: '13px',
+                            fontWeight: 500,
+                            cursor: slot.available > 0 ? 'pointer' : 'not-allowed',
+                            position: 'relative'
+                          }}
+                        >
+                          {slot.time}
+                          {slot.available <= 3 && slot.available > 0 && (
+                            <span style={{ position: 'absolute', top: -4, right: -4, fontSize: '9px', backgroundColor: '#F59E0B', color: '#000', padding: '1px 4px', borderRadius: '4px' }}>
+                              {slot.available} left
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ color: '#94A3B8', fontSize: '13px' }}>No slots available for this date.</p>
+                  )}
                 </div>
               )}
             </div>

@@ -1,7 +1,12 @@
+import { useState } from 'react';
 import { Check, Crown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
+import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';
+import ModalLogin from '../components/modals/ModalLogin';
+import ModalRegistrationEntry from '../components/modals/ModalRegistrationEntry';
 import { usePlan } from '../hooks/usePlan';
+import { useAuth } from '../contexts/AuthContext';
 
 const planFeatures = {
   free: [
@@ -21,10 +26,40 @@ const planFeatures = {
 export default function PricingPage() {
   const navigate = useNavigate();
   const { isPro, isFree } = usePlan();
+  const { user, signOut } = useAuth();
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+
+  const handleLogout = async () => {
+    await signOut();
+  };
+
+  // Auth Handlers
+  const handleGoogleSignup = async () => setShowRegistrationModal(false);
+  const handleEmailSignup = async () => setShowRegistrationModal(false);
+  const handleLoginSuccess = () => setShowLoginModal(false);
+  const handleGoogleLogin = async () => setShowLoginModal(false);
+  
+  const handleSwitchToSignup = () => {
+    setShowLoginModal(false);
+    setShowRegistrationModal(true);
+  };
+
+  const handleSwitchToLogin = () => {
+    setShowRegistrationModal(false);
+    setShowLoginModal(true);
+  };
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#F8FAFC' }}>
-      <NavbarLoggedIn currentPage="pricing" />
+      {user ? (
+        <NavbarLoggedIn currentPage="pricing" onLogout={handleLogout} />
+      ) : (
+        <NavbarLoggedOut 
+          onSignUpClick={() => setShowRegistrationModal(true)}
+          onLoginClick={() => setShowLoginModal(true)}
+        />
+      )}
       <div className="max-w-6xl mx-auto px-6 py-12">
         <div className="mb-10">
           <h1 className="text-3xl mb-2" style={{ fontWeight: 700, color: '#0B2641' }}>
@@ -177,6 +212,22 @@ export default function PricingPage() {
           </div>
         </div>
       </div>
+
+      <ModalRegistrationEntry
+        isOpen={showRegistrationModal}
+        onClose={() => setShowRegistrationModal(false)}
+        onGoogleSignup={handleGoogleSignup}
+        onEmailSignup={handleEmailSignup}
+        onLoginClick={handleSwitchToLogin}
+      />
+
+      <ModalLogin
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onGoogleLogin={handleGoogleLogin}
+        onLoginSuccess={handleLoginSuccess}
+        onSignUpClick={handleSwitchToSignup}
+      />
     </div>
   );
 }

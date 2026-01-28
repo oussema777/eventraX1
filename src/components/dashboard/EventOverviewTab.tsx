@@ -93,7 +93,7 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
       try {
         const eventReq = supabase
           .from('events')
-          .select('id, cover_image_url, badge_settings, marketing_settings, start_date, end_date, location_address, status, is_public')
+          .select('id, event_type, cover_image_url, badge_settings, marketing_settings, start_date, end_date, location_address, status, is_public')
           .eq('id', eventId)
           .single();
 
@@ -474,9 +474,28 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
         {/* Page Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
-            <h2 style={{ fontSize: '28px', fontWeight: 700, color: '#FFFFFF' }}>
-              {t('manageEvent.overview.header.title')}
-            </h2>
+            <div className="flex items-center gap-4">
+              <h2 style={{ fontSize: '28px', fontWeight: 700, color: '#FFFFFF' }}>
+                {t('manageEvent.overview.header.title')}
+              </h2>
+              {eventMeta?.event_type && (
+                <span 
+                  style={{ 
+                    padding: '4px 12px', 
+                    borderRadius: '20px', 
+                    backgroundColor: '#0684F5', 
+                    color: '#FFFFFF', 
+                    fontSize: '14px', 
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    boxShadow: '0 2px 4px rgba(6, 132, 245, 0.3)'
+                  }}
+                >
+                  {eventMeta.event_type}
+                </span>
+              )}
+            </div>
           </div>
           <p style={{ fontSize: '16px', color: '#94A3B8' }}>
             {t('manageEvent.overview.header.subtitle')}

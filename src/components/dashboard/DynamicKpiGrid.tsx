@@ -10,7 +10,8 @@ import {
   Award,
   Mic,
   PieChart,
-  Target
+  Target,
+  Calendar
 } from 'lucide-react';
 import { useEventStats } from '../../hooks/useEventStats';
 import { useI18n } from '../../i18n/I18nContext';
@@ -65,8 +66,22 @@ export default function DynamicKpiGrid({ eventId }: DynamicKpiGridProps) {
 
   // 2. Dynamic KPIs based on Type
   const dynamicMetrics: any[] = [];
+  const normalizedType = (eventType || 'generic').toLowerCase();
 
-  if (eventType === 'summit' || eventType === 'conference') {
+  // 2a. Priority: Top Audience Insight (from Registration Data)
+  if (audienceInsights.length > 0) {
+    const topInsight = audienceInsights[0];
+    dynamicMetrics.push({
+      label: `Top ${topInsight.label}`,
+      value: topInsight.value,
+      change: `${topInsight.percentage}% of Attendees`,
+      trend: 'neutral',
+      icon: PieChart,
+      color: '#F59E0B'
+    });
+  }
+
+  if (['summit', 'conference'].includes(normalizedType)) {
     dynamicMetrics.push({
       label: 'Speakers',
       value: baseStats.speakers,
@@ -76,6 +91,14 @@ export default function DynamicKpiGrid({ eventId }: DynamicKpiGridProps) {
       color: '#8B5CF6'
     });
     dynamicMetrics.push({
+      label: 'Sessions',
+      value: baseStats.sessions,
+      change: 'Programmed',
+      trend: 'neutral',
+      icon: Calendar, // Need to import Calendar or use similar
+      color: '#0684F5'
+    });
+    dynamicMetrics.push({
       label: 'Sponsors',
       value: typeStats.sponsorsCount || 0,
       change: 'Active',
@@ -83,7 +106,32 @@ export default function DynamicKpiGrid({ eventId }: DynamicKpiGridProps) {
       icon: Award,
       color: '#EC4899'
     });
-  } else if (eventType === 'networking') {
+  } else if (['training', 'workshop', 'masterclass', 'bootcamp'].includes(normalizedType)) {
+    dynamicMetrics.push({
+      label: 'Certificates',
+      value: typeStats.certificatesIssued || 0,
+      change: 'Issued',
+      trend: 'up',
+      icon: Award,
+      color: '#10B981'
+    });
+    dynamicMetrics.push({
+      label: 'Curriculum',
+      value: `${baseStats.sessions} Modules`,
+      change: 'Active',
+      trend: 'neutral',
+      icon: Target,
+      color: '#8B5CF6'
+    });
+    dynamicMetrics.push({
+      label: 'Avg Score',
+      value: `${typeStats.avgQuizScore || 0}%`,
+      change: 'Quiz Results',
+      trend: 'neutral',
+      icon: Target,
+      color: '#F59E0B'
+    });
+  } else if (normalizedType === 'networking') {
     dynamicMetrics.push({
       label: 'Meetings',
       value: typeStats.meetingsScheduled || 0,
@@ -112,12 +160,12 @@ export default function DynamicKpiGrid({ eventId }: DynamicKpiGridProps) {
     });
   }
 
-  const displayMetrics = [...coreMetrics, ...dynamicMetrics].slice(0, 4);
+  const displayMetrics = [...coreMetrics, ...dynamicMetrics].slice(0, 6);
 
   return (
     <div className="space-y-6 mb-8">
       {/* KPI Grid */}
-      <div className="grid grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
         {displayMetrics.map((metric, index) => {
           const Icon = metric.icon;
           return (

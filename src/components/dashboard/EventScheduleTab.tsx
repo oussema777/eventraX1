@@ -213,7 +213,8 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
             .range(0, 4999),
           supabase
             .from('event_attendee_sessions')
-            .select('session_id, attendee_id')
+            .select('session_id, attendee_id, event_attendees!inner(status)')
+            .eq('event_attendees.status', 'approved')
             .in('session_id', (await supabase.from('event_sessions').select('id').eq('event_id', eventId)).data?.map(s => s.id) || [])
         ]);
 
@@ -547,9 +548,13 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
         };
       });
       setSessions(refreshed);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      toast.error(t('manageEvent.agenda.toasts.updateError'));
+      if (e.message && e.message.includes('Venue conflict')) {
+        toast.error(t('manageEvent.agenda.toasts.venueConflict') || 'Venue Conflict: Room already booked!');
+      } else {
+        toast.error(t('manageEvent.agenda.toasts.updateError'));
+      }
     } finally {
       setEditSaving(false);
       setIsLoading(false);

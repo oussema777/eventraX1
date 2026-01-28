@@ -31,28 +31,46 @@ export default function WizardStep3Registration() {
   const isFreeEvent = (eventData.event_status || getEventBasicDetails().eventStatus || 'free') === 'free';
   
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [currentSubStep, setCurrentSubStep] = useState<SubStep>('3.1');
+  const [currentSubStep, setCurrentSubStep] = useState<SubStep>(() => {
+    return (localStorage.getItem('last_registration_substep') as SubStep) || '3.8';
+  });
   const [completedSteps, setCompletedSteps] = useState<(1 | 2 | SubStep)[]>([1, 2]);
   const untitledEvent = t('wizard.common.untitledEvent');
 
+  useEffect(() => {
+    if (eventData.id) {
+      const steps: (1 | 2 | SubStep)[] = [1];
+      if (eventData.branding_settings?.design_studio) steps.push(2);
+      // Add other logic for completed substeps if tracked in DB
+      setCompletedSteps(prev => Array.from(new Set([...prev, ...steps])));
+    }
+  }, [eventData]);
+
   const subSteps = useMemo(() => {
     const steps = [
-      { key: '3.1' as const, title: t('wizard.step3.subSteps.tickets') },
-      { key: '3.2' as const, title: t('wizard.step3.subSteps.speakers') },
-      { key: '3.3' as const, title: t('wizard.step3.subSteps.attendees') },
-      { key: '3.4' as const, title: t('wizard.step3.subSteps.exhibitors') },
-      { key: '3.5' as const, title: t('wizard.step3.subSteps.schedule') },
-      { key: '3.6' as const, title: t('wizard.step3.subSteps.sponsors') },
-      { key: '3.7' as const, title: t('wizard.step3.subSteps.qrBadges') },
       { key: '3.8' as const, title: t('wizard.step3.subSteps.customForms') },
-      { key: '3.9' as const, title: t('wizard.step3.subSteps.marketingTools') }
+      { key: '3.5' as const, title: t('wizard.step3.subSteps.schedule') },
+      { key: '3.2' as const, title: t('wizard.step3.subSteps.speakers') },
+      { key: '3.4' as const, title: t('wizard.step3.subSteps.exhibitors') },
+      { key: '3.3' as const, title: t('wizard.step3.subSteps.attendees') },
+      { key: '3.6' as const, title: t('wizard.step3.subSteps.sponsors') },
+      { key: '3.9' as const, title: t('wizard.step3.subSteps.marketingTools') },
+      { key: '3.1' as const, title: t('wizard.step3.subSteps.tickets') }
     ];
     return isFreeEvent ? steps.filter((step) => step.key !== '3.1') : steps;
   }, [isFreeEvent, t]);
 
   useEffect(() => {
+    // Persist current sub-step
+    if (currentSubStep) {
+      localStorage.setItem('last_registration_substep', currentSubStep);
+    }
+  }, [currentSubStep]);
+
+  useEffect(() => {
+    // If current step is Tickets (3.1) and event becomes free, redirect to first step
     if (isFreeEvent && currentSubStep === '3.1') {
-      setCurrentSubStep('3.2');
+      setCurrentSubStep('3.8');
     }
   }, [isFreeEvent, currentSubStep]);
 
@@ -66,7 +84,7 @@ export default function WizardStep3Registration() {
 
   useEffect(() => {
     if (!subSteps.some((step) => step.key === currentSubStep)) {
-      setCurrentSubStep(subSteps[0]?.key || '3.2');
+      setCurrentSubStep(subSteps[0]?.key || '3.8');
     }
   }, [subSteps, currentSubStep]);
 
@@ -197,8 +215,6 @@ export default function WizardStep3Registration() {
         />;
       case '3.6':
         return <SponsorsTab eventId={eventId} />;
-      case '3.7':
-        return <BadgeEditorSimple eventId={eventId} />;
       case '3.8':
         return <CustomFormsTab eventId={eventId} />;
       case '3.9':
@@ -262,11 +278,9 @@ export default function WizardStep3Registration() {
             <div className="wizard-header-section" style={{ marginBottom: '32px' }}>
               <div
                 style={{
-                  fontSize: '13px',
+                  fontSize: '14px',
                   fontWeight: 600,
                   color: '#0684F5',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
                   marginBottom: '8px'
                 }}
               >
@@ -348,34 +362,6 @@ export default function WizardStep3Registration() {
 
         {/* Right: Action Buttons */}
         <div className="wizard-footer-actions" style={{ display: 'flex', gap: '12px' }}>
-          <button
-            onClick={handleSaveDraft}
-            style={{
-              height: '44px',
-              padding: '0 20px',
-              backgroundColor: 'rgba(6, 132, 245, 0.1)',
-              border: '1px solid rgba(6, 132, 245, 0.3)',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: 600,
-              color: '#0684F5',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.2)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.1)';
-            }}
-          >
-            <Save size={16} />
-            {t('wizard.common.saveDraft')}
-          </button>
-
           <button
             onClick={handleSaveAndContinue}
             style={{

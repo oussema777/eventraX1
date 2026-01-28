@@ -18,15 +18,20 @@ export default function DesignFooterActionBar() {
 
   return (
     <div 
-      className="footer-action-bar fixed bottom-0 left-0 right-0 z-40 border-t"
+      className="footer-action-bar fixed bottom-0 right-0 z-40 border-t"
       style={{
+        left: window.innerWidth > 768 ? '280px' : '0',
         borderColor: 'var(--border)',
         boxShadow: '0 -4px 6px rgba(0, 0, 0, 0.2)',
         backgroundColor: 'var(--card)'
       }}
     >
       <style>{`
+        @media (max-width: 1024px) {
+          .footer-action-bar { left: 56px !important; }
+        }
         @media (max-width: 768px) {
+          .footer-action-bar { left: 0 !important; }
           .footer-action-bar-inner { 
             flex-direction: column !important; 
             gap: 1rem !important; 
