@@ -36,6 +36,8 @@ interface Conversation {
   isOnline: boolean;
   lastMessage: string;
   lastMessageTime: string;
+  lastMessageId?: string;
+  lastMessageAt?: number;
   unreadCount: number;
   isActive?: boolean;
 }
@@ -64,14 +66,23 @@ export default function UserMessagesCenter() {
   const [suggestedUsers, setSuggestedUsers] = useState<Array<{ id: string; name: string; title?: string }>>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const conversationPollRef = useRef<number | null>(null);
+  const hasLoadedConversationsRef = useRef(false);
   const requestedThreadId = (location.state as any)?.threadId as string | undefined;
 
   const activeConversation = conversations.find(c => c.id === activeConversationId);
 
+  const buildConversationSignature = (list: Conversation[]) => {
+    return list
+      .map((item) => `${item.id}:${item.lastMessageId || ''}:${item.unreadCount}`)
+      .join('|');
+  };
+
   const fetchConversations = async () => {
     if (!user?.id) return;
     try {
-      setIsLoadingConversations(true);
+      if (!hasLoadedConversationsRef.current) {
+        setIsLoadingConversations(true);
+      }
       const { data: participantRows, error: participantsError } = await supabase
         .from(PARTICIPANTS_TABLE)
         .select('thread_id,last_read_at')
@@ -143,6 +154,7 @@ export default function UserMessagesCenter() {
         const other = (otherParticipants || []).find((row: any) => row.thread_id === threadId);
         const profile = other ? profileMap.get(other.profile_id) : undefined;
         const lastMessage = lastMessageMap.get(threadId);
+        const lastMessageAt = lastMessage ? new Date(lastMessage.created_at).getTime() : 0;
         const lastMessageTime = lastMessage
           ? new Date(lastMessage.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
           : '';
@@ -155,13 +167,23 @@ export default function UserMessagesCenter() {
           isOnline: false,
           lastMessage: lastMessage?.body || t('messages.empty.lastMessage'),
           lastMessageTime,
+          lastMessageId: lastMessage?.id,
+          lastMessageAt,
           unreadCount: unreadCountMap.get(threadId) || 0,
           isActive: threadId === activeConversationId
         } as Conversation;
       });
 
-      mapped.sort((a, b) => (a.lastMessageTime < b.lastMessageTime ? 1 : -1));
-      setConversations(mapped);
+      mapped.sort((a, b) => (a.lastMessageAt || 0) < (b.lastMessageAt || 0) ? 1 : -1);
+      setConversations((prev) => {
+        const prevSignature = buildConversationSignature(prev);
+        const nextSignature = buildConversationSignature(mapped);
+        if (prevSignature === nextSignature) {
+          return prev;
+        }
+        return mapped;
+      });
+      hasLoadedConversationsRef.current = true;
       if (!activeConversationId && mapped.length > 0) {
         setActiveConversationId(mapped[0].id);
       }

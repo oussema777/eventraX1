@@ -36,13 +36,17 @@ export default function FreightCalculatorPage() {
   const [quoteResult, setQuoteResult] = useState<any | null>(null);
 
   const canSubmit = useMemo(() => {
-    return origin.trim() && destination.trim() && weight.trim() && volume.trim();
+    const weightValue = Number(weight);
+    const volumeValue = Number(volume);
+    const hasWeight = Number.isFinite(weightValue) && weightValue > 0;
+    const hasVolume = Number.isFinite(volumeValue) && volumeValue > 0;
+    return origin.trim() && destination.trim() && (hasWeight || hasVolume);
   }, [origin, destination, weight, volume]);
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
     if (!FREIGHT_EXPORT_ENDPOINT) {
-      toast.error('Logistics API is not configured.');
+      toast.error(t('logisticsTools.errors.apiNotConfigured'));
       return;
     }
     setIsSubmitting(true);
@@ -67,11 +71,11 @@ export default function FreightCalculatorPage() {
       });
       const data = await res.json();
       if (!res.ok || data?.ok === false) {
-        throw new Error(data?.error || 'Failed to calculate freight');
+        throw new Error(data?.error || t('logisticsTools.errors.freightFailed'));
       }
       setQuoteResult(data?.data || data);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to calculate freight');
+      toast.error(error.message || t('logisticsTools.errors.freightFailed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -117,10 +121,10 @@ export default function FreightCalculatorPage() {
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px 80px' }}>
           <div className="freight-calc__header" style={{ marginBottom: '24px' }}>
             <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#FFFFFF', marginBottom: '6px' }}>
-              Freight Calculator (Exports)
+              {t('logisticsTools.titles.freight')}
             </h1>
             <p style={{ color: '#94A3B8', fontSize: '14px' }}>
-              Estimate export freight costs with the required shipment details.
+              {t('logisticsTools.subtitles.freight')}
             </p>
           </div>
 
@@ -136,11 +140,11 @@ export default function FreightCalculatorPage() {
             >
               <div className="freight-calc__grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>Origin Country/Port</label>
+                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('logisticsTools.freight.origin')}</label>
                   <input
                     value={origin}
                     onChange={(event) => setOrigin(event.target.value)}
-                    placeholder="e.g., Tunis, Tunisia"
+                    placeholder={t('logisticsTools.freight.exampleOrigin')}
                     className="freight-calc__input"
                     style={{
                       width: '100%',
@@ -155,11 +159,11 @@ export default function FreightCalculatorPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>Destination Country/Port</label>
+                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('logisticsTools.freight.destination')}</label>
                   <input
                     value={destination}
                     onChange={(event) => setDestination(event.target.value)}
-                    placeholder="e.g., Marseille, France"
+                    placeholder={t('logisticsTools.freight.exampleDestination')}
                     className="freight-calc__input"
                     style={{
                       width: '100%',
@@ -174,7 +178,7 @@ export default function FreightCalculatorPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>Mode</label>
+                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('logisticsTools.freight.mode')}</label>
                   <select
                     value={mode}
                     onChange={(event) => setMode(event.target.value)}
@@ -197,7 +201,7 @@ export default function FreightCalculatorPage() {
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>Incoterm</label>
+                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('logisticsTools.freight.incoterm')}</label>
                   <select
                     value={incoterm}
                     onChange={(event) => setIncoterm(event.target.value)}
@@ -220,7 +224,7 @@ export default function FreightCalculatorPage() {
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>Cargo Type</label>
+                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('logisticsTools.freight.cargoType')}</label>
                   <select
                     value={cargoType}
                     onChange={(event) => setCargoType(event.target.value)}
@@ -243,7 +247,7 @@ export default function FreightCalculatorPage() {
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>Ready Date</label>
+                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('logisticsTools.freight.readyDate')}</label>
                   <input
                     type="date"
                     value={readyDate}
@@ -261,12 +265,14 @@ export default function FreightCalculatorPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>Total Weight (kg)</label>
+                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('logisticsTools.freight.totalWeight')}</label>
                   <input
                     type="number"
                     value={weight}
                     onChange={(event) => setWeight(event.target.value)}
                     placeholder="0"
+                    min="0"
+                    step="0.1"
                     style={{
                       width: '100%',
                       marginTop: '6px',
@@ -280,12 +286,14 @@ export default function FreightCalculatorPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>Total Volume (CBM)</label>
+                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('logisticsTools.freight.totalVolume')}</label>
                   <input
                     type="number"
                     value={volume}
                     onChange={(event) => setVolume(event.target.value)}
                     placeholder="0"
+                    min="0"
+                    step="0.01"
                     style={{
                       width: '100%',
                       marginTop: '6px',
@@ -299,12 +307,14 @@ export default function FreightCalculatorPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>Packages Count</label>
+                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('logisticsTools.freight.packages')}</label>
                   <input
                     type="number"
                     value={packagesCount}
                     onChange={(event) => setPackagesCount(event.target.value)}
                     placeholder="0"
+                    min="0"
+                    step="1"
                     style={{
                       width: '100%',
                       marginTop: '6px',
@@ -318,12 +328,14 @@ export default function FreightCalculatorPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>Cargo Value (USD)</label>
+                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('logisticsTools.freight.cargoValue')}</label>
                   <input
                     type="number"
                     value={cargoValue}
                     onChange={(event) => setCargoValue(event.target.value)}
                     placeholder="0"
+                    min="0"
+                    step="1"
                     style={{
                       width: '100%',
                       marginTop: '6px',
@@ -339,7 +351,7 @@ export default function FreightCalculatorPage() {
               </div>
 
               <div style={{ marginTop: '16px' }}>
-                <label style={{ fontSize: '12px', color: '#94A3B8' }}>Notes</label>
+                <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('logisticsTools.freight.notes')}</label>
                 <textarea
                   value={notes}
                   onChange={(event) => setNotes(event.target.value)}
@@ -373,7 +385,7 @@ export default function FreightCalculatorPage() {
                   width: '100%'
                 }}
               >
-                {isSubmitting ? 'Calculating...' : 'Calculate Freight'}
+                {isSubmitting ? t('logisticsTools.freight.submitting') : t('logisticsTools.freight.submit')}
               </button>
             </div>
 
@@ -388,20 +400,44 @@ export default function FreightCalculatorPage() {
               }}
             >
               <h3 style={{ color: '#FFFFFF', fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>
-                Estimated Quote
+                {t('logisticsTools.freight.resultTitle')}
               </h3>
               {quoteResult ? (
                 <div style={{ color: '#E2E8F0', fontSize: '14px', lineHeight: 1.6 }}>
-                  <div>Origin: {quoteResult.origin || origin}</div>
-                  <div>Destination: {quoteResult.destination || destination}</div>
-                  <div>Mode: {quoteResult.mode || mode}</div>
+                  <div>{t('logisticsTools.freight.origin')}: {quoteResult.origin || origin}</div>
+                  <div>{t('logisticsTools.freight.destination')}: {quoteResult.destination || destination}</div>
+                  <div>{t('logisticsTools.freight.mode')}: {quoteResult.mode || mode}</div>
+                  <div>{t('logisticsTools.freight.total')}: {quoteResult.total ?? '—'} {quoteResult.currency || 'USD'}</div>
+                  <div>{t('logisticsTools.freight.chargeableWeight')}: {quoteResult.chargeableWeight ?? '—'} kg</div>
+                  {quoteResult.insurance != null && (
+                    <div>{t('logisticsTools.freight.insurance')}: {quoteResult.insurance} {quoteResult.currency || 'USD'}</div>
+                  )}
+                  <div>
+                    {t('logisticsTools.freight.eta')}:{' '}
+                    {quoteResult.etaStart && quoteResult.etaEnd
+                      ? `${new Date(quoteResult.etaStart).toLocaleDateString()} - ${new Date(quoteResult.etaEnd).toLocaleDateString()}`
+                      : '—'}
+                  </div>
+                  {quoteResult.breakdown && (
+                    <div style={{ marginTop: '10px', fontSize: '12px', color: '#94A3B8' }}>
+                      {t('logisticsTools.freight.breakdown')}: Base {quoteResult.breakdown.baseCharge ?? 0} ·
+                      Fuel {quoteResult.breakdown.fuelSurcharge ?? 0} ·
+                      Handling {quoteResult.breakdown.handling ?? 0} ·
+                      Docs {quoteResult.breakdown.documentation ?? 0}
+                    </div>
+                  )}
+                  {quoteResult.referenceId && (
+                    <div style={{ marginTop: '10px', fontSize: '12px', color: '#64748B' }}>
+                      {t('logisticsTools.common.reference')}: {quoteResult.referenceId}
+                    </div>
+                  )}
                   <div style={{ marginTop: '12px', color: '#94A3B8' }}>
-                    {quoteResult.summary || 'Quote generated successfully.'}
+                    {quoteResult.summary || t('logisticsTools.common.quoteReady')}
                   </div>
                 </div>
               ) : (
                 <p style={{ color: '#94A3B8', fontSize: '13px' }}>
-                  Submit the form to see your freight estimate.
+                  {t('logisticsTools.freight.resultPlaceholder')}
                 </p>
               )}
             </div>

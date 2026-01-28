@@ -37,7 +37,7 @@ interface EventMarketingTabProps {
 
 
 interface EmailCampaign {
-  id: number;
+  id: string;
   name: string;
   status: 'sent' | 'draft' | 'scheduled';
   audience: string;
@@ -48,7 +48,7 @@ interface EmailCampaign {
 }
 
 interface PromotionCode {
-  id: number;
+  id: string;
   code: string;
   discountType: 'percentage' | 'fixed';
   discountValue: number;
@@ -69,7 +69,7 @@ export default function EventMarketingTab({ eventId }: EventMarketingTabProps) {
   const [showCampaignModal, setShowCampaignModal] = useState(false);
   const [editingPromo, setEditingPromo] = useState<PromotionCode | null>(null);
   const [editingCampaign, setEditingCampaign] = useState<EmailCampaign | null>(null);
-  const [activeMenu, setActiveMenu] = useState<number | null>(null);
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showProUpgradeModal, setShowProUpgradeModal] = useState(false);
   const [ticketTypes, setTicketTypes] = useState<{ id: string; name: string; price: number }[]>([]);
 
@@ -107,15 +107,77 @@ const [marketingLoaded, setMarketingLoaded] = useState(false);
 const saveTimerRef = useRef<any>(null);
 const loadingRef = useRef(false);
 
+const makeId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `tmp-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+};
+
+const isTempId = (id: string) => id.startsWith('tmp-');
+
+const buildPromoStatus = (startsAt?: string | null, endsAt?: string | null) => {
+  const now = new Date();
+  const start = startsAt ? new Date(startsAt) : null;
+  const end = endsAt ? new Date(endsAt) : null;
+  if (end && end < now) return 'expired';
+  if (start && start > now) return 'inactive';
+  return 'active';
+};
+
 const persistMarketingSettings = async (nextEmailCampaigns: EmailCampaign[], nextPromoCodes: PromotionCode[]) => {
   const payload = { emailCampaigns: nextEmailCampaigns, promoCodes: nextPromoCodes };
-  const { data, error } = await supabase
-    .from('events')
-    .update({ marketing_settings: payload, updated_at: new Date().toISOString() })
-    .eq('id', eventId)
-    .select('id');
-  if (error) throw error;
-  if (!data || data.length === 0) throw new Error('No rows updated');
+
+  const campaignPayload = nextEmailCampaigns.map((campaign) => ({
+    id: campaign.id,
+    event_id: eventId,
+    kind: 'email',
+    subject: campaign.name,
+    message: null,
+    meta: {
+      name: campaign.name,
+      status: campaign.status,
+      audience: campaign.audience,
+      openRate: campaign.openRate,
+      clickRate: campaign.clickRate,
+      totalSent: campaign.totalSent,
+      sentOn: campaign.sentOn || null
+    }
+  }));
+
+  const promoPayload = nextPromoCodes.map((promo) => ({
+    id: promo.id,
+    event_id: eventId,
+    title: promo.code,
+    code: promo.code,
+    discount_value: promo.discountValue,
+    discount_type: promo.discountType,
+    starts_at: promo.startDate || null,
+    ends_at: promo.endDate || null
+  }));
+
+  const queries: Promise<any>[] = [];
+  if (campaignPayload.length > 0) {
+    queries.push(
+      supabase.from('event_communications').upsert(campaignPayload)
+    );
+  }
+  if (promoPayload.length > 0) {
+    queries.push(
+      supabase.from('event_promos').upsert(promoPayload)
+    );
+  }
+  queries.push(
+    supabase
+      .from('events')
+      .update({ marketing_settings: payload, updated_at: new Date().toISOString() })
+      .eq('id', eventId)
+      .select('id')
+  );
+
+  const results = await Promise.all(queries);
+  const eventsResult = results[results.length - 1];
+  if (eventsResult?.error) throw eventsResult.error;
 };
 
 useEffect(() => {
@@ -124,59 +186,77 @@ useEffect(() => {
   const run = async () => {
     if (loadingRef.current) return;
     loadingRef.current = true;
-    const { data, error } = await supabase
-      .from('events')
-      .select('marketing_settings')
-      .eq('id', eventId)
-      .maybeSingle();
+
+    const [
+      { data: eventRow, error: eventError },
+      { data: promoRows },
+      { data: commRows }
+    ] = await Promise.all([
+      supabase.from('events').select('marketing_settings').eq('id', eventId).maybeSingle(),
+      supabase.from('event_promos').select('*').eq('event_id', eventId).order('created_at', { ascending: false }),
+      supabase.from('event_communications').select('*').eq('event_id', eventId).eq('kind', 'email').order('created_at', { ascending: false })
+    ]);
+
     loadingRef.current = false;
     if (cancelled) return;
-    if (error) {
-      console.error('marketing_settings load error', error);
-      setMarketingLoaded(true);
-      return;
+    if (eventError) {
+      console.error('marketing_settings load error', eventError);
     }
-    const ms: any = data?.marketing_settings || null;
-    const campaigns = Array.isArray(ms?.emailCampaigns) ? ms.emailCampaigns : [];
-    const promos = Array.isArray(ms?.promoCodes) ? ms.promoCodes : [];
-    const mockCampaignNames = new Set([
-      'Last Chance to Register!',
-      'Early Bird Pricing Ends Soon',
-      'Speaker Announcement - Day 1',
-      'VIP Upgrade Available',
-      'Event Agenda Released'
-    ]);
-    const mockPromoCodes = new Set(['SAVE20', 'EARLYBIRD', 'STUDENT50', 'VIP10']);
-    const cleanedCampaigns = campaigns
-      .filter((campaign: any) => !mockCampaignNames.has(String(campaign?.name || '').trim()))
-      .map((campaign: any) => ({
-        ...campaign,
-        id: Number.isFinite(Number(campaign?.id)) ? Number(campaign.id) : Date.now() + Math.floor(Math.random() * 1000)
-      }));
-    const cleanedPromos = promos
-      .filter((promo: any) => !mockPromoCodes.has(String(promo?.code || '').trim()))
-      .map((promo: any) => ({
-        ...promo,
-        id: Number.isFinite(Number(promo?.id)) ? Number(promo.id) : Date.now() + Math.floor(Math.random() * 1000)
-      }));
-    const isMockCampaigns = campaigns.length !== cleanedCampaigns.length;
-    const isMockPromos = promos.length !== cleanedPromos.length;
-    setEmailCampaigns(cleanedCampaigns);
-    setPromoCodes(cleanedPromos);
+
+    const ms: any = eventRow?.marketing_settings || null;
+    const savedCampaigns = Array.isArray(ms?.emailCampaigns) ? ms.emailCampaigns : [];
+    const savedPromos = Array.isArray(ms?.promoCodes) ? ms.promoCodes : [];
+
+    const campaignsFromDb = (commRows || []).map((row: any) => ({
+      id: row.id,
+      name: row.meta?.name || row.subject || t('manageEvent.marketing.email.defaultName'),
+      status: row.meta?.status || 'draft',
+      audience: row.meta?.audience || 'All Attendees',
+      openRate: Number(row.meta?.openRate || 0),
+      clickRate: Number(row.meta?.clickRate || 0),
+      sentOn: row.meta?.sentOn || '',
+      totalSent: Number(row.meta?.totalSent || 0)
+    }));
+
+    const promoMetaByCode = new Map(
+      savedPromos.map((promo: any) => [String(promo.code || '').toLowerCase(), promo])
+    );
+    const promosFromDb = (promoRows || []).map((row: any) => {
+      const code = row.code || '';
+      const saved = promoMetaByCode.get(String(code).toLowerCase()) || {};
+      return {
+        id: row.id,
+        code,
+        discountType: row.discount_type === 'fixed' ? 'fixed' : 'percentage',
+        discountValue: Number(row.discount_value || 0),
+        usageCount: Number(saved.usageCount || 0),
+        usageLimit: Number(saved.usageLimit || 0),
+        status: saved.status || buildPromoStatus(row.starts_at, row.ends_at),
+        appliesTo: Array.isArray(saved.appliesTo) ? saved.appliesTo : ['All Ticket Types'],
+        startDate: row.starts_at ? new Date(row.starts_at).toISOString().slice(0, 10) : '',
+        endDate: row.ends_at ? new Date(row.ends_at).toISOString().slice(0, 10) : '',
+        onePerCustomer: Boolean(saved.onePerCustomer)
+      };
+    });
+
+    const finalCampaigns = campaignsFromDb.length > 0 ? campaignsFromDb : savedCampaigns.map((campaign: any) => ({
+      ...campaign,
+      id: campaign.id || makeId()
+    }));
+    const finalPromos = promosFromDb.length > 0 ? promosFromDb : savedPromos.map((promo: any) => ({
+      ...promo,
+      id: promo.id || makeId()
+    }));
+
+    setEmailCampaigns(finalCampaigns);
+    setPromoCodes(finalPromos);
     setMarketingLoaded(true);
-    if (!ms || isMockCampaigns || isMockPromos) {
-      try {
-        await persistMarketingSettings(cleanedCampaigns, cleanedPromos);
-      } catch (e) {
-        console.error('marketing_settings init error', e);
-      }
-    }
   };
   run();
   return () => {
     cancelled = true;
   };
-}, [eventId]);
+}, [eventId, t]);
 
 useEffect(() => {
   if (!eventId) return;
@@ -232,7 +312,7 @@ const handleCreateEmailCampaign = () => {
 };
 
 const handleDuplicateEmailCampaign = (campaign: EmailCampaign) => {
-  const nextId = Date.now();
+  const nextId = makeId();
   setEmailCampaigns((prev) => [
     ...prev,
     { ...campaign, id: nextId, name: `${campaign.name} (Copy)`, status: 'draft', sentOn: '', totalSent: 0, openRate: 0, clickRate: 0 }
@@ -240,9 +320,16 @@ const handleDuplicateEmailCampaign = (campaign: EmailCampaign) => {
   setActiveMenu(null);
 };
 
-const handleDeleteEmailCampaign = (id: number) => {
+const handleDeleteEmailCampaign = async (id: string) => {
   setEmailCampaigns((prev) => prev.filter(c => c.id !== id));
   setActiveMenu(null);
+  if (!eventId || isTempId(id)) return;
+  const { error } = await supabase
+    .from('event_communications')
+    .delete()
+    .eq('id', id)
+    .eq('event_id', eventId);
+  if (error) console.error('Failed to delete campaign', error);
 };
 
 const handleEditEmailCampaign = (campaign: EmailCampaign) => {
@@ -263,7 +350,7 @@ const handleSaveEmailCampaign = () => {
   const name = campaignFormData.name.trim();
   if (!name) return;
   const payload: EmailCampaign = {
-    id: editingCampaign ? editingCampaign.id : Date.now(),
+    id: editingCampaign ? editingCampaign.id : makeId(),
     name,
     status: campaignFormData.status,
     audience: campaignFormData.audience,
@@ -409,7 +496,7 @@ const handleViewEmailReport = () => {
     const code = promoFormData.code.trim();
     if (!code) return;
     const newPromo: PromotionCode = {
-      id: editingPromo ? editingPromo.id : Date.now(),
+      id: editingPromo ? editingPromo.id : makeId(),
       code,
       discountType: promoFormData.discountType,
       discountValue: promoFormData.discountValue,
@@ -430,12 +517,19 @@ const handleViewEmailReport = () => {
     setShowPromoModal(false);
   };
 
-  const handleDeletePromo = (id: number) => {
+  const handleDeletePromo = async (id: string) => {
     setPromoCodes(promoCodes.filter(p => p.id !== id));
     setActiveMenu(null);
+    if (!eventId || isTempId(id)) return;
+    const { error } = await supabase
+      .from('event_promos')
+      .delete()
+      .eq('id', id)
+      .eq('event_id', eventId);
+    if (error) console.error('Failed to delete promo', error);
   };
 
-  const handleDeactivatePromo = (id: number) => {
+  const handleDeactivatePromo = (id: string) => {
     setPromoCodes(promoCodes.map((promo) => (
       promo.id === id ? { ...promo, status: 'inactive' } : promo
     )));

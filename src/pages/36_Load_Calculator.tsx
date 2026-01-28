@@ -34,13 +34,24 @@ export default function LoadCalculatorPage() {
   const [result, setResult] = useState<any | null>(null);
 
   const canSubmit = useMemo(() => {
-    return unitLength && unitWidth && unitHeight && unitWeight && quantity;
+    const lengthValue = Number(unitLength);
+    const widthValue = Number(unitWidth);
+    const heightValue = Number(unitHeight);
+    const weightValue = Number(unitWeight);
+    const qtyValue = Number(quantity);
+    return (
+      Number.isFinite(lengthValue) && lengthValue > 0 &&
+      Number.isFinite(widthValue) && widthValue > 0 &&
+      Number.isFinite(heightValue) && heightValue > 0 &&
+      Number.isFinite(weightValue) && weightValue > 0 &&
+      Number.isFinite(qtyValue) && qtyValue > 0
+    );
   }, [unitLength, unitWidth, unitHeight, unitWeight, quantity]);
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
     if (!LOAD_CALC_ENDPOINT) {
-      toast.error('Logistics API is not configured.');
+      toast.error(t('logisticsTools.errors.apiNotConfigured'));
       return;
     }
     setIsSubmitting(true);
@@ -61,11 +72,11 @@ export default function LoadCalculatorPage() {
       });
       const data = await res.json();
       if (!res.ok || data?.ok === false) {
-        throw new Error(data?.error || 'Failed to calculate load');
+        throw new Error(data?.error || t('logisticsTools.errors.loadFailed'));
       }
       setResult(data?.data || data);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to calculate load');
+      toast.error(error.message || t('logisticsTools.errors.loadFailed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -111,10 +122,10 @@ export default function LoadCalculatorPage() {
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px 80px' }}>
           <div style={{ marginBottom: '24px' }}>
             <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#FFFFFF', marginBottom: '6px' }}>
-              Load Calculator (MENA & AFRICA)
+              {t('logisticsTools.titles.load')}
             </h1>
             <p style={{ color: '#94A3B8', fontSize: '14px' }}>
-              Estimate container utilization based on cargo dimensions.
+              {t('logisticsTools.subtitles.load')}
             </p>
           </div>
 
@@ -129,7 +140,7 @@ export default function LoadCalculatorPage() {
             >
               <div className="load-calc__grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>Container Type</label>
+                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('logisticsTools.load.containerType')}</label>
                   <select
                     value={containerType}
                     onChange={(event) => setContainerType(event.target.value)}
@@ -152,12 +163,14 @@ export default function LoadCalculatorPage() {
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>Quantity (units)</label>
+                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('logisticsTools.load.quantity')}</label>
                   <input
                     type="number"
                     value={quantity}
                     onChange={(event) => setQuantity(event.target.value)}
                     placeholder="0"
+                    min="1"
+                    step="1"
                     style={{
                       width: '100%',
                       marginTop: '6px',
@@ -171,12 +184,14 @@ export default function LoadCalculatorPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>Unit Length (cm)</label>
+                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('logisticsTools.load.unitLength')}</label>
                   <input
                     type="number"
                     value={unitLength}
                     onChange={(event) => setUnitLength(event.target.value)}
                     placeholder="0"
+                    min="0"
+                    step="0.1"
                     style={{
                       width: '100%',
                       marginTop: '6px',
@@ -190,12 +205,14 @@ export default function LoadCalculatorPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>Unit Width (cm)</label>
+                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('logisticsTools.load.unitWidth')}</label>
                   <input
                     type="number"
                     value={unitWidth}
                     onChange={(event) => setUnitWidth(event.target.value)}
                     placeholder="0"
+                    min="0"
+                    step="0.1"
                     style={{
                       width: '100%',
                       marginTop: '6px',
@@ -209,12 +226,14 @@ export default function LoadCalculatorPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>Unit Height (cm)</label>
+                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('logisticsTools.load.unitHeight')}</label>
                   <input
                     type="number"
                     value={unitHeight}
                     onChange={(event) => setUnitHeight(event.target.value)}
                     placeholder="0"
+                    min="0"
+                    step="0.1"
                     style={{
                       width: '100%',
                       marginTop: '6px',
@@ -228,12 +247,14 @@ export default function LoadCalculatorPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>Unit Weight (kg)</label>
+                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('logisticsTools.load.unitWeight')}</label>
                   <input
                     type="number"
                     value={unitWeight}
                     onChange={(event) => setUnitWeight(event.target.value)}
                     placeholder="0"
+                    min="0"
+                    step="0.1"
                     style={{
                       width: '100%',
                       marginTop: '6px',
@@ -256,7 +277,7 @@ export default function LoadCalculatorPage() {
                   className="w-4 h-4 rounded"
                   style={{ accentColor: '#0684F5' }}
                 />
-                <span style={{ color: '#94A3B8', fontSize: '13px' }}>Stackable cargo</span>
+                <span style={{ color: '#94A3B8', fontSize: '13px' }}>{t('logisticsTools.load.stackable')}</span>
               </div>
 
               <button
@@ -274,7 +295,7 @@ export default function LoadCalculatorPage() {
                   width: '100%'
                 }}
               >
-                {isSubmitting ? 'Calculating...' : 'Calculate Load'}
+                {isSubmitting ? t('logisticsTools.load.submitting') : t('logisticsTools.load.submit')}
               </button>
             </div>
 
@@ -288,21 +309,34 @@ export default function LoadCalculatorPage() {
               }}
             >
               <h3 style={{ color: '#FFFFFF', fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>
-                Utilization Summary
+                {t('logisticsTools.load.resultTitle')}
               </h3>
               {result ? (
                 <div style={{ color: '#E2E8F0', fontSize: '14px', lineHeight: 1.6 }}>
-                  <div>Total Units: {result.totalUnits ?? quantity}</div>
-                  <div>Total Weight: {result.totalWeight ?? '—'} kg</div>
-                  <div>Total Volume: {result.totalVolume ?? '—'} cbm</div>
-                  <div>Utilization: {result.utilization ?? '—'}%</div>
+                  <div>{t('logisticsTools.load.totalUnits')}: {result.totalUnits ?? quantity}</div>
+                  <div>{t('logisticsTools.load.totalWeight')}: {result.totalWeight ?? '—'} kg</div>
+                  <div>{t('logisticsTools.load.totalVolume')}: {result.totalVolume ?? '—'} cbm</div>
+                  <div>{t('logisticsTools.load.utilization')}: {result.utilization ?? '—'}%</div>
+                  {result.containerLabel && (
+                    <div>{t('logisticsTools.load.container')}: {result.containerLabel}</div>
+                  )}
+                  {(result.maxUnitsByVolume != null || result.maxUnitsByWeight != null) && (
+                    <div style={{ fontSize: '12px', color: '#94A3B8' }}>
+                      {t('logisticsTools.load.capacity')}: {result.maxUnitsByVolume ?? '—'} {t('logisticsTools.common.byVolume')} · {result.maxUnitsByWeight ?? '—'} {t('logisticsTools.common.byWeight')}
+                    </div>
+                  )}
+                  {result.referenceId && (
+                    <div style={{ marginTop: '10px', fontSize: '12px', color: '#64748B' }}>
+                      {t('logisticsTools.common.reference')}: {result.referenceId}
+                    </div>
+                  )}
                   <div style={{ marginTop: '12px', color: '#94A3B8' }}>
-                    {result.summary || 'Calculation completed.'}
+                    {result.summary || t('logisticsTools.common.calculationDone')}
                   </div>
                 </div>
               ) : (
                 <p style={{ color: '#94A3B8', fontSize: '13px' }}>
-                  Submit the form to see container utilization.
+                  {t('logisticsTools.load.resultPlaceholder')}
                 </p>
               )}
             </div>

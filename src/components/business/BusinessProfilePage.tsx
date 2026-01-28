@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Globe, 
   Mail, 
@@ -73,6 +73,13 @@ export default function BusinessProfilePage() {
   const [offeringInput, setOfferingInput] = useState('');
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const { getOrCreateThread, loading: connecting } = useMessageThread();
+  const [businessStats, setBusinessStats] = useState({
+    rating: 0,
+    reviews: 0,
+    followers: 0,
+    visits: 0
+  });
+  const visitLoggedRef = useRef(false);
 
   const handleContact = async () => {
     if (!business?.owner_profile_id) {
@@ -172,6 +179,47 @@ export default function BusinessProfilePage() {
     fetchBusinessData();
   }, [urlBusinessId, user]);
 
+  const fetchBusinessStats = async (businessId: string) => {
+    try {
+      const [
+        { data: ratingsData },
+        { count: reviewsCount },
+        { count: followsCount },
+        { count: visitsCount }
+      ] = await Promise.all([
+        supabase.from('business_profile_ratings').select('rating').eq('business_id', businessId),
+        supabase.from('business_profile_reviews').select('id', { count: 'exact', head: true }).eq('business_id', businessId),
+        supabase.from('business_profile_follows').select('id', { count: 'exact', head: true }).eq('business_id', businessId),
+        supabase.from('business_profile_visits').select('id', { count: 'exact', head: true }).eq('business_id', businessId)
+      ]);
+
+      const ratings = (ratingsData || []).map((row: any) => Number(row.rating || 0)).filter((value: number) => value > 0);
+      const ratingAvg = ratings.length > 0 ? ratings.reduce((sum: number, value: number) => sum + value, 0) / ratings.length : 0;
+
+      setBusinessStats({
+        rating: Number.isFinite(ratingAvg) ? ratingAvg : 0,
+        reviews: reviewsCount || 0,
+        followers: followsCount || 0,
+        visits: visitsCount || 0
+      });
+    } catch (error) {
+      console.error('Failed to load business stats', error);
+    }
+  };
+
+  const logBusinessVisit = async (businessId: string) => {
+    if (visitLoggedRef.current) return;
+    visitLoggedRef.current = true;
+    try {
+      await supabase.from('business_profile_visits').insert({
+        business_id: businessId,
+        actor_id: user?.id || null
+      });
+    } catch (error) {
+      // Ignore visit logging errors (RLS or anon).
+    }
+  };
+
   const fetchBusinessData = async () => {
     try {
       setIsLoading(true);
@@ -205,6 +253,10 @@ export default function BusinessProfilePage() {
         setSectorTags(data.sectors || []);
         setOfferings(data.business_offerings || []);
         setIsOwner(user?.id === data.owner_profile_id);
+        fetchBusinessStats(data.id);
+        if (!isOwner) {
+          logBusinessVisit(data.id);
+        }
         
         // Handle social links and tags from branding/settings if implemented, or placeholders
         // For now, let's assume we use JSONB branding for these extra fields
@@ -369,10 +421,12 @@ export default function BusinessProfilePage() {
     );
   }
 
-  const ratingValue = Number(business?.branding?.rating) || 0;
-  const reviewCount = Number(business?.branding?.review_count) || 0;
+  const ratingValue = businessStats.rating || Number(business?.branding?.rating) || 0;
+  const reviewCount = businessStats.reviews || Number(business?.branding?.review_count) || 0;
   const eventsManaged = Number(business?.branding?.metrics?.events_managed) || 0;
   const eventsManagedLabel = eventsManaged > 0 ? `${eventsManaged}+` : '0';
+  const followerCount = businessStats.followers || 0;
+  const visitCount = businessStats.visits || 0;
 
   return (
     <div className="business-profile-page" style={{ backgroundColor: '#0B2641', minHeight: '100vh' }}>
@@ -719,6 +773,26 @@ export default function BusinessProfilePage() {
                   />
                   <div style={{ fontSize: '14px', color: '#94A3B8' }}>
                     <span style={{ fontWeight: 600, color: '#FFFFFF' }}>{t('businessProfilePage.stats.eventsManaged', { count: eventsManagedLabel })}</span>
+                  </div>
+                  <div 
+                    style={{ 
+                      width: '1px', 
+                      height: '16px', 
+                      backgroundColor: 'rgba(255,255,255,0.2)' 
+                    }} 
+                  />
+                  <div style={{ fontSize: '14px', color: '#94A3B8' }}>
+                    <span style={{ fontWeight: 600, color: '#FFFFFF' }}>{t('businessProfilePage.stats.followers', { count: followerCount })}</span>
+                  </div>
+                  <div 
+                    style={{ 
+                      width: '1px', 
+                      height: '16px', 
+                      backgroundColor: 'rgba(255,255,255,0.2)' 
+                    }} 
+                  />
+                  <div style={{ fontSize: '14px', color: '#94A3B8' }}>
+                    <span style={{ fontWeight: 600, color: '#FFFFFF' }}>{t('businessProfilePage.stats.views', { count: visitCount })}</span>
                   </div>
                   <div 
                     style={{ 

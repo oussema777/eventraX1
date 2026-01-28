@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import * as L from 'leaflet';
 import { toast } from 'sonner@2.0.3';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';
@@ -23,6 +24,7 @@ type ContainerLine = {
 const LOGISTICS_API_BASE = import.meta.env.VITE_LOGISTICS_API_BASE || '';
 const PORTS_ENDPOINT = LOGISTICS_API_BASE ? `${LOGISTICS_API_BASE}/ports` : '';
 const QUOTE_ENDPOINT = LOGISTICS_API_BASE ? `${LOGISTICS_API_BASE}/quote` : '';
+const PORTS_PAGE_SIZE = 50;
 
 const CONTAINER_TYPES = [
   { id: '20std', label: "20' Standard" },
@@ -31,12 +33,6 @@ const CONTAINER_TYPES = [
 ] as const;
 
 const CURRENCIES = ['USD', 'EUR', 'TND'];
-
-const MAP_WIDTH = 1000;
-const MAP_HEIGHT = 500;
-
-const toSvgX = (lon: number) => ((lon + 180) / 360) * MAP_WIDTH;
-const toSvgY = (lat: number) => ((90 - lat) / 180) * MAP_HEIGHT;
 
 export default function ContainerShippingCostsPage() {
   const { user, profile, signOut } = useAuth();
@@ -48,6 +44,12 @@ export default function ContainerShippingCostsPage() {
   const [toQuery, setToQuery] = useState('');
   const [fromSuggestions, setFromSuggestions] = useState<Port[]>([]);
   const [toSuggestions, setToSuggestions] = useState<Port[]>([]);
+  const [fromLoading, setFromLoading] = useState(false);
+  const [toLoading, setToLoading] = useState(false);
+  const [fromHasMore, setFromHasMore] = useState(true);
+  const [toHasMore, setToHasMore] = useState(true);
+  const [fromOffset, setFromOffset] = useState(0);
+  const [toOffset, setToOffset] = useState(0);
   const [fromPort, setFromPort] = useState<Port | null>(null);
   const [toPort, setToPort] = useState<Port | null>(null);
   const [fromCoords, setFromCoords] = useState<{ lat: number; lon: number } | null>(null);
@@ -64,66 +66,273 @@ export default function ContainerShippingCostsPage() {
     return (fromQuery.trim() || fromPort) && (toQuery.trim() || toPort) && containers.length > 0;
   }, [fromQuery, fromPort, toQuery, toPort, containers]);
 
-  const fetchPorts = async (query: string, setter: (ports: Port[]) => void) => {
-    if (!PORTS_ENDPOINT || !query.trim()) {
+  const fromFetchIdRef = useRef(0);
+  const toFetchIdRef = useRef(0);
+
+  const fetchPorts = async (
+    query: string,
+    setter: (ports: Port[]) => void,
+    allowEmpty = false,
+    field: 'from' | 'to' = 'from',
+    offset = 0,
+    append = false
+  ) => {
+    if (!PORTS_ENDPOINT || (!query.trim() && !allowEmpty)) {
       setter([]);
       return;
     }
+    const fetchId = field === 'from' ? ++fromFetchIdRef.current : ++toFetchIdRef.current;
+    if (field === 'from') {
+      setFromLoading(true);
+    } else {
+      setToLoading(true);
+    }
     try {
-      const res = await fetch(`${PORTS_ENDPOINT}?q=${encodeURIComponent(query.trim())}`);
+      const params = new URLSearchParams({
+        limit: String(PORTS_PAGE_SIZE),
+        offset: String(offset)
+      });
+      if (query.trim()) params.set('q', query.trim());
+      const url = `${PORTS_ENDPOINT}?${params.toString()}`;
+      const res = await fetch(url);
       const data = await res.json();
-      if (!res.ok || data?.ok === false) throw new Error(data?.error || 'Failed to load ports');
-      setter(data?.data || []);
+      if (!res.ok || data?.ok === false) throw new Error(data?.error || t('logisticsTools.errors.portsFailed'));
+      const latest = field === 'from' ? fetchId === fromFetchIdRef.current : fetchId === toFetchIdRef.current;
+      if (latest) {
+        const next = data?.data || [];
+        setter(prev => (append ? [...prev, ...next] : next));
+        const hasMore = Boolean(data?.meta?.hasMore);
+        if (field === 'from') {
+          setFromHasMore(hasMore);
+          setFromOffset(offset + next.length);
+        } else {
+          setToHasMore(hasMore);
+          setToOffset(offset + next.length);
+        }
+      }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to load ports');
-      setter([]);
+      toast.error(error.message || t('logisticsTools.errors.portsFailed'));
+      const latest = field === 'from' ? fetchId === fromFetchIdRef.current : fetchId === toFetchIdRef.current;
+      if (latest) {
+        setter([]);
+      }
+    } finally {
+      const latest = field === 'from' ? fetchId === fromFetchIdRef.current : fetchId === toFetchIdRef.current;
+      if (latest) {
+        if (field === 'from') {
+          setFromLoading(false);
+        } else {
+          setToLoading(false);
+        }
+      }
     }
   };
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
-      fetchPorts(fromQuery, setFromSuggestions);
+      setFromOffset(0);
+      setFromHasMore(true);
+      fetchPorts(fromQuery, setFromSuggestions, false, 'from', 0, false);
     }, 300);
     return () => window.clearTimeout(handle);
   }, [fromQuery]);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
-      fetchPorts(toQuery, setToSuggestions);
+      setToOffset(0);
+      setToHasMore(true);
+      fetchPorts(toQuery, setToSuggestions, false, 'to', 0, false);
     }, 300);
     return () => window.clearTimeout(handle);
   }, [toQuery]);
+
+  useEffect(() => {
+    if (!quoteResult?.route) return;
+    if (!fromCoords && quoteResult.route.from?.lat && quoteResult.route.from?.lon) {
+      setFromCoords({ lat: Number(quoteResult.route.from.lat), lon: Number(quoteResult.route.from.lon) });
+    }
+    if (!toCoords && quoteResult.route.to?.lat && quoteResult.route.to?.lon) {
+      setToCoords({ lat: Number(quoteResult.route.to.lat), lon: Number(quoteResult.route.to.lon) });
+    }
+    if (!fromQuery.trim() && quoteResult.from) {
+      setFromQuery(String(quoteResult.from));
+    }
+    if (!toQuery.trim() && quoteResult.to) {
+      setToQuery(String(quoteResult.to));
+    }
+  }, [quoteResult, fromCoords, toCoords, fromQuery, toQuery]);
 
   const applyPort = (port: Port, target: 'from' | 'to') => {
     if (target === 'from') {
       setFromPort(port);
       setFromQuery(port.name);
+      setFromSuggestions([]);
       if (port.lat != null && port.lon != null) {
         setFromCoords({ lat: Number(port.lat), lon: Number(port.lon) });
       }
     } else {
       setToPort(port);
       setToQuery(port.name);
+      setToSuggestions([]);
       if (port.lat != null && port.lon != null) {
         setToCoords({ lat: Number(port.lat), lon: Number(port.lon) });
       }
     }
   };
 
-  const handleMapClick = (event: MouseEvent<HTMLDivElement>) => {
-    const rect = (event.currentTarget as HTMLDivElement).getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    const lon = (x / rect.width) * 360 - 180;
-    const lat = 90 - (y / rect.height) * 180;
-    if (activePin === 'from') {
-      setFromCoords({ lat, lon });
-      if (!fromQuery.trim()) setFromQuery('Custom origin');
-    } else {
-      setToCoords({ lat, lon });
-      if (!toQuery.trim()) setToQuery('Custom destination');
+  const mapRef = useRef<HTMLDivElement | null>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const fromMarkerRef = useRef<L.CircleMarker | null>(null);
+  const toMarkerRef = useRef<L.CircleMarker | null>(null);
+  const routeLineRef = useRef<L.Polyline | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const activePinRef = useRef(activePin);
+
+  useEffect(() => {
+    activePinRef.current = activePin;
+  }, [activePin]);
+
+  useEffect(() => {
+    if (!mapRef.current || mapInstanceRef.current) return;
+
+    const map = L.map(mapRef.current, {
+      zoomControl: false,
+      attributionControl: false
+    }).setView([20, 0], 2);
+
+    const worldBounds = L.latLngBounds(
+      [-85, -180],
+      [85, 180]
+    );
+    map.setMaxBounds(worldBounds);
+    map.on('drag', () => {
+      map.panInsideBounds(worldBounds, { animate: false });
+    });
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 7,
+      minZoom: 2
+    }).addTo(map);
+
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    map.on('click', (evt: L.LeafletMouseEvent) => {
+      const { lat, lng } = evt.latlng;
+      if (activePinRef.current === 'from') {
+        setFromCoords({ lat, lon: lng });
+        if (!fromQuery.trim()) setFromQuery('Custom origin');
+      } else {
+        setToCoords({ lat, lon: lng });
+        if (!toQuery.trim()) setToQuery('Custom destination');
+      }
+    });
+
+    mapInstanceRef.current = map;
+    if (mapRef.current && typeof ResizeObserver !== 'undefined') {
+      resizeObserverRef.current = new ResizeObserver(() => {
+        map.invalidateSize();
+      });
+      resizeObserverRef.current.observe(mapRef.current);
     }
-  };
+    window.setTimeout(() => map.invalidateSize(), 0);
+
+    return () => {
+      if (resizeObserverRef.current && mapRef.current) {
+        resizeObserverRef.current.disconnect();
+        resizeObserverRef.current = null;
+      }
+      map.remove();
+      mapInstanceRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    if (fromCoords) {
+      if (!fromMarkerRef.current) {
+        fromMarkerRef.current = L.circleMarker([fromCoords.lat, fromCoords.lon], {
+          radius: 7,
+          color: '#0B2641',
+          weight: 3,
+          fillColor: '#60A5FA',
+          fillOpacity: 1
+        }).addTo(map);
+        fromMarkerRef.current.bindTooltip(fromQuery || t('logisticsTools.container.originPort'), { permanent: false });
+      } else {
+        fromMarkerRef.current.setLatLng([fromCoords.lat, fromCoords.lon]);
+        fromMarkerRef.current.setTooltipContent(fromQuery || t('logisticsTools.container.originPort'));
+      }
+    } else if (fromMarkerRef.current) {
+      fromMarkerRef.current.remove();
+      fromMarkerRef.current = null;
+    }
+  }, [fromCoords, fromQuery, t]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    if (toCoords) {
+      if (!toMarkerRef.current) {
+        toMarkerRef.current = L.circleMarker([toCoords.lat, toCoords.lon], {
+          radius: 7,
+          color: '#0B2641',
+          weight: 3,
+          fillColor: '#F59E0B',
+          fillOpacity: 1
+        }).addTo(map);
+        toMarkerRef.current.bindTooltip(toQuery || t('logisticsTools.container.destinationPort'), { permanent: false });
+      } else {
+        toMarkerRef.current.setLatLng([toCoords.lat, toCoords.lon]);
+        toMarkerRef.current.setTooltipContent(toQuery || t('logisticsTools.container.destinationPort'));
+      }
+    } else if (toMarkerRef.current) {
+      toMarkerRef.current.remove();
+      toMarkerRef.current = null;
+    }
+  }, [toCoords, toQuery, t]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    if (fromCoords && toCoords) {
+      const points: [number, number][] = [
+        [fromCoords.lat, fromCoords.lon],
+        [toCoords.lat, toCoords.lon]
+      ];
+      if (!routeLineRef.current) {
+        routeLineRef.current = L.polyline(points, {
+          color: '#2DD4BF',
+          weight: 3,
+          opacity: 0.7,
+          dashArray: '6, 6'
+        }).addTo(map);
+      } else {
+        routeLineRef.current.setLatLngs(points);
+      }
+    } else if (routeLineRef.current) {
+      routeLineRef.current.remove();
+      routeLineRef.current = null;
+    }
+  }, [fromCoords, toCoords]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    if (fromCoords && toCoords) {
+      const bounds = L.latLngBounds(
+        [fromCoords.lat, fromCoords.lon],
+        [toCoords.lat, toCoords.lon]
+      );
+      map.fitBounds(bounds, { padding: [24, 24], maxZoom: 5 });
+      return;
+    }
+    if (fromCoords) {
+      map.setView([fromCoords.lat, fromCoords.lon], 4);
+    } else if (toCoords) {
+      map.setView([toCoords.lat, toCoords.lon], 4);
+    }
+  }, [fromCoords, toCoords]);
 
   const handleAddContainer = () => {
     setContainers((prev) => [
@@ -133,7 +342,13 @@ export default function ContainerShippingCostsPage() {
   };
 
   const handleUpdateContainer = (id: string, updates: Partial<ContainerLine>) => {
-    setContainers((prev) => prev.map((line) => (line.id === id ? { ...line, ...updates } : line)));
+    setContainers((prev) => prev.map((line) => {
+      if (line.id !== id) return line;
+      const next = { ...line, ...updates };
+      const qty = Number(next.qty);
+      next.qty = Number.isFinite(qty) && qty > 0 ? qty : 1;
+      return next;
+    }));
   };
 
   const handleRemoveContainer = (id: string) => {
@@ -143,7 +358,7 @@ export default function ContainerShippingCostsPage() {
   const handleSubmit = async () => {
     if (!canSubmit) return;
     if (!QUOTE_ENDPOINT) {
-      toast.error('Logistics API is not configured.');
+      toast.error(t('logisticsTools.errors.apiNotConfigured'));
       return;
     }
     setIsSubmitting(true);
@@ -165,11 +380,11 @@ export default function ContainerShippingCostsPage() {
       });
       const data = await res.json();
       if (!res.ok || data?.ok === false) {
-        throw new Error(data?.error || 'Failed to calculate quote');
+        throw new Error(data?.error || t('logisticsTools.errors.quoteFailed'));
       }
       setQuoteResult(data?.data || data);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to calculate quote');
+      toast.error(error.message || t('logisticsTools.errors.quoteFailed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -195,9 +410,6 @@ export default function ContainerShippingCostsPage() {
     setShowLoginModal(true);
   };
 
-  const fromMarker = fromCoords ? { x: toSvgX(fromCoords.lon), y: toSvgY(fromCoords.lat) } : null;
-  const toMarker = toCoords ? { x: toSvgX(toCoords.lon), y: toSvgY(toCoords.lat) } : null;
-
   return (
     <>
       {user ? (
@@ -218,10 +430,10 @@ export default function ContainerShippingCostsPage() {
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px 80px' }}>
           <div style={{ marginBottom: '24px' }}>
             <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#FFFFFF', marginBottom: '6px' }}>
-              Container Shipping Cost Calculator
+              {t('logisticsTools.titles.container')}
             </h1>
             <p style={{ color: '#94A3B8', fontSize: '14px' }}>
-              Select ports and containers to estimate shipping costs.
+              {t('logisticsTools.subtitles.container')}
             </p>
           </div>
 
@@ -236,14 +448,16 @@ export default function ContainerShippingCostsPage() {
             >
               <div className="container-calc__fields" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>Origin Port</label>
+                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('logisticsTools.container.originPort')}</label>
                   <input
                     value={fromQuery}
                     onChange={(event) => {
                       setFromQuery(event.target.value);
                       setFromPort(null);
+                      setFromCoords(null);
                     }}
-                    placeholder="Search port or city"
+                    onFocus={() => fetchPorts('', setFromSuggestions, true, 'from', 0, false)}
+                    placeholder={t('logisticsTools.container.originPort')}
                     style={{
                       width: '100%',
                       marginTop: '6px',
@@ -256,8 +470,17 @@ export default function ContainerShippingCostsPage() {
                     }}
                   />
                   {fromSuggestions.length > 0 && (
-                    <div className="container-calc__suggestions">
-                      {fromSuggestions.slice(0, 6).map((port) => (
+                    <div
+                      className="container-calc__suggestions"
+                      onScroll={(event) => {
+                        const target = event.currentTarget;
+                        const nearBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 24;
+                        if (nearBottom && fromHasMore && !fromLoading) {
+                          fetchPorts(fromQuery, setFromSuggestions, true, 'from', fromOffset, true);
+                        }
+                      }}
+                    >
+                      {fromSuggestions.map((port) => (
                         <button
                           key={port.id}
                           onClick={() => applyPort(port, 'from')}
@@ -266,18 +489,35 @@ export default function ContainerShippingCostsPage() {
                           {port.name}
                         </button>
                       ))}
+                      {fromLoading && (
+                        <div className="container-calc__suggestion container-calc__suggestion--loading">
+                          {t('logisticsTools.container.loadingMore')}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {!fromLoading && fromQuery.trim() && fromSuggestions.length === 0 && (
+                    <div className="container-calc__suggestions container-calc__suggestions--empty">
+                      {t('logisticsTools.container.noResults')}
+                    </div>
+                  )}
+                  {fromLoading && (
+                    <div className="container-calc__suggestions container-calc__suggestions--empty">
+                      {t('logisticsTools.container.searching')}
                     </div>
                   )}
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>Destination Port</label>
+                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('logisticsTools.container.destinationPort')}</label>
                   <input
                     value={toQuery}
                     onChange={(event) => {
                       setToQuery(event.target.value);
                       setToPort(null);
+                      setToCoords(null);
                     }}
-                    placeholder="Search port or city"
+                    onFocus={() => fetchPorts('', setToSuggestions, true, 'to', 0, false)}
+                    placeholder={t('logisticsTools.container.destinationPort')}
                     style={{
                       width: '100%',
                       marginTop: '6px',
@@ -290,8 +530,17 @@ export default function ContainerShippingCostsPage() {
                     }}
                   />
                   {toSuggestions.length > 0 && (
-                    <div className="container-calc__suggestions">
-                      {toSuggestions.slice(0, 6).map((port) => (
+                    <div
+                      className="container-calc__suggestions"
+                      onScroll={(event) => {
+                        const target = event.currentTarget;
+                        const nearBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 24;
+                        if (nearBottom && toHasMore && !toLoading) {
+                          fetchPorts(toQuery, setToSuggestions, true, 'to', toOffset, true);
+                        }
+                      }}
+                    >
+                      {toSuggestions.map((port) => (
                         <button
                           key={port.id}
                           onClick={() => applyPort(port, 'to')}
@@ -300,11 +549,26 @@ export default function ContainerShippingCostsPage() {
                           {port.name}
                         </button>
                       ))}
+                      {toLoading && (
+                        <div className="container-calc__suggestion container-calc__suggestion--loading">
+                          {t('logisticsTools.container.loadingMore')}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {!toLoading && toQuery.trim() && toSuggestions.length === 0 && (
+                    <div className="container-calc__suggestions container-calc__suggestions--empty">
+                      {t('logisticsTools.container.noResults')}
+                    </div>
+                  )}
+                  {toLoading && (
+                    <div className="container-calc__suggestions container-calc__suggestions--empty">
+                      {t('logisticsTools.container.searching')}
                     </div>
                   )}
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>Currency</label>
+                  <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('logisticsTools.container.currency')}</label>
                   <select
                     value={currency}
                     onChange={(event) => setCurrency(event.target.value)}
@@ -329,7 +593,7 @@ export default function ContainerShippingCostsPage() {
               </div>
 
               <div style={{ marginTop: '20px' }}>
-                <div style={{ color: '#FFFFFF', fontWeight: 600, marginBottom: '10px' }}>Containers</div>
+                <div style={{ color: '#FFFFFF', fontWeight: 600, marginBottom: '10px' }}>{t('logisticsTools.container.containers')}</div>
                 <div className="container-calc__containers" style={{ display: 'grid', gap: '12px' }}>
                   {containers.map((line) => (
                     <div
@@ -365,6 +629,7 @@ export default function ContainerShippingCostsPage() {
                       <input
                         type="number"
                         min={1}
+                        step={1}
                         value={line.qty}
                         onChange={(event) => handleUpdateContainer(line.id, { qty: Number(event.target.value) })}
                         style={{
@@ -404,7 +669,7 @@ export default function ContainerShippingCostsPage() {
                     fontSize: '12px'
                   }}
                 >
-                  Add Container
+                  {t('logisticsTools.container.addContainer')}
                 </button>
               </div>
 
@@ -423,7 +688,7 @@ export default function ContainerShippingCostsPage() {
                   width: '100%'
                 }}
               >
-                {isSubmitting ? 'Calculating...' : 'Calculate Shipping Cost'}
+                {isSubmitting ? t('logisticsTools.container.submitting') : t('logisticsTools.container.submit')}
               </button>
             </div>
 
@@ -448,7 +713,7 @@ export default function ContainerShippingCostsPage() {
                       fontSize: '12px'
                     }}
                   >
-                    Set Origin
+                    {t('logisticsTools.container.setOrigin')}
                   </button>
                   <button
                     onClick={() => setActivePin('to')}
@@ -461,75 +726,20 @@ export default function ContainerShippingCostsPage() {
                       fontSize: '12px'
                     }}
                   >
-                    Set Destination
+                    {t('logisticsTools.container.setDestination')}
                   </button>
                   <span style={{ color: '#64748B', fontSize: '12px' }}>
-                    Click on the map to place a pin
+                    {t('logisticsTools.container.mapHint')}
                   </span>
                 </div>
-                <div className="container-calc__map" onClick={handleMapClick}>
-                  <svg viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`} preserveAspectRatio="xMidYMid meet">
-                    <rect width={MAP_WIDTH} height={MAP_HEIGHT} fill="#0F2F4D" />
-                    {[...Array(6)].map((_, idx) => (
-                      <line
-                        key={`h-${idx}`}
-                        x1="0"
-                        x2={MAP_WIDTH}
-                        y1={(MAP_HEIGHT / 6) * idx}
-                        y2={(MAP_HEIGHT / 6) * idx}
-                        stroke="rgba(255,255,255,0.08)"
-                        strokeWidth="1"
-                      />
-                    ))}
-                    {[...Array(9)].map((_, idx) => (
-                      <line
-                        key={`v-${idx}`}
-                        y1="0"
-                        y2={MAP_HEIGHT}
-                        x1={(MAP_WIDTH / 9) * idx}
-                        x2={(MAP_WIDTH / 9) * idx}
-                        stroke="rgba(255,255,255,0.06)"
-                        strokeWidth="1"
-                      />
-                    ))}
-                    <path
-                      d="M80,130 L220,90 L330,140 L300,210 L160,240 L90,190 Z"
-                      fill="rgba(255,255,255,0.1)"
-                    />
-                    <path
-                      d="M320,120 L520,110 L600,180 L540,260 L360,230 Z"
-                      fill="rgba(255,255,255,0.1)"
-                    />
-                    <path
-                      d="M580,120 L900,140 L940,230 L720,280 L620,210 Z"
-                      fill="rgba(255,255,255,0.1)"
-                    />
-                    <path
-                      d="M650,300 L820,320 L860,400 L700,420 L620,360 Z"
-                      fill="rgba(255,255,255,0.1)"
-                    />
-                    {fromMarker && (
-                      <circle cx={fromMarker.x} cy={fromMarker.y} r="8" fill="#60A5FA" stroke="#0B2641" strokeWidth="3" />
-                    )}
-                    {toMarker && (
-                      <circle cx={toMarker.x} cy={toMarker.y} r="8" fill="#F59E0B" stroke="#0B2641" strokeWidth="3" />
-                    )}
-                    {fromMarker && toMarker && (
-                      <line
-                        x1={fromMarker.x}
-                        y1={fromMarker.y}
-                        x2={toMarker.x}
-                        y2={toMarker.y}
-                        stroke="rgba(6,132,245,0.6)"
-                        strokeWidth="2"
-                        strokeDasharray="6 6"
-                      />
-                    )}
-                  </svg>
-                </div>
+                <div className="container-calc__map" ref={mapRef} />
                 <div className="container-calc__coords">
-                  <div>Origin: {fromCoords ? `${fromCoords.lat.toFixed(2)}, ${fromCoords.lon.toFixed(2)}` : 'Not set'}</div>
-                  <div>Destination: {toCoords ? `${toCoords.lat.toFixed(2)}, ${toCoords.lon.toFixed(2)}` : 'Not set'}</div>
+                  <div>
+                    {t('logisticsTools.container.coordsOrigin')}: {fromCoords ? `${fromCoords.lat.toFixed(2)}, ${fromCoords.lon.toFixed(2)}` : t('logisticsTools.common.notSet')}
+                  </div>
+                  <div>
+                    {t('logisticsTools.container.coordsDestination')}: {toCoords ? `${toCoords.lat.toFixed(2)}, ${toCoords.lon.toFixed(2)}` : t('logisticsTools.common.notSet')}
+                  </div>
                 </div>
               </div>
 
@@ -542,21 +752,44 @@ export default function ContainerShippingCostsPage() {
                 }}
               >
                 <h3 style={{ color: '#FFFFFF', fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>
-                  Quote Summary
+                  {t('logisticsTools.container.quoteTitle')}
                 </h3>
                 {quoteResult ? (
                   <div style={{ color: '#E2E8F0', fontSize: '14px', lineHeight: 1.6 }}>
-                    <div>From: {quoteResult.from || fromQuery}</div>
-                    <div>To: {quoteResult.to || toQuery}</div>
-                    <div>Distance: {quoteResult.distance ?? '—'} nm</div>
-                    <div>Transit: {quoteResult.transitDays ?? '—'} days</div>
+                    <div>{t('logisticsTools.container.originPort')}: {quoteResult.from || fromQuery}</div>
+                    <div>{t('logisticsTools.container.destinationPort')}: {quoteResult.to || toQuery}</div>
+                    <div>{t('logisticsTools.container.distance')}: {quoteResult.distance ?? t('logisticsTools.common.notSet')} nm</div>
+                    <div>{t('logisticsTools.container.transit')}: {quoteResult.transitDays ?? t('logisticsTools.common.notSet')} days</div>
                     <div style={{ marginTop: '10px', fontWeight: 600 }}>
-                      Total: {quoteResult.total ?? '—'} {quoteResult.currency || currency}
+                      {t('logisticsTools.container.total')}: {quoteResult.total ?? t('logisticsTools.common.notSet')} {quoteResult.currency || currency}
                     </div>
+                    {quoteResult.surcharges && (
+                      <div style={{ marginTop: '10px', fontSize: '12px', color: '#94A3B8' }}>
+                        {t('logisticsTools.container.surcharges')}: bunker {quoteResult.surcharges.bunker ?? 0} / security {quoteResult.surcharges.security ?? 0} /
+                        terminal {quoteResult.surcharges.terminal ?? 0}
+                      </div>
+                    )}
+                    {quoteResult.referenceId && (
+                      <div style={{ marginTop: '10px', fontSize: '12px', color: '#64748B' }}>
+                        {t('logisticsTools.common.reference')}: {quoteResult.referenceId}
+                      </div>
+                    )}
+                    {Array.isArray(quoteResult.lines) && quoteResult.lines.length > 0 && (
+                      <div style={{ marginTop: '12px', fontSize: '12px', color: '#CBD5F5' }}>
+                        {quoteResult.lines.slice(0, 4).map((line: any, idx: number) => (
+                          <div key={`${line.container}-${idx}`}>
+                            {line.container}: {line.lineTotal} {quoteResult.currency || currency}
+                          </div>
+                        ))}
+                        {quoteResult.lines.length > 4 && (
+                          <div style={{ color: '#94A3B8' }}>+{quoteResult.lines.length - 4} more lines</div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <p style={{ color: '#94A3B8', fontSize: '13px' }}>
-                    Calculate to see pricing details.
+                    {t('logisticsTools.container.quotePlaceholder')}
                   </p>
                 )}
               </div>
@@ -570,7 +803,7 @@ export default function ContainerShippingCostsPage() {
           border: 1px solid rgba(255,255,255,0.1);
           border-radius: 8px;
           background: #0B2641;
-          max-height: 180px;
+          max-height: 240px;
           overflow-y: auto;
         }
         .container-calc__suggestion {
@@ -586,6 +819,15 @@ export default function ContainerShippingCostsPage() {
         .container-calc__suggestion:hover {
           background: rgba(6,132,245,0.12);
         }
+        .container-calc__suggestion--loading {
+          cursor: default;
+          color: #94A3B8;
+        }
+        .container-calc__suggestions--empty {
+          padding: 10px;
+          color: #94A3B8;
+          font-size: 12px;
+        }
         .container-calc__map {
           width: 100%;
           height: 240px;
@@ -593,11 +835,6 @@ export default function ContainerShippingCostsPage() {
           overflow: hidden;
           border: 1px solid rgba(255,255,255,0.1);
           cursor: crosshair;
-        }
-        .container-calc__map svg {
-          width: 100%;
-          height: 100%;
-          display: block;
         }
         .container-calc__coords {
           margin-top: 10px;

@@ -31,7 +31,7 @@ export default function EventReportingTab({ eventId }: { eventId: string }) {
   
   
   const { t } = useI18n();
-  const exportTypeLabel = exportType ? t(`manageEvent.reporting.quickExport.${exportTypeLabel}`) : '';
+  const exportTypeLabel = exportType ? t(`manageEvent.reporting.quickExport.${exportType}`) : '';
 // Data states
   const [eventDates, setEventDates] = useState<{ start?: string | null; end?: string | null }>({ start: null, end: null });
   const [ticketsRows, setTicketsRows] = useState<any[]>([]);
@@ -40,6 +40,10 @@ export default function EventReportingTab({ eventId }: { eventId: string }) {
   const [meetingsRows, setMeetingsRows] = useState<any[]>([]);
   const [checkinsRows, setCheckinsRows] = useState<any[]>([]);
   const [feedbackRows, setFeedbackRows] = useState<any[]>([]);
+  const [sessionAttendanceRows, setSessionAttendanceRows] = useState<any[]>([]);
+  const [sessionRegistrationRows, setSessionRegistrationRows] = useState<any[]>([]);
+  const [pollsRows, setPollsRows] = useState<any[]>([]);
+  const [pollVotesRows, setPollVotesRows] = useState<any[]>([]);
   const [showBottomSessions, setShowBottomSessions] = useState(false);
 
   const palette = ['#F59E0B', '#0684F5', '#10B981', '#8B5CF6', '#EF4444'];
@@ -105,14 +109,31 @@ export default function EventReportingTab({ eventId }: { eventId: string }) {
           return q;
         };
 
-        const [tickets, attendees, sessions, meetings, checkins, feedback] = await Promise.all([
+        const [tickets, attendees, sessions, meetings, checkins, feedback, sessionAttendance, sessionRegistrations, polls] = await Promise.all([
           safeSelect('event_tickets', 'id,name,price,quantity_sold,created_at', withRange),
           safeSelect('event_attendees', '*', withRange),
           safeSelect('event_sessions', '*', withRange),
           safeSelect('event_b2b_meetings', '*', withRange),
           safeSelect('event_checkins', 'id,created_at,checkin_type,attendee_id,session_id,meeting_id', withRange),
           safeSelect('event_feedback_responses', '*', withRange),
+          safeSelect('event_session_attendance', 'id,session_id,actor_id,checked_in_at', withRange),
+          safeSelect('event_session_registrations', 'id,session_id,actor_id,status,created_at,registered_at', withRange),
+          safeSelect('event_polls', 'id,question,created_at', (q) => q.eq('event_id', eventId))
         ]);
+
+        const pollIds = (polls || []).map((p: any) => p.id).filter(Boolean);
+        let pollVotes: any[] = [];
+        if (pollIds.length) {
+          try {
+            let q = supabase.from('event_poll_votes').select('id,poll_id,voter_id,created_at').in('poll_id', pollIds);
+            if (fromIso) q = q.gte('created_at', fromIso);
+            if (toIso) q = q.lte('created_at', toIso);
+            const { data, error } = await q;
+            if (!error) pollVotes = data || [];
+          } catch {
+            pollVotes = [];
+          }
+        }
 
         if (!alive) return;
         setTicketsRows(tickets);
@@ -121,6 +142,10 @@ export default function EventReportingTab({ eventId }: { eventId: string }) {
         setMeetingsRows(meetings);
         setCheckinsRows(checkins);
         setFeedbackRows(feedback);
+        setSessionAttendanceRows(sessionAttendance);
+        setSessionRegistrationRows(sessionRegistrations);
+        setPollsRows(polls);
+        setPollVotesRows(pollVotes);
       } finally {
         if (alive) setIsLoading(false);
       }
@@ -150,10 +175,25 @@ export default function EventReportingTab({ eventId }: { eventId: string }) {
       return sum + (price > 0 ? sold : 0);
     }, 0);
 
-    const sessionCheckins = checkinsRows.filter((c) => c.checkin_type === 'session' && c.session_id).length;
+    const sessionCheckins = (() => {
+      const seen = new Set<string>();
+      checkinsRows.forEach((c) => {
+        if (c.checkin_type !== 'session' || !c.session_id || !c.attendee_id) return;
+        seen.add(`${c.session_id}:${c.attendee_id}`);
+      });
+      sessionAttendanceRows.forEach((c) => {
+        if (!c.session_id || !c.actor_id) return;
+        seen.add(`${c.session_id}:${c.actor_id}`);
+      });
+      return seen.size;
+    })();
     const b2bCheckins = checkinsRows.filter((c) => c.checkin_type === 'b2b' && c.meeting_id).length;
 
-    const engagementScore = registered > 0 ? Math.min(10, Math.round(((sessionCheckins + b2bCheckins) / registered) * 10 * 10) / 10) : 0;
+    const pollVotes = pollVotesRows.length;
+    const feedbackInteractions = feedbackRows.length;
+    const engagementScore = registered > 0
+      ? Math.min(10, Math.round(((sessionCheckins + b2bCheckins + pollVotes + feedbackInteractions) / registered) * 10 * 10) / 10)
+      : 0;
 
     const surveyResponses = feedbackRows.length;
     const npsBase = feedbackRows
@@ -173,7 +213,7 @@ export default function EventReportingTab({ eventId }: { eventId: string }) {
       nps,
       surveyResponses,
     };
-  }, [attendeesRows, ticketsRows, checkinsRows, feedbackRows]);
+  }, [attendeesRows, ticketsRows, checkinsRows, feedbackRows, pollVotesRows, sessionAttendanceRows]);
 
   const ticketSales = useMemo(() => {
     const rows = ticketsRows
@@ -204,14 +244,42 @@ export default function EventReportingTab({ eventId }: { eventId: string }) {
   }, [stats.engagementScore]);
 
   const sessionAttendanceMap = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const c of checkinsRows) {
-      if (c.checkin_type !== 'session' || !c.session_id) continue;
-      const k = String(c.session_id);
-      m.set(k, (m.get(k) || 0) + 1);
-    }
-    return m;
-  }, [checkinsRows]);
+    const map = new Map<string, Set<string>>();
+    const add = (sessionId?: string | null, actorId?: string | null) => {
+      if (!sessionId || !actorId) return;
+      const key = String(sessionId);
+      const set = map.get(key) || new Set<string>();
+      set.add(String(actorId));
+      map.set(key, set);
+    };
+    checkinsRows.forEach((c) => {
+      if (c.checkin_type !== 'session') return;
+      add(c.session_id, c.attendee_id);
+    });
+    sessionAttendanceRows.forEach((c) => {
+      add(c.session_id, c.actor_id);
+    });
+    const result = new Map<string, number>();
+    map.forEach((set, key) => result.set(key, set.size));
+    return result;
+  }, [checkinsRows, sessionAttendanceRows]);
+
+  const sessionRegistrationMap = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    const add = (sessionId?: string | null, actorId?: string | null) => {
+      if (!sessionId || !actorId) return;
+      const key = String(sessionId);
+      const set = map.get(key) || new Set<string>();
+      set.add(String(actorId));
+      map.set(key, set);
+    };
+    sessionRegistrationRows.forEach((r) => {
+      add(r.session_id, r.actor_id);
+    });
+    const result = new Map<string, number>();
+    map.forEach((set, key) => result.set(key, set.size));
+    return result;
+  }, [sessionRegistrationRows]);
 
   const attendanceSeries = useMemo(() => {
     const dates = attendeesRows
@@ -264,7 +332,9 @@ export default function EventReportingTab({ eventId }: { eventId: string }) {
     return sessionsRows
       .map((s: any) => {
         const cap = Number(s.capacity || 0);
-        const att = sessionAttendanceMap.get(String(s.id)) || 0;
+        const attendanceCount = sessionAttendanceMap.get(String(s.id)) || 0;
+        const registrationCount = sessionRegistrationMap.get(String(s.id)) || 0;
+        const att = attendanceCount || registrationCount;
         const pct = cap > 0 ? Math.round((att / cap) * 100) : 0;
         const rating = Number(s.avg_rating ?? s.rating ?? s.score ?? 0);
         return {
@@ -277,7 +347,7 @@ export default function EventReportingTab({ eventId }: { eventId: string }) {
         };
       })
       .sort((a, b) => (b.capacity || 0) - (a.capacity || 0));
-  }, [sessionsRows, sessionAttendanceMap]);
+  }, [sessionsRows, sessionAttendanceMap, sessionRegistrationMap]);
 
   const topSessions = useMemo(() => sessionsRanked.slice(0, 3), [sessionsRanked]);
   const bottomSessions = useMemo(() => sessionsRanked.slice(3, 6), [sessionsRanked]);
@@ -328,14 +398,22 @@ export default function EventReportingTab({ eventId }: { eventId: string }) {
 
   const engagementMetrics = useMemo(() => {
     const registered = stats.registered || 0;
-    const sessionCheckins = checkinsRows.filter((c) => c.checkin_type === 'session').length;
+    const sessionCheckins = Array.from(sessionAttendanceMap.values()).reduce((sum, v) => sum + v, 0);
     const avgSessions = registered ? Math.round((sessionCheckins / registered) * 10) / 10 : 0;
 
     const totalMeetings = meetingsRows.length;
     const networkingScore = registered ? Math.min(10, Math.round((totalMeetings / registered) * 10 * 10) / 10) : 0;
 
-    const activeAttendees = new Set(checkinsRows.map((c) => c.attendee_id).filter(Boolean)).size;
+    const activeAttendees = (() => {
+      const ids = new Set<string>();
+      checkinsRows.forEach((c) => c.attendee_id && ids.add(String(c.attendee_id)));
+      sessionAttendanceRows.forEach((c) => c.actor_id && ids.add(String(c.actor_id)));
+      pollVotesRows.forEach((c) => c.voter_id && ids.add(String(c.voter_id)));
+      feedbackRows.forEach((c) => (c.attendee_id || c.actor_id) && ids.add(String(c.attendee_id || c.actor_id)));
+      return ids.size;
+    })();
     const appUsage = registered ? Math.round((activeAttendees / registered) * 100) : 0;
+    const pollsCount = pollsRows.length;
 
     const totalDownloads = sessionsRows.reduce((sum, s) => {
       const val = Number(s.materials_downloads ?? s.downloads ?? s.download_count ?? s.resource_downloads ?? 0);
@@ -373,7 +451,9 @@ export default function EventReportingTab({ eventId }: { eventId: string }) {
         label: t('manageEvent.reporting.engagement.app'),
         value: `${appUsage}%`,
         sub: t('manageEvent.reporting.engagement.appSub'),
-        detail: `${activeAttendees} active users`
+        detail: pollsCount
+          ? `${activeAttendees} active users · ${pollsCount} polls`
+          : `${activeAttendees} active users`
       },
       {
         icon: Download,
@@ -384,7 +464,7 @@ export default function EventReportingTab({ eventId }: { eventId: string }) {
         detail: topContent?.downloads ? `Top: ${topContent.title}` : 'No downloads yet'
       }
     ];
-  }, [stats.registered, checkinsRows, meetingsRows, sessionsRows, t]);
+  }, [stats.registered, checkinsRows, meetingsRows, sessionsRows, t, sessionAttendanceMap, sessionAttendanceRows, pollVotesRows, feedbackRows, pollsRows]);
 
   const meetingStats = useMemo(() => {
     const scheduled = meetingsRows.filter((m) => ['scheduled', 'pending', 'confirmed'].includes(String(m.status || '').toLowerCase())).length;

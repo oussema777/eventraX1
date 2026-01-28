@@ -1,4 +1,4 @@
-export const translations = {
+﻿export const translations = {
   en: {
     brand: {
       name: 'Eventra'
@@ -69,6 +69,99 @@ export const translations = {
       placeholders: {
         userName: 'User',
         userEmail: 'user@example.com'
+      }
+    },
+    logisticsTools: {
+      common: {
+        notSet: 'Not set',
+        quoteReady: 'Quote generated successfully.',
+        calculationDone: 'Calculation completed.',
+        byVolume: 'by volume',
+        byWeight: 'by weight',
+        reference: 'Reference'
+      },
+      titles: {
+        freight: 'Freight Calculator (Exports)',
+        load: 'Load Calculator (MENA & AFRICA)',
+        container: 'Container Shipping Cost Calculator'
+      },
+      subtitles: {
+        freight: 'Estimate export freight costs with the required shipment details.',
+        load: 'Estimate container utilization based on cargo dimensions.',
+        container: 'Select ports and containers to estimate shipping costs.'
+      },
+      freight: {
+        origin: 'Origin Country/Port',
+        destination: 'Destination Country/Port',
+        exampleOrigin: 'e.g., Tunis, Tunisia',
+        exampleDestination: 'e.g., Marseille, France',
+        mode: 'Mode',
+        incoterm: 'Incoterm',
+        cargoType: 'Cargo Type',
+        readyDate: 'Ready Date',
+        totalWeight: 'Total Weight (kg)',
+        totalVolume: 'Total Volume (CBM)',
+        packages: 'Packages Count',
+        cargoValue: 'Cargo Value (USD)',
+        notes: 'Notes',
+        submit: 'Calculate Freight',
+        submitting: 'Calculating...',
+        resultTitle: 'Estimated Quote',
+        resultPlaceholder: 'Submit the form to see your freight estimate.',
+        total: 'Total',
+        chargeableWeight: 'Chargeable Weight',
+        insurance: 'Insurance',
+        eta: 'ETA Window',
+        breakdown: 'Breakdown'
+      },
+      load: {
+        containerType: 'Container Type',
+        quantity: 'Quantity (units)',
+        unitLength: 'Unit Length (cm)',
+        unitWidth: 'Unit Width (cm)',
+        unitHeight: 'Unit Height (cm)',
+        unitWeight: 'Unit Weight (kg)',
+        stackable: 'Stackable cargo',
+        submit: 'Calculate Load',
+        submitting: 'Calculating...',
+        resultTitle: 'Utilization Summary',
+        resultPlaceholder: 'Submit the form to see container utilization.',
+        totalUnits: 'Total Units',
+        totalWeight: 'Total Weight',
+        totalVolume: 'Total Volume',
+        utilization: 'Utilization',
+        capacity: 'Capacity',
+        container: 'Container'
+      },
+      container: {
+        originPort: 'Origin Port',
+        destinationPort: 'Destination Port',
+        currency: 'Currency',
+        containers: 'Containers',
+        addContainer: 'Add Container',
+        submit: 'Calculate Shipping Cost',
+        submitting: 'Calculating...',
+        searching: 'Searching ports...',
+        noResults: 'No matching ports found.',
+        loadingMore: 'Loading more ports...',
+        mapHint: 'Click on the map to place a pin',
+        setOrigin: 'Set Origin',
+        setDestination: 'Set Destination',
+        coordsOrigin: 'Origin',
+        coordsDestination: 'Destination',
+        quoteTitle: 'Quote Summary',
+        quotePlaceholder: 'Calculate to see pricing details.',
+        distance: 'Distance',
+        transit: 'Transit',
+        total: 'Total',
+        surcharges: 'Surcharges'
+      },
+      errors: {
+        apiNotConfigured: 'Logistics API is not configured.',
+        freightFailed: 'Failed to calculate freight',
+        loadFailed: 'Failed to calculate load',
+        quoteFailed: 'Failed to calculate quote',
+        portsFailed: 'Failed to load ports'
       }
     },
     browseEventsPage: {
@@ -900,6 +993,7 @@ export const translations = {
             exhibitor: 'Exhibitor',
             registrationForm: 'Registration form',
             emailCampaign: 'Email campaign',
+            promoCode: 'Promo code',
             marketingLink: 'Marketing link',
             update: 'Update',
             created: 'created',
@@ -1602,7 +1696,7 @@ export const translations = {
           standardLocation: 'Standard location',
           assignPanel: {
             title: 'Assign Booth {number}',
-            size: 'Size: 3m × 3m (9m²)',
+            size: 'Size: 3m Ã— 3m (9mÂ²)',
             location: 'Location: {hall}, {location}',
             typeAssigned: 'Type: Assigned Booth',
             typeStandard: 'Type: Standard Booth',
@@ -1896,8 +1990,8 @@ export const translations = {
         },
         analytics: {
           title: 'Networking Analytics',
-          summary: '{total} meetings · {avg}% avg match score · {rate}% success rate',
-          topIndustry: 'Top industry: {industry} · Top goal: {goal}'
+          summary: '{total} meetings Â· {avg}% avg match score Â· {rate}% success rate',
+          topIndustry: 'Top industry: {industry} Â· Top goal: {goal}'
         },
         suggestions: {
           title: 'AI Match Suggestions',
@@ -1959,7 +2053,7 @@ export const translations = {
           },
           create: {
             title: 'Schedule AI-Matched Meeting',
-            matchInfo: 'AI MATCH · {percent}% Score',
+            matchInfo: 'AI MATCH Â· {percent}% Score',
             perfectMatch: 'Perfect match for: {tags}',
             fields: {
               dateTime: 'Date & Time',
@@ -2011,6 +2105,7 @@ export const translations = {
           promo: 'Promotion Codes'
         },
         email: {
+          defaultName: 'Email campaign',
           customDomain: {
             title: 'Custom Domain',
             subtitle: 'Use your own domain for event registration and emails',
@@ -3640,7 +3735,7 @@ export const translations = {
               invalidDateTime: 'Please enter a valid date and time.'
             },
             selectedSpeakers: 'Selected Speakers ({count})',
-            speakerLine: '{title} • {company}',
+            speakerLine: '{title} â€¢ {company}',
             noSpeakersAssigned: 'No speakers assigned yet',
             addSpeaker: 'Add Speaker',
             addMoreSpeakers: 'Add More Speakers',
@@ -5100,7 +5195,7 @@ export const translations = {
           title: 'Select your industry sectors',
           subtitle: 'Add tags to describe your industry. Type and press Enter.',
           placeholder: 'Add a sector (e.g., SaaS, Catering, AI)...',
-          hint: '💡 Start typing to add more tags. Press Enter after each tag.',
+          hint: 'ðŸ’¡ Start typing to add more tags. Press Enter after each tag.',
           errors: {
             atLeastOne: 'Add at least one sector to continue.'
           }
@@ -5355,6 +5450,8 @@ export const translations = {
         stats: {
           reviews: '({count} reviews)',
           eventsManaged: '{count} events managed',
+          followers: '{count} followers',
+          views: '{count} profile views',
           memberSince: 'Member since {year}'
         },
         team: {
@@ -5535,7 +5632,7 @@ export const translations = {
           tagsPlaceholder: 'Type a tag and press Enter',
           mainImage: 'Main Product Image *',
           uploadMain: 'Click to upload main image',
-          imageUploaded: '✓ Image uploaded - Click to change',
+          imageUploaded: 'âœ“ Image uploaded - Click to change',
           gallery: 'Gallery Images (Max 4)',
           upload: 'Upload'
         },
@@ -5812,6 +5909,99 @@ export const translations = {
       placeholders: {
         userName: 'Utilisateur',
         userEmail: 'utilisateur@exemple.com'
+      }
+    },
+    logisticsTools: {
+      common: {
+        notSet: 'Non defini',
+        quoteReady: 'Devis genere avec succes.',
+        calculationDone: 'Calcul termine.',
+        byVolume: 'par volume',
+        byWeight: 'par poids',
+        reference: 'Reference'
+      },
+      titles: {
+        freight: 'Calculateur de fret (Export)',
+        load: 'Calculateur de chargement (MENA & AFRIQUE)',
+        container: 'Calculateur de cout d expeditions en conteneur'
+      },
+      subtitles: {
+        freight: 'Estimez les couts de fret export avec les details d expedition requis.',
+        load: 'Estimez l utilisation du conteneur selon les dimensions du cargo.',
+        container: 'Selectionnez les ports et les conteneurs pour estimer les couts.'
+      },
+      freight: {
+        origin: 'Origine (pays/port)',
+        destination: 'Destination (pays/port)',
+        exampleOrigin: 'ex. Tunis, Tunisie',
+        exampleDestination: 'ex. Marseille, France',
+        mode: 'Mode',
+        incoterm: 'Incoterm',
+        cargoType: 'Type de cargo',
+        readyDate: 'Date de disponibilite',
+        totalWeight: 'Poids total (kg)',
+        totalVolume: 'Volume total (CBM)',
+        packages: 'Nombre de colis',
+        cargoValue: 'Valeur de la cargaison (USD)',
+        notes: 'Notes',
+        submit: 'Calculer le fret',
+        submitting: 'Calcul en cours...',
+        resultTitle: 'Devis estime',
+        resultPlaceholder: 'Soumettez le formulaire pour voir l estimation.',
+        total: 'Total',
+        chargeableWeight: 'Poids taxable',
+        insurance: 'Assurance',
+        eta: 'Fenetre ETA',
+        breakdown: 'Detail'
+      },
+      load: {
+        containerType: 'Type de conteneur',
+        quantity: 'Quantite (unites)',
+        unitLength: 'Longueur unitaire (cm)',
+        unitWidth: 'Largeur unitaire (cm)',
+        unitHeight: 'Hauteur unitaire (cm)',
+        unitWeight: 'Poids unitaire (kg)',
+        stackable: 'Cargo empilable',
+        submit: 'Calculer le chargement',
+        submitting: 'Calcul en cours...',
+        resultTitle: 'Resume d utilisation',
+        resultPlaceholder: 'Soumettez le formulaire pour voir l utilisation.',
+        totalUnits: 'Unites totales',
+        totalWeight: 'Poids total',
+        totalVolume: 'Volume total',
+        utilization: 'Utilisation',
+        capacity: 'Capacite',
+        container: 'Conteneur'
+      },
+      container: {
+        originPort: 'Port d origine',
+        destinationPort: 'Port de destination',
+        currency: 'Devise',
+        containers: 'Conteneurs',
+        addContainer: 'Ajouter un conteneur',
+        submit: 'Calculer le cout d expedition',
+        submitting: 'Calcul en cours...',
+        searching: 'Recherche des ports...',
+        noResults: 'Aucun port correspondant.',
+        loadingMore: 'Chargement de ports...',
+        mapHint: 'Cliquez sur la carte pour placer un repere',
+        setOrigin: 'Definir l origine',
+        setDestination: 'Definir la destination',
+        coordsOrigin: 'Origine',
+        coordsDestination: 'Destination',
+        quoteTitle: 'Resume du devis',
+        quotePlaceholder: 'Calculez pour voir les details.',
+        distance: 'Distance',
+        transit: 'Transit',
+        total: 'Total',
+        surcharges: 'Surcharges'
+      },
+      errors: {
+        apiNotConfigured: 'API logistique non configuree.',
+        freightFailed: 'Echec du calcul du fret',
+        loadFailed: 'Echec du calcul de chargement',
+        quoteFailed: 'Echec du calcul du devis',
+        portsFailed: 'Echec du chargement des ports'
       }
     },
     browseEventsPage: {
@@ -7259,7 +7449,7 @@ export const translations = {
           networking: 'Score reseautage',
           networkingSub: 'Base sur connexions creees',
           app: "Utilisation de l'app",
-          appSub: 'Participants ayant utilise l’app',
+          appSub: 'Participants ayant utilise lâ€™app',
           downloads: 'Telechargements',
           downloadsSub: 'Materiels & ressources'
         },
@@ -7399,6 +7589,7 @@ export const translations = {
             exhibitor: 'Exposant',
             registrationForm: 'Formulaire inscription',
             emailCampaign: 'Campagne email',
+            promoCode: 'Code promo',
             marketingLink: 'Lien marketing',
             update: 'Mise a jour',
             created: 'cree',
@@ -8101,7 +8292,7 @@ export const translations = {
           standardLocation: 'Emplacement standard',
           assignPanel: {
             title: 'Assigner Stand {number}',
-            size: 'Taille: 3m × 3m (9m²)',
+            size: 'Taille: 3m Ã— 3m (9mÂ²)',
             location: 'Lieu: {hall}, {location}',
             typeAssigned: 'Type: Stand Assigne',
             typeStandard: 'Type: Stand Standard',
@@ -8342,36 +8533,36 @@ export const translations = {
           },
           threshold: {
             title: 'Score Min Match',
-            subtitle: 'Suggérer seulement si compatibilité > {percent}%',
-            recommended: 'Recommandé: 70-80%'
+            subtitle: 'SuggÃ©rer seulement si compatibilitÃ© > {percent}%',
+            recommended: 'RecommandÃ©: 70-80%'
           },
           generate: {
-            info: 'IA analysera {total} participants et générera ~{count} matchs',
+            info: 'IA analysera {total} participants et gÃ©nÃ©rera ~{count} matchs',
             time: 'Temps traitement: ~30 sec',
-            button: 'Générer Matchs IA'
+            button: 'GÃ©nÃ©rer Matchs IA'
           },
           insights: {
             title: 'Insights Jumelage',
-            subtitle: 'Analyse temps réel',
-            potential: 'Potentiel Réseautage Élevé',
+            subtitle: 'Analyse temps rÃ©el',
+            potential: 'Potentiel RÃ©seautage Ã‰levÃ©',
             potentialDesc: '{percent}% participants ont potentiel',
             industries: 'Top Industries',
-            goals: 'Objectifs Réseautage',
+            goals: 'Objectifs RÃ©seautage',
             lastRun: 'Dernier Run IA',
             noRun: 'Jamais',
-            generated: 'Généré {count} matchs',
-            accepted: '{percent}% acceptés',
-            viewResults: 'Voir Résultats'
+            generated: 'GÃ©nÃ©rÃ© {count} matchs',
+            accepted: '{percent}% acceptÃ©s',
+            viewResults: 'Voir RÃ©sultats'
           }
         },
         allMeetings: {
           filters: {
             all: 'Tout',
             today: 'Aujourd\'hui',
-            ai: 'Généré par IA',
+            ai: 'GÃ©nÃ©rÃ© par IA',
             manual: 'Manuel',
             pending: 'En Attente',
-            completed: 'Terminé',
+            completed: 'TerminÃ©',
             search: 'Rechercher...', 
             allDates: 'Toutes Dates',
             thisWeek: 'Cette Semaine',
@@ -8395,8 +8586,8 @@ export const translations = {
         },
         analytics: {
           title: 'Analyses Reseautage',
-          summary: '{total} reunions · {avg}% score moyen · {rate}% taux succes',
-          topIndustry: 'Top industrie: {industry} · Top objectif: {goal}'
+          summary: '{total} reunions Â· {avg}% score moyen Â· {rate}% taux succes',
+          topIndustry: 'Top industrie: {industry} Â· Top objectif: {goal}'
         },
         suggestions: {
           title: 'Suggestions Match IA',
@@ -8458,7 +8649,7 @@ export const translations = {
           },
           create: {
             title: 'Planifier Reunion Jumellee',
-            matchInfo: 'MATCH IA · {percent}% Score',
+            matchInfo: 'MATCH IA Â· {percent}% Score',
             perfectMatch: 'Match parfait pour: {tags}',
             fields: {
               dateTime: 'Date & Heure',
@@ -8481,75 +8672,76 @@ export const translations = {
         },
         toasts: {
           addTwo: 'Ajoutez au moins 2 participants',
-          noMatches: 'Aucun match trouvé',
-          matchesSuccess: '{count} matchs IA générés !',
-          matchesComplete: 'Jumelage IA terminé',
-          noSuggestionsExport: 'Rien à exporter',
-          suggestionsExported: 'Suggestions exportées',
-          suggestionsDismissed: 'Suggestion ignorée',
-          noMeetingsExport: 'Rien à exporter',
-          meetingsExported: 'Réunions exportées',
-          settingsSaved: 'Paramètres enregistrés',
+          noMatches: 'Aucun match trouvÃ©',
+          matchesSuccess: '{count} matchs IA gÃ©nÃ©rÃ©s !',
+          matchesComplete: 'Jumelage IA terminÃ©',
+          noSuggestionsExport: 'Rien Ã  exporter',
+          suggestionsExported: 'Suggestions exportÃ©es',
+          suggestionsDismissed: 'Suggestion ignorÃ©e',
+          noMeetingsExport: 'Rien Ã  exporter',
+          meetingsExported: 'RÃ©unions exportÃ©es',
+          settingsSaved: 'ParamÃ¨tres enregistrÃ©s',
           noPendingRemind: 'Aucun rappel en attente',
-          remindersSent: 'Rappels envoyés',
-          selectMatchFirst: 'Sélectionnez un match',
-          matchNotifSent: 'Notif match envoyée',
-          notifSent: 'Notifications envoyées',
-          selectSuggestion: 'Sélectionnez une suggestion',
-          meetingCreated: 'Réunion créée',
-          meetingUpdated: 'Réunion mise à jour',
-          invitationsSent: 'Réunion créée et invitations envoyées !',
-          notificationsSent: 'Réunion mise à jour et notifications envoyées !'
+          remindersSent: 'Rappels envoyÃ©s',
+          selectMatchFirst: 'SÃ©lectionnez un match',
+          matchNotifSent: 'Notif match envoyÃ©e',
+          notifSent: 'Notifications envoyÃ©es',
+          selectSuggestion: 'SÃ©lectionnez une suggestion',
+          meetingCreated: 'RÃ©union crÃ©Ã©e',
+          meetingUpdated: 'RÃ©union mise Ã  jour',
+          invitationsSent: 'RÃ©union crÃ©Ã©e et invitations envoyÃ©es !',
+          notificationsSent: 'RÃ©union mise Ã  jour et notifications envoyÃ©es !'
         }
       },
       marketing: {
         header: {
           title: 'Outils marketing',
-          subtitle: 'Promouvez votre événement et boostez la vente de billets'
+          subtitle: 'Promouvez votre Ã©vÃ©nement et boostez la vente de billets'
         },
         tabs: {
           email: 'Campagnes e-mail',
           promo: 'Codes promo'
         },
         email: {
+          defaultName: 'Campagne email',
           customDomain: {
-            title: 'Domaine personnalisé',
-            subtitle: 'Utilisez votre propre domaine pour l’inscription et les emails',
-            url: 'URL d’inscription personnalisée',
+            title: 'Domaine personnalisÃ©',
+            subtitle: 'Utilisez votre propre domaine pour lâ€™inscription et les emails',
+            url: 'URL dâ€™inscription personnalisÃ©e',
             urlDesc: 'events.votredomaine.com au lieu de eventra.com/votre-evenement',
             domain: 'Domaine email de marque',
-            domainDesc: 'Envoyez des emails depuis @votredomaine.com pour une meilleure délivrabilité',
+            domainDesc: 'Envoyez des emails depuis @votredomaine.com pour une meilleure dÃ©livrabilitÃ©',
             ssl: 'Certificat SSL inclus',
             sslDesc: 'HTTPS automatique pour votre domaine',
             branding: 'Image professionnelle',
             brandingDesc: 'Gagnez la confiance des participants avec votre domaine',
-            upgrade: 'Passer à Pro',
-            learnMore: 'En savoir plus sur les domaines personnalisés'
+            upgrade: 'Passer Ã  Pro',
+            learnMore: 'En savoir plus sur les domaines personnalisÃ©s'
           },
           stats: {
-            totalSent: 'Total d’emails envoyés',
-            openRate: 'Taux d’ouverture moyen',
+            totalSent: 'Total dâ€™emails envoyÃ©s',
+            openRate: 'Taux dâ€™ouverture moyen',
             clickRate: 'Taux de clic moyen',
-            basedOn: 'Basé sur les campagnes envoyées',
-            noSent: 'Aucune campagne envoyée pour le moment',
+            basedOn: 'BasÃ© sur les campagnes envoyÃ©es',
+            noSent: 'Aucune campagne envoyÃ©e pour le moment',
             across: 'Sur {count} campagnes'
           },
           table: {
             title: 'Campagnes e-mail',
-            create: 'Créer une nouvelle campagne',
+            create: 'CrÃ©er une nouvelle campagne',
             headers: {
               name: 'NOM DE CAMPAGNE',
               status: 'STATUT',
               audience: 'AUDIENCE',
-              open: 'TAUX D’OUVERTURE',
+              open: 'TAUX Dâ€™OUVERTURE',
               click: 'TAUX DE CLIC',
-              sent: 'ENVOYÉE LE',
+              sent: 'ENVOYÃ‰E LE',
               actions: 'ACTIONS'
             },
             status: {
-              sent: 'Envoyée',
+              sent: 'EnvoyÃ©e',
               draft: 'Brouillon',
-              scheduled: 'Planifiée'
+              scheduled: 'PlanifiÃ©e'
             },
             actions: {
               edit: 'Modifier',
@@ -8557,7 +8749,7 @@ export const translations = {
               duplicate: 'Dupliquer',
               delete: 'Supprimer'
             },
-            empty: 'Aucune campagne pour le moment. Créez votre première campagne e-mail.'
+            empty: 'Aucune campagne pour le moment. CrÃ©ez votre premiÃ¨re campagne e-mail.'
           }
         },
         promo: {
@@ -8567,28 +8759,28 @@ export const translations = {
             totalUses: 'Total des utilisations',
             redemptions: 'Utilisations des promos',
             revenue: 'Revenus via promotions',
-            revenueDesc: 'Revenus estimés générés',
+            revenueDesc: 'Revenus estimÃ©s gÃ©nÃ©rÃ©s',
             revenueNoPrice: 'Ajoutez le prix des billets pour estimer le revenu'
           },
           table: {
             title: 'Codes promotionnels',
-            create: 'Créer un nouveau code',
+            create: 'CrÃ©er un nouveau code',
             headers: {
               code: 'CODE',
-              discount: 'RÉDUCTION',
+              discount: 'RÃ‰DUCTION',
               usage: 'UTILISATION',
               status: 'STATUT',
-              applies: 'S’APPLIQUE À',
+              applies: 'Sâ€™APPLIQUE Ã€',
               actions: 'ACTIONS'
             },
             status: {
               active: 'Actif',
-              expired: 'Expiré',
+              expired: 'ExpirÃ©',
               inactive: 'Inactif'
             },
             usage: {
-              used: '{count} / {total} utilisés',
-              unlimited: 'Illimité',
+              used: '{count} / {total} utilisÃ©s',
+              unlimited: 'IllimitÃ©',
               onePerCustomer: '1 par client'
             },
             applies: {
@@ -8597,34 +8789,34 @@ export const translations = {
             },
             actions: {
               edit: 'Modifier',
-              deactivate: 'Désactiver',
+              deactivate: 'DÃ©sactiver',
               delete: 'Supprimer'
             },
-            empty: 'Aucun code promo pour le moment. Créez votre premier code.'
+            empty: 'Aucun code promo pour le moment. CrÃ©ez votre premier code.'
           }
         },
         modals: {
           promo: {
-            titleAdd: 'Créer un nouveau code promo',
+            titleAdd: 'CrÃ©er un nouveau code promo',
             titleEdit: 'Modifier : {code}',
             fields: {
               code: 'Code promo *',
               codePlaceholder: 'ex. SAVE20, EARLYBIRD',
-              type: 'Type de réduction *',
+              type: 'Type de rÃ©duction *',
               typePercent: 'Pourcentage',
               typeFixed: 'Montant fixe',
-              value: 'Valeur de la réduction *',
-              applies: 'S’applique à *',
+              value: 'Valeur de la rÃ©duction *',
+              applies: 'Sâ€™applique Ã  *',
               appliesAll: 'Tous les types de billets',
-              appliesSpecific: 'Types de billets spécifiques',
-              noTickets: 'Aucun type de billet trouvé. Créez d’abord des billets.',
-              usage: 'Limites d’utilisation',
-              limitTotal: 'Limiter le nombre total d’utilisations',
-              limitTotalDesc: 'Définissez un maximum d’utilisations',
-              limitCustomer: 'Limiter à une utilisation par client',
-              limitCustomerDesc: 'Chaque client ne peut utiliser ce code qu’une seule fois',
-              dates: 'Dates d’activation',
-              start: 'Date de début *',
+              appliesSpecific: 'Types de billets spÃ©cifiques',
+              noTickets: 'Aucun type de billet trouvÃ©. CrÃ©ez dâ€™abord des billets.',
+              usage: 'Limites dâ€™utilisation',
+              limitTotal: 'Limiter le nombre total dâ€™utilisations',
+              limitTotalDesc: 'DÃ©finissez un maximum dâ€™utilisations',
+              limitCustomer: 'Limiter Ã  une utilisation par client',
+              limitCustomerDesc: 'Chaque client ne peut utiliser ce code quâ€™une seule fois',
+              dates: 'Dates dâ€™activation',
+              start: 'Date de dÃ©but *',
               end: 'Date de fin (optionnel)'
             },
             actions: {
@@ -8633,16 +8825,16 @@ export const translations = {
             }
           },
           campaign: {
-            titleAdd: 'Créer une nouvelle campagne e-mail',
+            titleAdd: 'CrÃ©er une nouvelle campagne e-mail',
             titleEdit: 'Modifier : {name}',
             fields: {
               name: 'Nom de campagne *',
               namePlaceholder: 'ex. Rappel Early Bird',
               status: 'Statut',
               audience: 'Audience',
-              date: 'Envoyée/Planifiée le',
-              total: 'Total envoyés',
-              open: 'Taux d’ouverture (%)',
+              date: 'EnvoyÃ©e/PlanifiÃ©e le',
+              total: 'Total envoyÃ©s',
+              open: 'Taux dâ€™ouverture (%)',
               click: 'Taux de clic (%)'
             },
             actions: {
@@ -8651,10 +8843,10 @@ export const translations = {
             }
           },
           upgrade: {
-            title: 'Passer à Eventra Pro',
-            subtitle: 'Débloquez les fonctionnalités de domaine personnalisé incluant les URL d’inscription, les domaines email et les certificats SSL pour inspirer confiance à vos participants.',
+            title: 'Passer Ã  Eventra Pro',
+            subtitle: 'DÃ©bloquez les fonctionnalitÃ©s de domaine personnalisÃ© incluant les URL dâ€™inscription, les domaines email et les certificats SSL pour inspirer confiance Ã  vos participants.',
             cancel: 'Annuler',
-            upgrade: 'Mettre à niveau'
+            upgrade: 'Mettre Ã  niveau'
           }
         }
       }
@@ -9375,7 +9567,7 @@ export const translations = {
               invalidDateTime: 'Veuillez saisir une date et une heure valides.'
             },
             selectedSpeakers: 'Intervenants selectionnes ({count})',
-            speakerLine: '{title} • {company}',
+            speakerLine: '{title} â€¢ {company}',
             noSpeakersAssigned: 'Aucun intervenant assigne',
             addSpeaker: 'Ajouter un intervenant',
             addMoreSpeakers: 'Ajouter d\'autres intervenants',
@@ -9777,7 +9969,7 @@ export const translations = {
             quickTips: {
               title: 'Conseils rapides',
               items: {
-                drag: "Glissez les champs dans l'aperçu",
+                drag: "Glissez les champs dans l'aperÃ§u",
                 edit: 'Cliquez pour modifier les parametres',
                 reorder: 'Reordonnez par glisser-deposer'
               }
@@ -10596,7 +10788,7 @@ export const translations = {
           live: 'Apercu en direct',
           fullscreen: 'Plein ecran',
           newTab: 'Ouvrir dans un nouvel onglet',
-          url: "URL d'aperçu"
+          url: "URL d'aperÃ§u"
         },
         hero: {
           title: "Titre de l'evenement",
@@ -10794,19 +10986,19 @@ export const translations = {
       }
     },
     businessProfileWizard: {
-        title: 'Place de marché Eventra',
+        title: 'Place de marchÃ© Eventra',
         saving: 'Enregistrement...',
         steps: {
           essentials: 'Essentiels',
           sectors: 'Secteurs',
           offerings: 'Offres',
-          identity: 'Identité'
+          identity: 'IdentitÃ©'
         },
         actions: {
           saveExit: 'Sauvegarder & Quitter',
           back: 'Retour',
-          next: 'Étape suivante',
-          createProfile: 'Créer le profil',
+          next: 'Ã‰tape suivante',
+          createProfile: 'CrÃ©er le profil',
           addOffering: 'Ajouter une offre',
           cancel: 'Annuler',
           save: 'Enregistrer'
@@ -10814,35 +11006,35 @@ export const translations = {
         essentials: {
           title: 'Essentiels de l\'entreprise',
           companyName: 'Nom de l\'entreprise *',
-          companyNamePlaceholder: 'Entrez le nom légal de votre entreprise',
+          companyNamePlaceholder: 'Entrez le nom lÃ©gal de votre entreprise',
           companySize: 'Taille de l\'entreprise *',
-          companySizePlaceholder: 'Sélectionnez la taille',
+          companySizePlaceholder: 'SÃ©lectionnez la taille',
           companyDescription: 'Description de l\'entreprise *',
           companyDescriptionPlaceholder: 'Parlez-nous de votre entreprise...',
-          legalDocs: 'Documents légaux / fiscaux',
+          legalDocs: 'Documents lÃ©gaux / fiscaux',
           uploadHint: 'Cliquez pour',
           uploadBrowse: 'Parcourir',
-          uploadSupport: 'Supporté : PDF, JPG, PNG (Max 5Mo)',
-          charCount: '{count}/500 caractères',
+          uploadSupport: 'SupportÃ© : PDF, JPG, PNG (Max 5Mo)',
+          charCount: '{count}/500 caractÃ¨res',
           errors: {
             nameRequired: 'Le nom de l\'entreprise est requis.',
             sizeRequired: 'La taille de l\'entreprise est requise.',
             descRequired: 'La description est requise.',
-            completeEssentials: 'Complétez les essentiels avant de télécharger des fichiers.'
+            completeEssentials: 'ComplÃ©tez les essentiels avant de tÃ©lÃ©charger des fichiers.'
           }
         },
         sectors: {
-          title: 'Sélectionnez vos secteurs d\'activité',
-          subtitle: 'Ajoutez des tags pour décrire votre industrie. Tapez et appuyez sur Entrée.',
+          title: 'SÃ©lectionnez vos secteurs d\'activitÃ©',
+          subtitle: 'Ajoutez des tags pour dÃ©crire votre industrie. Tapez et appuyez sur EntrÃ©e.',
           placeholder: 'Ajouter un secteur (ex. SaaS, Restauration, IA)...',
-          hint: '💡 Commencez à taper pour ajouter des tags. Entrée pour valider.',
+          hint: 'ðŸ’¡ Commencez Ã  taper pour ajouter des tags. EntrÃ©e pour valider.',
           errors: {
             atLeastOne: 'Ajoutez au moins un secteur pour continuer.'
           }
         },
         offerings: {
           title: 'Que proposez-vous ?',
-          emptyTitle: 'Aucune offre ajoutée. Cliquez sur "Ajouter une offre" pour commencer.',
+          emptyTitle: 'Aucune offre ajoutÃ©e. Cliquez sur "Ajouter une offre" pour commencer.',
           modal: {
             title: 'Ajouter une nouvelle offre',
             type: 'Type',
@@ -10850,101 +11042,101 @@ export const translations = {
             service: 'Service',
             basicInfo: 'Informations de base',
             name: 'Nom *',
-            namePlaceholder: 'ex. Plateforme d\'analyse d\'événements',
+            namePlaceholder: 'ex. Plateforme d\'analyse d\'Ã©vÃ©nements',
             description: 'Description',
-            descPlaceholder: 'Brève description de votre offre...',
+            descPlaceholder: 'BrÃ¨ve description de votre offre...',
             pricing: 'Prix & Inventaire',
             currency: 'Devise',
             price: 'Prix',
-            quantity: 'Quantité',
-            unlimited: 'Illimité',
-            tags: 'Tags / Spécifications',
-            tagsPlaceholder: 'Tapez un tag et Entrée (ex. SaaS, Analytics)...',
+            quantity: 'QuantitÃ©',
+            unlimited: 'IllimitÃ©',
+            tags: 'Tags / SpÃ©cifications',
+            tagsPlaceholder: 'Tapez un tag et EntrÃ©e (ex. SaaS, Analytics)...',
             images: 'Images',
-            imagesHint: 'Télécharger des images (Max 4)',
-            coverHint: 'La première image servira de couverture',
+            imagesHint: 'TÃ©lÃ©charger des images (Max 4)',
+            coverHint: 'La premiÃ¨re image servira de couverture',
             coverBadge: 'COUVERTURE',
             addBtn: 'Ajouter l\'offre'
           },
           errors: {
-            maxImages: 'Vous pouvez télécharger jusqu\'à 4 images.'
+            maxImages: 'Vous pouvez tÃ©lÃ©charger jusqu\'Ã  4 images.'
           }
         },
         identity: {
-          title: 'Identité & Contact',
+          title: 'IdentitÃ© & Contact',
           branding: 'Image de marque',
           logo: 'Logo de l\'entreprise',
-          uploadLogo: 'Télécharger le logo',
+          uploadLogo: 'TÃ©lÃ©charger le logo',
           cover: 'Image de couverture',
-          uploadCover: 'Télécharger l\'image (1200x400)',
-          contact: 'Coordonnées',
+          uploadCover: 'TÃ©lÃ©charger l\'image (1200x400)',
+          contact: 'CoordonnÃ©es',
           email: 'Email professionnel *',
-          phone: 'Numéro de téléphone',
+          phone: 'NumÃ©ro de tÃ©lÃ©phone',
           website: 'Site web',
           address: 'Adresse professionnelle',
-          published: 'Profil professionnel publié et envoyé pour validation !',
-          saved: 'Profil professionnel enregistré'
+          published: 'Profil professionnel publiÃ© et envoyÃ© pour validation !',
+          saved: 'Profil professionnel enregistrÃ©'
         },
         toasts: {
-          fileUploaded: 'Fichier téléchargé',
-          imageUploaded: 'Image téléchargée'
+          fileUploaded: 'Fichier tÃ©lÃ©chargÃ©',
+          imageUploaded: 'Image tÃ©lÃ©chargÃ©e'
         }
       },
       businessDashboard: {
         tabs: {
           dashboard: 'Tableau de bord',
-          profile: 'Détails du profil',
-          team: 'Membres de l\'équipe',
+          profile: 'DÃ©tails du profil',
+          team: 'Membres de l\'Ã©quipe',
           products: 'Produits & Services',
           ai: 'Conseiller IA Eventra',
-          visibility: 'Visibilité & Portée',
+          visibility: 'VisibilitÃ© & PortÃ©e',
           appearance: 'Apparence',
           analytics: 'Analytique'
         },
         status: {
           draft: 'Brouillon - Non visible',
           pending: 'Validation en attente',
-          live: 'En ligne sur la place de marché'
+          live: 'En ligne sur la place de marchÃ©'
         },
         actions: {
           editWizard: 'Modifier dans l\'assistant',
           viewProfile: 'Voir le profil entreprise',
           viewPublic: 'Voir le profil public',
-          createProfile: 'Créer un profil entreprise',
+          createProfile: 'CrÃ©er un profil entreprise',
           requestValidation: 'Demander la validation'
         },
         loading: 'Chargement...',
-        notFound: 'Aucun profil entreprise trouvé',
+        notFound: 'Aucun profil entreprise trouvÃ©',
         strength: {
           title: 'Force du profil',
           complete: 'Complet',
-          basicInfo: 'Infos de base complètes',
-          basicInfoIncomplete: 'Complétez les infos de base',
+          basicInfo: 'Infos de base complÃ¨tes',
+          basicInfoIncomplete: 'ComplÃ©tez les infos de base',
           offeringsNeeded: 'Ajoutez {count} offre(s) de plus',
-          offeringsComplete: 'Offres complètes',
-          docsUploaded: 'Documents légaux téléchargés',
-          uploadDocs: 'Télécharger les documents légaux',
-          improve: 'Améliorer le score'
+          offeringsComplete: 'Offres complÃ¨tes',
+          docsUploaded: 'Documents lÃ©gaux tÃ©lÃ©chargÃ©s',
+          uploadDocs: 'TÃ©lÃ©charger les documents lÃ©gaux',
+          improve: 'AmÃ©liorer le score'
         },
         stats: {
           views: 'Vues du profil',
-          leads: 'Leads qualifiés',
-          shortlisted: 'Annonces sauvegardées',
-          savedUsers: 'Utilisateurs ayant sauvegardé',
+          leads: 'Leads qualifiÃ©s',
+          shortlisted: 'Annonces sauvegardÃ©es',
+          savedUsers: 'Utilisateurs ayant sauvegardÃ©',
           contactClicks: 'Clics sur contact',
           last30days: '30 derniers jours'
         },
         profile: {
-          title: 'Détails du profil',
-          subtitle: 'Mettez à jour les informations de votre entreprise et les détails de l\'annonce publique.',
+          title: 'DÃ©tails du profil',
+          subtitle: 'Mettez Ã  jour les informations de votre entreprise et les dÃ©tails de l\'annonce publique.',
           essentials: 'Essentiels de l\'entreprise',
           companyName: 'Nom de l\'entreprise *',
           companySize: 'Taille de l\'entreprise *',
           description: 'Description de l\'entreprise *',
-          legalDocs: 'Documents légaux / fiscaux',
+          legalDocs: 'Documents lÃ©gaux / fiscaux',
           sectors: {
-            title: 'Secteurs d\'activité',
-            subtitle: 'Ajoutez des tags pour décrire votre industrie. Tapez et appuyez sur Entrée.'
+            title: 'Secteurs d\'activitÃ©',
+            subtitle: 'Ajoutez des tags pour dÃ©crire votre industrie. Tapez et appuyez sur EntrÃ©e.'
           },
           branding: {
             title: 'Image de marque',
@@ -10952,9 +11144,9 @@ export const translations = {
             cover: 'Image de couverture'
           },
           contact: {
-            title: 'Coordonnées',
+            title: 'CoordonnÃ©es',
             email: 'Email professionnel *',
-            phone: 'Numéro de téléphone',
+            phone: 'NumÃ©ro de tÃ©lÃ©phone',
             website: 'Site web',
             address: 'Adresse professionnelle'
           },
@@ -10962,22 +11154,22 @@ export const translations = {
           saving: 'Enregistrement...'
         },
         team: {
-          title: 'Gestion de l\'équipe',
+          title: 'Gestion de l\'Ã©quipe',
           addMember: 'Ajouter un membre',
           table: {
             name: 'Nom',
-            role: 'Rôle',
+            role: 'RÃ´le',
             status: 'Statut'
           },
           roles: {
-            owner: 'Propriétaire',
+            owner: 'PropriÃ©taire',
             admin: 'Admin',
             member: 'Membre',
             viewer: 'Spectateur'
           },
           actions: {
             makeAdmin: 'Rendre Admin',
-            setMember: 'Définir comme Membre',
+            setMember: 'DÃ©finir comme Membre',
             remove: 'Retirer le membre'
           }
         },
@@ -10987,70 +11179,70 @@ export const translations = {
           optimizer: {
             title: 'Optimiseur de contenu',
             current: 'Description actuelle',
-            rewrite: 'Réécrire pour plus d\'impact',
-            generating: 'Génération...',
+            rewrite: 'RÃ©Ã©crire pour plus d\'impact',
+            generating: 'GÃ©nÃ©ration...',
             suggestion: 'Suggestion IA',
             accept: 'Accepter',
-            tryAgain: 'Réessayer'
+            tryAgain: 'RÃ©essayer'
           },
           tags: {
-            title: 'Générateur de tags',
-            subtitle: 'Tags suggérés par l\'IA basés sur votre profil',
-            apply: 'Appliquer les tags suggérés'
+            title: 'GÃ©nÃ©rateur de tags',
+            subtitle: 'Tags suggÃ©rÃ©s par l\'IA basÃ©s sur votre profil',
+            apply: 'Appliquer les tags suggÃ©rÃ©s'
           },
           competitor: {
-            title: 'Aperçu concurrentiel'
+            title: 'AperÃ§u concurrentiel'
           },
           bestPractices: {
             title: 'Guide des meilleures pratiques'
           }
         },
         visibility: {
-          title: 'Visibilité & Portée',
+          title: 'VisibilitÃ© & PortÃ©e',
           geographic: {
-            title: 'Portée géographique',
+            title: 'PortÃ©e gÃ©ographique',
             label: 'Pays desservis',
-            select: 'Sélectionner des pays',
-            selected: '{count} pays sélectionnés',
+            select: 'SÃ©lectionner des pays',
+            selected: '{count} pays sÃ©lectionnÃ©s',
             search: 'Rechercher des pays...',
             clear: 'Effacer'
           },
           sectors: {
-            title: 'Secteurs d\'activité',
+            title: 'Secteurs d\'activitÃ©',
             primary: 'Secteur primaire',
             secondary: 'Secteur secondaire'
           },
           publicListing: {
             title: 'Annonce publique',
-            subtitle: 'Autoriser votre entreprise à apparaître sur la place de marché',
-            hint: 'Nécessite la validation d\'un administrateur avant la mise en ligne'
+            subtitle: 'Autoriser votre entreprise Ã  apparaÃ®tre sur la place de marchÃ©',
+            hint: 'NÃ©cessite la validation d\'un administrateur avant la mise en ligne'
           }
         },
         appearance: {
-          title: 'Paramètres d\'apparence',
+          title: 'ParamÃ¨tres d\'apparence',
           accentColor: {
             title: 'Couleur de la marque',
-            subtitle: 'Choisissez une couleur qui représente votre marque'
+            subtitle: 'Choisissez une couleur qui reprÃ©sente votre marque'
           },
           layout: {
             title: 'Mise en page du profil',
             standard: 'Mise en page standard',
             standardDesc: 'Image de couverture en haut',
             modern: 'Mise en page moderne',
-            modernDesc: 'En-tête divisé'
+            modernDesc: 'En-tÃªte divisÃ©'
           }
         },
         analytics: {
           title: 'Analytique commerciale',
-          subtitle: 'Suivez la visibilité, le flux de leads et l\'engagement.',
+          subtitle: 'Suivez la visibilitÃ©, le flux de leads et l\'engagement.',
           actions: {
             refresh: 'Actualiser',
             export: 'Exporter CSV',
-            snapshot: 'Instantané',
+            snapshot: 'InstantanÃ©',
             share: 'Partager',
-            email: 'Résumé par email',
+            email: 'RÃ©sumÃ© par email',
             compare: 'Comparer',
-            reset: 'Réinitialiser'
+            reset: 'RÃ©initialiser'
           },
           engagement: {
             title: 'Tendance d\'engagement',
@@ -11058,9 +11250,9 @@ export const translations = {
             saveRate: 'Taux de sauvegarde'
           },
           highlights: {
-            title: 'Faits saillants du marché',
-            topSector: 'Intérêt sectoriel principal',
-            trendingRegion: 'Région tendance',
+            title: 'Faits saillants du marchÃ©',
+            topSector: 'IntÃ©rÃªt sectoriel principal',
+            trendingRegion: 'RÃ©gion tendance',
             profileStrength: 'Force du profil'
           }
         },
@@ -11068,41 +11260,43 @@ export const translations = {
           addMember: {
             title: 'Ajouter un membre',
             searchLabel: 'Rechercher par nom ou email',
-            searchPlaceholder: 'Tapez au moins 2 caractères...',
-            noResults: 'Aucun utilisateur trouvé correspondant à "{query}"',
-            info: 'Vous pouvez ajouter tout utilisateur Eventra existant à votre équipe en recherchant son nom ou son adresse email.',
+            searchPlaceholder: 'Tapez au moins 2 caractÃ¨res...',
+            noResults: 'Aucun utilisateur trouvÃ© correspondant Ã  "{query}"',
+            info: 'Vous pouvez ajouter tout utilisateur Eventra existant Ã  votre Ã©quipe en recherchant son nom ou son adresse email.',
             cancel: 'Annuler',
             sendInvite: 'Envoyer l\'invitation',
-            addToTeam: 'Ajouter à l\'équipe'
+            addToTeam: 'Ajouter Ã  l\'Ã©quipe'
           }
         }
       },
       businessProfilePage: {
-        manageButton: 'Gérer l\'entreprise',
-        verified: 'Entreprise vérifiée',
-        legalVerified: 'Documents légaux vérifiés',
-        about: 'À propos de nous',
+        manageButton: 'GÃ©rer l\'entreprise',
+        verified: 'Entreprise vÃ©rifiÃ©e',
+        legalVerified: 'Documents lÃ©gaux vÃ©rifiÃ©s',
+        about: 'Ã€ propos de nous',
         noDescription: 'Aucune description fournie.',
-        noSectors: 'Aucun secteur ajouté',
-        employees: '{count} Employés',
-        locationTbd: 'Lieu à définir',
-        notFound: 'Entreprise non trouvée.',
+        noSectors: 'Aucun secteur ajoutÃ©',
+        employees: '{count} EmployÃ©s',
+        locationTbd: 'Lieu Ã  dÃ©finir',
+        notFound: 'Entreprise non trouvÃ©e.',
         stats: {
           reviews: '({count} avis)',
-          eventsManaged: '{count} événements gérés',
+          eventsManaged: '{count} Ç¸vÇ¸nements gÇ¸rÇ¸s',
+          followers: '{count} abonnÇ¸s',
+          views: '{count} vues du profil',
           memberSince: 'Membre depuis {year}'
         },
         team: {
-          title: 'Notre équipe',
+          title: 'Notre Ã©quipe',
           addMember: 'Ajouter un membre'
         },
         offerings: {
           title: 'Nos offres',
-          empty: 'Aucune offre listée.',
+          empty: 'Aucune offre listÃ©e.',
           free: 'Gratuit'
         },
         contact: {
-          title: 'Coordonnées',
+          title: 'CoordonnÃ©es',
           businessEmail: 'Email professionnel'
         },
         follow: 'Suivez-nous',
@@ -11110,12 +11304,12 @@ export const translations = {
           title: 'Matchmaking B2B',
           seeking: 'Recherche',
           offering: 'Offre',
-          placeholder: 'Tapez et appuyez sur Entrée...'
+          placeholder: 'Tapez et appuyez sur EntrÃ©e...'
         },
-        specializations: 'Spécialisations',
+        specializations: 'SpÃ©cialisations',
         cta: {
-          title: 'Intéressé par nos services ?',
-          subtitle: 'Contactez-nous pour discuter de la façon dont nous pouvons vous aider pour votre prochain événement.',
+          title: 'IntÃ©ressÃ© par nos services ?',
+          subtitle: 'Contactez-nous pour discuter de la faÃ§on dont nous pouvons vous aider pour votre prochain Ã©vÃ©nement.',
           button: 'Demander un devis'
         },
         actions: {
@@ -11127,11 +11321,11 @@ export const translations = {
           cancel: 'Annuler'
         },
         toasts: {
-          linkCopied: 'Lien du profil copié.',
-          copyFailed: 'Échec de la copie du lien.',
-          profileUpdated: 'Profil mis à jour',
-          userAlreadyMember: 'L\'utilisateur est déjà membre de l\'équipe.',
-          memberAdded: '{name} ajouté avec succès.'
+          linkCopied: 'Lien du profil copiÃ©.',
+          copyFailed: 'Ã‰chec de la copie du lien.',
+          profileUpdated: 'Profil mis Ã  jour',
+          userAlreadyMember: 'L\'utilisateur est dÃ©jÃ  membre de l\'Ã©quipe.',
+          memberAdded: '{name} ajoutÃ© avec succÃ¨s.'
         }
       },
       publicProfilePage: {
@@ -11488,4 +11682,5 @@ export const translations = {
       },
   }
 }as any; 
+
 

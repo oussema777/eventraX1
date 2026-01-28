@@ -16,6 +16,7 @@ import {
   Star,
   MessageCircle,
   Trash2,
+  Tag,
   Mic,
   Building,
   FileText,
@@ -53,14 +54,16 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
   const [isPublishing, setIsPublishing] = useState(false);
 
   const buildFallbackActivity = async (activeEventId: string) => {
-    const [tickets, sessions, speakers, exhibitors, forms, templates, links] = await Promise.all([
+    const [tickets, sessions, speakers, exhibitors, forms, templates, links, promos, comms] = await Promise.all([
       supabase.from('event_tickets').select('id,name,created_at,updated_at').eq('event_id', activeEventId).order('updated_at', { ascending: false }).limit(1),
       supabase.from('event_sessions').select('id,title,created_at,updated_at').eq('event_id', activeEventId).order('updated_at', { ascending: false }).limit(1),
       supabase.from('event_speakers').select('id,name,full_name,created_at,updated_at').eq('event_id', activeEventId).order('updated_at', { ascending: false }).limit(1),
       supabase.from('event_exhibitors').select('id,company_name,created_at,updated_at').eq('event_id', activeEventId).order('updated_at', { ascending: false }).limit(1),
       supabase.from('event_forms').select('id,title,created_at,updated_at').eq('event_id', activeEventId).order('updated_at', { ascending: false }).limit(1),
       supabase.from('event_email_templates').select('id,name,subject,created_at,updated_at').eq('event_id', activeEventId).order('updated_at', { ascending: false }).limit(1),
-      supabase.from('event_tracking_links').select('id,name,slug,created_at,updated_at').eq('event_id', activeEventId).order('updated_at', { ascending: false }).limit(1)
+      supabase.from('event_tracking_links').select('id,name,slug,created_at,updated_at').eq('event_id', activeEventId).order('updated_at', { ascending: false }).limit(1),
+      supabase.from('event_promos').select('id,code,created_at').eq('event_id', activeEventId).order('created_at', { ascending: false }).limit(1),
+      supabase.from('event_communications').select('id,subject,created_at,meta').eq('event_id', activeEventId).eq('kind', 'email').order('created_at', { ascending: false }).limit(1)
     ]);
 
     const rows = [
@@ -70,7 +73,9 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
       ...(exhibitors.data || []).map((row: any) => ({ ...row, entity_type: 'event_exhibitors', entity_title: row.company_name })),
       ...(forms.data || []).map((row: any) => ({ ...row, entity_type: 'event_forms', entity_title: row.title })),
       ...(templates.data || []).map((row: any) => ({ ...row, entity_type: 'event_email_templates', entity_title: row.name || row.subject })),
-      ...(links.data || []).map((row: any) => ({ ...row, entity_type: 'event_tracking_links', entity_title: row.name || row.slug }))
+      ...(links.data || []).map((row: any) => ({ ...row, entity_type: 'event_tracking_links', entity_title: row.name || row.slug })),
+      ...(promos.data || []).map((row: any) => ({ ...row, entity_type: 'event_promos', entity_title: row.code })),
+      ...(comms.data || []).map((row: any) => ({ ...row, entity_type: 'event_communications', entity_title: row.meta?.name || row.subject }))
     ];
 
     return rows
@@ -104,6 +109,8 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
         const formsCountReq = supabase.from('event_forms').select('id', { count: 'exact', head: true }).eq('event_id', eventId);
         const marketingTemplatesReq = supabase.from('event_email_templates').select('id', { count: 'exact', head: true }).eq('event_id', eventId);
         const marketingLinksReq = supabase.from('event_tracking_links').select('id', { count: 'exact', head: true }).eq('event_id', eventId);
+        const marketingPromosReq = supabase.from('event_promos').select('id', { count: 'exact', head: true }).eq('event_id', eventId);
+        const marketingCommsReq = supabase.from('event_communications').select('id', { count: 'exact', head: true }).eq('event_id', eventId).eq('kind', 'email');
         const ticketsSummaryReq = supabase
           .from('event_tickets')
           .select('price, currency, quantity_sold, quantity_total')
@@ -132,6 +139,8 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
           formsCountRes,
           marketingTemplatesRes,
           marketingLinksRes,
+          marketingPromosRes,
+          marketingCommsRes,
           ticketsSummaryRes,
           registrationsRes,
           attendeesRes,
@@ -145,6 +154,8 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
           formsCountReq,
           marketingTemplatesReq,
           marketingLinksReq,
+          marketingPromosReq,
+          marketingCommsReq,
           ticketsSummaryReq,
           registrationsReq,
           attendeesReq,
@@ -160,7 +171,10 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
         const speakersCount = speakersCountRes.count ?? 0;
         const exhibitorsCount = exhibitorsCountRes.count ?? 0;
         const formsCount = formsCountRes.count ?? 0;
-        const marketingCount = (marketingTemplatesRes.count ?? 0) + (marketingLinksRes.count ?? 0);
+        const marketingCount = (marketingTemplatesRes.count ?? 0)
+          + (marketingLinksRes.count ?? 0)
+          + (marketingPromosRes.count ?? 0)
+          + (marketingCommsRes.count ?? 0);
 
         setCounts({
           tickets: ticketsCount,
@@ -317,8 +331,10 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
         case 'event_exhibitors': return 'exhibitors';
         case 'event_forms': return 'create-registration';
         case 'event_email_templates':
+        case 'event_communications':
         case 'event_marketing_links':
         case 'event_tracking_links': return 'marketing';
+        case 'event_promos': return 'marketing';
         default: return 'overview';
       }
     };
@@ -331,6 +347,8 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
       if (entityType === 'event_exhibitors') return Building;
       if (entityType === 'event_forms') return FileText;
       if (entityType === 'event_email_templates') return Mail;
+      if (entityType === 'event_communications') return Mail;
+      if (entityType === 'event_promos') return Tag;
       if (entityType === 'event_marketing_links' || entityType === 'event_tracking_links') return ExternalLink;
       return CheckCircle;
     };
@@ -351,6 +369,8 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
       if (entityType === 'event_exhibitors') return t('manageEvent.overview.activity.items.exhibitor');
       if (entityType === 'event_forms') return t('manageEvent.overview.activity.items.registrationForm');
       if (entityType === 'event_email_templates') return t('manageEvent.overview.activity.items.emailCampaign');
+      if (entityType === 'event_communications') return t('manageEvent.overview.activity.items.emailCampaign');
+      if (entityType === 'event_promos') return t('manageEvent.overview.activity.items.promoCode');
       if (entityType === 'event_marketing_links' || entityType === 'event_tracking_links') return t('manageEvent.overview.activity.items.marketingLink');
       return t('manageEvent.overview.activity.items.update');
     };

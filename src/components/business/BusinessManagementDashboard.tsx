@@ -115,6 +115,7 @@ export default function BusinessManagementDashboard() {
   const [isGeneratingSnapshot, setIsGeneratingSnapshot] = useState(false);
   const [isSharingAnalytics, setIsSharingAnalytics] = useState(false);
   const [isEmailingSummary, setIsEmailingSummary] = useState(false);
+  const [analyticsMetrics, setAnalyticsMetrics] = useState<Record<string, number>>({});
   const [openMemberMenuId, setOpenMemberMenuId] = useState<string | null>(null);
   const [memberActionId, setMemberActionId] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState('');
@@ -141,6 +142,11 @@ export default function BusinessManagementDashboard() {
       fetchBusinessProfile();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!business?.id) return;
+    fetchAnalyticsMetrics(business.id, analyticsRange);
+  }, [business?.id, analyticsRange]);
 
   useEffect(() => {
     if (!openMemberMenuId) return;
@@ -259,6 +265,43 @@ export default function BusinessManagementDashboard() {
       console.error('Error fetching business profile:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchAnalyticsMetrics = async (businessId: string, range: '7d' | '30d' | '90d') => {
+    const rangeDays = range === '7d' ? 7 : range === '90d' ? 90 : 30;
+    const since = new Date();
+    since.setDate(since.getDate() - rangeDays);
+    const sinceDate = since.toISOString().slice(0, 10);
+    const sinceTimestamp = since.toISOString();
+
+    try {
+      const [{ data: insights }, { count: visitsCount }] = await Promise.all([
+        supabase
+          .from('business_profile_insights')
+          .select('metric, value')
+          .eq('business_id', businessId)
+          .gte('occurred_on', sinceDate),
+        supabase
+          .from('business_profile_visits')
+          .select('id', { count: 'exact', head: true })
+          .eq('business_id', businessId)
+          .gte('visited_at', sinceTimestamp)
+      ]);
+
+      const metrics: Record<string, number> = {};
+      (insights || []).forEach((row: any) => {
+        const key = String(row.metric || '').toLowerCase();
+        const value = Number(row.value || 0);
+        if (!key) return;
+        metrics[key] = (metrics[key] || 0) + (Number.isFinite(value) ? value : 0);
+      });
+      if (visitsCount != null && metrics.views == null) {
+        metrics.views = visitsCount;
+      }
+      setAnalyticsMetrics(metrics);
+    } catch (error) {
+      console.error('Failed to load analytics metrics', error);
     }
   };
 
@@ -518,6 +561,9 @@ export default function BusinessManagementDashboard() {
   };
 
   const getMetricValue = (key: string) => {
+    if (analyticsMetrics[key] != null) {
+      return Number(analyticsMetrics[key] || 0);
+    }
     const metrics = business?.branding?.metrics || {};
     const rangeKey = `${key}_${analyticsRange}`;
     return Number(metrics[rangeKey] ?? metrics[`${key}_30d`] ?? metrics[key] ?? 0);
@@ -525,6 +571,9 @@ export default function BusinessManagementDashboard() {
 
   const handleRefreshAnalytics = () => {
     setIsRefreshingAnalytics(true);
+    if (business?.id) {
+      fetchAnalyticsMetrics(business.id, analyticsRange);
+    }
     setTimeout(() => {
       setIsRefreshingAnalytics(false);
       toast.success('Analytics refreshed');
