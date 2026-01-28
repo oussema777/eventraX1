@@ -51,6 +51,7 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
   const [activity, setActivity] = useState<Array<any>>([]);
   const [registrationRows, setRegistrationRows] = useState<Array<any>>([]);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [showAllTasks, setShowAllTasks] = useState(false);
 
   const buildFallbackActivity = async (activeEventId: string) => {
     const [tickets, sessions, speakers, exhibitors, forms, templates, links] = await Promise.all([
@@ -233,6 +234,10 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
       };
     });
   }, [counts, t]);
+
+  const displayedTasks = useMemo(() => {
+    return showAllTasks ? upcomingTasks : upcomingTasks.slice(0, 3);
+  }, [showAllTasks, upcomingTasks]);
 
   const pendingTasks = useMemo(() => upcomingTasks.filter((t) => !t.completed).length, [upcomingTasks]);
 
@@ -656,6 +661,10 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
               )}
             </div>
             <button
+              onClick={() => {
+                if (!eventId) return;
+                navigate({ pathname: `/event/${eventId}`, search: '?tab=reporting' });
+              }}
               className="w-full mt-4 h-9 rounded-lg border transition-colors"
               style={{
                 backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -698,23 +707,17 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
               </span>
             </div>
             <div className="space-y-3">
-              {upcomingTasks.map((task, index) => (
+              {displayedTasks.map((task, index) => (
                 <div
                   key={index}
                   className="flex items-start gap-3 p-3 rounded-lg"
                   style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}
                 >
-                  <input
-                    type="checkbox"
-                    checked={task.completed}
-                    readOnly
-                    style={{
-                      width: '18px',
-                      height: '18px',
-                      marginTop: '2px',
-                      cursor: 'pointer'
-                    }}
-                  />
+                  {task.completed ? (
+                    <CheckCircle size={20} className="text-green-500 mt-1" />
+                  ) : (
+                    <div className="w-5 h-5 mt-1 rounded-full border-2 border-gray-500" />
+                  )}
                   <div className="flex-1">
                     <p style={{ fontSize: '14px', color: '#FFFFFF', marginBottom: '2px' }}>
                       {task.title}
@@ -751,19 +754,24 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
                 </div>
               ))}
             </div>
-            <button
-              className="w-full mt-4 h-9 rounded-lg transition-colors"
-              style={{
-                backgroundColor: '#0684F5',
-                color: '#FFFFFF',
-                fontSize: '13px',
-                fontWeight: 600,
-                border: 'none',
-                cursor: 'pointer'
-              }}
-            >
-              {t('manageEvent.overview.tasks.viewAll')}
-            </button>
+            {upcomingTasks.length > 3 && (
+              <button
+                onClick={() => setShowAllTasks(!showAllTasks)}
+                className="w-full mt-4 h-9 rounded-lg transition-colors"
+                style={{
+                  backgroundColor: '#0684F5',
+                  color: '#FFFFFF',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                {showAllTasks
+                  ? t('manageEvent.overview.tasks.items.showLess')
+                  : t('manageEvent.overview.tasks.viewAll')}
+              </button>
+            )}
           </div>
 
           {/* Quick Actions */}
@@ -828,6 +836,40 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
                 <Users size={24} style={{ color: '#0684F5' }} />
                 <span style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>
                   {t('manageEvent.overview.actions.addSpeaker')}
+                </span>
+              </button>
+              <button
+                className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border transition-all hover:shadow-md"
+                style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                  borderColor: 'rgba(255, 255, 255, 0.1)',
+                  cursor: 'pointer'
+                }}
+                onClick={() => {
+                  if (!eventId) return;
+                  navigate({ pathname: `/event/${eventId}`, search: '?tab=ticketing' });
+                }}
+              >
+                <Ticket size={24} style={{ color: '#0684F5' }} />
+                <span style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>
+                  {t('manageEvent.overview.actions.sellTickets')}
+                </span>
+              </button>
+              <button
+                className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border transition-all hover:shadow-md"
+                style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                  borderColor: 'rgba(255, 255, 255, 0.1)',
+                  cursor: 'pointer'
+                }}
+                onClick={() => {
+                  if (!eventId) return;
+                  navigate({ pathname: `/event/${eventId}`, search: '?tab=exhibitors' });
+                }}
+              >
+                <Building size={24} style={{ color: '#0684F5' }} />
+                <span style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>
+                  {t('manageEvent.overview.actions.addExhibitor')}
                 </span>
               </button>
               <button
