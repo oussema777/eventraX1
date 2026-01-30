@@ -915,7 +915,8 @@ export const translations = {
             tickets: 'Make tickets',
             sessions: 'Make sessions',
             speakers: 'Add speakers',
-            exhibitors: 'Make exhibitors'
+            exhibitors: 'Make exhibitors',
+            showLess: 'Show Less'
           }
         },
         actions: {
@@ -923,6 +924,8 @@ export const translations = {
           sendEmail: 'Send Email',
           addSession: 'Add Session',
           addSpeaker: 'Add Speaker',
+          sellTickets: 'Sell Tickets',
+          addExhibitor: 'Add Exhibitor',
           previewSite: 'Preview Site'
         },
         health: {

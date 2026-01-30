@@ -84,6 +84,14 @@ export default function WizardStep4Launch() {
     navigate('/create-event');
   };
 
+  const handlePreview = () => {
+    if (eventData.id) {
+      window.open(`/event/${eventData.id}/landing`, '_blank');
+    } else {
+      toast.error(t('wizard.step4.errors.saveFirst', 'Please save event details first.'));
+    }
+  };
+
   return (
     <div className="wizard-step-container" style={{ backgroundColor: '#0B2641', minHeight: '100vh', paddingTop: '72px' }}>
       <style>{`
@@ -185,6 +193,7 @@ export default function WizardStep4Launch() {
       <LaunchFooterActionBar 
         onPublish={handlePublish}
         onSaveDraft={handleSaveDraft}
+        onPreview={handlePreview}
         onBack={() => {
       if (eventData.id) {
         navigate(`/create/registration/${eventData.id}`);

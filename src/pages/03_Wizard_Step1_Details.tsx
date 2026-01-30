@@ -24,7 +24,7 @@ export default function WizardStep1Details() {
   const buildDraftPayload = () => {
     const details = getEventBasicDetails();
     const safeName =
-      details.eventName?.trim() || draftName.trim() || eventData.name?.trim() || untitledEvent;
+      details.eventName?.trim() || draftName.trim() || eventData.name?.trim();
     return {
       name: safeName,
       tagline: details.tagline || eventData.tagline,

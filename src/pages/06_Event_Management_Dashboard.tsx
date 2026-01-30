@@ -95,6 +95,7 @@ export default function EventManagementDashboard() {
     { id: 'speakers', label: t('manageEvent.nav.speakers.label'), icon: Mic, description: t('manageEvent.nav.speakers.desc') },
     { id: 'attendees', label: t('manageEvent.nav.attendees.label'), icon: Users, description: t('manageEvent.nav.attendees.desc') },
     { id: 'exhibitors', label: t('manageEvent.nav.exhibitors.label'), icon: Building, description: t('manageEvent.nav.exhibitors.desc') },
+    { id: 'ticketing', label: t('manageEvent.nav.ticketing.label'), icon: Ticket, description: t('manageEvent.nav.ticketing.desc') },
     { id: 'b2b', label: t('manageEvent.nav.b2b.label'), icon: Handshake, description: t('manageEvent.nav.b2b.desc') },
     { id: 'dayof', label: t('manageEvent.nav.dayof.label'), icon: Wrench, description: t('manageEvent.nav.dayof.desc') }
   ];

@@ -39,15 +39,20 @@ export default function FooterActionBar({
 
   return (
     <div 
-      className="footer-action-bar fixed bottom-0 left-0 right-0 z-40 border-t"
+      className="footer-action-bar fixed bottom-0 right-0 z-40 border-t"
       style={{
+        left: window.innerWidth > 768 ? '280px' : '0',
         borderColor: 'var(--border)',
         boxShadow: '0 -4px 6px rgba(0, 0, 0, 0.2)',
         backgroundColor: 'var(--card)'
       }}
     >
       <style>{`
+        @media (max-width: 1024px) {
+          .footer-action-bar { left: 56px !important; }
+        }
         @media (max-width: 768px) {
+          .footer-action-bar { left: 0 !important; }
           .footer-action-bar-inner { 
             flex-direction: column !important; 
             gap: 1rem !important; 
@@ -64,24 +69,8 @@ export default function FooterActionBar({
         }
       `}</style>
       <div className="footer-action-bar-inner px-10 py-6 flex items-center justify-between max-w-[1440px] mx-auto">
-        {/* Left Side */}
+        {/* Left Side (Empty after removing Save Draft) */}
         <div className="footer-action-bar-left flex items-center gap-4">
-          <button
-            onClick={handleSaveDraft}
-            className="h-11 px-6 rounded-lg transition-colors hover:opacity-80"
-            style={{
-              color: 'var(--muted-foreground)',
-              backgroundColor: 'transparent',
-              border: '1px solid var(--border)'
-            }}
-          >
-            {t('wizard.common.saveDraft')}
-          </button>
-
-          <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--success)', fontWeight: 500 }}>
-            <Save size={14} />
-            <span>{t('wizard.footer.draftSavedHint', { minutes: 2 })}</span>
-          </div>
         </div>
 
         {/* Right Side */}

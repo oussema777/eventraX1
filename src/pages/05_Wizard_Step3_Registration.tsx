@@ -31,9 +31,20 @@ export default function WizardStep3Registration() {
   const isFreeEvent = (eventData.event_status || getEventBasicDetails().eventStatus || 'free') === 'free';
   
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [currentSubStep, setCurrentSubStep] = useState<SubStep>('3.8');
+  const [currentSubStep, setCurrentSubStep] = useState<SubStep>(() => {
+    return (localStorage.getItem('last_registration_substep') as SubStep) || '3.8';
+  });
   const [completedSteps, setCompletedSteps] = useState<(1 | 2 | SubStep)[]>([1, 2]);
   const untitledEvent = t('wizard.common.untitledEvent');
+
+  useEffect(() => {
+    if (eventData.id) {
+      const steps: (1 | 2 | SubStep)[] = [1];
+      if (eventData.branding_settings?.design_studio) steps.push(2);
+      // Add other logic for completed substeps if tracked in DB
+      setCompletedSteps(prev => Array.from(new Set([...prev, ...steps])));
+    }
+  }, [eventData]);
 
   const subSteps = useMemo(() => {
     const steps = [
@@ -48,6 +59,13 @@ export default function WizardStep3Registration() {
     ];
     return isFreeEvent ? steps.filter((step) => step.key !== '3.1') : steps;
   }, [isFreeEvent, t]);
+
+  useEffect(() => {
+    // Persist current sub-step
+    if (currentSubStep) {
+      localStorage.setItem('last_registration_substep', currentSubStep);
+    }
+  }, [currentSubStep]);
 
   useEffect(() => {
     // If current step is Tickets (3.1) and event becomes free, redirect to first step
@@ -66,7 +84,7 @@ export default function WizardStep3Registration() {
 
   useEffect(() => {
     if (!subSteps.some((step) => step.key === currentSubStep)) {
-      setCurrentSubStep(subSteps[0]?.key || '3.2');
+      setCurrentSubStep(subSteps[0]?.key || '3.8');
     }
   }, [subSteps, currentSubStep]);
 
@@ -344,34 +362,6 @@ export default function WizardStep3Registration() {
 
         {/* Right: Action Buttons */}
         <div className="wizard-footer-actions" style={{ display: 'flex', gap: '12px' }}>
-          <button
-            onClick={handleSaveDraft}
-            style={{
-              height: '44px',
-              padding: '0 20px',
-              backgroundColor: 'rgba(6, 132, 245, 0.1)',
-              border: '1px solid rgba(6, 132, 245, 0.3)',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: 600,
-              color: '#0684F5',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.2)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.1)';
-            }}
-          >
-            <Save size={16} />
-            {t('wizard.common.saveDraft')}
-          </button>
-
           <button
             onClick={handleSaveAndContinue}
             style={{

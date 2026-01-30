@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import NavbarLoggedIn from '../../components/navigation/NavbarLoggedIn';
-import { Check, X, ExternalLink, Loader2, Search, Filter, MoreVertical, Eye, ShieldCheck, AlertCircle, Clock, CheckCircle } from 'lucide-react';
+import { Check, X, ExternalLink, Loader2, Search, Filter, MoreVertical, Eye, ShieldCheck, AlertCircle, Clock, CheckCircle, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -235,31 +235,33 @@ export default function AdminDashboard() {
         </div>
 
         {/* Tab Switcher & Filters */}
-        <div className="flex flex-col md:flex-row gap-6 mb-8">
-          <div className="flex bg-white/5 p-1 rounded-xl w-fit">
+        <div className="flex flex-col md:flex-row gap-6 mb-8 items-end">
+          <div className="flex bg-white/5 p-1.5 rounded-2xl border border-white/10 w-fit backdrop-blur-md shadow-inner">
             <button
               onClick={() => setActiveTab('events')}
-              className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              className={`flex items-center gap-2 px-8 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
                 activeTab === 'events' 
-                  ? 'bg-[#0684F5] text-white shadow-lg shadow-blue-900/20' 
+                  ? 'bg-[#0684F5] text-white shadow-[0_0_20px_rgba(6,132,245,0.4)] scale-[1.02]' 
                   : 'text-[#94A3B8] hover:text-white hover:bg-white/5'
               }`}
             >
+              <Calendar size={18} />
               Event Requests
             </button>
             <button
               onClick={() => setActiveTab('businesses')}
-              className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              className={`flex items-center gap-2 px-8 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
                 activeTab === 'businesses' 
-                  ? 'bg-[#0684F5] text-white shadow-lg shadow-blue-900/20' 
+                  ? 'bg-[#8B5CF6] text-white shadow-[0_0_20px_rgba(139,92,246,0.4)] scale-[1.02]' 
                   : 'text-[#94A3B8] hover:text-white hover:bg-white/5'
               }`}
             >
+              <ShieldCheck size={18} />
               Business Profiles
             </button>
           </div>
 
-          <div className="flex-1 flex gap-3 justify-end">
+          <div className="flex-1 flex gap-4 justify-end w-full md:w-auto">
             <div className="relative w-full max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" size={18} />
               <input 
@@ -290,59 +292,75 @@ export default function AdminDashboard() {
         </div>
 
         {/* Content Table */}
-        <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-sm">
           {activeTab === 'events' ? (
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
+              <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-white/10 bg-white/5">
-                    <th className="px-6 py-4 text-xs font-bold text-[#94A3B8] uppercase tracking-wider">Event Details</th>
-                    <th className="px-6 py-4 text-xs font-bold text-[#94A3B8] uppercase tracking-wider">Submitted</th>
-                    <th className="px-6 py-4 text-xs font-bold text-[#94A3B8] uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-xs font-bold text-[#94A3B8] uppercase tracking-wider text-right">Actions</th>
+                  <tr className="border-b border-white/10 bg-white/[0.02]">
+                    <th className="px-8 py-5 text-[11px] font-bold text-[#94A3B8] uppercase tracking-[0.1em]">Event Details</th>
+                    <th className="px-8 py-5 text-[11px] font-bold text-[#94A3B8] uppercase tracking-[0.1em]">Submission Date</th>
+                    <th className="px-8 py-5 text-[11px] font-bold text-[#94A3B8] uppercase tracking-[0.1em]">Moderation Status</th>
+                    <th className="px-8 py-5 text-[11px] font-bold text-[#94A3B8] uppercase tracking-[0.1em] text-right">Approval Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {filteredEvents.map((event) => (
-                    <tr key={event.id} className="hover:bg-white/5 transition-colors">
-                      <td className="px-6 py-4">
-                        <div>
-                          <div className="font-semibold text-white text-lg">{event.name}</div>
-                          <div className="text-sm text-[#94A3B8] mt-1 line-clamp-1">{event.description || 'No description'}</div>
+                    <tr key={event.id} className="group hover:bg-white/[0.03] transition-all duration-300">
+                      <td className="px-8 py-6">
+                        <div className="flex flex-col gap-1.5">
+                          <div className="font-bold text-white text-lg group-hover:text-[#0684F5] transition-colors">{event.name}</div>
+                          <div className="text-sm text-[#94A3B8] line-clamp-1 max-w-md opacity-80">{event.description || 'No description provided.'}</div>
                           <button 
-                            onClick={() => window.open(`/event/${event.id}/preview`, '_blank')}
-                            className="mt-2 text-xs font-medium text-[#0684F5] hover:text-[#3B82F6] flex items-center gap-1"
+                            onClick={() => window.open(`/event/${event.id}/landing`, '_blank')}
+                            className="mt-2 w-fit text-[11px] font-bold text-[#0684F5] hover:text-white px-2 py-1 rounded bg-[#0684F5]/10 hover:bg-[#0684F5] transition-all flex items-center gap-1.5 uppercase tracking-wider"
                           >
-                            View Public Page <ExternalLink size={10} />
+                            Live Preview <ExternalLink size={12} />
                           </button>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-[#94A3B8]">
-                        {new Date(event.created_at).toLocaleDateString()}
+                      <td className="px-8 py-6">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-semibold text-white">
+                            {new Date(event.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                          <span className="text-xs text-[#94A3B8] mt-0.5">
+                            {new Date(event.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusBadgeStyles(event.moderation_status)}`}>
-                          {event.moderation_status === 'approved' && <CheckCircle size={12} />}
-                          {event.moderation_status === 'rejected' && <AlertCircle size={12} />}
-                          {event.moderation_status === 'pending' && <Clock size={12} />}
-                          {event.moderation_status.charAt(0).toUpperCase() + event.moderation_status.slice(1)}
+                      <td className="px-8 py-6">
+                        <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${getStatusBadgeStyles(event.moderation_status)}`}>
+                          {event.moderation_status === 'approved' && <CheckCircle size={14} />}
+                          {event.moderation_status === 'rejected' && <AlertCircle size={14} />}
+                          {event.moderation_status === 'pending' && <Clock size={14} className="animate-spin-slow" />}
+                          {event.moderation_status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2">
+                      <td className="px-8 py-6 text-right">
+                        <div className="flex justify-end gap-3">
                           <button
                             onClick={() => handleModeration(event.id, 'approved')}
-                            className={`p-2 rounded-lg transition-all ${event.moderation_status === 'approved' ? 'bg-[#10B981] text-white' : 'bg-[#10B981]/10 text-[#10B981] hover:bg-[#10B981]/20 border border-[#10B981]/20'}`}
-                            title="Approve"
+                            className={`flex items-center gap-2 h-10 px-4 rounded-xl font-bold text-sm transition-all active:scale-95 ${
+                              event.moderation_status === 'approved' 
+                                ? 'bg-[#10B981] text-white shadow-lg shadow-emerald-900/40' 
+                                : 'bg-[#10B981]/10 text-[#10B981] hover:bg-[#10B981] hover:text-white border border-[#10B981]/30'
+                            }`}
+                            title="Approve Event"
                           >
-                            <Check size={18} />
+                            <Check size={18} strokeWidth={3} />
+                            <span>Approve</span>
                           </button>
                           <button
                             onClick={() => handleModeration(event.id, 'rejected')}
-                            className={`p-2 rounded-lg transition-all ${event.moderation_status === 'rejected' ? 'bg-[#EF4444] text-white' : 'bg-[#EF4444]/10 text-[#EF4444] hover:bg-[#EF4444]/20 border border-[#EF4444]/20'}`}
-                            title="Reject"
+                            className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all active:scale-95 ${
+                              event.moderation_status === 'rejected' 
+                                ? 'bg-[#EF4444] text-white shadow-lg shadow-red-900/40' 
+                                : 'bg-[#EF4444]/10 text-[#EF4444] hover:bg-[#EF4444] hover:text-white border border-[#EF4444]/30'
+                            }`}
+                            title="Reject Event"
                           >
-                            <X size={18} />
+                            <X size={18} strokeWidth={3} />
                           </button>
                         </div>
                       </td>
@@ -350,8 +368,13 @@ export default function AdminDashboard() {
                   ))}
                   {filteredEvents.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-[#94A3B8]">
-                        No events found matching your criteria.
+                      <td colSpan={4} className="px-8 py-20 text-center">
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
+                            <Search size={32} className="text-[#94A3B8]" />
+                          </div>
+                          <div className="text-[#94A3B8] font-medium">No event requests found matching your criteria.</div>
+                        </div>
                       </td>
                     </tr>
                   )}
@@ -360,64 +383,85 @@ export default function AdminDashboard() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
+              <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-white/10 bg-white/5">
-                    <th className="px-6 py-4 text-xs font-bold text-[#94A3B8] uppercase tracking-wider">Business</th>
-                    <th className="px-6 py-4 text-xs font-bold text-[#94A3B8] uppercase tracking-wider">Submitted</th>
-                    <th className="px-6 py-4 text-xs font-bold text-[#94A3B8] uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-xs font-bold text-[#94A3B8] uppercase tracking-wider text-right">Actions</th>
+                  <tr className="border-b border-white/10 bg-white/[0.02]">
+                    <th className="px-8 py-5 text-[11px] font-bold text-[#94A3B8] uppercase tracking-[0.1em]">Business Entity</th>
+                    <th className="px-8 py-5 text-[11px] font-bold text-[#94A3B8] uppercase tracking-[0.1em]">Verification Date</th>
+                    <th className="px-8 py-5 text-[11px] font-bold text-[#94A3B8] uppercase tracking-[0.1em]">Account Status</th>
+                    <th className="px-8 py-5 text-[11px] font-bold text-[#94A3B8] uppercase tracking-[0.1em] text-right">Moderation Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {filteredBusinesses.map((biz) => (
-                    <tr key={biz.id} className="hover:bg-white/5 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-4">
-                          {biz.logo_url ? (
-                            <img className="h-10 w-10 rounded-lg object-cover border border-white/10" src={biz.logo_url} alt="" />
-                          ) : (
-                            <div className="h-10 w-10 rounded-lg bg-white/10 flex items-center justify-center border border-white/10 text-white font-bold">
-                              {biz.company_name.charAt(0)}
+                    <tr key={biz.id} className="group hover:bg-white/[0.03] transition-all duration-300">
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-5">
+                          <div className="relative flex-shrink-0">
+                            {biz.logo_url ? (
+                              <img className="h-14 w-14 rounded-2xl object-cover border-2 border-white/10 group-hover:border-[#0684F5] transition-all" src={biz.logo_url} alt="" />
+                            ) : (
+                              <div className="h-14 w-14 rounded-2xl bg-white/10 flex items-center justify-center border-2 border-white/10 text-white font-black text-xl group-hover:bg-[#0684F5]/20 group-hover:border-[#0684F5]/40 transition-all">
+                                {biz.company_name.charAt(0)}
+                              </div>
+                            )}
+                            <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-[#0B2641] flex items-center justify-center ${biz.verification_status === 'verified' ? 'bg-[#10B981]' : 'bg-[#F59E0B]'}`}>
+                              {biz.verification_status === 'verified' ? <Check size={10} className="text-white" /> : <Clock size={10} className="text-white" />}
                             </div>
-                          )}
+                          </div>
                           <div>
-                            <div className="font-semibold text-white text-lg">{biz.company_name}</div>
+                            <div className="font-bold text-white text-lg group-hover:text-[#0684F5] transition-colors">{biz.company_name}</div>
                             <button 
                               onClick={() => window.open(`/business/${biz.id}`, '_blank')}
-                              className="mt-1 text-xs font-medium text-[#0684F5] hover:text-[#3B82F6] flex items-center gap-1"
+                              className="mt-1.5 text-[11px] font-bold text-[#0684F5] hover:text-white px-2 py-0.5 rounded bg-[#0684F5]/10 hover:bg-[#0684F5] transition-all flex items-center gap-1.5 uppercase tracking-wider"
                             >
-                              View Profile <ExternalLink size={10} />
+                              Public Profile <ExternalLink size={10} />
                             </button>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-[#94A3B8]">
-                        {new Date(biz.created_at).toLocaleDateString()}
+                      <td className="px-8 py-6">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-semibold text-white">
+                            {new Date(biz.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                          <span className="text-xs text-[#94A3B8] mt-0.5">
+                            {new Date(biz.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusBadgeStyles(biz.verification_status)}`}>
-                          {biz.verification_status === 'verified' && <CheckCircle size={12} />}
-                          {biz.verification_status === 'rejected' && <AlertCircle size={12} />}
-                          {biz.verification_status === 'pending' && <Clock size={12} />}
-                          {biz.verification_status === 'verified' ? 'Verified' : biz.verification_status.charAt(0).toUpperCase() + biz.verification_status.slice(1)}
+                      <td className="px-8 py-6">
+                        <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${getStatusBadgeStyles(biz.verification_status)}`}>
+                          {biz.verification_status === 'verified' && <CheckCircle size={14} />}
+                          {biz.verification_status === 'rejected' && <AlertCircle size={14} />}
+                          {biz.verification_status === 'pending' && <Clock size={14} className="animate-spin-slow" />}
+                          {biz.verification_status === 'verified' ? 'Verified' : biz.verification_status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2">
+                      <td className="px-8 py-6 text-right">
+                        <div className="flex justify-end gap-3">
                           <button
                             onClick={() => handleBusinessModeration(biz.id, 'verified')}
-                            className={`p-2 rounded-lg transition-all ${biz.verification_status === 'verified' ? 'bg-[#10B981] text-white' : 'bg-[#10B981]/10 text-[#10B981] hover:bg-[#10B981]/20 border border-[#10B981]/20'}`}
+                            className={`flex items-center gap-2 h-10 px-4 rounded-xl font-bold text-sm transition-all active:scale-95 ${
+                              biz.verification_status === 'verified' 
+                                ? 'bg-[#10B981] text-white shadow-lg shadow-emerald-900/40' 
+                                : 'bg-[#10B981]/10 text-[#10B981] hover:bg-[#10B981] hover:text-white border border-[#10B981]/30'
+                            }`}
                             title="Verify Business"
                           >
-                            <Check size={18} />
+                            <CheckCircle size={18} />
+                            <span>Verify</span>
                           </button>
                           <button
                             onClick={() => handleBusinessModeration(biz.id, 'rejected')}
-                            className={`p-2 rounded-lg transition-all ${biz.verification_status === 'rejected' ? 'bg-[#EF4444] text-white' : 'bg-[#EF4444]/10 text-[#EF4444] hover:bg-[#EF4444]/20 border border-[#EF4444]/20'}`}
+                            className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all active:scale-95 ${
+                              biz.verification_status === 'rejected' 
+                                ? 'bg-[#EF4444] text-white shadow-lg shadow-red-900/40' 
+                                : 'bg-[#EF4444]/10 text-[#EF4444] hover:bg-[#EF4444] hover:text-white border border-[#EF4444]/30'
+                            }`}
                             title="Reject Business"
                           >
-                            <X size={18} />
+                            <X size={18} strokeWidth={3} />
                           </button>
                         </div>
                       </td>
@@ -425,8 +469,13 @@ export default function AdminDashboard() {
                   ))}
                   {filteredBusinesses.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-[#94A3B8]">
-                        No business profiles found matching your criteria.
+                      <td colSpan={4} className="px-8 py-20 text-center">
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
+                            <Search size={32} className="text-[#94A3B8]" />
+                          </div>
+                          <div className="text-[#94A3B8] font-medium">No business profiles found matching your criteria.</div>
+                        </div>
                       </td>
                     </tr>
                   )}

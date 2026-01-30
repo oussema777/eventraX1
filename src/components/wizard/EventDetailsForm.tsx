@@ -54,20 +54,6 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
   const [showNameError, setShowNameError] = useState(false);
   const [nameIsValid, setNameIsValid] = useState(false);
   const [waitlistError, setWaitlistError] = useState('');
-  
-  // Debounced address for map preview to avoid excessive iframe reloads
-  const [debouncedVenueAddress, setDebouncedVenueAddress] = useState('');
-
-  useEffect(() => {
-    if (!venueAddress) {
-      setDebouncedVenueAddress('');
-      return;
-    }
-    const timer = setTimeout(() => {
-      setDebouncedVenueAddress(venueAddress);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [venueAddress]);
 
   const handleMaxAttendeesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/[^0-9]/g, '');
@@ -678,37 +664,6 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
                   }}
                 />
               </div>
-
-              {/* Dynamic Map Preview */}
-              {debouncedVenueAddress && (
-                <div className="rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
-                  <div className="aspect-video w-full relative">
-                    <iframe
-                      width="100%"
-                      height="100%"
-                      frameBorder="0"
-                      scrolling="no"
-                      marginHeight={0}
-                      marginWidth={0}
-                      src={`https://maps.google.com/maps?q=${encodeURIComponent(debouncedVenueAddress)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
-                      title="Venue Location"
-                      className="w-full h-full"
-                    />
-                  </div>
-                  <div className="p-3 bg-white border-t border-gray-200 flex justify-end">
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venueAddress)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs flex items-center gap-1.5 transition-opacity hover:opacity-80"
-                      style={{ color: '#3B82F6', fontWeight: 500 }}
-                    >
-                      <MapPin size={14} />
-                      {t('wizard.details.fields.venueAddress.addToMaps', 'View on Google Maps')}
-                    </a>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>

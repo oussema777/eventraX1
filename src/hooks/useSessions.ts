@@ -101,14 +101,14 @@ export function useSessions(manualEventId?: string) {
           .eq('location', session.venue)
           .neq('status', 'cancelled');
 
-        const hasConflict = conflicts?.some(s => {
+        const conflictingSession = conflicts?.find(s => {
           const sStart = new Date(s.starts_at).getTime();
           const sEnd = new Date(s.ends_at).getTime();
           return (start < sEnd && end > sStart);
         });
 
-        if (hasConflict) {
-          throw new Error('Venue conflict: This room is already booked for this time slot.');
+        if (conflictingSession) {
+          throw new Error(`Schedule Conflict: The session "${conflictingSession.title}" is already booked in "${session.venue}" during this time slot.`);
         }
       }
 
@@ -138,9 +138,9 @@ export function useSessions(manualEventId?: string) {
       await loadSessions();
       toast.success('Session created');
       return data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating session:', error);
-      toast.error('Failed to create session');
+      toast.error(error.message || 'Failed to create session');
     }
   };
 
@@ -148,10 +148,7 @@ export function useSessions(manualEventId?: string) {
     try {
       // Conflict Check (if venue or time is being updated)
       if ((session.venue || session.startTime || session.endTime) && (session.venue !== 'TBD' && session.venue !== '')) {
-        // Fetch current session details if partial update is missing venue/time
-        // For simplicity in this specific hook usage, we assume critical fields are passed or we skip strict check if data is incomplete
-        // But ideally, we should read current state if missing. 
-        // For this implementation, we proceed if we have enough info to check.
+        // For simple update logic, we ensure we have all fields for check or skip
         if (session.startTime && session.endTime && session.venue) {
            const start = new Date(session.startTime).getTime();
            const end = new Date(session.endTime).getTime();
@@ -159,19 +156,19 @@ export function useSessions(manualEventId?: string) {
            const { data: conflicts } = await supabase
             .from('event_sessions')
             .select('id, title, starts_at, ends_at')
-            .eq('event_id', eventId) // Ensure we have eventId from closure or fetch it
+            .eq('event_id', eventId!)
             .eq('location', session.venue)
             .neq('status', 'cancelled');
 
-           const hasConflict = conflicts?.some(s => {
+           const conflictingSession = conflicts?.find(s => {
             if (s.id === id) return false; // Ignore self
             const sStart = new Date(s.starts_at).getTime();
             const sEnd = new Date(s.ends_at).getTime();
             return (start < sEnd && end > sStart);
            });
 
-           if (hasConflict) {
-             throw new Error('Venue conflict: This room is already booked for this time slot.');
+           if (conflictingSession) {
+             throw new Error(`Schedule Conflict: The session "${conflictingSession.title}" is already booked in "${session.venue}" during this time slot.`);
            }
         }
       }
@@ -200,9 +197,9 @@ export function useSessions(manualEventId?: string) {
       await loadSessions();
       toast.success('Session updated');
       return data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating session:', error);
-      toast.error('Failed to update session');
+      toast.error(error.message || 'Failed to update session');
     }
   };
 

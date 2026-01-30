@@ -1,5 +1,7 @@
-import { X, Calendar, MapPin, Clock, Users, Mail, Linkedin, Globe } from 'lucide-react';
+import { X, Calendar, MapPin, Clock, Users, Mail, Linkedin, Globe, Phone, Twitter } from 'lucide-react';
+import { useParams } from 'react-router-dom';
 import { useI18n } from '../../../i18n/I18nContext';
+import { useSessions } from '../../../hooks/useSessions';
 
 interface Speaker {
   id?: string;
@@ -8,6 +10,8 @@ interface Speaker {
   company: string;
   bio: string;
   email: string;
+  phone?: string;
+  photo?: string;
   linkedin?: string;
   twitter?: string;
   website?: string;
@@ -22,7 +26,14 @@ interface SpeakerProfileModalProps {
 
 export default function SpeakerProfileModal({ isOpen, onClose, speaker }: SpeakerProfileModalProps) {
   const { t } = useI18n();
+  const { eventId } = useParams();
+  const { sessions } = useSessions(eventId);
+
   if (!isOpen || !speaker) return null;
+
+  const speakerSessions = sessions.filter(session => 
+    session.speakers && session.speakers.includes(speaker.id!)
+  );
 
   return (
     <>
@@ -59,14 +70,13 @@ export default function SpeakerProfileModal({ isOpen, onClose, speaker }: Speake
             
             {/* Profile Photo */}
             <div 
-              className="w-[120px] h-[120px] mx-auto mb-4 rounded-full flex items-center justify-center"
-              style={{ 
-                backgroundColor: '#FFFFFF',
-                border: '4px solid #FFFFFF',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-              }}
+              className="w-[120px] h-[120px] mx-auto mb-4 rounded-full overflow-hidden border-4 border-white shadow-lg bg-white flex items-center justify-center"
             >
-              <Users size={48} style={{ color: '#9CA3AF' }} />
+              {speaker.photo ? (
+                <img src={speaker.photo} alt={speaker.name} className="w-full h-full object-cover" />
+              ) : (
+                <Users size={48} style={{ color: '#9CA3AF' }} />
+              )}
             </div>
 
             {/* Name & Title */}
@@ -81,7 +91,7 @@ export default function SpeakerProfileModal({ isOpen, onClose, speaker }: Speake
             <div className="flex items-center justify-center gap-3 mt-4">
               {speaker.linkedin && (
                 <a 
-                  href={speaker.linkedin}
+                  href={speaker.linkedin.startsWith('http') ? speaker.linkedin : `https://${speaker.linkedin}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-white/20"
@@ -90,9 +100,20 @@ export default function SpeakerProfileModal({ isOpen, onClose, speaker }: Speake
                   <Linkedin size={20} style={{ color: '#FFFFFF' }} />
                 </a>
               )}
+              {speaker.twitter && (
+                <a 
+                  href={speaker.twitter.startsWith('http') ? speaker.twitter : `https://twitter.com/${speaker.twitter.replace('@', '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-white/20"
+                  style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
+                >
+                  <Twitter size={20} style={{ color: '#FFFFFF' }} />
+                </a>
+              )}
               {speaker.website && (
                 <a 
-                  href={speaker.website}
+                  href={speaker.website.startsWith('http') ? speaker.website : `https://${speaker.website}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-white/20"
@@ -151,77 +172,49 @@ export default function SpeakerProfileModal({ isOpen, onClose, speaker }: Speake
                 {t('wizard.step3.speakers.profileModal.speakingAt')}
               </h3>
               <div className="space-y-4">
-                {/* Example Session Card 1 */}
-                <div 
-                  className="rounded-lg p-5 border"
-                  style={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' }}
-                >
-                  <h4 className="text-lg mb-3" style={{ fontWeight: 600, color: '#0B2641' }}>
-                    {t('wizard.step3.speakers.profileModal.sampleSessions.keynote.title')}
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Calendar size={16} style={{ color: '#6B7280' }} />
-                      <span className="text-sm" style={{ color: '#6B7280' }}>
-                        {t('wizard.step3.speakers.profileModal.sampleSessions.keynote.date')}
-                      </span>
+                {speakerSessions.length > 0 ? (
+                  speakerSessions.map(session => (
+                    <div 
+                      key={session.id}
+                      className="rounded-lg p-5 border"
+                      style={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' }}
+                    >
+                      <h4 className="text-lg mb-3" style={{ fontWeight: 600, color: '#0B2641' }}>
+                        {session.title}
+                      </h4>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Calendar size={16} style={{ color: '#6B7280' }} />
+                          <span className="text-sm" style={{ color: '#6B7280' }}>
+                            {new Date(session.startTime).toLocaleDateString(undefined, {
+                              month: 'short', day: 'numeric', year: 'numeric'
+                            })}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Clock size={16} style={{ color: '#6B7280' }} />
+                          <span className="text-sm" style={{ color: '#6B7280' }}>
+                            {new Date(session.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {session.duration} min
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <MapPin size={16} style={{ color: '#6B7280' }} />
+                          <span className="text-sm" style={{ color: '#6B7280' }}>
+                            {session.venue || 'TBD'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Users size={16} style={{ color: '#6B7280' }} />
+                          <span className="text-sm" style={{ color: '#6B7280' }}>
+                            {session.registered} registered
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <MapPin size={16} style={{ color: '#6B7280' }} />
-                      <span className="text-sm" style={{ color: '#6B7280' }}>
-                        {t('wizard.step3.speakers.profileModal.sampleSessions.keynote.location')}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clock size={16} style={{ color: '#6B7280' }} />
-                      <span className="text-sm" style={{ color: '#6B7280' }}>
-                        {t('wizard.step3.speakers.profileModal.sampleSessions.keynote.duration')}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Users size={16} style={{ color: '#6B7280' }} />
-                      <span className="text-sm" style={{ color: '#6B7280' }}>
-                        {t('wizard.step3.speakers.profileModal.sampleSessions.keynote.attendees')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Example Session Card 2 */}
-                <div 
-                  className="rounded-lg p-5 border"
-                  style={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' }}
-                >
-                  <h4 className="text-lg mb-3" style={{ fontWeight: 600, color: '#0B2641' }}>
-                    {t('wizard.step3.speakers.profileModal.sampleSessions.panel.title')}
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Calendar size={16} style={{ color: '#6B7280' }} />
-                      <span className="text-sm" style={{ color: '#6B7280' }}>
-                        {t('wizard.step3.speakers.profileModal.sampleSessions.panel.date')}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <MapPin size={16} style={{ color: '#6B7280' }} />
-                      <span className="text-sm" style={{ color: '#6B7280' }}>
-                        {t('wizard.step3.speakers.profileModal.sampleSessions.panel.location')}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clock size={16} style={{ color: '#6B7280' }} />
-                      <span className="text-sm" style={{ color: '#6B7280' }}>
-                        {t('wizard.step3.speakers.profileModal.sampleSessions.panel.duration')}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Users size={16} style={{ color: '#6B7280' }} />
-                      <span className="text-sm" style={{ color: '#6B7280' }}>
-                        {t('wizard.step3.speakers.profileModal.sampleSessions.panel.attendees')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500 italic">No sessions assigned yet.</p>
+                )}
               </div>
             </div>
 
@@ -232,32 +225,103 @@ export default function SpeakerProfileModal({ isOpen, onClose, speaker }: Speake
               <h3 className="text-xl mb-4" style={{ fontWeight: 600, color: '#0B2641' }}>
                 {t('wizard.step3.speakers.profileModal.contact')}
               </h3>
-              <div className="flex items-center gap-3">
-                <button 
-                  className="flex items-center gap-2 px-5 h-11 rounded-lg border transition-colors hover:bg-gray-50"
-                  style={{ borderColor: '#E5E7EB', fontWeight: 600 }}
+              <div className="flex flex-col gap-4">
+                {/* Email */}
+                <a 
+                  href={`mailto:${speaker.email}`}
+                  className="flex items-center gap-3 p-4 rounded-xl border transition-all hover:bg-gray-50 group"
+                  style={{ borderColor: '#E5E7EB', textDecoration: 'none' }}
                 >
-                  <Mail size={18} style={{ color: '#6B7280' }} />
-                  {t('wizard.step3.speakers.profileModal.actions.email')}
-                </button>
-                {speaker.linkedin && (
-                  <button 
-                    className="flex items-center gap-2 px-5 h-11 rounded-lg transition-colors hover:opacity-90"
-                    style={{ backgroundColor: '#0A66C2', color: '#FFFFFF', fontWeight: 600 }}
-                  >
-                  <Linkedin size={18} />
-                    {t('wizard.step3.speakers.profileModal.actions.linkedin')}
-                </button>
-                )}
-                {speaker.website && (
-                  <button 
-                    className="flex items-center gap-2 px-5 h-11 rounded-lg border transition-colors hover:bg-gray-50"
-                    style={{ borderColor: '#E5E7EB', fontWeight: 600 }}
-                  >
-                  <Globe size={18} style={{ color: '#6B7280' }} />
-                    {t('wizard.step3.speakers.profileModal.actions.website')}
-                </button>
-                )}
+                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                    <Mail size={20} style={{ color: '#0684F5' }} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '2px', fontWeight: 500 }}>Email Address</p>
+                    <p style={{ fontSize: '15px', color: '#0B2641', fontWeight: 600 }}>{speaker.email}</p>
+                  </div>
+                </a>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Phone */}
+                  {speaker.phone && (
+                    <a 
+                      href={`tel:${speaker.phone}`}
+                      className="flex items-center gap-3 p-4 rounded-xl border transition-all hover:bg-gray-50 group"
+                      style={{ borderColor: '#E5E7EB', textDecoration: 'none' }}
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center group-hover:bg-green-100 transition-colors">
+                        <Phone size={20} style={{ color: '#10B981' }} />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '2px', fontWeight: 500 }}>Phone Number</p>
+                        <p style={{ fontSize: '15px', color: '#0B2641', fontWeight: 600 }}>{speaker.phone}</p>
+                      </div>
+                    </a>
+                  )}
+
+                  {/* LinkedIn */}
+                  {speaker.linkedin && (
+                    <a 
+                      href={speaker.linkedin.startsWith('http') ? speaker.linkedin : `https://${speaker.linkedin}`}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-4 rounded-xl border transition-all hover:bg-gray-50 group"
+                      style={{ borderColor: '#E5E7EB', textDecoration: 'none' }}
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-[#0A66C2]/10 flex items-center justify-center group-hover:bg-[#0A66C2]/20 transition-colors">
+                        <Linkedin size={20} style={{ color: '#0A66C2' }} />
+                      </div>
+                      <div className="min-w-0">
+                        <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '2px', fontWeight: 500 }}>LinkedIn</p>
+                        <p style={{ fontSize: '14px', color: '#0B2641', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {speaker.linkedin.split('/').pop() || 'View Profile'}
+                        </p>
+                      </div>
+                    </a>
+                  )}
+
+                  {/* Twitter / X */}
+                  {speaker.twitter && (
+                    <a 
+                      href={speaker.twitter.startsWith('http') ? speaker.twitter : `https://twitter.com/${speaker.twitter.replace('@', '')}`}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-4 rounded-xl border transition-all hover:bg-gray-50 group"
+                      style={{ borderColor: '#E5E7EB', textDecoration: 'none' }}
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-gray-900 flex items-center justify-center group-hover:bg-black transition-colors">
+                        <Twitter size={20} style={{ color: '#FFFFFF' }} />
+                      </div>
+                      <div className="min-w-0">
+                        <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '2px', fontWeight: 500 }}>Twitter / X</p>
+                        <p style={{ fontSize: '14px', color: '#0B2641', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {speaker.twitter.startsWith('@') ? speaker.twitter : `@${speaker.twitter}`}
+                        </p>
+                      </div>
+                    </a>
+                  )}
+
+                  {/* Website */}
+                  {speaker.website && (
+                    <a 
+                      href={speaker.website.startsWith('http') ? speaker.website : `https://${speaker.website}`}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-4 rounded-xl border transition-all hover:bg-gray-50 group"
+                      style={{ borderColor: '#E5E7EB', textDecoration: 'none' }}
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center group-hover:bg-gray-200 transition-colors">
+                        <Globe size={20} style={{ color: '#0B2641' }} />
+                      </div>
+                      <div className="min-w-0">
+                        <p style={{ fontSize: '12px', color: '#6B7280', marginBottom: '2px', fontWeight: 500 }}>Website</p>
+                        <p style={{ fontSize: '14px', color: '#0B2641', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {speaker.website.replace(/(^\w+:|^)\/\//, '')}
+                        </p>
+                      </div>
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
           </div>

@@ -20,6 +20,7 @@ interface PreviewData {
   activeBlocks: ActiveBlock[];
   brandColor: string;
   buttonRadius: number;
+  logoUrl?: string;
   content?: any;
 }
 
@@ -28,6 +29,7 @@ export default function DesignStudioPreview() {
     activeBlocks: [],
     brandColor: '#635BFF',
     buttonRadius: 12,
+    logoUrl: '',
     content: null
   });
 
@@ -64,7 +66,7 @@ export default function DesignStudioPreview() {
     const blockType = block.blockId || block.type;
     switch (blockType) {
       case 'hero':
-        return <HeroBlock key={block.id} {...blockProps} event={content?.event} />;
+        return <HeroBlock key={block.id} {...blockProps} event={content?.event} settings={block.settings} logoUrl={previewData.logoUrl} />;
       case 'about':
         // Apply settings overrides if present, otherwise use event data
         const aboutData = {

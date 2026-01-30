@@ -29,6 +29,7 @@ import {
   Upload,
   Camera
 } from 'lucide-react';
+import { countries } from '../../data/countries';
 
 type ViewMode = 'table' | 'grid';
 type SpeakerStatus = 'confirmed' | 'pending' | 'declined';
@@ -447,78 +448,6 @@ export default function EventSpeakersTabLight() {
           )}
         </div>
       </div>
-
-      {/* BULK ACTIONS BAR */}
-      {selectedSpeakers.size > 0 && (
-        <div
-          style={{
-            backgroundColor: '#635BFF',
-            padding: '16px 24px',
-            borderRadius: '12px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '16px',
-            animation: 'slideDown 0.2s ease-out'
-          }}
-        >
-          {/* Left Side: Selection Info */}
-          <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-            <input
-              type="checkbox"
-              checked={selectedSpeakers.size === speakers.length}
-              onChange={handleSelectAll}
-              style={{
-                width: '20px',
-                height: '20px',
-                cursor: 'pointer',
-                accentColor: '#FFFFFF'
-              }}
-            />
-            <span style={{ fontFamily: 'Inter', fontSize: '14px', fontWeight: 600, color: '#FFFFFF' }}>
-              {selectedSpeakers.size} speaker{selectedSpeakers.size !== 1 ? 's' : ''} selected
-            </span>
-          </div>
-
-          {/* Right Side: Action Buttons */}
-          <div style={{ display: 'flex', gap: '12px' }}>
-            {[
-              { icon: Mail, label: 'Send Reminder' },
-              { icon: Calendar, label: 'Assign to Session' },
-              { icon: Download, label: 'Export Selected' },
-              { icon: Trash2, label: 'Delete' }
-            ].map((action, index) => {
-              const Icon = action.icon;
-              return (
-                <button
-                  key={index}
-                  style={{
-                    height: '36px',
-                    padding: '0 16px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontFamily: 'Inter',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    color: '#FFFFFF',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)'}
-                >
-                  <Icon size={16} />
-                  {action.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* VIEW TOGGLE */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
@@ -1205,6 +1134,7 @@ function GridView({ speakers, selectedSpeakers, onSelectSpeaker }: {
 // Add Speaker Modal Component
 function AddSpeakerModal({ onClose }: { onClose: () => void }) {
   const [sendInvitation, setSendInvitation] = useState(true);
+  const [selectedCountry, setSelectedCountry] = useState('+1');
 
   return (
     <div
@@ -1455,31 +1385,70 @@ function AddSpeakerModal({ onClose }: { onClose: () => void }) {
               <label style={{ fontFamily: 'Inter', fontSize: '14px', fontWeight: 500, color: '#1A1D1F', display: 'block', marginBottom: '8px' }}>
                 Phone Number
               </label>
-              <input
-                type="tel"
-                placeholder="+1 (555) 123-4567"
-                style={{
-                  width: '100%',
-                  height: '44px',
-                  padding: '0 16px',
-                  backgroundColor: '#F4F5F6',
-                  border: '1px solid #E9EAEB',
-                  borderRadius: '8px',
-                  fontFamily: 'Inter',
-                  fontSize: '14px',
-                  color: '#1A1D1F',
-                  outline: 'none',
-                  transition: 'all 0.2s'
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.border = '2px solid #635BFF';
-                  e.currentTarget.style.boxShadow = '0px 0px 0px 4px rgba(99, 91, 255, 0.1)';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.border = '1px solid #E9EAEB';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              />
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ position: 'relative', width: '140px' }}>
+                  <select
+                    value={selectedCountry}
+                    onChange={(e) => setSelectedCountry(e.target.value)}
+                    style={{
+                      width: '100%',
+                      height: '44px',
+                      padding: '0 32px 0 12px',
+                      backgroundColor: '#F4F5F6',
+                      border: '1px solid #E9EAEB',
+                      borderRadius: '8px',
+                      fontFamily: 'Inter',
+                      fontSize: '14px',
+                      color: '#1A1D1F',
+                      outline: 'none',
+                      appearance: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {countries.map((country) => (
+                      <option key={`${country.code}-${country.phoneCode}`} value={country.phoneCode}>
+                        {country.code} ({country.phoneCode})
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown 
+                    size={16} 
+                    style={{ 
+                      position: 'absolute', 
+                      right: '12px', 
+                      top: '50%', 
+                      transform: 'translateY(-50%)', 
+                      color: '#6F767E', 
+                      pointerEvents: 'none' 
+                    }} 
+                  />
+                </div>
+                <input
+                  type="tel"
+                  placeholder="(555) 123-4567"
+                  style={{
+                    flex: 1,
+                    height: '44px',
+                    padding: '0 16px',
+                    backgroundColor: '#F4F5F6',
+                    border: '1px solid #E9EAEB',
+                    borderRadius: '8px',
+                    fontFamily: 'Inter',
+                    fontSize: '14px',
+                    color: '#1A1D1F',
+                    outline: 'none',
+                    transition: 'all 0.2s'
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.border = '2px solid #635BFF';
+                    e.currentTarget.style.boxShadow = '0px 0px 0px 4px rgba(99, 91, 255, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.border = '1px solid #E9EAEB';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                />
+              </div>
             </div>
           </div>
 

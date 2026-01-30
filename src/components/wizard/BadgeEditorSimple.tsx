@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useI18n } from '../../i18n/I18nContext';
+import { escapeHTML } from '../../utils/security';
 
 interface BadgeSettings {
   logoUrl: string | null;
@@ -155,17 +156,17 @@ export default function BadgeEditorSimple({ eventId, onBack }: BadgeEditorSimple
               ${settings.logoUrl ? `<img src="${settings.logoUrl}" />` : '<span style="color:#ccc; font-size:10px;">LOGO</span>'}
             </div>
             <div class="attendee-info">
-              <h2 class="attendee-name">${attendee.name || 'Unknown'}</h2>
-              ${field1Value ? `<p class="field-primary">${field1Value}</p>` : ''}
-              ${field2Value ? `<p class="field-secondary">${field2Value}</p>` : ''}
+              <h2 class="attendee-name">${escapeHTML(attendee.name || 'Unknown')}</h2>
+              ${field1Value ? `<p class="field-primary">${escapeHTML(field1Value)}</p>` : ''}
+              ${field2Value ? `<p class="field-secondary">${escapeHTML(field2Value)}</p>` : ''}
             </div>
             <div class="qr-code">
               <img src="${qrUrl}" />
             </div>
           </div>
           <div class="badge-footer">
-            <p class="event-name">${eventDetails?.name || ''}</p>
-            <p class="event-date">${eventDetails?.start_date ? new Date(eventDetails.start_date).toLocaleDateString() : ''} • ${eventDetails?.location_address || ''}</p>
+            <p class="event-name">${escapeHTML(eventDetails?.name || '')}</p>
+            <p class="event-date">${eventDetails?.start_date ? new Date(eventDetails.start_date).toLocaleDateString() : ''} • ${escapeHTML(eventDetails?.location_address || '')}</p>
           </div>
         </div>
       `;
