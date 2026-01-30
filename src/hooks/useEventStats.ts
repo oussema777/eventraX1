@@ -37,6 +37,11 @@ interface AudienceInsight {
   percentage: number;
 }
 
+interface KpiChartData {
+  fieldLabel: string;
+  data: { name: string; value: number }[];
+}
+
 export function useEventStats(eventId?: string) {
   const [baseStats, setBaseStats] = useState<BaseStats>({
     tickets: 0,
@@ -55,6 +60,7 @@ export function useEventStats(eventId?: string) {
   
   const [typeStats, setTypeStats] = useState<TypeSpecificStats>({});
   const [audienceInsights, setAudienceInsights] = useState<AudienceInsight[]>([]);
+  const [kpiCharts, setKpiCharts] = useState<KpiChartData[]>([]);
   const [eventType, setEventType] = useState<string>('generic');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -119,9 +125,9 @@ export function useEventStats(eventId?: string) {
           avgPrice = sold > 0 ? revenue / sold : 0;
         }
 
-        const registrationRows = (registrationsRes.data && Array.isArray(registrationsRes.data) && registrationsRes.data.length)
-          ? registrationsRes.data
-          : (attendeesRes.data || []);
+        const registrationRows = (attendeesRes.data && Array.isArray(attendeesRes.data) && attendeesRes.data.length)
+          ? attendeesRes.data
+          : (registrationsRes.data || []);
         const registrationsCount = registrationRows.length || sold;
 
         if (mounted) {
@@ -166,23 +172,31 @@ export function useEventStats(eventId?: string) {
         
         if (mounted) setTypeStats(newTypeStats);
 
-        // 4. Smart Audience Insights
+        // 4. Smart Audience Insights & KPI Charts
         const insights: AudienceInsight[] = [];
+        const charts: KpiChartData[] = [];
         const attendees = registrationRows.map((row: any) => ({
           ...row,
           __formData: row.form_data ?? row.meta
         }));
         const totalAttendees = attendees.length;
         
-        if (totalAttendees > 0) {
-           const formRows = formsCount.data || [];
-           const registrationForm = formRows.find((f: any) => f.form_type === 'registration')
+        // Always fetch form schema to find KPIs
+        const formRows = formsCount.data || [];
+        const registrationForm = formRows.find((f: any) => f.form_type === 'registration')
              || formRows.find((f: any) => f.is_default)
              || formRows[0];
-           const schema = registrationForm?.schema || { fields: [] };
+        const schema = registrationForm?.schema || { fields: [] };
+        
+        console.log('[useEventStats] Schema Fields:', schema.fields);
+        console.log('[useEventStats] Total Registrations:', totalAttendees);
+        console.log('[useEventStats] Registration Data Sample:', attendees[0]?.__formData);
            
-           // A. Find "Smart" fields (Categorical OR common text fields)
-           const smartFields = (schema.fields || []).filter((f: any) => 
+        // A. Find "Smart" fields (KPIs first, then Categorical fallback)
+        const kpiFields = (schema.fields || []).filter((f: any) => f.isKpi === true);
+        console.log('[useEventStats] Detected KPI Fields:', kpiFields);
+           
+        const fallbackFields = (schema.fields || []).filter((f: any) => 
              (f.type === 'select' || f.type === 'radio' || f.type === 'text') && 
              f.label && (
                f.label.toLowerCase().includes('industry') || 
@@ -194,37 +208,68 @@ export function useEventStats(eventId?: string) {
                f.label.toLowerCase().includes('city') ||
                f.label.toLowerCase().includes('organization')
              )
-           );
+        );
 
-           // B. Pick the most "Interesting" field found
-           const priorityField = smartFields[0] || (schema.fields || []).find((f: any) => f.type === 'select');
+        // Use KPI fields if available, otherwise fallback to smart detection
+        const targetFields = kpiFields.length > 0 ? kpiFields : (fallbackFields.length > 0 ? [fallbackFields[0]] : []);
 
-           if (priorityField) {
+        targetFields.forEach((field: any) => {
              const counts: Record<string, number> = {};
-             attendees.forEach((att: any) => {
-                // Try to find the value by ID first, then Label
-                const val = att.__formData?.[priorityField.id] || att.__formData?.[priorityField.label];
-                if (val && typeof val === 'string' && val.trim() !== '') {
-                  const normalizedVal = val.trim();
-                  counts[normalizedVal] = (counts[normalizedVal] || 0) + 1;
-                }
-             });
              
-             Object.entries(counts)
-               .sort(([,a], [,b]) => b - a)
-               .slice(0, 3) 
-               .forEach(([val, count]) => {
+             if (totalAttendees > 0) {
+               attendees.forEach((att: any) => {
+                  // Try to find the value by ID first, then Label, then case-insensitive Label
+                  let rawVal = att.__formData?.[field.id] || att.__formData?.[field.label];
+                  
+                  if (rawVal === undefined && att.__formData) {
+                     // Fuzzy search
+                     const lowerLabel = field.label.toLowerCase();
+                     const key = Object.keys(att.__formData).find(k => k.toLowerCase() === lowerLabel);
+                     if (key) rawVal = att.__formData[key];
+                  }
+                  
+                  if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
+                    const val = String(rawVal).trim();
+                    if (val !== '') {
+                      const normalizedVal = val;
+                      counts[normalizedVal] = (counts[normalizedVal] || 0) + 1;
+                    }
+                  }
+               });
+             }
+             
+             // Get top values for Insights (Simple Card) - only if data exists
+             if (totalAttendees > 0) {
+               const topValues = Object.entries(counts)
+                 .sort(([,a], [,b]) => b - a)
+                 .slice(0, 3);
+                 
+               topValues.forEach(([val, count]) => {
                   insights.push({
-                    label: priorityField.label,
+                    label: field.label,
                     value: val,
                     count,
                     percentage: Math.round((count / totalAttendees) * 100)
                   });
                });
-           }
-        }
+             }
+
+             // Build Chart Data (Full Distribution)
+             // Even if empty, we want to return the chart config so UI can show "No Data" state
+             const chartData = Object.entries(counts)
+               .map(([name, value]) => ({ name, value }))
+               .sort((a, b) => b.value - a.value);
+
+             charts.push({
+                fieldLabel: field.label,
+                data: chartData
+             });
+        });
         
-        if (mounted) setAudienceInsights(insights);
+        if (mounted) {
+          setAudienceInsights(insights);
+          setKpiCharts(charts);
+        }
 
       } catch (err) {
         console.error('Error fetching event stats:', err);
@@ -237,5 +282,5 @@ export function useEventStats(eventId?: string) {
     return () => { mounted = false; };
   }, [eventId]);
 
-  return { baseStats, typeStats, audienceInsights, eventType, isLoading };
+  return { baseStats, typeStats, audienceInsights, kpiCharts, eventType, isLoading };
 }

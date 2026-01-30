@@ -11,6 +11,7 @@ interface CustomField {
   options?: string[];
   isPro: boolean;
   isSystem?: boolean;
+  isKpi?: boolean;
 }
 
 interface FieldPropertiesPanelProps {
@@ -119,7 +120,8 @@ export default function FieldPropertiesPanel({ field, onSave, onDelete, onClose 
             type="text"
             value={formData.label}
             onChange={(e) => handleLabelChange(e.target.value)}
-            className="w-full h-10 px-3 rounded-lg border outline-none transition-colors text-sm"
+            disabled={field.isSystem}
+            className={`w-full h-10 px-3 rounded-lg border outline-none transition-colors text-sm ${field.isSystem ? 'cursor-not-allowed opacity-60' : ''}`}
             style={{ 
               borderColor: 'rgba(255,255,255,0.1)',
               backgroundColor: 'rgba(255,255,255,0.05)',
@@ -232,15 +234,35 @@ export default function FieldPropertiesPanel({ field, onSave, onDelete, onClose 
             Settings
           </label>
           <div className="flex items-center justify-between p-3 rounded-lg" style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}>
-            <span className="text-sm text-white">Required Field</span>
+            <div className="flex flex-col">
+              <span className="text-sm text-white">Required Field</span>
+              {field.isSystem && <span className="text-[10px] text-slate-500">System fields are always required</span>}
+            </div>
             <button
-              onClick={() => setFormData(prev => ({ ...prev, required: !prev.required }))}
-              className="relative w-9 h-5 rounded-full transition-colors"
+              onClick={() => !field.isSystem && setFormData(prev => ({ ...prev, required: !prev.required }))}
+              className={`relative w-9 h-5 rounded-full transition-colors ${field.isSystem ? 'cursor-not-allowed opacity-60' : ''}`}
               style={{ backgroundColor: formData.required ? '#0684F5' : 'rgba(255,255,255,0.2)' }}
             >
               <div
                 className="absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform"
                 style={{ left: formData.required ? 'calc(100% - 18px)' : '2px' }}
+              />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-lg mt-2" style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}>
+            <div>
+              <span className="text-sm text-white block">Show in Dashboard (KPI)</span>
+              <span className="text-[10px] text-slate-400">Display stats in Event Overview</span>
+            </div>
+            <button
+              onClick={() => setFormData(prev => ({ ...prev, isKpi: !prev.isKpi }))}
+              className="relative w-9 h-5 rounded-full transition-colors"
+              style={{ backgroundColor: formData.isKpi ? '#F59E0B' : 'rgba(255,255,255,0.2)' }}
+            >
+              <div
+                className="absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform"
+                style={{ left: formData.isKpi ? 'calc(100% - 18px)' : '2px' }}
               />
             </button>
           </div>
