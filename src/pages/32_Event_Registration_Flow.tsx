@@ -162,10 +162,23 @@ export default function EventRegistrationFlow() {
         }
       ];
 
-      if (formData?.schema?.fields && Array.isArray(formData.schema.fields)) {
-        const customFields = formData.schema.fields.map((f: any) => {
+      if (formData?.schema?.fields && Array.isArray(formData.schema.fields) && formData.schema.fields.length > 0) {
+        const mappedFields = formData.schema.fields.map((f: any) => {
           let defaultValue = '';
-          if (profile) {
+          let isReadonly = false;
+
+          // Check if this is a system field (Name/Email)
+          const isEmail = f.type === 'email' || f.id === 'default-email';
+          const isName = (f.label && f.label.toLowerCase().includes('name')) || f.id === 'default-name';
+
+          if (isEmail && user?.email) {
+            defaultValue = user.email;
+            isReadonly = true;
+          } else if (isName && profile?.full_name) {
+            defaultValue = profile.full_name;
+            isReadonly = true;
+          } else if (profile) {
+            // Auto-fill custom fields from profile if possible
             const labelLower = (f.label || '').toLowerCase();
             if (labelLower.includes('job') || labelLower.includes('title')) defaultValue = profile.job_title || '';
             else if (labelLower.includes('company') || labelLower.includes('organization')) defaultValue = profile.company || '';
@@ -179,10 +192,50 @@ export default function EventRegistrationFlow() {
             required: f.required,
             options: f.options,
             value: defaultValue,
-            readonly: false
+            readonly: isReadonly
           };
         });
-        setFormFields([...defaultFields, ...customFields]);
+
+        // Ensure System Fields (Name & Email) are present
+        const hasName = mappedFields.some((f: any) => 
+          f.id === 'default-name' || 
+          f.id === 'fullName' || 
+          (f.label && (f.label.toLowerCase().includes('name') || f.label.toLowerCase().includes('nom')))
+        );
+        
+        const hasEmail = mappedFields.some((f: any) => 
+          f.id === 'default-email' || 
+          f.id === 'email' || 
+          f.type === 'email' ||
+          (f.label && f.label.toLowerCase().includes('email'))
+        );
+
+        let finalFields = [...mappedFields];
+
+        // If missing from schema, prepend the defaults
+        // We do this in reverse order so Name ends up first
+        if (!hasEmail) {
+           finalFields = [{
+             id: 'email',
+             label: 'Email Address',
+             type: 'email',
+             required: true,
+             value: user?.email || '',
+             readonly: !!user?.email
+           }, ...finalFields];
+        }
+        if (!hasName) {
+           finalFields = [{
+             id: 'fullName',
+             label: 'Full Name',
+             type: 'text',
+             required: true,
+             value: profile?.full_name || '',
+             readonly: !!profile?.full_name
+           }, ...finalFields];
+        }
+        
+        setFormFields(finalFields);
       } else {
         setFormFields(defaultFields);
       }

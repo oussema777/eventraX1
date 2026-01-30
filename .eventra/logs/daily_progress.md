@@ -70,35 +70,27 @@
 **Status:** Platform Stability & Wizard UX - **Significantly Improved**
 **Next Milestone:** Payment Gateway (Stripe) and Exhibitor management refinement.
 
-## [Checkpoint 12] - Tuesday, 27 January 2026
+## [Checkpoint 13] - Tuesday, 27 January 2026 (Evening Session)
 
 ### 🚀 Major Achievements
 
-#### 1. Wizard UI/UX Overhaul
-- **Fixed Layout Overlaps:** Dynamically adjusted the sticky footer action bars across all wizard steps to respect the sidebar width on desktop, eliminating component overlap.
-- **Progress Persistence:** Sub-steps in Wizard Step 3 (Registration) now persist in `localStorage`. Navigating between main steps no longer resets the view to the first sub-step.
-- **Streamlined Workflows:** Removed redundant "Choice" modals for adding Exhibitors and Sponsors, allowing direct manual entry. Removed redundant "Save Draft" buttons from footers (relying on sidebar).
+#### 1. Smart Event Overview Dashboard
+- **BI Data Visualization:** Integrated `recharts` to transform static dashboard cards into interactive BI graphs. Added Registration Trend (Area Chart) and Ticket Sales (Pie Chart) as core overview components.
+- **Dynamic KPI Engine:** Upgraded the `useEventStats` hook to intelligently scan event registration forms for fields marked as "KPIs". It now automatically aggregates this data into distribution charts (Bar/Pie) directly on the dashboard.
+- **Graceful Data Handling:** Implemented "No Data" placeholders for charts, ensuring the dashboard remains professional and informative even before the first registration arrives.
+- **Rhythm-Based Layout:** Redesigned the Event Overview with a consistent "3-2-3-2" column rhythm, grouping KPIs, Standard Charts, Custom Charts, and Management Widgets into clean, responsive rows.
 
-#### 2. Advanced Design Studio Features
-- **Dynamic Backgrounds:** Enabled Hero Section background image uploads with a modern, custom-styled "Upload Zone" UI.
-- **Enhanced Rendering:** Background images now render with a readability overlay and conditional patterns across preview and live landing pages.
-- **Clean Preview:** Removed distracting "Globe" and "Fullscreen" buttons from the Design Studio preview panel for a more focused experience.
+#### 2. Form Builder UX Transformation
+- **Centered Properties Modal:** Replaced the cramped sidebar editor with a high-fidelity `FieldSettingsModal` inspired by the Design Studio. This provides a focused environment for customizing field properties without "ruining the screen".
+- **Conflict-Free Interaction:** Moved field drag handles to the left of the card, physically separating them from action buttons (Edit/Delete). This fixed a critical issue where the "pencil" icon interfered with reordering.
+- **System Field Intelligence:** Enabled editing for mandatory fields (Full Name, Email) to allow users to toggle KPI tracking for them, while keeping core attributes like "Required" and "Type" safely locked.
+- **Visual State Feedback:** Added active field highlighting and automatic sidebar scrolling when entering "Edit" mode, ensuring users never lose track of their context.
 
-#### 3. Data Integrity & Validation
-- **Strict Entry Requirements:** Implemented "Save & Continue" blocking in Step 1. Users must now enter a valid name and dates before proceeding, preventing 0% completion skips.
-- **Schedule Conflict Detection:** Upgraded the session scheduler with a real-time overlap checker. It now provides detailed notifications naming the exact conflicting session and venue.
-- **International Formatting:** Integrated a country code selector for speaker phone numbers, moving away from hardcoded +1 defaults.
-- **Email Validation:** Added regex-based email format verification for both manual attendee and speaker entries.
-
-#### 4. Pro-Level Admin & Management
-- **Admin Dashboard Upgrade:** Redesigned the Event Request and Business Profile tables with a Senior UI/UX aesthetic, featuring blurred glass backgrounds, vibrant status badges, and enhanced row interactions.
-- **Tab Identity:** Implemented distinct color themes (Blue for Events, Purple for Businesses) and animated icons for the admin tab switcher.
-- **Rich Schedule Exports:** Enhanced the schedule export engine to include assigned speakers. PDF exports now feature a professionally designed, print-ready table layout.
-
-#### 5. Public Landing Page Optimization
-- **Infinite Loading:** Implemented pagination for Attendees, Speakers, and Exhibitors lists. Added "Load More" buttons with remaining counts and integrated loading states.
-- **Dynamic Speaker Profiles:** Transformed static profile modals into real-time displays that dynamically fetch and render assigned sessions, bios, and active social links.
+#### 3. Data Integrity & Registration Fixes
+- **Unified Schema Enforcement:** Refactored `EventRegistrationFlow` to strictly follow the form schema. It now merges custom fields with platform-mandatory ones (Name/Email) dynamically, ensuring data is saved with the exact keys expected by the analytics engine.
+- **Robust Field Lookup:** Implemented case-insensitive and relaxed type-checking for form data. The dashboard can now process numbers, booleans, and slight label mismatches without failing to render charts.
+- **Form Initialization:** New registration forms are now automatically pre-populated with mandatory system fields, preventing the creation of "empty" or broken registration flows.
 
 ---
-**Status:** Feature Completeness & User Experience - **Enterprise Ready**
-**Next Milestone:** Multi-currency payment support and advanced analytics dashboards.
+**Status:** Analytics & Form Management - **Feature Complete & UX Refined**
+**Next Milestone:** Advanced reporting exports (Excel/CSV) and deeper attendee segmentation.
