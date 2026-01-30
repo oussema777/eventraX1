@@ -8,7 +8,8 @@ import {
   MapPin,
   HelpCircle,
   Loader2,
-  Lock
+  Lock,
+  ChevronDown
 } from 'lucide-react';
 import Logo from '../components/ui/Logo';
 import { supabase } from '../lib/supabase';
@@ -16,6 +17,16 @@ import { toast } from 'sonner@2.0.3';
 import { createNotification } from '../lib/notifications';
 import { useAuth } from '../contexts/AuthContext';
 import { sendEmail, generateRegistrationEmailHtml } from '../lib/email';
+import { countries } from '../data/countries';
+
+const toFlagEmoji = (code: string) => {
+  if (!code) return '';
+  return code
+    .toUpperCase()
+    .split('')
+    .map((char) => String.fromCodePoint(127397 + char.charCodeAt(0)))
+    .join('');
+};
 
 type RegistrationStep = 1 | 2 | 3;
 
@@ -37,6 +48,11 @@ interface FormField {
   options?: string[];
   value: string;
   readonly?: boolean;
+  isSystem?: boolean;
+  isDropdownOpen?: boolean; // For country field dropdown
+  phoneCountryCode?: string;
+  phoneNumber?: string;
+  isPhoneDropdownOpen?: boolean; // For phone field country code dropdown
 }
 
 export default function EventRegistrationFlow() {
@@ -47,7 +63,7 @@ export default function EventRegistrationFlow() {
   const [currentStep, setCurrentStep] = useState<RegistrationStep>(1);
   const [event, setEvent] = useState<any>(null);
   const [formFields, setFormFields] = useState<FormField[]>([]);
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessions, setSessions] = useState<Session[]>(new Array());
   const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set());
   const [freeTicketId, setFreeTicketId] = useState<string | null>(null);
   const [registeredAttendeeId, setRegisteredAttendeeId] = useState<string | null>(null);
@@ -70,8 +86,6 @@ export default function EventRegistrationFlow() {
       fetchEventData();
     }
   }, [eventId, user, profile]);
-
-  // ... (keep existing fetchEventData)
 
   const handleDownloadTicket = async () => {
     if (!registeredAttendeeId) return;
@@ -162,6 +176,11 @@ export default function EventRegistrationFlow() {
         }
       ];
 
+      if (formData?.schema?.fields && Array.isArray(formData.schema.fields)) {
+        let customFields = formData.schema.fields.map((f: any) => {
+          let defaultValue = '';
+          if (f.label.toLowerCase().includes('phone') && profile?.phone_number) {
+            defaultValue = profile.phone_number;
       if (formData?.schema?.fields && Array.isArray(formData.schema.fields) && formData.schema.fields.length > 0) {
         const mappedFields = formData.schema.fields.map((f: any) => {
           let defaultValue = '';
@@ -185,12 +204,42 @@ export default function EventRegistrationFlow() {
             else if (labelLower.includes('phone')) defaultValue = profile.phone_number || '';
           }
 
+          const isPhoneField = f.type === 'phone' || f.label.toLowerCase().includes('phone');
+          let initialPhoneCountryCode = 'US'; // Default
+          let initialPhoneNumber = '';
+
+          if (isPhoneField && defaultValue) {
+            const parts = defaultValue.split(' ');
+            if (parts[0] && parts[0].startsWith('+')) {
+              initialPhoneCountryCode = countries.find(c => c.phoneCode === parts[0])?.code || 'US';
+              initialPhoneNumber = parts.slice(1).join(' ');
+            } else {
+              initialPhoneNumber = defaultValue;
+            }
+          }
+          
           return {
             id: f.id || `field_${Math.random().toString(36).substr(2, 9)}`,
             label: f.label || f.name || 'Untitled Field',
             type: f.type,
             required: f.required,
             options: f.options,
+            value: isPhoneField ? '' : defaultValue, // Set value to empty for phone fields, as their data is in phoneCountryCode/phoneNumber
+            readonly: false,
+            isSystem: f.isSystem,
+            isDropdownOpen: false, // For country field dropdowns
+            phoneCountryCode: isPhoneField ? initialPhoneCountryCode : undefined,
+            phoneNumber: isPhoneField ? initialPhoneNumber : undefined,
+            isPhoneDropdownOpen: false // For phone field country code dropdown
+          };
+        });
+
+        // Filter out system default fields from customFields if they match the hardcoded ones
+        customFields = customFields.filter(f => 
+          !(f.isSystem && (f.id === 'default-name' || f.id === 'default-email'))
+        );
+
+        setFormFields([...defaultFields, ...customFields]);
             value: defaultValue,
             readonly: isReadonly
           };
@@ -254,6 +303,32 @@ export default function EventRegistrationFlow() {
     ));
   };
 
+  const toggleCountryDropdown = (fieldId: string) => {
+    setFormFields(formFields.map(field =>
+      field.id === fieldId ? { ...field, isDropdownOpen: !field.isDropdownOpen } : field
+    ));
+  };
+
+  const updatePhoneField = (fieldId: string, part: 'countryCode' | 'number', value: string) => {
+    setFormFields(formFields.map(field => {
+      if (field.id === fieldId && !field.readonly) {
+        if (part === 'countryCode') {
+          return { ...field, phoneCountryCode: value, isPhoneDropdownOpen: false };
+        }
+        if (part === 'number') {
+          return { ...field, phoneNumber: value };
+        }
+      }
+      return field;
+    }));
+  };
+
+  const togglePhoneCountryDropdown = (fieldId: string) => {
+    setFormFields(formFields.map(field =>
+      field.id === fieldId ? { ...field, isPhoneDropdownOpen: !field.isPhoneDropdownOpen } : field
+    ));
+  };
+
   const toggleSession = (sessionId: string) => {
     setSelectedSessions(prev => {
       const next = new Set(prev);
@@ -274,7 +349,11 @@ export default function EventRegistrationFlow() {
       // Get form data
       const responses: Record<string, any> = {};
       formFields.forEach(f => {
-        responses[f.label] = f.value;
+        if (f.type === 'phone' && f.phoneCountryCode && f.phoneNumber) {
+          responses[f.label] = `${f.phoneCountryCode} ${f.phoneNumber}`;
+        } else {
+          responses[f.label] = f.value;
+        }
       });
 
       const email = user?.email || formFields.find(f => f.type === 'email')?.value;
@@ -618,6 +697,70 @@ export default function EventRegistrationFlow() {
                           <option value="" style={{ color: '#000' }}>Select an option</option>
                           {field.options?.map(opt => <option key={opt} value={opt} style={{ color: '#000' }}>{opt}</option>)}
                         </select>
+                      ) : field.type === 'country' ? (
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => toggleCountryDropdown(field.id)}
+                            className="w-full flex items-center justify-between transition-all"
+                            style={{
+                              height: '48px',
+                              padding: '12px 16px',
+                              fontSize: '16px',
+                              color: field.value ? '#FFFFFF' : '#9CA3AF',
+                              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                              border: '1.5px solid rgba(255, 255, 255, 0.15)',
+                              borderRadius: '8px',
+                              outline: 'none',
+                              textAlign: 'left'
+                            }}
+                          >
+                            {field.fieldValue ? (
+                              <span className="flex items-center gap-2">
+                                <span style={{ fontSize: '20px' }}>
+                                  {toFlagEmoji(field.fieldValue)}
+                                </span>
+                                {countries.find(c => c.code === field.fieldValue)?.name}
+                              </span>
+                            ) : (
+                              "Select Country"
+                            )}
+                            <ChevronDown size={20} style={{ color: '#6B7280' }} />
+                          </button>
+
+                          {field.isDropdownOpen && (
+                            <div
+                              className="absolute top-full left-0 mt-1 w-full rounded-lg shadow-lg z-10"
+                              style={{
+                                backgroundColor: '#FFFFFF',
+                                border: '1px solid #E5E7EB',
+                                maxHeight: '200px',
+                                overflowY: 'auto'
+                              }}
+                            >
+                              {countries.map((country) => (
+                                <button
+                                  key={country.code}
+                                  type="button"
+                                  onClick={() => {
+                                    updateFormField(field.id, country.code);
+                                    toggleCountryDropdown(field.id);
+                                  }}
+                                  className="w-full flex items-center gap-3 px-4 py-2.5 transition-colors"
+                                  style={{
+                                    border: 'none',
+                                    backgroundColor: field.value === country.code ? '#F3F4F6' : 'transparent',
+                                    cursor: 'pointer',
+                                    textAlign: 'left'
+                                  }}
+                                >
+                                  <span style={{ fontSize: '20px' }}>{toFlagEmoji(country.code)}</span>
+                                  <span style={{ fontSize: '14px', color: '#374151' }}>{country.name}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       ) : field.type === 'textarea' ? (
                         <textarea
                           value={field.value}

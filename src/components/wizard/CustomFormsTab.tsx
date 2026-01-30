@@ -56,6 +56,17 @@ import {
   Crown,
   BarChart3
 } from 'lucide-react';
+import FieldPropertiesPanel from './FieldPropertiesPanel';
+import { IncludeInDashboardToggle } from './IncludeInDashboardToggle';
+import { countries } from '../../data/countries';
+
+const toFlagEmoji = (code: string) => {
+  return code
+    .toUpperCase()
+    .split('')
+    .map((char) => String.fromCodePoint(127397 + char.charCodeAt(0)))
+    .join('');
+};
 import FieldSettingsModal from './FieldSettingsModal';
 
 interface FormCard {
@@ -90,6 +101,16 @@ interface CustomField {
   options?: string[];
   isPro: boolean;
   isSystem?: boolean;
+  isEditable?: boolean;
+  fieldValue?: string; // For simple values
+  phoneCountryCode?: string;
+  phoneNumber?: string;
+  isDropdownOpen?: boolean;
+  // New properties for dashboard integration
+  includeInDashboard?: boolean;
+  dashboardLabel?: string;
+  dashboardAggregationType?: 'count' | 'sum' | 'average';
+  dashboardChartType?: 'bar' | 'pie' | 'line';
   isKpi?: boolean;
 }
 
@@ -491,7 +512,8 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
             t('wizard.step3.customForms.fieldOptions.option3')
           ]
         : undefined,
-      isPro: fieldType.isPro
+      isPro: fieldType.isPro,
+      includeInDashboard: false
     };
 
     setFormFields([...formFields, newField]);
@@ -1134,6 +1156,50 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
 
                     {/* Field Categories */}
                     <div className="space-y-6">
+                      {/* Common Fields */}
+                      <div>
+                        <h4 className="text-xs mb-3" style={{ fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          Common Fields
+                        </h4>
+                        <div className="space-y-2">
+                          {[
+                            { icon: Phone, label: 'Phone Number', type: 'phone', isEditable: false, isSystem: false },
+                            { icon: MapPin, label: 'Country', type: 'country', isEditable: false, isSystem: false },
+                            { icon: Calendar, label: 'Date of Birth', type: 'date', isEditable: false },
+                            { icon: Users, label: 'Gender', type: 'dropdown', options: ['Male', 'Female'], isEditable: false },
+                            { icon: Hash, label: 'Age', type: 'number', isEditable: false }
+                          ].map((field, idx) => {
+                            const FieldIcon = field.icon;
+                            return (
+                              <div
+                                key={idx}
+                                draggable
+                                onDragStart={(e) => {
+                                  e.dataTransfer.setData('fieldType', field.type);
+                                  e.dataTransfer.setData('fieldLabel', field.label);
+                                  if (field.options) {
+                                      e.dataTransfer.setData('fieldOptions', JSON.stringify(field.options));
+                                  }
+                                  e.dataTransfer.setData('isSystem', field.isSystem ? 'true' : 'false');
+                                  e.dataTransfer.setData('isEditable', field.isEditable ? 'true' : 'false');
+                                  e.dataTransfer.effectAllowed = 'copy';
+                                }}
+                                className="flex items-center gap-3 p-3 rounded-lg border cursor-move transition-all hover:border-blue-400"
+                                style={{ borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.03)' }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(6,132,245,0.1)'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'}
+                              >
+                                <GripVertical size={16} style={{ color: '#9CA3AF' }} />
+                                <FieldIcon size={18} style={{ color: '#0684F5' }} />
+                                <span className="text-sm" style={{ fontWeight: 500, color: '#FFFFFF' }}>
+                                  {field.label}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
                       {/* Basic Fields */}
                       <div>
                         <h4 className="text-xs mb-3" style={{ fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -1343,6 +1409,15 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                   onDrop={(e) => {
                     e.preventDefault();
                     const fieldType = e.dataTransfer.getData('fieldType');
+                    const fieldLabel = e.dataTransfer.getData('fieldLabel');
+                    const fieldOptionsStr = e.dataTransfer.getData('fieldOptions');
+                    const isSystemStr = e.dataTransfer.getData('isSystem');
+                    const isEditableStr = e.dataTransfer.getData('isEditable');
+                    let fieldOptions = undefined;
+                    if (fieldOptionsStr) {
+                        fieldOptions = JSON.parse(fieldOptionsStr);
+                    }
+
                     if (fieldType) {
                       // Determine if field is PRO
                       const isPROField = ['file', 'url', 'address'].includes(fieldType);
@@ -1351,19 +1426,27 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                       const newField: CustomField = {
                         id: Date.now().toString(),
                         type: fieldType as any,
-                        label: t('wizard.step3.customForms.builder.newFieldLabel', {
+                        label: fieldLabel || t('wizard.step3.customForms.builder.newFieldLabel', {
                           type: fieldTypeLabels[fieldType as CustomField['type']] || fieldType
                         }),
                         required: false,
                         placeholder: '',
                         isPro: isPROField,
-                        options: fieldType === 'dropdown' || fieldType === 'radio' || fieldType === 'checkbox' 
-                          ? [
-                              t('wizard.step3.customForms.fieldOptions.option1'),
-                              t('wizard.step3.customForms.fieldOptions.option2'),
-                              t('wizard.step3.customForms.fieldOptions.option3')
-                            ] 
-                          : undefined
+                        options: fieldOptions && fieldOptions.length > 0 ? fieldOptions : (
+                                   fieldType === 'dropdown' || fieldType === 'radio' || fieldType === 'checkbox'
+                                     ? [
+                                         t('wizard.step3.customForms.fieldOptions.option1'),
+                                         t('wizard.step3.customForms.fieldOptions.option2'),
+                                         t('wizard.step3.customForms.fieldOptions.option3')
+                                       ]
+                                     : undefined
+                                 ),
+                        isSystem: isSystemStr === 'true',
+                        isEditable: isEditableStr === 'false' ? false : true,
+                        fieldValue: '',
+                        phoneCountryCode: fieldType === 'phone' ? 'US' : undefined,
+                        phoneNumber: fieldType === 'phone' ? '' : undefined,
+                        isDropdownOpen: false
                       };
                       setFormFields([...formFields, newField]);
                     }
@@ -1429,6 +1512,49 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                           key={field.id}
                           className={`group relative flex items-start gap-3 p-5 rounded-lg border transition-all ${editingField?.id === field.id ? 'border-blue-500 bg-blue-500/5 ring-1 ring-blue-500/20' : 'border-white/10 bg-white/5 hover:border-blue-400'}`}
                         >
+                          {/* Field Controls */}
+                          <div className="absolute top-3 right-3 flex items-center gap-1.5 transition-opacity">
+                            {!field.isSystem && field.isEditable !== false && ( // Updated condition for Edit button
+                              <button
+                                onClick={() => {
+                                  setEditingField(field);
+                                  setShowFieldEditor(true);
+                                }}
+                                className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:scale-105"
+                                style={{ backgroundColor: 'rgba(6,132,245,0.1)', color: '#0684F5' }}
+                                title={t('wizard.step3.customForms.builder.fieldActions.editProperties')}
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                            )}
+                            {!field.isSystem && ( // Delete button remains the same condition
+                              <button
+                                onClick={() => {
+                                  handleDeleteField(field.id);
+                                }}
+                                className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:scale-105"
+                                style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#EF4444' }}
+                                title={t('wizard.step3.customForms.builder.fieldActions.deleteField')}
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                            {field.isSystem && ( // Lock icon remains the same condition
+                              <div
+                                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                                style={{ backgroundColor: 'rgba(255,255,255,0.05)', cursor: 'not-allowed' }}
+                                title={t('wizard.step3.customForms.builder.fieldActions.systemLocked')}
+                              >
+                                <Lock size={16} style={{ color: '#94A3B8' }} />
+                              </div>
+                            )}
+                            <div // Drag handle remains the same
+                              className="cursor-move w-8 h-8 rounded-lg flex items-center justify-center"
+                              style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+                              title={t('wizard.step3.customForms.builder.fieldActions.dragToReorder')}
+                            >
+                              <GripVertical size={16} style={{ color: '#94A3B8' }} />
+                            </div>
                           {/* Drag Handle (Left) */}
                           <div
                             className="cursor-move mt-1 p-1 rounded hover:bg-white/10 text-slate-500 hover:text-white transition-colors"
@@ -1467,6 +1593,249 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                                   <Lock size={16} className="text-slate-400" />
                                 </div>
                               )}
+                            </label>
+                            {!field.isSystem && ( // Removed the hover-triggered edit button
+                                // <button
+                                //   onClick={() => {
+                                //     setEditingField(field);
+                                //     setShowFieldEditor(true);
+                                //   }}
+                                //   className="opacity-0 group-hover:opacity-100 transition-opacity w-7 h-7 rounded flex items-center justify-center hover:bg-blue-500/10"
+                                //   title={t('wizard.step3.customForms.builder.fieldActions.editSettings')}
+                                //   style={{ color: '#0684F5' }}
+                                // >
+                                //   <Pencil size={16} />
+                                // </button>
+                                null // Explicitly render null to remove the button
+                            )}
+                          </div>
+                          
+                          {/* Help Text */}
+                          {field.helpText && (
+                            <p className="text-xs mb-3" style={{ color: '#94A3B8' }}>
+                              {field.helpText}
+                            </p>
+                          )}
+
+                          {/* Field Input (varies by type) */}
+                          {field.type === 'text' && (
+                            <input
+                              type="text"
+                              placeholder={field.placeholder || t('wizard.step3.customForms.builder.placeholders.text')}
+                              disabled
+                              className="w-full h-11 px-4 rounded-lg border"
+                              style={{ borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(255,255,255,0.05)', color: '#94A3B8' }}
+                            />
+                          )}
+
+                          {field.type === 'textarea' && (
+                            <textarea
+                              placeholder={field.placeholder || t('wizard.step3.customForms.builder.placeholders.textarea')}
+                              disabled
+                              rows={4}
+                              className="w-full p-4 rounded-lg border resize-none"
+                              style={{ borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(255,255,255,0.05)', color: '#94A3B8' }}
+                            />
+                          )}
+
+                          {field.type === 'email' && (
+                            <input
+                              type="email"
+                              placeholder={field.placeholder || t('wizard.step3.customForms.builder.placeholders.email')}
+                              disabled
+                              className="w-full h-11 px-4 rounded-lg border"
+                              style={{ borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(255,255,255,0.05)', color: '#94A3B8' }}
+                            />
+                          )}
+
+                          {field.type === 'phone' && (
+                            <div className="flex gap-2">
+                              <div className="relative">
+                                <button
+                                  type="button"
+                                  onClick={() => setFormFields(prev => prev.map(f => f.id === field.id ? { ...f, isDropdownOpen: !f.isDropdownOpen } : f))}
+                                  className="flex items-center justify-between transition-all"
+                                  style={{
+                                    width: '90px',
+                                    height: '48px',
+                                    padding: '12px',
+                                    fontSize: '16px',
+                                    color: '#111827',
+                                    backgroundColor: '#FFFFFF',
+                                    border: '1.5px solid #D1D5DB',
+                                    borderRadius: '8px',
+                                    outline: 'none'
+                                  }}
+                                >
+                                  <span style={{ fontSize: '20px' }}>{toFlagEmoji(field.phoneCountryCode || 'US')}</span>
+                                  <ChevronDown size={16} style={{ color: '#6B7280' }} />
+                                </button>
+                                {field.isDropdownOpen && (
+                                  <div
+                                    className="absolute top-full left-0 mt-1 w-64 rounded-lg shadow-lg z-10"
+                                    style={{
+                                      backgroundColor: '#FFFFFF',
+                                      border: '1px solid #E5E7EB',
+                                      maxHeight: '240px',
+                                      overflowY: 'auto'
+                                    }}
+                                  >
+                                    {countries.map((country) => (
+                                      <button
+                                        key={country.code}
+                                        type="button"
+                                        onClick={() => {
+                                          setFormFields(prev => prev.map(f => f.id === field.id ? { ...f, phoneCountryCode: country.code, isDropdownOpen: false } : f));
+                                        }}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 transition-colors"
+                                      >
+                                        <span style={{ fontSize: '20px' }}>{toFlagEmoji(country.code)}</span>
+                                        <span style={{ fontSize: '14px', color: '#374151', flex: 1 }}>{country.name}</span>
+                                        <span style={{ fontSize: '14px', color: '#6B7280' }}>{country.phoneCode}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <input
+                                type="tel"
+                                placeholder={field.placeholder || t('wizard.step3.customForms.builder.placeholders.phone')}
+                                value={field.phoneNumber}
+                                onChange={(e) => {
+                                  const sanitized = e.target.value.replace(/[^0-9\s]/g, '');
+                                  setFormFields(prev => prev.map(f => f.id === field.id ? { ...f, phoneNumber: sanitized } : f));
+                                }}
+                                className="flex-1 transition-all"
+                                style={{
+                                  height: '48px',
+                                  padding: '12px 16px',
+                                  fontSize: '16px',
+                                  color: '#111827',
+                                  backgroundColor: '#FFFFFF',
+                                  border: `1.5px solid #D1D5DB`,
+                                  borderRadius: '8px',
+                                  outline: 'none'
+                                }}
+                              />
+                            </div>
+                          )}
+
+                          {field.type === 'number' && (
+                            <input
+                              type="number"
+                              placeholder={field.placeholder || t('wizard.step3.customForms.builder.placeholders.number')}
+                              disabled
+                              className="w-full h-11 px-4 rounded-lg border"
+                              style={{ borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(255,255,255,0.05)', color: '#94A3B8' }}
+                            />
+                          )}
+
+                          {field.type === 'date' && (
+                            <input
+                              type="date"
+                              disabled
+                              className="w-full h-11 px-4 rounded-lg border"
+                              style={{ borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(255,255,255,0.05)', color: '#94A3B8' }}
+                            />
+                          )}
+
+                          {field.type === 'country' && (
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFormFields(prev => prev.map(f => f.id === field.id ? { ...f, isDropdownOpen: !f.isDropdownOpen } : f));
+                                }}
+                                className="w-full flex items-center justify-between transition-all"
+                                style={{
+                                  height: '48px',
+                                  padding: '12px 16px',
+                                  fontSize: '16px',
+                                  color: field.value ? '#111827' : '#9CA3AF',
+                                  backgroundColor: '#FFFFFF',
+                                  border: '1.5px solid #D1D5DB',
+                                  borderRadius: '8px',
+                                  outline: 'none',
+                                  textAlign: 'left'
+                                }}
+                              >
+                                {field.value ? (
+                                  <span className="flex items-center gap-2">
+                                    <span style={{ fontSize: '20px' }}>
+                                      {toFlagEmoji(field.value)}
+                                    </span>
+                                    {countries.find(c => c.code === field.value)?.name}
+                                  </span>
+                                ) : (
+                                  t('profileSetup.placeholders.country')
+                                )}
+                                <ChevronDown size={20} style={{ color: '#6B7280' }} />
+                              </button>
+
+                              {/* Dropdown Menu */}
+                              {field.isDropdownOpen && (
+                                <div
+                                  className="absolute top-full left-0 mt-1 w-full rounded-lg shadow-lg z-10"
+                                  style={{
+                                    backgroundColor: '#FFFFFF',
+                                    border: '1px solid #E5E7EB',
+                                    maxHeight: '240px',
+                                    overflowY: 'auto'
+                                  }}
+                                >
+                                  {countries.map((country) => (
+                                    <button
+                                      key={country.code}
+                                      type="button"
+                                      onClick={() => {
+                                        setFormFields(prev => prev.map(f => f.id === field.id ? { ...f, value: country.code, isDropdownOpen: false } : f));
+                                      }}
+                                      className="w-full flex items-center gap-3 px-4 py-2.5 transition-colors"
+                                      style={{
+                                        border: 'none',
+                                        backgroundColor: field.value === country.code ? '#F3F4F6' : 'transparent',
+                                        cursor: 'pointer',
+                                        textAlign: 'left'
+                                      }}
+                                    >
+                                      <span style={{ fontSize: '20px' }}>{toFlagEmoji(country.code)}</span>
+                                      <span style={{ fontSize: '14px', color: '#374151' }}>{country.name}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          {field.type === 'dropdown' && (
+                            <select
+                              disabled
+                              className="w-full h-11 px-4 rounded-lg border"
+                              style={{ borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(255,255,255,0.05)', color: '#94A3B8' }}
+                            >
+                              <option>{t('wizard.step3.customForms.builder.placeholders.dropdown')}</option>
+                              {field.options?.map((opt, i) => (
+                                <option key={i}>{opt}</option>
+                              ))}
+                            </select>
+                          )}
+
+                          {field.type === 'radio' && (
+                            <div className="space-y-3 pt-2">
+                              {(field.options && field.options.length ? field.options : [
+                                t('wizard.step3.customForms.fieldOptions.option1'),
+                                t('wizard.step3.customForms.fieldOptions.option2'),
+                                t('wizard.step3.customForms.fieldOptions.option3')
+                              ]).map((opt, idx) => (
+                                <label key={idx} className="flex items-center gap-3 p-2 rounded-lg transition-colors hover:bg-white/5 cursor-default">
+                                  <div className="relative flex items-center justify-center w-5 h-5 rounded-full border-2 border-blue-500/50 bg-white/5">
+                                    {idx === 0 && <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />}
+                                  </div>
+                                  <span className="text-sm font-medium text-slate-300">
+                                    {opt}
+                                  </span>
+                                </label>
+                              ))}
                             </div>
 
                             {/* Field Label */}
@@ -1651,6 +2020,20 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                                 </div>
                               </div>
                             )}
+
+                          {/* Field Description */}
+                          {field.description && (
+                            <p className="text-xs mt-2" style={{ color: '#94A3B8' }}>
+                              {field.description}
+                            </p>
+                          )}
+
+                          <IncludeInDashboardToggle
+                            field={field}
+                            onUpdateField={(updatedField) => {
+                              setFormFields(prev => prev.map(f => (f.id === updatedField.id ? updatedField : f)));
+                            }}
+                          />
 
                             {/* Field Description */}
                             {field.description && (
