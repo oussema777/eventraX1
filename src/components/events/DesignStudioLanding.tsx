@@ -202,13 +202,24 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
         })));
 
         const sessionRows = sessionRes.data || [];
+        
+        // 1. Calculate unique dates chronologically
+        const sortedUniqueDates = Array.from(new Set(
+          sessionRows
+            .filter((s: any) => s.starts_at)
+            .map((s: any) => new Date(s.starts_at).toDateString())
+        )).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+        // 2. Map sessions with correctly calculated day index
         const mappedSessions: AgendaSession[] = sessionRows.map((row: any) => {
-          const dayValue = Number.isFinite(row.day) ? Number(row.day) : 1;
+          const dateStr = row.starts_at ? new Date(row.starts_at).toDateString() : null;
+          const dayIndex = dateStr ? sortedUniqueDates.indexOf(dateStr) + 1 : 1;
+          
           const tags = [];
           if (row.track) tags.push(row.track);
           if (row.status) tags.push(row.status);
           return {
-            day: dayValue || 1,
+            day: dayIndex,
             time: formatTime(row.starts_at),
             duration: formatDuration(row.starts_at, row.ends_at),
             title: row.title || 'Session',
@@ -219,20 +230,20 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
         });
         setSessions(mappedSessions);
 
-        const dayLabels = new Map<number, string>();
-        mappedSessions.forEach((session) => {
-          if (dayLabels.has(session.day)) return;
-          const row = sessionRows.find((item: any) => {
-            const dayValue = Number.isFinite(item.day) ? Number(item.day) : 1;
-            return dayValue === session.day;
-          });
-          const dateLabel = formatDate(row?.starts_at);
-          dayLabels.set(session.day, dateLabel ? `Day ${session.day} - ${dateLabel}` : `Day ${session.day}`);
+        // 3. Generate Day Labels
+        const calculatedDays: AgendaDay[] = sortedUniqueDates.map((dateStr, index) => {
+          const dayNum = index + 1;
+          const dateLabel = formatDate(dateStr);
+          return {
+            day: dayNum,
+            label: `Day ${dayNum}${dateLabel ? ` - ${dateLabel}` : ''}`
+          };
         });
-        if (dayLabels.size === 0) {
-          dayLabels.set(1, 'Day 1');
+
+        if (calculatedDays.length === 0) {
+          calculatedDays.push({ day: 1, label: 'Day 1' });
         }
-        setDays(Array.from(dayLabels.entries()).map(([day, label]) => ({ day, label })));
+        setDays(calculatedDays);
 
         const ticketRows = ticketRes.data || [];
         const mappedTickets: TicketCard[] = ticketRows.map((row: any) => ({

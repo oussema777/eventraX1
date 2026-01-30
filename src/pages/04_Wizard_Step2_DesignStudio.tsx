@@ -60,6 +60,7 @@ export default function WizardStep2DesignStudio() {
   const [fontFamily, setFontFamily] = useState('inter');
   const [buttonRadius, setButtonRadius] = useState(12);
   const [logoUrl, setLogoUrl] = useState('');
+  const [logoSize, setLogoSize] = useState(80);
   const [isLogoUploading, setIsLogoUploading] = useState(false);
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 1024);
   const [settingsBlockId, setSettingsBlockId] = useState<string | null>(null);
@@ -87,6 +88,7 @@ export default function WizardStep2DesignStudio() {
     if (source?.fontFamily) setFontFamily(source.fontFamily);
     if (source?.buttonRadius) setButtonRadius(source.buttonRadius);
     if (source?.logoUrl) setLogoUrl(source.logoUrl);
+    if (source?.logoSize) setLogoSize(source.logoSize);
   }, [eventData, storageKey]);
 
   useEffect(() => {
@@ -99,8 +101,8 @@ export default function WizardStep2DesignStudio() {
   }, []);
 
   useEffect(() => {
-    persistLocalDesign({ brandColor, brandColorSecondary, fontFamily, buttonRadius, activeBlocks, logoUrl });
-  }, [brandColor, brandColorSecondary, fontFamily, buttonRadius, activeBlocks, logoUrl, storageKey]);
+    persistLocalDesign({ brandColor, brandColorSecondary, fontFamily, buttonRadius, activeBlocks, logoUrl, logoSize });
+  }, [brandColor, brandColorSecondary, fontFamily, buttonRadius, activeBlocks, logoUrl, logoSize, storageKey]);
 
   const persistLocalDesign = (payload: Record<string, any>) => {
     if (typeof window === 'undefined') return;
@@ -114,6 +116,7 @@ export default function WizardStep2DesignStudio() {
     buttonRadius,
     activeBlocks,
     logoUrl,
+    logoSize,
     ...overrides
   });
 
@@ -332,7 +335,7 @@ export default function WizardStep2DesignStudio() {
 
     switch (block.type) {
       case 'hero':
-        return <HeroBlock key={block.id} isLocked={isLocked} event={eventData} brandColor={brandColor} brandColorSecondary={brandColorSecondary} buttonRadius={buttonRadius} logoUrl={logoUrl} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />;
+        return <HeroBlock key={block.id} isLocked={isLocked} event={eventData} brandColor={brandColor} brandColorSecondary={brandColorSecondary} buttonRadius={buttonRadius} logoUrl={logoUrl} logoSize={logoSize} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />;
       case 'about':
         const aboutData = {
           name: block.settings?.title || eventData.name,
@@ -461,6 +464,8 @@ export default function WizardStep2DesignStudio() {
             logoUrl={logoUrl}
             onLogoUpload={handleLogoUpload}
             isLogoUploading={isLogoUploading}
+            logoSize={logoSize}
+            onLogoSizeChange={setLogoSize}
           />
 
           {/* Right: Preview Panel */}

@@ -400,7 +400,7 @@ export default function NavbarLoggedIn({
                 }}
               >
                 <Bell size={20} style={{ color: 'var(--foreground)' }} />
-                {(unreadCount > 0 || hasUnreadNotifications) && (
+                {(unreadCount > 0) && (
                   <div
                     className="absolute top-2 right-2 w-2 h-2 rounded-full"
                     style={{ backgroundColor: '#DC2626' }}

@@ -18,7 +18,8 @@ import {
   Loader2,
   MapPin,
   Menu,
-  X
+  X,
+  FileText
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -33,6 +34,7 @@ import EventB2BMatchmakingTab from '../components/dashboard/EventB2BMatchmakingT
 import EventMarketingTab from '../components/dashboard/EventMarketingTab';
 import EventDayOfTab from '../components/dashboard/EventDayOfTab';
 import EventReportingTab from '../components/dashboard/EventReportingTab';
+import EventFormsTab from '../components/dashboard/EventFormsTab';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 
 type NavigationTab = 
@@ -40,6 +42,7 @@ type NavigationTab =
   | 'agenda' 
   | 'speakers' 
   | 'attendees' 
+  | 'forms'
   | 'exhibitors' 
   | 'ticketing' 
   | 'b2b' 
@@ -94,6 +97,7 @@ export default function EventManagementDashboard() {
     { id: 'agenda', label: t('manageEvent.nav.agenda.label'), icon: Calendar, description: t('manageEvent.nav.agenda.desc') },
     { id: 'speakers', label: t('manageEvent.nav.speakers.label'), icon: Mic, description: t('manageEvent.nav.speakers.desc') },
     { id: 'attendees', label: t('manageEvent.nav.attendees.label'), icon: Users, description: t('manageEvent.nav.attendees.desc') },
+    { id: 'forms', label: 'Forms', icon: FileText, description: 'View form submissions' },
     { id: 'exhibitors', label: t('manageEvent.nav.exhibitors.label'), icon: Building, description: t('manageEvent.nav.exhibitors.desc') },
     { id: 'ticketing', label: t('manageEvent.nav.ticketing.label'), icon: Ticket, description: t('manageEvent.nav.ticketing.desc') },
     { id: 'b2b', label: t('manageEvent.nav.b2b.label'), icon: Handshake, description: t('manageEvent.nav.b2b.desc') },
@@ -361,6 +365,7 @@ export default function EventManagementDashboard() {
           {activeTab === 'agenda' && <EventScheduleTab eventId={eventId} />}
           {activeTab === 'speakers' && <EventSpeakersTab eventId={eventId} />}
           {activeTab === 'attendees' && <EventAttendeesTab eventId={eventId} />}
+          {activeTab === 'forms' && <EventFormsTab eventId={eventId} />}
           {activeTab === 'exhibitors' && <EventExhibitorsTab eventId={eventId} />}
           {activeTab === 'ticketing' && <EventTicketingTab eventId={eventId} />}
           {activeTab === 'b2b' && <EventB2BMatchmakingTab eventId={eventId} />}

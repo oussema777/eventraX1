@@ -176,11 +176,6 @@ export default function EventRegistrationFlow() {
         }
       ];
 
-      if (formData?.schema?.fields && Array.isArray(formData.schema.fields)) {
-        let customFields = formData.schema.fields.map((f: any) => {
-          let defaultValue = '';
-          if (f.label.toLowerCase().includes('phone') && profile?.phone_number) {
-            defaultValue = profile.phone_number;
       if (formData?.schema?.fields && Array.isArray(formData.schema.fields) && formData.schema.fields.length > 0) {
         const mappedFields = formData.schema.fields.map((f: any) => {
           let defaultValue = '';
@@ -204,13 +199,14 @@ export default function EventRegistrationFlow() {
             else if (labelLower.includes('phone')) defaultValue = profile.phone_number || '';
           }
 
-          const isPhoneField = f.type === 'phone' || f.label.toLowerCase().includes('phone');
+          const isPhoneField = f.type === 'phone' || (f.label && f.label.toLowerCase().includes('phone'));
           let initialPhoneCountryCode = 'US'; // Default
           let initialPhoneNumber = '';
 
           if (isPhoneField && defaultValue) {
             const parts = defaultValue.split(' ');
             if (parts[0] && parts[0].startsWith('+')) {
+              // Simple check for phone code
               initialPhoneCountryCode = countries.find(c => c.phoneCode === parts[0])?.code || 'US';
               initialPhoneNumber = parts.slice(1).join(' ');
             } else {
@@ -224,28 +220,17 @@ export default function EventRegistrationFlow() {
             type: f.type,
             required: f.required,
             options: f.options,
-            value: isPhoneField ? '' : defaultValue, // Set value to empty for phone fields, as their data is in phoneCountryCode/phoneNumber
-            readonly: false,
+            value: isPhoneField ? '' : defaultValue, 
+            readonly: isReadonly, // Allow editing unless strictly system-locked logic requires otherwise
             isSystem: f.isSystem,
-            isDropdownOpen: false, // For country field dropdowns
+            isDropdownOpen: false, 
             phoneCountryCode: isPhoneField ? initialPhoneCountryCode : undefined,
             phoneNumber: isPhoneField ? initialPhoneNumber : undefined,
-            isPhoneDropdownOpen: false // For phone field country code dropdown
+            isPhoneDropdownOpen: false 
           };
         });
 
-        // Filter out system default fields from customFields if they match the hardcoded ones
-        customFields = customFields.filter(f => 
-          !(f.isSystem && (f.id === 'default-name' || f.id === 'default-email'))
-        );
-
-        setFormFields([...defaultFields, ...customFields]);
-            value: defaultValue,
-            readonly: isReadonly
-          };
-        });
-
-        // Ensure System Fields (Name & Email) are present
+        // Ensure System Fields (Name & Email) are present in the final list
         const hasName = mappedFields.some((f: any) => 
           f.id === 'default-name' || 
           f.id === 'fullName' || 
@@ -262,7 +247,6 @@ export default function EventRegistrationFlow() {
         let finalFields = [...mappedFields];
 
         // If missing from schema, prepend the defaults
-        // We do this in reverse order so Name ends up first
         if (!hasEmail) {
            finalFields = [{
              id: 'email',

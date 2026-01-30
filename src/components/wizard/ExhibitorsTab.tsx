@@ -1155,14 +1155,34 @@ function AddExhibitorModal({
                   }}
                 >
                   <option value="">{t('wizard.step3.exhibitors.modal.fields.industryPlaceholder')}</option>
-                  <option value="Software & Technology">Software & Technology</option>
-                  <option value="Marketing & Analytics">Marketing & Analytics</option>
-                  <option value="Data & AI">Data & AI</option>
-                  <option value="Fintech">Fintech</option>
-                  <option value="E-commerce">E-commerce</option>
-                  <option value="Healthcare Tech">Healthcare Tech</option>
-                  <option value="SaaS">SaaS</option>
-                  <option value="Education">Education</option>
+                  <option value="Technology & Software">Technology & Software</option>
+                  <option value="AI, IoT & Emerging Tech">AI, IoT & Emerging Tech</option>
+                  <option value="Developers & Engineers">Developers & Engineers</option>
+                  <option value="Financial Services & Banking">Financial Services & Banking</option>
+                  <option value="Investment & Banking">Investment & Banking</option>
+                  <option value="Audit, Accounting & Finance">Audit, Accounting & Finance</option>
+                  <option value="Insurance & Microfinance">Insurance & Microfinance</option>
+                  <option value="Healthcare & Pharmaceuticals">Healthcare & Pharmaceuticals</option>
+                  <option value="Education & Training">Education & Training</option>
+                  <option value="Universities & Academies">Universities & Academies</option>
+                  <option value="Students & Researchers">Students & Researchers</option>
+                  <option value="Media & Entertainment">Media & Entertainment</option>
+                  <option value="Audiovisual & Creative Industries">Audiovisual & Creative Industries</option>
+                  <option value="Marketing & Advertising">Marketing & Advertising</option>
+                  <option value="Retail & E-commerce">Retail & E-commerce</option>
+                  <option value="Manufacturing & Production">Manufacturing & Production</option>
+                  <option value="Real Estate & Construction">Real Estate & Construction</option>
+                  <option value="Transportation & Logistics">Transportation & Logistics</option>
+                  <option value="Energy & Utilities">Energy & Utilities</option>
+                  <option value="Hospitality & Tourism">Hospitality & Tourism</option>
+                  <option value="Telecommunications">Telecommunications</option>
+                  <option value="Agriculture & Food Production">Agriculture & Food Production</option>
+                  <option value="Legal Services">Legal Services</option>
+                  <option value="Consulting & Professional Services">Consulting & Professional Services</option>
+                  <option value="Coaches & Trainers">Coaches & Trainers</option>
+                  <option value="Non-Profit & Civil Society">Non-Profit & Civil Society</option>
+                  <option value="Government & Public Sector">Government & Public Sector</option>
+                  <option value="Entrepreneurs & Startups">Entrepreneurs & Startups</option>
                   <option value="Other">Other</option>
                 </select>
               </div>

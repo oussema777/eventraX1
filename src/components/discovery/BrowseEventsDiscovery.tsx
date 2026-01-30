@@ -56,6 +56,7 @@ export default function BrowseEventsDiscovery() {
   // New state for custom date range
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+  const [timeFilter, setTimeFilter] = useState<'upcoming' | 'past'>('upcoming');
 
   const [filters, setFilters] = useState<Filters>({
     format: ['all'],
@@ -102,12 +103,21 @@ export default function BrowseEventsDiscovery() {
       try {
         setIsLoading(true);
         setLoadError('');
-        const { data, error } = await supabase
+        
+        let query = supabase
           .from('events')
           .select('id, name, description, event_type, event_format, event_status, start_date, location_address, cover_image_url')
           .eq('status', 'published')
-          .eq('is_approved', true) // Only show approved events
-          .order('start_date', { ascending: true });
+          .eq('is_approved', true); // Only show approved events
+
+        const now = new Date().toISOString();
+        if (timeFilter === 'upcoming') {
+          query = query.gte('start_date', now).order('start_date', { ascending: true });
+        } else {
+          query = query.lt('start_date', now).order('start_date', { ascending: false });
+        }
+
+        const { data, error } = await query;
 
         if (error) {
           if (mounted) setLoadError(t('browseEventsPage.states.loadError'));
@@ -185,7 +195,7 @@ export default function BrowseEventsDiscovery() {
     return () => {
       mounted = false;
     };
-  }, [t]);
+  }, [t, timeFilter]);
 
   const resetPagination = () => {
     setVisibleCount(pageSize);
@@ -445,6 +455,42 @@ export default function BrowseEventsDiscovery() {
         >
           {t('browseEventsPage.hero.title')}
         </h1>
+
+        {/* Time Filter Tabs */}
+        <div style={{ marginBottom: '32px', display: 'flex', gap: '4px', backgroundColor: 'rgba(255,255,255,0.1)', padding: '4px', borderRadius: '12px' }}>
+          <button
+            onClick={() => setTimeFilter('upcoming')}
+            style={{
+              padding: '8px 24px',
+              borderRadius: '8px',
+              backgroundColor: timeFilter === 'upcoming' ? '#0684F5' : 'transparent',
+              color: timeFilter === 'upcoming' ? '#FFFFFF' : '#94A3B8',
+              fontWeight: 600,
+              fontSize: '14px',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+          >
+            Upcoming Events
+          </button>
+          <button
+            onClick={() => setTimeFilter('past')}
+            style={{
+              padding: '8px 24px',
+              borderRadius: '8px',
+              backgroundColor: timeFilter === 'past' ? '#0684F5' : 'transparent',
+              color: timeFilter === 'past' ? '#FFFFFF' : '#94A3B8',
+              fontWeight: 600,
+              fontSize: '14px',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+          >
+            Previous Events
+          </button>
+        </div>
 
         {/* Search Bar */}
         <div

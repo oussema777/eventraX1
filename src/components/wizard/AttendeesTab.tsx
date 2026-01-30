@@ -218,9 +218,13 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
       setFormData({});
       setSelectedSessions(new Set());
       fetchAttendees();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding attendee:', error);
-      toast.error('Failed to add attendee');
+      if (error.code === '23505') {
+        toast.error('This email is already registered for this event');
+      } else {
+        toast.error('Failed to add attendee');
+      }
     }
   };
 
@@ -353,7 +357,7 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                        <div className="relative group">
                           <Ticket size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#0684F5] transition-colors" />
                           <select 
-                            className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-12 pr-10 py-3.5 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all appearance-none cursor-pointer hover:border-white/20"
+                            className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-12 pr-10 py-4 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all appearance-none cursor-pointer hover:border-white/20"
                             value={selectedTicketId}
                             onChange={(e) => setSelectedTicketId(e.target.value)}
                           >
@@ -370,7 +374,7 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                        <div className="relative group">
                           <CheckCircle size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#0684F5] transition-colors" />
                           <select 
-                            className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-11 pr-10 py-3.5 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all appearance-none cursor-pointer hover:border-white/20"
+                            className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-11 pr-10 py-4 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all appearance-none cursor-pointer hover:border-white/20"
                             value={registrationStatus}
                             onChange={(e) => setRegistrationStatus(e.target.value)}
                           >
@@ -395,7 +399,7 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                          {field.type === 'textarea' ? (
                            <div className="relative group">
                              <textarea
-                               className="w-full bg-[#162C46] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all resize-none placeholder-gray-600 min-h-[100px] hover:border-white/20"
+                               className="w-full bg-[#162C46] border border-white/10 rounded-xl px-4 py-4 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all resize-none placeholder-gray-600 min-h-[100px] hover:border-white/20"
                                placeholder={`Enter ${field.label.toLowerCase()}...`}
                                value={formData[field.label] || ''}
                                onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}
@@ -404,7 +408,7 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                          ) : field.type === 'dropdown' ? (
                            <div className="relative group">
                               <select
-                                className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-4 pr-10 py-3.5 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all appearance-none cursor-pointer hover:border-white/20"
+                                className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-4 pr-10 py-4 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all appearance-none cursor-pointer hover:border-white/20"
                                 value={formData[field.label] || ''}
                                 onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}
                               >
@@ -419,7 +423,7 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                            <div className="relative group">
                               <input
                                 type={field.type === 'email' ? 'email' : 'text'}
-                                className="w-full bg-[#162C46] border border-white/10 rounded-xl px-4 py-3.5 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all placeholder-gray-600 pl-12 hover:border-white/20"
+                                className="w-full bg-[#162C46] border border-white/10 rounded-xl px-4 py-4 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all placeholder-gray-600 pl-12 hover:border-white/20"
                                 placeholder={field.label}
                                 value={formData[field.label] || ''}
                                 onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}

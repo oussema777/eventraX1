@@ -46,6 +46,8 @@ import { useEventWizard } from './hooks/useEventWizard';
 import { useEffect } from 'react';
 import { I18nProvider, useI18n } from './i18n/I18nContext';
 
+import FormResponsePage from './pages/FormResponsePage';
+
 function RedirectLegacyWizard() {
   const navigate = useNavigate();
   const { eventId } = useParams();
@@ -78,6 +80,7 @@ export default function App() {
             <Route path="/auth-flow-demo" element={<AuthFlowDemo />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/event-auth" element={<EventAuthBridge />} />
+            <Route path="/forms/:formId" element={<FormResponsePage />} />
             <Route path="/browse-events" element={<BrowseEventsDiscoveryPage />} />
             <Route path="/b2b-marketplace" element={<B2BMarketplaceDiscoveryPage />} />
             <Route path="/communities" element={<CommunityPeopleDiscovery />} />

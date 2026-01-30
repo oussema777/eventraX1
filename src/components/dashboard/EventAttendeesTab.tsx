@@ -737,7 +737,7 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
         </div>
 
         {/* ATTENDEES TABLE */}
-        <div className="rounded-xl border border-white/10 overflow-hidden bg-[#0B2641]">
+        <div className="rounded-xl border border-white/10 bg-[#0B2641]" style={{ minHeight: '450px' }}>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1000px]">
               <thead className="bg-white/5">
@@ -789,48 +789,84 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
                           {/* Approval Action */}
                           {attendee.status === 'approved' ? (
                             <span className="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-xs font-bold">
-                              {t('common.approved', 'Approved')}
+                              Approved
                             </span>
                           ) : (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 updateAttendee(attendee.id, { status: 'approved' });
-                                toast.success(t('manageEvent.attendees.toasts.approved', 'Attendee approved'));
+                                toast.success('Attendee approved');
                               }}
                               className="px-3 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-bold transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
                             >
-                              {t('common.approve', 'Approve')}
+                              Approve
                             </button>
                           )}
 
                           {/* Decline Action */}
                           {attendee.status === 'declined' ? (
                             <span className="px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-500 border border-rose-500/20 text-xs font-bold">
-                              {t('common.declined', 'Declined')}
+                              Declined
                             </span>
                           ) : (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 updateAttendee(attendee.id, { status: 'declined' });
-                                toast.error(t('manageEvent.attendees.toasts.declined', 'Registration declined'));
+                                toast.error('Registration declined');
                               }}
-                              className="px-3 py-1.5 rounded-lg text-rose-500 bg-rose-500/10 hover:bg-rose-500/20 text-xs font-bold transition-all border border-rose-500/20 active:scale-95"
+                              className="px-3 py-1.5 rounded-lg bg-rose-500 text-white hover:bg-rose-600 text-xs font-bold transition-all shadow-lg shadow-rose-500/20 active:scale-95"
                             >
-                              {t('common.decline', 'Decline')}
+                              Decline
                             </button>
                           )}
 
-                          <button 
-                            className="p-2 text-gray-500 hover:text-white rounded-lg hover:bg-white/10"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // More options
-                            }}
-                          >
-                            <MoreVertical size={18} />
-                          </button>
+                          <div className="relative">
+                            <button 
+                              className={`p-2 rounded-lg transition-colors ${openDropdownId === attendee.id ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-white hover:bg-white/10'}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdownId(openDropdownId === attendee.id ? null : attendee.id);
+                              }}
+                            >
+                              <MoreVertical size={18} />
+                            </button>
+
+                            {openDropdownId === attendee.id && (
+                              <div 
+                                className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  onClick={() => {
+                                    updateAttendee(attendee.id, { checkedIn: !attendee.checkedIn });
+                                    toast.success(attendee.checkedIn ? 'Check-in cancelled' : 'Attendee checked in');
+                                    setOpenDropdownId(null);
+                                  }}
+                                  style={{ color: '#0F172A' }}
+                                  className="w-full px-4 py-3 text-left text-sm font-bold hover:bg-emerald-50 flex items-center gap-2 transition-colors"
+                                >
+                                  <QrCode size={16} className="text-emerald-600" />
+                                  {attendee.checkedIn ? 'Cancel Check-in' : 'Manual Check-in'}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (confirm('Are you sure you want to remove this attendee?')) {
+                                      deleteAttendee(attendee.id);
+                                      toast.success('Attendee removed');
+                                    }
+                                    setOpenDropdownId(null);
+                                  }}
+                                  style={{ color: '#0F172A' }}
+                                  className="w-full px-4 py-3 text-left text-sm font-bold hover:bg-rose-50 flex items-center gap-2 transition-colors border-t border-gray-100"
+                                >
+                                  <Trash size={16} className="text-rose-600" />
+                                  Delete Attendee
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </td>
                     </tr>

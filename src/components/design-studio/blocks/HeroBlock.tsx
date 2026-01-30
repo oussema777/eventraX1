@@ -10,6 +10,7 @@ interface HeroBlockProps {
   brandColor?: string;
   buttonRadius?: number;
   logoUrl?: string;
+  logoSize?: number;
   event?: {
     name?: string;
     tagline?: string;
@@ -33,6 +34,7 @@ export default function HeroBlock({
   brandColor,
   buttonRadius,
   logoUrl,
+  logoSize,
   event,
   settings,
   onRegister
@@ -120,8 +122,8 @@ export default function HeroBlock({
               src={logoUrl} 
               alt="Event Logo" 
               style={{ 
-                maxHeight: '80px', 
-                maxWidth: '200px',
+                maxHeight: `${logoSize || 80}px`, 
+                maxWidth: '100%',
                 objectFit: 'contain',
                 filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))'
               }} 

@@ -2381,27 +2381,6 @@ function SpeakerCard({ speaker, onView, onSelect, isSelected, onContact, onEdit,
           <Eye size={14} />
           {t('manageEvent.speakers.allSpeakers.card.viewProfile')}
         </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onContact();
-          }}
-          style={{
-            width: '36px',
-            height: '36px',
-            backgroundColor: 'transparent',
-            border: '1px solid rgba(255,255,255,0.2)',
-            borderRadius: '8px',
-            color: '#FFFFFF',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-        >
-          <Mail size={14} />
-        </button>
         <div style={{ position: 'relative' }} data-speaker-menu>
           <button
             onClick={(e) => {
@@ -2460,29 +2439,6 @@ function SpeakerCard({ speaker, onView, onSelect, isSelected, onContact, onEdit,
               >
                 <Eye size={14} />
                 {t('manageEvent.speakers.allSpeakers.card.viewProfile')}
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEmail();
-                  onMenuToggle();
-                }}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#FFFFFF',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  cursor: 'pointer'
-                }}
-              >
-                <Mail size={14} />
-                {t('manageEvent.speakers.allSpeakers.card.email')}
               </button>
               <button
                 onClick={(e) => {
@@ -2552,13 +2508,13 @@ function SpeakersListView({ speakers, selectedSpeakers, onSelect, onView, onEmai
 }) {
   const { t } = useI18n();
   return (
-    <div className="event-speakers__list" style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px', overflow: 'hidden' }}>
+    <div className="event-speakers__list" style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px', overflow: 'hidden', minHeight: '450px' }}>
       {/* Table Header */}
       <div
         className="event-speakers__list-header"
         style={{
           display: 'grid',
-          gridTemplateColumns: '4% 30% 10% 20% 12% 12% 8% 4%',
+          gridTemplateColumns: '4% 35% 12% 25% 20% 4%',
           padding: '16px 24px',
           backgroundColor: 'rgba(255,255,255,0.08)',
           borderBottom: '1px solid rgba(255,255,255,0.1)'
@@ -2569,8 +2525,6 @@ function SpeakersListView({ speakers, selectedSpeakers, onSelect, onView, onEmai
         <span style={{ fontSize: '13px', fontWeight: 600, color: '#94A3B8' }}>Type</span>
         <span style={{ fontSize: '13px', fontWeight: 600, color: '#94A3B8' }}>Sessions</span>
         <span style={{ fontSize: '13px', fontWeight: 600, color: '#94A3B8' }}>Status</span>
-        <span style={{ fontSize: '13px', fontWeight: 600, color: '#94A3B8' }}>Materials</span>
-        <span style={{ fontSize: '13px', fontWeight: 600, color: '#94A3B8' }}>Rating</span>
         <div></div>
       </div>
 
@@ -2589,7 +2543,7 @@ function SpeakersListView({ speakers, selectedSpeakers, onSelect, onView, onEmai
             onClick={() => onView(speaker)}
             style={{
               display: 'grid',
-              gridTemplateColumns: '4% 30% 10% 20% 12% 12% 8% 4%',
+              gridTemplateColumns: '4% 35% 12% 25% 20% 4%',
               padding: '16px 24px',
               borderBottom: '1px solid rgba(255,255,255,0.05)',
               cursor: 'pointer',
@@ -2712,31 +2666,6 @@ function SpeakersListView({ speakers, selectedSpeakers, onSelect, onView, onEmai
               </span>
             </div>
 
-            {/* Materials */}
-            <div>
-              <span style={{ fontSize: '13px', color: speaker.materials.submitted ? '#10B981' : '#F59E0B', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                {speaker.materials.submitted ? <CheckCircle size={14} /> : <Clock size={14} />}
-                {speaker.materials.submitted ? t('manageEvent.speakers.allSpeakers.card.materialsSubmitted') : t('manageEvent.speakers.allSpeakers.card.materialsPending')}
-              </span>
-            </div>
-
-            {/* Rating */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF' }}>
-                {speaker.rating}
-              </span>
-              <div style={{ display: 'flex', gap: '2px' }}>
-                {[1, 2, 3, 4, 5].map(star => (
-                  <Star
-                    key={star}
-                    size={12}
-                    fill={star <= speaker.rating ? '#F59E0B' : 'none'}
-                    style={{ color: star <= speaker.rating ? '#F59E0B' : '#6B7280' }}
-                  />
-                ))}
-              </div>
-            </div>
-
             {/* Actions */}
             <div>
               <div className="event-speakers__list-actions" style={{ position: 'relative' }} data-speaker-menu>
@@ -2797,29 +2726,6 @@ function SpeakersListView({ speakers, selectedSpeakers, onSelect, onView, onEmai
                     >
                       <Eye size={14} />
                       {t('manageEvent.speakers.allSpeakers.card.viewProfile')}
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEmail(speaker);
-                        onMenuToggle(speaker.id);
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '10px 14px',
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#FFFFFF',
-                        fontSize: '13px',
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <Mail size={14} />
-                      {t('manageEvent.speakers.allSpeakers.card.email')}
                     </button>
                     <button
                       onClick={(e) => {
@@ -4163,10 +4069,7 @@ function SpeakerDetailModal({ speaker, activeTab, onTabChange, onEdit, onEmail, 
         >
           {[ 
             { id: 'overview', label: t('manageEvent.speakers.detailModal.tabs.overview') },
-            { id: 'sessions', label: t('manageEvent.speakers.detailModal.tabs.sessions') },
-            { id: 'materials', label: t('manageEvent.speakers.detailModal.tabs.materials') },
-            { id: 'communication', label: t('manageEvent.speakers.detailModal.tabs.communication') },
-            { id: 'analytics', label: t('manageEvent.speakers.detailModal.tabs.analytics') }
+            { id: 'sessions', label: t('manageEvent.speakers.detailModal.tabs.sessions') }
           ].map(tab => (
             <button
               key={tab.id}
@@ -4223,27 +4126,6 @@ function SpeakerDetailModal({ speaker, activeTab, onTabChange, onEdit, onEmail, 
                       {tag}
                     </span>
                   ))}
-                </div>
-              </div>
-
-              {/* Speaking Experience */}
-              <div>
-                <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF', marginBottom: '16px' }}>
-                  {t('manageEvent.speakers.detailModal.overview.experience')}
-                </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
-                  <div>
-                    <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '8px' }}>{t('manageEvent.speakers.detailModal.overview.eventsSpoken')}</p>
-                    <p style={{ fontSize: '32px', fontWeight: 700, color: '#FFFFFF' }}>45+</p>
-                  </div>
-                  <div>
-                    <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '8px' }}>{t('manageEvent.speakers.detailModal.overview.avgRating')}</p>
-                    <p style={{ fontSize: '32px', fontWeight: 700, color: '#FFFFFF' }}>{speaker.rating}/5</p>
-                  </div>
-                  <div>
-                    <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '8px' }}>{t('manageEvent.speakers.detailModal.overview.yearsExperience')}</p>
-                    <p style={{ fontSize: '32px', fontWeight: 700, color: '#FFFFFF' }}>12 years</p>
-                  </div>
                 </div>
               </div>
 

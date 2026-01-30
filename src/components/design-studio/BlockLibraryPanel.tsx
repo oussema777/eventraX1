@@ -53,6 +53,8 @@ interface BlockLibraryPanelProps {
   logoUrl?: string;
   onLogoUpload?: (file: File) => void;
   isLogoUploading?: boolean;
+  logoSize?: number;
+  onLogoSizeChange?: (size: number) => void;
 }
 
 export default function BlockLibraryPanel({
@@ -72,7 +74,9 @@ export default function BlockLibraryPanel({
   onButtonRadiusChange,
   logoUrl,
   onLogoUpload,
-  isLogoUploading = false
+  isLogoUploading = false,
+  logoSize = 80,
+  onLogoSizeChange
 }: BlockLibraryPanelProps) {
   const { t, tList } = useI18n();
   const [activeFilter, setActiveFilter] = useState<'all' | 'added' | 'free' | 'pro'>('all');
@@ -507,6 +511,30 @@ export default function BlockLibraryPanel({
                     ? t('wizard.designStudio.branding.replaceLogo')
                     : t('wizard.designStudio.branding.uploadLogo')}
               </button>
+
+              {/* Logo Size Slider */}
+              <div className="mt-4 pt-4 border-t border-white/10">
+                <label style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255, 255, 255, 0.9)', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span>Logo Size</span>
+                  <span style={{ color: 'rgba(255, 255, 255, 0.6)' }}>{logoSize}px</span>
+                </label>
+                <input
+                  type="range"
+                  min="20"
+                  max="120"
+                  step="4"
+                  value={logoSize}
+                  onChange={(e) => onLogoSizeChange && onLogoSizeChange(Number(e.target.value))}
+                  style={{
+                    width: '100%',
+                    height: '4px',
+                    borderRadius: '2px',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    accentColor: '#0684F5'
+                  }}
+                />
+              </div>
             </div>
 
             {/* Font Family */}

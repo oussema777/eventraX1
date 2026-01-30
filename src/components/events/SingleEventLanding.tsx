@@ -91,7 +91,7 @@ export default function SingleEventLanding() {
         .from('event_sessions')
         .select('*')
         .eq('event_id', eventId)
-        .order('start_time', { ascending: true });
+        .order('starts_at', { ascending: true });
       
       setSessions(sessionData || []);
 
@@ -133,17 +133,38 @@ export default function SingleEventLanding() {
 
   // Group sessions by day
   const scheduleByDay: Record<number, any[]> = {};
+  // Filter out invalid dates and sort
+  const uniqueDates = Array.from(new Set(sessions
+    .filter(s => s.starts_at) // Ensure starts_at exists
+    .map(s => new Date(s.starts_at).toDateString())
+  )).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
   if (sessions.length > 0) {
     sessions.forEach(s => {
-      const date = new Date(s.start_time).toLocaleDateString();
-      // Simple logic: first date found is day 1, second is day 2, etc.
-      // For now just use index or mock days if only 1 day
-      const day = 1; // Simplify for now
-      if (!scheduleByDay[day]) scheduleByDay[day] = [];
-      scheduleByDay[day].push({
-        time: new Date(s.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      if (!s.starts_at) return;
+      const dateStr = new Date(s.starts_at).toDateString();
+      const dayIndex = uniqueDates.indexOf(dateStr) + 1;
+      
+      if (!scheduleByDay[dayIndex]) scheduleByDay[dayIndex] = [];
+      
+      // Calculate duration
+      let duration = '';
+      if (s.starts_at && s.ends_at) {
+        const start = new Date(s.starts_at);
+        const end = new Date(s.ends_at);
+        const diffMs = end.getTime() - start.getTime();
+        const diffMins = Math.round(diffMs / 60000);
+        duration = `${diffMins} min`;
+      }
+
+      scheduleByDay[dayIndex].push({
+        time: new Date(s.starts_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        duration: duration,
         title: s.title,
-        description: s.description
+        description: s.description,
+        speaker: s.speaker_name,
+        location: s.location,
+        track: s.track
       });
     });
   } else {
@@ -575,105 +596,152 @@ export default function SingleEventLanding() {
       </div>
 
       {/* Schedule Section */}
-      <div ref={scheduleRef} style={{ backgroundColor: 'rgba(255,255,255,0.02)', padding: '80px 0' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 40px' }}>
-          <h2 style={{ fontSize: '32px', fontWeight: 700, color: '#FFFFFF', marginBottom: '48px', textAlign: 'center' }}>
-            Event Schedule
-          </h2>
+      <div ref={scheduleRef} style={{ backgroundColor: '#FAFBFC', padding: '80px 0' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto', padding: '0 40px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+            <h2 style={{ fontSize: '36px', fontWeight: 700, color: '#1A1D1F', marginBottom: '12px' }}>
+              Event Schedule
+            </h2>
+            <p style={{ fontSize: '16px', color: '#6F767E' }}>
+              Explore our full agenda and plan your experience.
+            </p>
+          </div>
 
           {/* Day Tabs */}
-          <div className="flex justify-center gap-4 mb-8">
-            {[1, 2, 3].map((day) => (
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '40px', flexWrap: 'wrap' }}>
+            {uniqueDates.length > 0 ? uniqueDates.map((dateStr, index) => (
               <button
-                key={day}
-                onClick={() => setSelectedDay(day)}
-                className="px-6 py-3 rounded-lg transition-all"
+                key={index + 1}
+                onClick={() => setSelectedDay(index + 1)}
                 style={{
-                  backgroundColor: selectedDay === day ? '#0684F5' : 'rgba(255,255,255,0.05)',
-                  color: selectedDay === day ? '#FFFFFF' : '#94A3B8',
-                  fontSize: '14px',
+                  height: '44px',
+                  padding: '0 24px',
+                  borderRadius: '12px',
+                  fontSize: '15px',
                   fontWeight: 600,
-                  border: selectedDay === day ? 'none' : '1px solid rgba(255,255,255,0.1)',
-                  cursor: 'pointer'
-                }}
-                onMouseEnter={(e) => {
-                  if (selectedDay !== day) {
-                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (selectedDay !== day) {
-                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
-                  }
+                  cursor: 'pointer',
+                  backgroundColor: selectedDay === index + 1 ? (event.primary_color || '#0684F5') : '#FFFFFF',
+                  color: selectedDay === index + 1 ? '#FFFFFF' : '#6F767E',
+                  border: selectedDay === index + 1 ? 'none' : '2px solid #E9EAEB',
+                  boxShadow: selectedDay === index + 1 ? '0px 4px 12px rgba(99, 91, 255, 0.3)' : 'none',
+                  transition: 'all 0.2s ease'
                 }}
               >
-                Day {day}
+                Day {index + 1}
               </button>
-            ))}
+            )) : (
+              <button
+                style={{
+                  height: '44px',
+                  padding: '0 24px',
+                  borderRadius: '12px',
+                  fontSize: '15px',
+                  fontWeight: 600,
+                  cursor: 'default',
+                  backgroundColor: event.primary_color || '#0684F5',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  boxShadow: '0px 4px 12px rgba(99, 91, 255, 0.3)'
+                }}
+              >
+                Day 1
+              </button>
+            )}
           </div>
 
           {/* Schedule Items */}
-          <div
-            className="rounded-xl p-8 mb-6"
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.1)'
-            }}
-          >
-            <div className="space-y-4">
-              {(scheduleByDay[selectedDay] || []).map((item, index) => (
-                <div
-                  key={index}
-                  className="flex items-start gap-6 pb-4"
-                  style={{
-                    borderBottom: index < (scheduleByDay[selectedDay]?.length || 0) - 1 ? '1px solid rgba(255,255,255,0.1)' : 'none'
-                  }}
-                >
-                  <div
-                    className="flex items-center gap-2 rounded-lg px-3 py-2"
-                    style={{
-                      backgroundColor: 'rgba(6, 132, 245, 0.1)',
-                      minWidth: '120px'
-                    }}
-                  >
-                    <Clock size={16} style={{ color: event.primary_color || '#0684F5' }} />
-                    <span style={{ fontSize: '14px', fontWeight: 600, color: event.primary_color || '#0684F5' }}>
-                      {item.time}
-                    </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {(scheduleByDay[selectedDay] || []).map((item, index) => (
+              <div
+                key={index}
+                className="grid gap-6 sm:grid-cols-[120px_1fr]"
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  padding: '24px',
+                  borderRadius: '12px',
+                  borderLeft: `4px solid ${event.primary_color || '#0684F5'} `,
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}
+              >
+                {/* Time */}
+                <div>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: event.primary_color || '#0684F5', marginBottom: '4px' }}>
+                    {item.time}
+                  </div>
+                  {item.duration && (
+                    <div style={{ fontSize: '13px', color: '#9A9FA5' }}>
+                      {item.duration}
+                    </div>
+                  )}
+                </div>
+
+                {/* Session Info */}
+                <div>
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: '#1A1D1F', marginBottom: '8px' }}>
+                    {item.title}
                   </div>
 
-                  <div className="flex-1">
-                    <h4 style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
-                      {item.title}
-                    </h4>
-                    {item.description && (
-                      <p style={{ fontSize: '13px', color: '#94A3B8' }}>
+                  {item.speaker && (
+                    <div style={{ fontSize: '14px', fontWeight: 500, color: '#6F767E', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Users size={14} />
+                      {item.speaker}
+                    </div>
+                  )}
+
+                  {item.location && (
+                    <div style={{ fontSize: '13px', color: '#9A9FA5', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <MapPin size={12} />
+                      {item.location}
+                    </div>
+                  )}
+
+                  {/* Tags/Track */}
+                  {item.track && (
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      <div style={{
+                        height: '24px',
+                        padding: '0 10px',
+                        backgroundColor: `${event.primary_color || '#0684F5'}15`,
+                        borderRadius: '12px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: event.primary_color || '#0684F5',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}>
+                        {item.track}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {item.description && (
+                    <div style={{ marginTop: '12px', fontSize: '14px', color: '#6F767E', lineHeight: '1.5' }}>
                         {item.description}
-                      </p>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
-              ))}
-              {(scheduleByDay[selectedDay] || []).length === 0 && (
-                 <div className="text-center py-10 text-gray-500">No sessions scheduled for this day.</div>
-              )}
-            </div>
+              </div>
+            ))}
+            {(scheduleByDay[selectedDay] || []).length === 0 && (
+               <div className="text-center py-10 text-gray-500">No sessions scheduled for this day.</div>
+            )}
           </div>
 
           {/* View Full Schedule Button */}
-          <div className="flex justify-center">
+          <div className="flex justify-center mt-8">
             <button
               className="px-6 py-3 rounded-lg transition-all"
               style={{
                 backgroundColor: 'transparent',
-                color: '#0684F5',
+                color: event.primary_color || '#0684F5',
                 fontSize: '14px',
                 fontWeight: 600,
-                border: '1px solid #0684F5',
+                border: `1px solid ${event.primary_color || '#0684F5'} `,
                 cursor: 'pointer'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.1)';
+                e.currentTarget.style.backgroundColor = `${event.primary_color || '#0684F5'}15`;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent';

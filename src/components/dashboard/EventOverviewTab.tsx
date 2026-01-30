@@ -217,24 +217,7 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
                     ))}
                 </div>
             </div>
-            <button
-              onClick={() => {
-                if (!eventId) return;
-                navigate({ pathname: `/event/${eventId}`, search: '?tab=reporting' });
-              }}
-              className="w-full mt-4 h-9 rounded-lg border transition-colors"
-              style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                borderColor: 'rgba(255, 255, 255, 0.1)',
-                color: '#E2E8F0',
-                fontSize: '13px',
-                fontWeight: 600
-              }}
-            >
-              {t('manageEvent.overview.activity.viewAll')}
-            </button>
-          </div>
-        </div>
+        )}
 
         {/* 4. Management Widgets Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -242,80 +225,84 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
             <div
                 className="rounded-xl p-6"
                 style={{
-                backgroundColor: '#0D3052',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3)'
+                  backgroundColor: '#0D3052',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3)'
                 }}
-              >
-                {t('manageEvent.overview.tasks.pending', { count: pendingTasks })}
-              </span>
-            </div>
-            <div className="space-y-3">
-              {displayedTasks.map((task, index) => (
-                <div
-                  key={index}
-                  className="flex items-start gap-3 p-3 rounded-lg"
-                  style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}
-                >
-                  {task.completed ? (
-                    <CheckCircle size={20} className="text-green-500 mt-1" />
-                  ) : (
-                    <div className="w-5 h-5 mt-1 rounded-full border-2 border-gray-500" />
-                  )}
-                  <div className="flex-1">
-                    <p style={{ fontSize: '14px', color: '#FFFFFF', marginBottom: '2px' }}>
-                      {task.title}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Clock size={12} style={{ color: '#64748B' }} />
-                      <span style={{ fontSize: '12px', color: '#64748B' }}>
-                        {task.dueDate}
-                      </span>
-                      <span
-                        className="px-2 py-0.5 rounded"
-                        style={{
-                          backgroundColor:
-                            task.priority === 'high'
-                              ? 'rgba(239, 68, 68, 0.15)'
-                              : task.priority === 'medium'
-                              ? 'rgba(245, 158, 11, 0.15)'
-                              : 'rgba(6, 132, 245, 0.15)',
-                          color:
-                            task.priority === 'high'
-                              ? '#EF4444'
-                              : task.priority === 'medium'
-                              ? '#F59E0B'
-                              : '#0684F5',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          textTransform: 'uppercase'
-                        }}
-                      >
-                        {task.priority}
-                      </span>
-                    </div>
-                ))}
+            >
+                <div className="flex items-center justify-between mb-4">
+                   <h3 className="text-lg font-bold text-white">
+                      {t('manageEvent.overview.tasks.pending', { count: pendingTasks })}
+                   </h3>
                 </div>
+
+                <div className="space-y-3">
+                  {displayedTasks.map((task, index) => (
+                    <div
+                      key={index}
+                      className="flex items-start gap-3 p-3 rounded-lg"
+                      style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}
+                    >
+                      {task.completed ? (
+                        <CheckCircle size={20} className="text-green-500 mt-1" />
+                      ) : (
+                        <div className="w-5 h-5 mt-1 rounded-full border-2 border-gray-500" />
+                      )}
+                      <div className="flex-1">
+                        <p style={{ fontSize: '14px', color: '#FFFFFF', marginBottom: '2px' }}>
+                          {task.title}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Clock size={12} style={{ color: '#64748B' }} />
+                          <span style={{ fontSize: '12px', color: '#64748B' }}>
+                            {task.dueDate}
+                          </span>
+                          <span
+                            className="px-2 py-0.5 rounded"
+                            style={{
+                              backgroundColor:
+                                task.priority === 'high'
+                                  ? 'rgba(239, 68, 68, 0.15)'
+                                  : task.priority === 'medium'
+                                  ? 'rgba(245, 158, 11, 0.15)'
+                                  : 'rgba(6, 132, 245, 0.15)',
+                              color:
+                                task.priority === 'high'
+                                  ? '#EF4444'
+                                  : task.priority === 'medium'
+                                  ? '#F59E0B'
+                                  : '#0684F5',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              textTransform: 'uppercase'
+                            }}
+                          >
+                            {task.priority}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {upcomingTasks.length > 3 && (
+                  <button
+                    onClick={() => setShowAllTasks(!showAllTasks)}
+                    className="w-full mt-4 h-9 rounded-lg transition-colors"
+                    style={{
+                      backgroundColor: '#0684F5',
+                      color: '#FFFFFF',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {showAllTasks
+                      ? t('manageEvent.overview.tasks.items.showLess')
+                      : t('manageEvent.overview.tasks.viewAll')}
+                  </button>
+                )}
             </div>
-            {upcomingTasks.length > 3 && (
-              <button
-                onClick={() => setShowAllTasks(!showAllTasks)}
-                className="w-full mt-4 h-9 rounded-lg transition-colors"
-                style={{
-                  backgroundColor: '#0684F5',
-                  color: '#FFFFFF',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  border: 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                {showAllTasks
-                  ? t('manageEvent.overview.tasks.items.showLess')
-                  : t('manageEvent.overview.tasks.viewAll')}
-              </button>
-            )}
-          </div>
 
             {/* Recent Activity */}
             <div
@@ -323,45 +310,8 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
                 style={{
                   backgroundColor: 'rgba(255, 255, 255, 0.03)',
                   borderColor: 'rgba(255, 255, 255, 0.1)',
-                  cursor: 'pointer'
-                }}
-                onClick={() => {
-                  if (!eventId) return;
-                  navigate({ pathname: `/event/${eventId}`, search: '?tab=ticketing' });
-                }}
-              >
-                <Ticket size={24} style={{ color: '#0684F5' }} />
-                <span style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>
-                  {t('manageEvent.overview.actions.sellTickets')}
-                </span>
-              </button>
-              <button
-                className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border transition-all hover:shadow-md"
-                style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                  borderColor: 'rgba(255, 255, 255, 0.1)',
-                  cursor: 'pointer'
-                }}
-                onClick={() => {
-                  if (!eventId) return;
-                  navigate({ pathname: `/event/${eventId}`, search: '?tab=exhibitors' });
-                }}
-              >
-                <Building size={24} style={{ color: '#0684F5' }} />
-                <span style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>
-                  {t('manageEvent.overview.actions.addExhibitor')}
-                </span>
-              </button>
-              <button
-                className="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border transition-all hover:shadow-md"
-                style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                  borderColor: 'rgba(255, 255, 255, 0.1)',
-                  cursor: 'pointer'
-                }}
-                onClick={() => {
-                  if (!eventId) return;
-                  window.open(`/event/${eventId}/preview`, '_blank', 'noopener,noreferrer');
+                  borderWidth: '1px',
+                  borderStyle: 'solid'
                 }}
             >
                 <h3 className="text-lg font-semibold text-white mb-4">
@@ -388,6 +338,23 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
                         <p className="text-slate-500 italic">No recent activity.</p>
                     )}
                 </div>
+                
+                 <button
+                  onClick={() => {
+                    if (!eventId) return;
+                    navigate({ pathname: `/event/${eventId}`, search: '?tab=reporting' });
+                  }}
+                  className="w-full mt-4 h-9 rounded-lg border transition-colors"
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    color: '#E2E8F0',
+                    fontSize: '13px',
+                    fontWeight: 600
+                  }}
+                >
+                  {t('manageEvent.overview.activity.viewAll')}
+                </button>
             </div>
         </div>
 

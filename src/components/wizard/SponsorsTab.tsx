@@ -16,6 +16,7 @@ import {
   Star,
   X,
   XCircle,
+  AlertCircle,
   Upload,
   Trash2,
   Mail,
@@ -862,6 +863,10 @@ function AddSponsorModal({ sponsor, packages, onClose, onSave }: { sponsor: Spon
         });
     };
 
+    const selectedPkg = packages.find(p => p.id === tier);
+    const currentAmount = parseFloat(contributionAmount) || 0;
+    const isBelowThreshold = selectedPkg && currentAmount < selectedPkg.value;
+
     return (
     <div
       style={{
@@ -951,13 +956,19 @@ function AddSponsorModal({ sponsor, packages, onClose, onSave }: { sponsor: Spon
                     style={{
                         width: '100%',
                         padding: '10px 12px',
-                        border: '1px solid #E5E7EB',
+                        border: isBelowThreshold ? '1px solid #F59E0B' : '1px solid #E5E7EB',
                         borderRadius: '8px',
                         fontSize: '14px',
                         color: '#0B2641',
                         outline: 'none'
                     }}
                 />
+                {isBelowThreshold && (
+                    <p style={{ fontSize: '12px', color: '#F59E0B', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <AlertCircle size={12} />
+                        Note: This is below the standard {selectedPkg?.name} threshold of ${selectedPkg?.value.toLocaleString()}.
+                    </p>
+                )}
             </div>
 
             <div>

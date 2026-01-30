@@ -1512,49 +1512,6 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                           key={field.id}
                           className={`group relative flex items-start gap-3 p-5 rounded-lg border transition-all ${editingField?.id === field.id ? 'border-blue-500 bg-blue-500/5 ring-1 ring-blue-500/20' : 'border-white/10 bg-white/5 hover:border-blue-400'}`}
                         >
-                          {/* Field Controls */}
-                          <div className="absolute top-3 right-3 flex items-center gap-1.5 transition-opacity">
-                            {!field.isSystem && field.isEditable !== false && ( // Updated condition for Edit button
-                              <button
-                                onClick={() => {
-                                  setEditingField(field);
-                                  setShowFieldEditor(true);
-                                }}
-                                className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:scale-105"
-                                style={{ backgroundColor: 'rgba(6,132,245,0.1)', color: '#0684F5' }}
-                                title={t('wizard.step3.customForms.builder.fieldActions.editProperties')}
-                              >
-                                <Edit2 size={16} />
-                              </button>
-                            )}
-                            {!field.isSystem && ( // Delete button remains the same condition
-                              <button
-                                onClick={() => {
-                                  handleDeleteField(field.id);
-                                }}
-                                className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:scale-105"
-                                style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#EF4444' }}
-                                title={t('wizard.step3.customForms.builder.fieldActions.deleteField')}
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            )}
-                            {field.isSystem && ( // Lock icon remains the same condition
-                              <div
-                                className="w-8 h-8 rounded-lg flex items-center justify-center"
-                                style={{ backgroundColor: 'rgba(255,255,255,0.05)', cursor: 'not-allowed' }}
-                                title={t('wizard.step3.customForms.builder.fieldActions.systemLocked')}
-                              >
-                                <Lock size={16} style={{ color: '#94A3B8' }} />
-                              </div>
-                            )}
-                            <div // Drag handle remains the same
-                              className="cursor-move w-8 h-8 rounded-lg flex items-center justify-center"
-                              style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
-                              title={t('wizard.step3.customForms.builder.fieldActions.dragToReorder')}
-                            >
-                              <GripVertical size={16} style={{ color: '#94A3B8' }} />
-                            </div>
                           {/* Drag Handle (Left) */}
                           <div
                             className="cursor-move mt-1 p-1 rounded hover:bg-white/10 text-slate-500 hover:text-white transition-colors"
@@ -1565,50 +1522,54 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                           </div>
 
                           <div className="flex-1 min-w-0">
-                            {/* Field Controls (Top Right) */}
-                            <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                  onClick={() => handleEditField(field)}
-                                  className="w-9 h-9 rounded-lg flex items-center justify-center transition-all hover:scale-105 bg-blue-500/10 text-blue-500"
-                                  title={t('wizard.step3.customForms.builder.fieldActions.editProperties')}
-                                >
-                                  <Edit2 size={18} />
-                                </button>
-                              {!field.isSystem && (
-                                <button
-                                  onClick={() => {
-                                    setFormFields(formFields.filter(f => f.id !== field.id));
-                                  }}
-                                  className="w-9 h-9 rounded-lg flex items-center justify-center transition-all hover:scale-110 bg-red-500 text-white shadow-lg shadow-red-500/30"
-                                  title={t('wizard.step3.customForms.builder.fieldActions.deleteField')}
-                                >
-                                  <Trash2 size={18} />
-                                </button>
-                              )}
-                              {field.isSystem && (
-                                <div
-                                  className="w-9 h-9 rounded-lg flex items-center justify-center bg-white/5 cursor-not-allowed"
-                                  title={t('wizard.step3.customForms.builder.fieldActions.systemLocked')}
-                                >
-                                  <Lock size={16} className="text-slate-400" />
-                                </div>
-                              )}
-                            </label>
-                            {!field.isSystem && ( // Removed the hover-triggered edit button
-                                // <button
-                                //   onClick={() => {
-                                //     setEditingField(field);
-                                //     setShowFieldEditor(true);
-                                //   }}
-                                //   className="opacity-0 group-hover:opacity-100 transition-opacity w-7 h-7 rounded flex items-center justify-center hover:bg-blue-500/10"
-                                //   title={t('wizard.step3.customForms.builder.fieldActions.editSettings')}
-                                //   style={{ color: '#0684F5' }}
-                                // >
-                                //   <Pencil size={16} />
-                                // </button>
-                                null // Explicitly render null to remove the button
-                            )}
-                          </div>
+                            {/* Field Header: Label & Controls */}
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-white">
+                                  {field.label}
+                                </span>
+                                {field.required && (
+                                  <span className="text-red-500">*</span>
+                                )}
+                              </div>
+
+                              {/* Field Controls (Top Right) */}
+                              <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {!field.isSystem && field.isEditable !== false && (
+                                  <button
+                                    onClick={() => {
+                                      setEditingField(field);
+                                      setShowFieldEditor(true);
+                                    }}
+                                    className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:scale-105"
+                                    style={{ backgroundColor: 'rgba(6,132,245,0.1)', color: '#0684F5' }}
+                                    title={t('wizard.step3.customForms.builder.fieldActions.editProperties')}
+                                  >
+                                    <Edit2 size={16} />
+                                  </button>
+                                )}
+                                {!field.isSystem && (
+                                  <button
+                                    onClick={() => handleDeleteField(field.id)}
+                                    className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:scale-105"
+                                    style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#EF4444' }}
+                                    title={t('wizard.step3.customForms.builder.fieldActions.deleteField')}
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                )}
+                                {field.isSystem && (
+                                  <div
+                                    className="w-8 h-8 rounded-lg flex items-center justify-center"
+                                    style={{ backgroundColor: 'rgba(255,255,255,0.05)', cursor: 'not-allowed' }}
+                                    title={t('wizard.step3.customForms.builder.fieldActions.systemLocked')}
+                                  >
+                                    <Lock size={16} style={{ color: '#94A3B8' }} />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
                           
                           {/* Help Text */}
                           {field.helpText && (
@@ -1837,210 +1798,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                                 </label>
                               ))}
                             </div>
-
-                            {/* Field Label */}
-                            <div className="flex items-center gap-2 text-sm mb-2 pr-24">
-                              <label className="flex items-center gap-2 flex-1 font-medium text-white truncate">
-                                <span>
-                                  {field.label}
-                                  {field.required && <span className="text-red-500"> *</span>}
-                                </span>
-                                {field.isPro && (
-                                  <span className="px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-600 font-bold">
-                                    {t('wizard.step3.customForms.badges.pro')}
-                                  </span>
-                                )}
-                                {field.isSystem && (
-                                  <span className="px-2 py-0.5 rounded text-xs flex items-center gap-1 bg-white/10 text-slate-400 font-semibold">
-                                    <Lock size={10} />
-                                    Default
-                                  </span>
-                                )}
-                                {field.isKpi && (
-                                  <span className="px-2 py-0.5 rounded text-xs flex items-center gap-1 bg-blue-500/20 text-blue-400 font-semibold border border-blue-500/30">
-                                    <BarChart3 size={10} />
-                                    KPI
-                                  </span>
-                                )}
-                              </label>
-                            </div>
-                            
-                            {/* Help Text */}
-                            {field.helpText && (
-                              <p className="text-xs mb-3 text-slate-400">
-                                {field.helpText}
-                              </p>
-                            )}
-
-                            {/* Field Input (varies by type) */}
-                            {field.type === 'text' && (
-                              <input
-                                type="text"
-                                placeholder={field.placeholder || t('wizard.step3.customForms.builder.placeholders.text')}
-                                disabled
-                                className="w-full h-11 px-4 rounded-lg border border-white/20 bg-white/5 text-slate-400"
-                              />
-                            )}
-
-                            {field.type === 'textarea' && (
-                              <textarea
-                                placeholder={field.placeholder || t('wizard.step3.customForms.builder.placeholders.textarea')}
-                                disabled
-                                rows={4}
-                                className="w-full p-4 rounded-lg border border-white/20 bg-white/5 text-slate-400 resize-none"
-                              />
-                            )}
-
-                            {field.type === 'email' && (
-                              <input
-                                type="email"
-                                placeholder={field.placeholder || t('wizard.step3.customForms.builder.placeholders.email')}
-                                disabled
-                                className="w-full h-11 px-4 rounded-lg border border-white/20 bg-white/5 text-slate-400"
-                              />
-                            )}
-
-                            {field.type === 'phone' && (
-                              <input
-                                type="tel"
-                                placeholder={field.placeholder || t('wizard.step3.customForms.builder.placeholders.phone')}
-                                disabled
-                                className="w-full h-11 px-4 rounded-lg border border-white/20 bg-white/5 text-slate-400"
-                              />
-                            )}
-
-                            {field.type === 'number' && (
-                              <input
-                                type="number"
-                                placeholder={field.placeholder || t('wizard.step3.customForms.builder.placeholders.number')}
-                                disabled
-                                className="w-full h-11 px-4 rounded-lg border border-white/20 bg-white/5 text-slate-400"
-                              />
-                            )}
-
-                            {field.type === 'date' && (
-                              <input
-                                type="date"
-                                disabled
-                                className="w-full h-11 px-4 rounded-lg border border-white/20 bg-white/5 text-slate-400"
-                              />
-                            )}
-
-                            {field.type === 'dropdown' && (
-                              <select
-                                disabled
-                                className="w-full h-11 px-4 rounded-lg border border-white/20 bg-white/5 text-slate-400"
-                              >
-                                <option>{t('wizard.step3.customForms.builder.placeholders.dropdown')}</option>
-                                {field.options?.map((opt, i) => (
-                                  <option key={i}>{opt}</option>
-                                ))}
-                              </select>
-                            )}
-
-                            {field.type === 'radio' && (
-                              <div className="space-y-3 pt-2">
-                                {(field.options && field.options.length ? field.options : [
-                                  t('wizard.step3.customForms.fieldOptions.option1'),
-                                  t('wizard.step3.customForms.fieldOptions.option2'),
-                                  t('wizard.step3.customForms.fieldOptions.option3')
-                                ]).map((opt, idx) => (
-                                  <label key={idx} className="flex items-center gap-3 p-2 rounded-lg transition-colors hover:bg-white/5 cursor-default">
-                                    <div className="relative flex items-center justify-center w-5 h-5 rounded-full border-2 border-blue-500/50 bg-white/5">
-                                      {idx === 0 && <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />}
-                                    </div>
-                                    <span className="text-sm font-medium text-slate-300">
-                                      {opt}
-                                    </span>
-                                  </label>
-                                ))}
-                              </div>
-                            )}
-
-                            {(field.type === 'checkbox' || field.type === 'multichoice') && (
-                              <div className="space-y-3 pt-2">
-                                {(field.options && field.options.length ? field.options : [
-                                  t('wizard.step3.customForms.fieldOptions.option1'),
-                                  t('wizard.step3.customForms.fieldOptions.option2'),
-                                  t('wizard.step3.customForms.fieldOptions.option3')
-                                ]).map((opt, idx) => (
-                                  <label key={idx} className="flex items-center gap-3 p-2 rounded-lg transition-colors hover:bg-white/5 cursor-default">
-                                    <div className="relative flex items-center justify-center w-5 h-5 rounded border-2 border-blue-500/50 bg-white/5">
-                                      {idx === 0 && <Check size={14} className="text-blue-500" />}
-                                    </div>
-                                    <span className="text-sm font-medium text-slate-300">
-                                      {opt}
-                                    </span>
-                                  </label>
-                                ))}
-                              </div>
-                            )}
-
-                            {field.type === 'file' && (
-                              <div
-                                className="border-2 border-dashed rounded-lg p-6 text-center border-white/20 bg-white/5"
-                              >
-                                <Upload size={32} className="text-slate-400 mx-auto mb-2" />
-                                <p className="text-sm text-slate-400">
-                                  {t('wizard.step3.customForms.builder.placeholders.fileUpload')}
-                                </p>
-                              </div>
-                            )}
-
-                            {field.type === 'url' && (
-                              <input
-                                type="url"
-                                placeholder={field.placeholder || t('wizard.step3.customForms.builder.placeholders.url')}
-                                disabled
-                                className="w-full h-11 px-4 rounded-lg border border-white/20 bg-white/5 text-slate-400"
-                              />
-                            )}
-
-                            {field.type === 'address' && (
-                              <div className="space-y-3">
-                                <input
-                                  type="text"
-                                  placeholder={t('wizard.step3.customForms.builder.placeholders.addressStreet')}
-                                  disabled
-                                  className="w-full h-11 px-4 rounded-lg border border-white/20 bg-white/5 text-slate-400"
-                                />
-                                <div className="grid grid-cols-2 gap-3">
-                                  <input
-                                    type="text"
-                                    placeholder={t('wizard.step3.customForms.builder.placeholders.addressCity')}
-                                    disabled
-                                    className="h-11 px-4 rounded-lg border border-white/20 bg-white/5 text-slate-400"
-                                  />
-                                  <input
-                                    type="text"
-                                    placeholder={t('wizard.step3.customForms.builder.placeholders.addressState')}
-                                    disabled
-                                    className="h-11 px-4 rounded-lg border border-white/20 bg-white/5 text-slate-400"
-                                  />
-                                </div>
-                              </div>
-                            )}
-
-                          {/* Field Description */}
-                          {field.description && (
-                            <p className="text-xs mt-2" style={{ color: '#94A3B8' }}>
-                              {field.description}
-                            </p>
                           )}
-
-                          <IncludeInDashboardToggle
-                            field={field}
-                            onUpdateField={(updatedField) => {
-                              setFormFields(prev => prev.map(f => (f.id === updatedField.id ? updatedField : f)));
-                            }}
-                          />
-
-                            {/* Field Description */}
-                            {field.description && (
-                              <p className="text-xs mt-2 text-slate-400">
-                                {field.description}
-                              </p>
-                            )}
                           </div>
                         </div>
                       ))}
