@@ -26,7 +26,7 @@ export default function MyEventsDashboard() {
       setIsLoading(true);
       const { data, error } = await supabase
         .from('events')
-        .select('*')
+        .select('*, branding_settings') // Ensure branding_settings is fetched
         .eq('owner_id', user.id)
         .order('created_at', { ascending: false });
 

@@ -1,5 +1,7 @@
-import { X, Upload, CheckCircle } from 'lucide-react';
+import { X, Upload, CheckCircle, Loader2 } from 'lucide-react';
 import { useState } from 'react';
+import { uploadFile } from '../../../utils/storage';
+import { toast } from 'sonner';
 
 interface HeroCoverModalProps {
   isOpen: boolean;
@@ -19,6 +21,7 @@ export interface HeroCoverData {
 
 export default function HeroCoverModal({ isOpen, onClose, onSave, initialData }: HeroCoverModalProps) {
   const [formData, setFormData] = useState<HeroCoverData>(initialData);
+  const [isUploading, setIsUploading] = useState(false);
 
   if (!isOpen) return null;
 
@@ -35,6 +38,37 @@ export default function HeroCoverModal({ isOpen, onClose, onSave, initialData }:
       showButton: true,
       buttonText: 'Register Now'
     });
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (!file) return;
+    
+    // Check file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      const timestamp = Date.now();
+      const path = `uploads/hero_${timestamp}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+      
+      // Use 'profiles' bucket as per existing convention in storage.ts, or generic 'public'
+      const publicUrl = await uploadFile('profiles', path, file);
+      
+      if (publicUrl) {
+        setFormData({ ...formData, backgroundImage: publicUrl });
+        toast.success('Image uploaded successfully');
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Failed to upload image');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -100,17 +134,64 @@ export default function HeroCoverModal({ isOpen, onClose, onSave, initialData }:
                   Cover Image
                 </label>
                 <div 
-                  className="w-full h-[120px] rounded-lg border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-colors hover:border-blue-400 hover:bg-blue-50"
-                  style={{ borderColor: '#E5E7EB', backgroundColor: '#F9FAFB' }}
+                  className="relative w-full h-[160px] rounded-lg border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-colors hover:border-blue-400 hover:bg-blue-50 overflow-hidden"
+                  style={{ 
+                    borderColor: formData.backgroundImage ? 'transparent' : '#E5E7EB', 
+                    backgroundColor: formData.backgroundImage ? '#F3F4F6' : '#F9FAFB' 
+                  }}
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) handleFileUpload(file);
+                    };
+                    input.click();
+                  }}
                 >
-                  <Upload size={24} style={{ color: '#9CA3AF' }} />
-                  <p className="text-sm mt-2" style={{ color: '#6B7280' }}>
-                    Click to upload or drag image
-                  </p>
+                  {isUploading ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 size={24} className="animate-spin text-blue-500" />
+                      <span className="text-sm text-gray-500">Uploading...</span>
+                    </div>
+                  ) : formData.backgroundImage ? (
+                    <>
+                      <img 
+                        src={formData.backgroundImage} 
+                        alt="Cover preview" 
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                        <Upload size={24} className="text-white mb-2" />
+                        <span className="text-white text-sm font-medium">Click to replace</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={24} style={{ color: '#9CA3AF' }} />
+                      <p className="text-sm mt-2" style={{ color: '#6B7280' }}>
+                        Click to upload or drag image
+                      </p>
+                    </>
+                  )}
                 </div>
-                <p className="text-xs mt-2" style={{ color: '#9CA3AF' }}>
-                  Recommended: 1920x600px, max 5MB
-                </p>
+                <div className="flex justify-between items-center mt-2">
+                  <p className="text-xs" style={{ color: '#9CA3AF' }}>
+                    Recommended: 1920x600px, max 5MB
+                  </p>
+                  {formData.backgroundImage && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFormData({ ...formData, backgroundImage: '' });
+                      }}
+                      className="text-xs text-red-500 hover:text-red-600 font-medium"
+                    >
+                      Remove Image
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Headline */}

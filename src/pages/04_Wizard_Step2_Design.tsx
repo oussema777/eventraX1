@@ -117,6 +117,7 @@ export default function WizardStep2Design() {
     const nextEvent = await saveDraft({
       primary_color: primaryColor,
       secondary_color: secondaryColor,
+      cover_image_url: designConfig.hero?.backgroundImage || eventData.cover_image_url,
       branding_settings: {
         cornerRadius,
         headingFont,
@@ -132,7 +133,7 @@ export default function WizardStep2Design() {
     // Navigate to next step
     setTimeout(() => {
       const nextId = nextEvent?.id || id;
-      if (nextId) navigate(`/create/registration/${nextId}`);
+      if (nextId) navigate(`/create/registration/${nextId}?substep=3.8`);
     }, 1000);
   };
 
@@ -154,11 +155,14 @@ export default function WizardStep2Design() {
     }
   };
 
-  const handleBlockEdit = (blockId: string) => {
+  const handleBlockEdit = (blockId: string, updatedConfig?: DesignConfig) => {
     // Persist block edits when modals save.
     (async () => {
       const id = await ensureEventId();
       if (!id) return;
+      
+      const configToSave = updatedConfig || designConfig;
+
       const localPayload = {
         primary_color: primaryColor,
         secondary_color: secondaryColor,
@@ -168,20 +172,21 @@ export default function WizardStep2Design() {
           bodyFont,
           backgroundStyle,
           template: selectedTemplate,
-          design_config: designConfig
+          design_config: configToSave
         }
       };
       persistLocalDesign(localPayload);
       await saveDraft({
         primary_color: primaryColor,
         secondary_color: secondaryColor,
+        cover_image_url: configToSave.hero?.backgroundImage || eventData.cover_image_url,
         branding_settings: {
           cornerRadius,
           headingFont,
           bodyFont,
           backgroundStyle,
           template: selectedTemplate,
-          design_config: designConfig
+          design_config: configToSave
         }
       });
       setToastMessage('💾 Changes saved');

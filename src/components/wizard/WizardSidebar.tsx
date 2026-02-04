@@ -21,7 +21,7 @@ import {
   X
 } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext';
-type WizardSubStep = '3.1' | '3.2' | '3.3' | '3.4' | '3.5' | '3.6' | '3.7' | '3.8' | '3.9';
+type WizardSubStep = '3.2' | '3.3' | '3.4' | '3.5' | '3.6' | '3.7' | '3.8';
 type WizardStepKey = 1 | 2 | 3 | 4 | WizardSubStep;
 
 interface WizardSidebarProps {
@@ -97,17 +97,13 @@ export default function WizardSidebar({
         { key: '3.2', title: t('wizard.sidebar.subSteps.speakers'), icon: Mic },
         { key: '3.4', title: t('wizard.sidebar.subSteps.exhibitors'), icon: Store },
         { key: '3.3', title: t('wizard.sidebar.subSteps.attendees'), icon: Users },
-        { key: '3.6', title: t('wizard.sidebar.subSteps.sponsors'), icon: Award },
-        { key: '3.9', title: t('wizard.sidebar.subSteps.marketingTools'), icon: Mail },
-        { key: '3.1' as const, title: t('wizard.sidebar.subSteps.tickets'), icon: Ticket }
+        { key: '3.6', title: t('wizard.sidebar.subSteps.sponsors'), icon: Award }
       ]
     },
     { number: 4, title: t('wizard.sidebar.steps.launch.title'), icon: Rocket, label: t('wizard.sidebar.steps.launch.label'), hasSubSteps: false }
   ];
 
-  const allSteps: WizardStepKey[] = isFreeEvent
-    ? [1, 2, '3.2', '3.3', '3.4', '3.5', '3.6', '3.7', '3.8', '3.9', 4]
-    : [1, 2, '3.1', '3.2', '3.3', '3.4', '3.5', '3.6', '3.7', '3.8', '3.9', 4];
+  const allSteps: WizardStepKey[] = [1, 2, '3.2', '3.3', '3.4', '3.5', '3.6', '3.7', '3.8', 4];
   const progress = {
     completed: completedSteps.length,
     total: allSteps.length,

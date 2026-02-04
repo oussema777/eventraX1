@@ -44,7 +44,6 @@ type NavigationTab =
   | 'attendees' 
   | 'forms'
   | 'exhibitors' 
-  | 'ticketing' 
   | 'b2b' 
   | 'marketing' 
   | 'dayof'
@@ -99,7 +98,6 @@ export default function EventManagementDashboard() {
     { id: 'attendees', label: t('manageEvent.nav.attendees.label'), icon: Users, description: t('manageEvent.nav.attendees.desc') },
     { id: 'forms', label: 'Forms', icon: FileText, description: 'View form submissions' },
     { id: 'exhibitors', label: t('manageEvent.nav.exhibitors.label'), icon: Building, description: t('manageEvent.nav.exhibitors.desc') },
-    { id: 'ticketing', label: t('manageEvent.nav.ticketing.label'), icon: Ticket, description: t('manageEvent.nav.ticketing.desc') },
     { id: 'b2b', label: t('manageEvent.nav.b2b.label'), icon: Handshake, description: t('manageEvent.nav.b2b.desc') },
     { id: 'dayof', label: t('manageEvent.nav.dayof.label'), icon: Wrench, description: t('manageEvent.nav.dayof.desc') }
   ];
@@ -367,7 +365,6 @@ export default function EventManagementDashboard() {
           {activeTab === 'attendees' && <EventAttendeesTab eventId={eventId} />}
           {activeTab === 'forms' && <EventFormsTab eventId={eventId} />}
           {activeTab === 'exhibitors' && <EventExhibitorsTab eventId={eventId} />}
-          {activeTab === 'ticketing' && <EventTicketingTab eventId={eventId} />}
           {activeTab === 'b2b' && <EventB2BMatchmakingTab eventId={eventId} />}
           {activeTab === 'marketing' && <EventMarketingTab eventId={eventId} />}
           {activeTab === 'dayof' && <EventDayOfTab eventId={eventId} />}

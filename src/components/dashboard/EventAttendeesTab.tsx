@@ -737,58 +737,61 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
         </div>
 
         {/* ATTENDEES TABLE */}
-        <div className="rounded-xl border border-white/10 bg-[#0B2641]" style={{ minHeight: '450px' }}>
+        <div className="rounded-xl border border-slate-300 bg-white shadow-sm overflow-hidden" style={{ minHeight: '450px' }}>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1000px]">
-              <thead className="bg-white/5">
+            <table className="w-full min-w-[1000px] border-collapse">
+              <thead className="bg-slate-100">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Attendee</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Registration</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Check-in</th>
-                  <th className="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-wider">Quick Actions</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider border-r border-slate-200" style={{ color: '#475569' }}>Attendee</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider border-r border-slate-200" style={{ color: '#475569' }}>Registration</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider border-r border-slate-200" style={{ color: '#475569' }}>Status</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider border-r border-slate-200" style={{ color: '#475569' }}>Check-in</th>
+                  <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider" style={{ color: '#475569' }}>Quick Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/10">
+              <tbody className="divide-y divide-slate-200">
                 {visibleAttendees.map((attendee) => {
                   const statusConfig = getStatusBadge(attendee.status);
                   return (
-                    <tr key={attendee.id} className="hover:bg-white/5 transition-colors group cursor-pointer" onClick={() => { setSelectedAttendee(attendee); setShowDetailModal(true); }}>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                    <tr key={attendee.id} className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => { setSelectedAttendee(attendee); setShowDetailModal(true); }}>
+                      <td className="px-6 py-4 whitespace-nowrap border-r border-slate-200">
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
                             {attendee.name?.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <div className="text-sm font-bold text-white">{attendee.name}</div>
-                            <div className="text-xs text-gray-400">{attendee.email}</div>
+                            <div className="text-sm font-bold" style={{ color: '#0F172A' }}>{attendee.name}</div>
+                            <div className="text-xs" style={{ color: '#64748B' }}>{attendee.email}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-white">{attendee.ticketType}</div>
-                        <div className="text-xs text-gray-400">{attendee.regDate}</div>
+                      <td className="px-6 py-4 whitespace-nowrap border-r border-slate-200">
+                        <div className="text-sm font-medium" style={{ color: '#334155' }}>{attendee.ticketType}</div>
+                        <div className="text-xs" style={{ color: '#64748B' }}>{attendee.regDate}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap border-r border-slate-200">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold" style={{ backgroundColor: statusConfig.bg, color: statusConfig.color, border: `1px solid ${statusConfig.border}` }}>
                           <statusConfig.icon size={12} />
                           {statusConfig.label}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap border-r border-slate-200">
                         {attendee.checkedIn ? (
-                          <div className="text-emerald-500 text-sm font-bold flex items-center gap-1.5">
+                          <div className="text-sm font-bold flex items-center gap-1.5" style={{ color: '#059669' }}>
                             <Check size={14} strokeWidth={3} /> Checked In
                           </div>
                         ) : (
-                          <div className="text-gray-500 text-sm italic">Not yet</div>
+                          <div className="text-sm italic" style={{ color: '#64748B' }}>Not yet</div>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-3">
                           {/* Approval Action */}
                           {attendee.status === 'approved' ? (
-                            <span className="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-xs font-bold">
+                            <span 
+                              className="px-3 py-1.5 rounded-lg text-xs font-bold border"
+                              style={{ backgroundColor: '#DCFCE7', color: '#166534', borderColor: '#BBF7D0' }}
+                            >
                               Approved
                             </span>
                           ) : (
@@ -798,15 +801,19 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
                                 updateAttendee(attendee.id, { status: 'approved' });
                                 toast.success('Attendee approved');
                               }}
-                              className="px-3 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-bold transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+                              className="px-4 py-2 rounded-lg text-xs font-bold transition-all active:scale-95 shadow-md"
+                              style={{ backgroundColor: '#10B981', color: '#FFFFFF', border: '1px solid #059669', cursor: 'pointer' }}
                             >
-                              Approve
+                              APPROVE
                             </button>
                           )}
 
                           {/* Decline Action */}
                           {attendee.status === 'declined' ? (
-                            <span className="px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-500 border border-rose-500/20 text-xs font-bold">
+                            <span 
+                              className="px-3 py-1.5 rounded-lg text-xs font-bold border"
+                              style={{ backgroundColor: '#FEE2E2', color: '#991B1B', borderColor: '#FECACA' }}
+                            >
                               Declined
                             </span>
                           ) : (
@@ -816,15 +823,21 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
                                 updateAttendee(attendee.id, { status: 'declined' });
                                 toast.error('Registration declined');
                               }}
-                              className="px-3 py-1.5 rounded-lg bg-rose-500 text-white hover:bg-rose-600 text-xs font-bold transition-all shadow-lg shadow-rose-500/20 active:scale-95"
+                              className="px-4 py-2 rounded-lg text-xs font-bold transition-all active:scale-95 shadow-md"
+                              style={{ backgroundColor: '#EF4444', color: '#FFFFFF', border: '1px solid #B91C1C', cursor: 'pointer' }}
                             >
-                              Decline
+                              DECLINE
                             </button>
                           )}
 
                           <div className="relative">
                             <button 
-                              className={`p-2 rounded-lg transition-colors ${openDropdownId === attendee.id ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-white hover:bg-white/10'}`}
+                              className="p-2 rounded-lg transition-colors"
+                              style={{ 
+                                backgroundColor: openDropdownId === attendee.id ? '#F1F5F9' : 'transparent',
+                                color: openDropdownId === attendee.id ? '#0F172A' : '#94A3B8',
+                                border: '1px solid #E2E8F0'
+                              }}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setOpenDropdownId(openDropdownId === attendee.id ? null : attendee.id);
@@ -886,17 +899,17 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
             <button
               disabled={currentPage === 1}
               onClick={() => setCurrentPage(p => p - 1)}
-              className="p-2 bg-white/5 border border-white/10 rounded-lg text-white disabled:opacity-30 disabled:cursor-not-allowed"
+              className="p-2 bg-white border border-slate-300 rounded-lg text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors shadow-sm"
             >
               <ChevronLeft size={20} />
             </button>
-            <span className="px-4 py-2 bg-[#0684F5] text-white rounded-lg font-bold text-sm">
+            <span className="px-4 py-2 bg-[#0684F5] text-white rounded-lg font-bold text-sm shadow-md">
               {currentPage}
             </span>
             <button
               disabled={currentPage >= totalPages}
               onClick={() => setCurrentPage(p => p + 1)}
-              className="p-2 bg-white/5 border border-white/10 rounded-lg text-white disabled:opacity-30 disabled:cursor-not-allowed"
+              className="p-2 bg-white border border-slate-300 rounded-lg text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors shadow-sm"
             >
               <ChevronRight size={20} />
             </button>

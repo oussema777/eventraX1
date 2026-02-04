@@ -118,7 +118,7 @@ export default function App() {
               <Route path="/event-management-dashboard" element={<Navigate to="/event/saas-summit-2024" replace />} />
               
               <Route path="/create/details/:eventId" element={<WizardStep1Details />} />
-              <Route path="/create/design/:eventId" element={<WizardStep2DesignStudio />} />
+              <Route path="/create/design/:eventId" element={<WizardStep2Design />} />
               <Route path="/design-studio-preview" element={<DesignStudioPreview />} />
               <Route path="/create/registration/:eventId" element={<WizardStep3Registration />} />
               <Route path="/create/launch/:eventId" element={<WizardStep4Launch />} />

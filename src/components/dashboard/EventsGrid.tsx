@@ -24,10 +24,14 @@ export default function EventsGrid({ events, isLoading, refreshEvents }: EventsG
 
   const resolveCoverImage = (event: any) => {
     const brandingSettings = event?.branding_settings;
-    const designStudioLogo = brandingSettings?.design_studio?.logoUrl;
-    const brandingLogo = brandingSettings?.logoUrl;
-    const logoUrl = event?.logo_url || event?.event_logo_url || designStudioLogo || brandingLogo;
-    return event?.cover_image_url || logoUrl || fallbackCover;
+    const coverImage = event?.cover_image_url || brandingSettings?.cover_image || brandingSettings?.coverImage || brandingSettings?.design_studio?.heroImage;
+    const logoUrl = event?.logo_url || event?.event_logo_url || brandingSettings?.logoUrl || brandingSettings?.design_studio?.logoUrl;
+    
+    if (coverImage) return coverImage;
+    if (logoUrl) return logoUrl;
+    
+    // Dynamic placeholder
+    return `https://placehold.co/600x400?text=${encodeURIComponent(event.name || 'Event')}`;
   };
 
   const handleCreateEvent = async () => {

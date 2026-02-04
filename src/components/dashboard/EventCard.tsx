@@ -91,7 +91,7 @@ export default function EventCard({ event, onDuplicate, onMoreActions, onDelete 
         <div
           className="w-full h-full bg-cover bg-center"
           style={{
-            backgroundImage: `url(${event.coverImage})`,
+            backgroundImage: `url('${event.coverImage}')`,
           }}
         />
         {/* Gradient Overlay */}

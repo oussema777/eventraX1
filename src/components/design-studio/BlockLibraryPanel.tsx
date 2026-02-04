@@ -16,9 +16,13 @@ import {
   X,
   Palette,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Image,
+  Upload
 } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext';
+import { uploadEventAsset } from '../../utils/storage';
+import { toast } from 'sonner';
 
 interface Block {
   id: string;
@@ -55,6 +59,9 @@ interface BlockLibraryPanelProps {
   isLogoUploading?: boolean;
   logoSize?: number;
   onLogoSizeChange?: (size: number) => void;
+  eventId?: string;
+  heroImage?: string;
+  onHeroImageChange?: (url: string) => void;
 }
 
 export default function BlockLibraryPanel({
@@ -76,7 +83,10 @@ export default function BlockLibraryPanel({
   onLogoUpload,
   isLogoUploading = false,
   logoSize = 80,
-  onLogoSizeChange
+  onLogoSizeChange,
+  eventId,
+  heroImage,
+  onHeroImageChange
 }: BlockLibraryPanelProps) {
   const { t, tList } = useI18n();
   const [activeFilter, setActiveFilter] = useState<'all' | 'added' | 'free' | 'pro'>('all');
@@ -85,6 +95,8 @@ export default function BlockLibraryPanel({
   const [showBrandingSettings, setShowBrandingSettings] = useState(true);
   const [showHint, setShowHint] = useState(activeBlocks.length === 0);
   const logoInputRef = useRef<HTMLInputElement | null>(null);
+  const heroInputRef = useRef<HTMLInputElement | null>(null);
+  const [isHeroUploading, setIsHeroUploading] = useState(false);
 
   const availableBlocks: Block[] = [
     {
@@ -535,6 +547,87 @@ export default function BlockLibraryPanel({
                   }}
                 />
               </div>
+            </div>
+
+            {/* Hero Cover Image */}
+            <div>
+              <label style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255, 255, 255, 0.9)', display: 'block', marginBottom: '8px' }}>
+                Event Cover Image
+              </label>
+              <div 
+                className="relative border-2 border-dashed rounded-lg cursor-pointer transition-all hover:border-solid overflow-hidden"
+                style={{ 
+                  borderColor: heroImage ? 'rgba(255, 255, 255, 0.5)' : 'rgba(255, 255, 255, 0.3)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  height: '140px'
+                }}
+                onClick={() => heroInputRef.current?.click()}
+              >
+                <input
+                  ref={heroInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0];
+                    if (file && eventId) {
+                      setIsHeroUploading(true);
+                      try {
+                        const url = await uploadEventAsset(eventId, file);
+                        if (url && onHeroImageChange) {
+                          onHeroImageChange(url);
+                          toast.success('Cover image updated');
+                        }
+                      } catch (error) {
+                        console.error('Cover upload failed:', error);
+                        toast.error('Failed to upload cover image');
+                      } finally {
+                        setIsHeroUploading(false);
+                      }
+                    }
+                    if (heroInputRef.current) {
+                      heroInputRef.current.value = '';
+                    }
+                  }}
+                  style={{ display: 'none' }}
+                />
+                
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  {isHeroUploading ? (
+                    <span className="text-sm text-white">Uploading...</span>
+                  ) : heroImage ? (
+                    <>
+                      <img 
+                        src={heroImage} 
+                        alt="Event cover" 
+                        style={{ 
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          opacity: 0.7
+                        }} 
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity">
+                        <span className="text-xs text-white font-medium flex items-center gap-2">
+                          <Upload size={14} /> Replace
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Image size={32} style={{ color: '#0684F5', marginBottom: '8px' }} />
+                      <span className="text-sm" style={{ color: '#6B7280' }}>
+                        Upload cover image
+                      </span>
+                      <span className="text-xs mt-1" style={{ color: '#0684F5' }}>
+                        Click to browse
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <p className="text-xs mt-2" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                Used on listing cards and hero background.
+              </p>
             </div>
 
             {/* Font Family */}

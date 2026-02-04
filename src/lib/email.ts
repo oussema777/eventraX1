@@ -9,20 +9,42 @@ interface SendEmailParams {
 
 export async function sendEmail({ to, subject, html }: SendEmailParams): Promise<boolean> {
   try {
-    // Attempt to send via Serverless Function (Vercel /api)
+    // 1. Try Custom Backend (SMTP)
+    try {
+      const res = await fetch('http://localhost:5000/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to, subject, html })
+      });
+      if (res.ok) return true;
+    } catch (e) {
+      // Backend not running, fall through
+    }
+
+    // 2. Try Supabase Edge Function (Primary)
+    // Dynamic import to avoid circular dep issues if not fully set up
+    const { supabase } = await import('./supabase'); 
+    
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: { to, subject, html }
+    });
+
+    if (!error && data?.id) {
+      return true;
+    }
+
+    // 3. Fallback: Try Vercel Serverless Function
     const res = await fetch('/api/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ to, subject, html })
     });
 
-    if (!res.ok) {
-      const err = await res.json();
-      console.warn('Failed to send email via API:', err);
-      throw new Error('Email API failed');
+    if (res.ok) {
+      return true;
     }
 
-    return true;
+    throw new Error('All email methods failed');
   } catch (error) {
     // Fallback for local dev without API running
     console.group('⚠️ [FALLBACK EMAIL] API Unavailable - Logging content');
@@ -35,7 +57,7 @@ export async function sendEmail({ to, subject, html }: SendEmailParams): Promise
   }
 }
 
-export function generateRegistrationEmailHtml(eventName: string, attendeeName: string, qrCodeUrl: string, sessions: any[]) {
+export function generateRegistrationEmailHtml(eventName: string, attendeeName: string, qrCodeUrl: string, sessions: any[], confirmationCode?: string) {
   const sessionList = sessions.map(s => 
     `<li style="margin-bottom: 8px;">
        <strong>${s.title}</strong><br/>
@@ -47,12 +69,20 @@ export function generateRegistrationEmailHtml(eventName: string, attendeeName: s
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #000000; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
       <h1 style="color: #0B2641;">You're going to ${eventName}!</h1>
       <p>Hi ${attendeeName},</p>
-      <p>Thanks for registering. Here is your recap and check-in details.</p>
+      <p>Thanks for registering. Here are your credentials and check-in details.</p>
       
       <div style="background: #F3F4F6; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0; border: 1px solid #E5E7EB;">
         <p style="margin-bottom: 10px; font-weight: bold; color: #000000;">Your Check-in QR Code</p>
         <img src="${qrCodeUrl}" alt="Check-in QR Code" style="width: 200px; height: 200px; background: white; padding: 10px; border-radius: 4px;" />
-        <p style="font-size: 12px; color: #4B5563; margin-top: 10px;">Show this code at the entrance.</p>
+        
+        ${confirmationCode ? `
+          <div style="margin-top: 20px; padding-top: 15px; border-top: 1px dashed #D1D5DB;">
+            <p style="font-size: 12px; color: #6B7280; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px;">Confirmation Code</p>
+            <p style="font-size: 24px; font-weight: 800; color: #0B2641; letter-spacing: 2px; margin: 0;">${confirmationCode}</p>
+          </div>
+        ` : ''}
+        
+        <p style="font-size: 12px; color: #4B5563; margin-top: 15px;">Show this code or scan the QR at the entrance.</p>
       </div>
 
       ${sessions.length > 0 ? `
@@ -63,7 +93,7 @@ export function generateRegistrationEmailHtml(eventName: string, attendeeName: s
       ` : ''}
       
       <p style="margin-top: 30px; font-size: 12px; color: #9CA3AF; text-align: center;">
-        Sent via Eventra Platform (Localhost Mode)
+        Sent via Eventra Platform
       </p>
     </div>
   `;

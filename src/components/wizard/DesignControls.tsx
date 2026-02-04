@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Palette, 
   ChevronDown, 
@@ -30,6 +30,15 @@ import VideoSettingsModal, { VideoSettingsData } from './modals/VideoSettingsMod
 import UpgradeModal from './modals/UpgradeModal';
 import DraggableContentBlock from './DraggableContentBlock';
 import { usePlan } from '../../hooks/usePlan';
+import { uploadFile } from '../../utils/storage';
+import { toast } from 'sonner';
+
+export interface DesignConfig {
+  hero?: HeroCoverData;
+  about?: AboutSectionData;
+  speakers?: SpeakersGridData;
+  video?: VideoSettingsData;
+}
 
 interface DesignControlsProps {
   primaryColor: string;
@@ -44,10 +53,12 @@ interface DesignControlsProps {
   setBodyFont: (font: string) => void;
   backgroundStyle: 'solid' | 'gradient' | 'image';
   setBackgroundStyle: (style: 'solid' | 'gradient' | 'image') => void;
-  onBlockEdit?: (blockId: string) => void;
+  onBlockEdit?: (blockId: string, updatedConfig?: any) => void;
   onBlockHover?: (blockId: string | null) => void;
   selectedTemplate: string;
   setSelectedTemplate: (template: string) => void;
+  designConfig: DesignConfig;
+  onDesignConfigChange: (config: DesignConfig) => void;
 }
 
 export default function DesignControls({
@@ -66,7 +77,9 @@ export default function DesignControls({
   onBlockEdit,
   onBlockHover,
   selectedTemplate,
-  setSelectedTemplate
+  setSelectedTemplate,
+  designConfig,
+  onDesignConfigChange
 }: DesignControlsProps) {
   const [expandedAccordion, setExpandedAccordion] = useState<string>('global-styles');
   const [hoveredBlock, setHoveredBlock] = useState<string | null>(null);
@@ -170,6 +183,16 @@ export default function DesignControls({
     newBlocks.splice(hoverIndex, 0, draggedBlock);
     setContentBlocks(newBlocks);
   };
+
+  // Sync designConfig prop to local state
+  useEffect(() => {
+    if (designConfig) {
+      if (designConfig.hero) setHeroData(designConfig.hero as HeroCoverData);
+      if (designConfig.about) setAboutData(designConfig.about as AboutSectionData);
+      if (designConfig.speakers) setSpeakersData(designConfig.speakers as SpeakersGridData);
+      if (designConfig.video) setVideoSettingsData(designConfig.video as VideoSettingsData);
+    }
+  }, [designConfig]);
 
   const toggleAccordion = (id: string) => {
     setExpandedAccordion(expandedAccordion === id ? '' : id);
@@ -479,14 +502,15 @@ export default function DesignControls({
                     const input = document.createElement('input');
                     input.type = 'file';
                     input.accept = 'image/*';
-                    input.onchange = (e) => {
+                    input.onchange = async (e) => {
                       const file = (e.target as HTMLInputElement).files?.[0];
                       if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                          setEventLogo(e.target?.result as string);
-                        };
-                        reader.readAsDataURL(file);
+                        try {
+                          const url = await uploadFile('profiles', `logos/${Date.now()}_${file.name}`, file);
+                          if (url) setEventLogo(url);
+                        } catch (err) {
+                          toast.error('Failed to upload logo');
+                        }
                       }
                     };
                     input.click();
@@ -522,6 +546,86 @@ export default function DesignControls({
                   </p>
                   <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                     Logo appears in header of event page
+                  </p>
+                </div>
+              </div>
+
+              {/* Event Cover Image */}
+              <div>
+                <label 
+                  className="block text-sm mb-2"
+                  style={{ fontWeight: 500, color: 'var(--muted-foreground)' }}
+                >
+                  Event Cover Image
+                </label>
+                <div 
+                  className="relative border-2 border-dashed rounded-lg cursor-pointer transition-all hover:border-solid"
+                  style={{ 
+                    borderColor: heroData.backgroundImage ? 'var(--border)' : 'rgba(255, 255, 255, 0.3)',
+                    backgroundColor: 'white',
+                    height: '160px'
+                  }}
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = async (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) {
+                        try {
+                          const url = await uploadFile('profiles', `covers/${Date.now()}_${file.name}`, file);
+                          if (url) {
+                            const newHeroData = { ...heroData, backgroundImage: url };
+                            setHeroData(newHeroData);
+                            const newConfig = { ...designConfig, hero: newHeroData };
+                            onDesignConfigChange(newConfig);
+                            if (onBlockEdit) onBlockEdit('hero', newConfig);
+                            toast.success('Cover image updated');
+                          }
+                        } catch (err) {
+                          toast.error('Failed to upload cover image');
+                        }
+                      }
+                    };
+                    input.click();
+                  }}
+                >
+                  <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden rounded-lg">
+                    {heroData.backgroundImage ? (
+                      <>
+                        <img 
+                          src={heroData.backgroundImage} 
+                          alt="Event cover" 
+                          style={{ 
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover'
+                          }} 
+                        />
+                        <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                          <Upload size={32} className="text-white mb-2" />
+                          <span className="text-white text-sm font-medium">Click to replace</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <Image size={32} style={{ color: '#0684F5', marginBottom: '8px' }} />
+                        <span className="text-sm" style={{ color: '#6B7280' }}>
+                          Upload cover image
+                        </span>
+                        <span className="text-xs mt-1" style={{ color: '#0684F5' }}>
+                          Click to browse
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-2 space-y-1">
+                  <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                    Recommended: 1920x600px, max 5MB. 
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                    Used as the hero background and listing card image.
                   </p>
                 </div>
               </div>
@@ -745,6 +849,9 @@ export default function DesignControls({
         onClose={() => setIsHeroModalOpen(false)}
         onSave={(data) => {
           setHeroData(data);
+          const newConfig = { ...designConfig, hero: data };
+          onDesignConfigChange(newConfig);
+          if (onBlockEdit) onBlockEdit('hero', newConfig);
           setEditedBlocks((prev) => new Set([...prev, 'hero']));
         }}
         initialData={heroData}

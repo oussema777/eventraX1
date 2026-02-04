@@ -433,7 +433,13 @@ export default function EventRegistrationFlow() {
 
             const mySessions = sessions.filter(s => selectedSessions.has(s.id));
             const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${existing.id}`;
-            const emailHtml = generateRegistrationEmailHtml(event?.name || 'Event', existing.name || email || 'Attendee', qrUrl, mySessions);
+            const emailHtml = generateRegistrationEmailHtml(
+              event?.name || 'Event', 
+              existing.name || email || 'Attendee', 
+              qrUrl, 
+              mySessions,
+              existingCode
+            );
             
             await sendEmail({
               to: email || '',
@@ -467,7 +473,13 @@ export default function EventRegistrationFlow() {
 
         const mySessions = sessions.filter(s => selectedSessions.has(s.id));
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${attendee.id}`;
-        const emailHtml = generateRegistrationEmailHtml(event?.name || 'Event', attendee.name || email || 'Attendee', qrUrl, mySessions);
+        const emailHtml = generateRegistrationEmailHtml(
+          event?.name || 'Event', 
+          attendee.name || email || 'Attendee', 
+          qrUrl, 
+          mySessions,
+          code
+        );
         
         await sendEmail({
           to: email || '',

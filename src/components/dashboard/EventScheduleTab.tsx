@@ -402,7 +402,7 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
         seen.add(a.id);
         rows.push({
           id: a.id,
-          name: a.name,
+          name: a.name || 'Anonymous',
           email: a.email || null,
           company: a.company || null,
           avatar_url: a.avatar_url || null,
@@ -1178,22 +1178,23 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
                 ) : (
                   <div className="rounded-xl border" style={{ borderColor: 'rgba(255, 255, 255, 0.1)', overflow: 'hidden' }}>
                     <div className="flex px-5 py-3" style={{ backgroundColor: 'rgba(255, 255, 255, 0.06)', color: '#94A3B8', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>
-                      <div style={{ width: '45%' }}>{t('manageEvent.agenda.modals.attendees.columns.attendee')}</div>
-                      <div style={{ width: '35%' }}>{t('manageEvent.agenda.modals.attendees.columns.company')}</div>
-                      <div style={{ width: '20%' }}>{t('manageEvent.agenda.modals.attendees.columns.email')}</div>
+                      <div style={{ width: '15%' }}>Image</div>
+                      <div style={{ width: '45%' }}>Full Name</div>
+                      <div style={{ width: '40%' }}>{t('manageEvent.agenda.modals.attendees.columns.email')}</div>
                     </div>
                     {attendees.map((a) => (
                       <div key={a.id} className="flex items-center px-5 py-4 border-t" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
-                        <div style={{ width: '45%' }} className="flex items-center gap-3">
+                        <div style={{ width: '15%' }} className="flex items-center gap-3">
+                          {/* Attendee Avatar */}
                           <img
                             src={a.avatar_url || a.photo_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=80&q=80'}
+                            alt={a.name}
                             className="rounded-full"
                             style={{ width: '34px', height: '34px', objectFit: 'cover', border: '1px solid rgba(255, 255, 255, 0.15)' }}
                           />
-                          <div style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '14px' }}>{a.name}</div>
                         </div>
-                        <div style={{ width: '35%', color: '#94A3B8', fontSize: '14px' }}>{a.company || '—'}</div>
-                        <div style={{ width: '20%', color: '#94A3B8', fontSize: '14px' }}>{a.email || '—'}</div>
+                        <div style={{ width: '45%', color: '#FFFFFF', fontWeight: 700, fontSize: '14px' }}>{a.name}</div>
+                        <div style={{ width: '40%', color: '#94A3B8', fontSize: '14px' }}>{a.email || '—'}</div>
                       </div>
                     ))}
                     {!attendees.length && (

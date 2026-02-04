@@ -38,7 +38,7 @@ import {
 } from 'lucide-react';
 
 type ViewMode = 'grid' | 'list';
-type ActiveTab = 'all-speakers' | 'by-session' | 'materials' | 'communication' | 'analytics';
+type ActiveTab = 'all-speakers' | 'by-session';
 type FilterType = 'all' | 'keynote' | 'panel' | 'workshop' | 'confirmed' | 'pending';
 type SpeakerType = 'keynote' | 'panel' | 'workshop' | 'regular';
 type SpeakerStatus = 'confirmed' | 'pending' | 'declined';
@@ -464,7 +464,7 @@ export default function EventSpeakersTab({ eventId }: { eventId: string }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showComposeModal, setShowComposeModal] = useState(false);
   const [selectedSpeaker, setSelectedSpeaker] = useState<Speaker | null>(null);
-  const [detailTab, setDetailTab] = useState<'overview' | 'sessions' | 'materials' | 'communication' | 'analytics'>('overview');
+  const [detailTab, setDetailTab] = useState<'overview' | 'sessions'>('overview');
   const navigate = useNavigate();
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -1504,7 +1504,7 @@ export default function EventSpeakersTab({ eventId }: { eventId: string }) {
           marginBottom: '32px'
         }}
       >
-        <div className="event-speakers__stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '24px' }}>
+        <div className="event-speakers__stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px' }}>
           {/* Total Speakers */}
           <div>
             <Users size={32} style={{ color: '#8B5CF6', marginBottom: '12px', filter: 'drop-shadow(0 0 8px rgba(139,92,246,0.5))' }} />
@@ -1577,35 +1577,6 @@ export default function EventSpeakersTab({ eventId }: { eventId: string }) {
             </div>
           </div>
 
-          {/* Materials Status */}
-          <div>
-            <FileText size={32} style={{ color: '#F59E0B', marginBottom: '12px', filter: 'drop-shadow(0 0 8px rgba(245,158,11,0.5))' }} />
-            <p style={{ fontSize: '13px', fontWeight: 500, color: '#94A3B8', marginBottom: '8px' }}>
-              {t('manageEvent.speakers.stats.materialsSubmitted')}
-            </p>
-            <p style={{ fontSize: '48px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px', lineHeight: 1 }}>
-              {stats.materialsSubmitted}/{stats.confirmed}
-            </p>
-            <p style={{ fontSize: '12px', color: '#F59E0B', marginBottom: '8px' }}>
-              {t('manageEvent.speakers.stats.pendingUploads', { count: stats.materialsPending })}
-            </p>
-            <button
-              onClick={() => sendMaterialReminders(speakers.filter((s) => !s.materials.submitted))}
-              style={{
-                padding: '0',
-                border: 'none',
-                background: 'none',
-                color: '#0684F5',
-                fontSize: '12px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                textDecoration: 'underline'
-              }}
-            >
-              {t('manageEvent.speakers.stats.sendReminder')}
-            </button>
-          </div>
-
           {/* Engagement Score */}
           <div>
             <Star size={32} style={{ color: '#F59E0B', marginBottom: '12px', filter: 'drop-shadow(0 0 8px rgba(245,158,11,0.5))' }} />
@@ -1646,10 +1617,7 @@ export default function EventSpeakersTab({ eventId }: { eventId: string }) {
       >
         {[ 
           { id: 'all-speakers', label: t('manageEvent.speakers.tabs.all') },
-          { id: 'by-session', label: t('manageEvent.speakers.tabs.bySession') },
-          { id: 'materials', label: t('manageEvent.speakers.tabs.materials') },
-          { id: 'communication', label: t('manageEvent.speakers.tabs.communication') },
-          { id: 'analytics', label: t('manageEvent.speakers.tabs.analytics') }
+          { id: 'by-session', label: t('manageEvent.speakers.tabs.bySession') }
         ].map(tab => (
           <button
             key={tab.id}
@@ -1932,25 +1900,6 @@ export default function EventSpeakersTab({ eventId }: { eventId: string }) {
           onContact={openCompose}
           onView={handleViewSpeaker}
           onAddSession={() => navigate(`/create/registration/${eventId}?substep=3.5`)}
-        />
-      )}
-      {activeTab === 'materials' && (
-        <MaterialsTrackingView
-          speakers={speakers}
-          onReminder={(speakerList) => sendMaterialReminders(speakerList)}
-        />
-      )}
-      {activeTab === 'communication' && (
-        <CommunicationLogView
-          eventId={eventId}
-          speakers={speakers}
-          refreshKey={commRefreshKey}
-        />
-      )}
-      {activeTab === 'analytics' && (
-        <AnalyticsView
-          speakers={speakers}
-          sessions={sessions}
         />
       )}
 
@@ -3880,8 +3829,8 @@ function AnalyticsView({ speakers, sessions }: { speakers: Speaker[]; sessions: 
 // Speaker Detail Modal Component
 function SpeakerDetailModal({ speaker, activeTab, onTabChange, onEdit, onEmail, onRemove, onCopyEmail, onClose }: {
   speaker: Speaker;
-  activeTab: 'overview' | 'sessions' | 'materials' | 'communication' | 'analytics';
-  onTabChange: (tab: 'overview' | 'sessions' | 'materials' | 'communication' | 'analytics') => void;
+  activeTab: 'overview' | 'sessions';
+  onTabChange: (tab: 'overview' | 'sessions') => void;
   onEdit: () => void;
   onEmail: () => void;
   onRemove: () => void;

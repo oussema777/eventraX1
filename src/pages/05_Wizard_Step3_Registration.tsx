@@ -20,7 +20,7 @@ import { getEventBasicDetails } from '../utils/eventStorage';
 import { toast } from 'sonner@2.0.3';
 import { useI18n } from '../i18n/I18nContext';
 
-type SubStep = '3.1' | '3.2' | '3.3' | '3.4' | '3.5' | '3.6' | '3.7' | '3.8' | '3.9';
+type SubStep = '3.2' | '3.3' | '3.4' | '3.5' | '3.6' | '3.7' | '3.8';
 
 export default function WizardStep3Registration() {
   const navigate = useNavigate();
@@ -53,12 +53,10 @@ export default function WizardStep3Registration() {
       { key: '3.2' as const, title: t('wizard.step3.subSteps.speakers') },
       { key: '3.4' as const, title: t('wizard.step3.subSteps.exhibitors') },
       { key: '3.3' as const, title: t('wizard.step3.subSteps.attendees') },
-      { key: '3.6' as const, title: t('wizard.step3.subSteps.sponsors') },
-      { key: '3.9' as const, title: t('wizard.step3.subSteps.marketingTools') },
-      { key: '3.1' as const, title: t('wizard.step3.subSteps.tickets') }
+      { key: '3.6' as const, title: t('wizard.step3.subSteps.sponsors') }
     ];
-    return isFreeEvent ? steps.filter((step) => step.key !== '3.1') : steps;
-  }, [isFreeEvent, t]);
+    return steps;
+  }, [t]);
 
   useEffect(() => {
     // Persist current sub-step
@@ -176,15 +174,13 @@ export default function WizardStep3Registration() {
 
   const getStepDescription = (step: SubStep) => {
     const descriptions: Record<SubStep, string> = {
-      '3.1': t('wizard.step3.descriptions.tickets'),
       '3.2': t('wizard.step3.descriptions.speakers'),
       '3.3': t('wizard.step3.descriptions.attendees'),
       '3.4': t('wizard.step3.descriptions.exhibitors'),
       '3.5': t('wizard.step3.descriptions.schedule'),
       '3.6': t('wizard.step3.descriptions.sponsors'),
       '3.7': t('wizard.step3.descriptions.qrBadges'),
-      '3.8': t('wizard.step3.descriptions.customForms'),
-      '3.9': t('wizard.step3.descriptions.marketingTools')
+      '3.8': t('wizard.step3.descriptions.customForms')
     };
     return descriptions[step];
   };
@@ -199,8 +195,6 @@ export default function WizardStep3Registration() {
     }
 
     switch (currentSubStep) {
-      case '3.1':
-        return <TicketsTab eventId={eventId} />;
       case '3.2':
         return <SpeakersTab eventId={eventId} />;
       case '3.3':
@@ -217,15 +211,13 @@ export default function WizardStep3Registration() {
         return <SponsorsTab eventId={eventId} />;
       case '3.8':
         return <CustomFormsTab eventId={eventId} />;
-      case '3.9':
-        return <MarketingToolsTab eventId={eventId} />;
       default:
-        return <TicketsTab eventId={eventId} />;
+        return <CustomFormsTab eventId={eventId} />;
     }
   };
 
   const stepInfo = getCurrentStepInfo();
-  const isLastSubStep = currentSubStep === '3.9';
+  const isLastSubStep = currentSubStep === '3.6';
 
   return (
     <div className="wizard-step-container" style={{ backgroundColor: '#0B2641', minHeight: '100vh', paddingTop: '72px' }}>

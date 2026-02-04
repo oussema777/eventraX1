@@ -106,7 +106,7 @@ export default function BrowseEventsDiscovery() {
         
         let query = supabase
           .from('events')
-          .select('id, name, description, event_type, event_format, event_status, start_date, location_address, cover_image_url')
+          .select('id, name, description, event_type, event_format, event_status, start_date, location_address, cover_image_url, branding_settings')
           .eq('status', 'published')
           .eq('is_approved', true); // Only show approved events
 
@@ -169,7 +169,7 @@ export default function BrowseEventsDiscovery() {
           return {
             id: event.id,
             title: event.name || t('browseEventsPage.event.untitled'),
-            image: event.cover_image_url || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800',
+            image: event.cover_image_url || event.branding_settings?.cover_image || event.branding_settings?.logo || `https://placehold.co/600x400?text=${encodeURIComponent(event.name || 'Event')}`,
             date: { month, day },
             location: locationLabel,
             time: timeLabel,

@@ -61,6 +61,7 @@ export default function WizardStep2DesignStudio() {
   const [buttonRadius, setButtonRadius] = useState(12);
   const [logoUrl, setLogoUrl] = useState('');
   const [logoSize, setLogoSize] = useState(80);
+  const [heroImage, setHeroImage] = useState('');
   const [isLogoUploading, setIsLogoUploading] = useState(false);
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 1024);
   const [settingsBlockId, setSettingsBlockId] = useState<string | null>(null);
@@ -89,6 +90,9 @@ export default function WizardStep2DesignStudio() {
     if (source?.buttonRadius) setButtonRadius(source.buttonRadius);
     if (source?.logoUrl) setLogoUrl(source.logoUrl);
     if (source?.logoSize) setLogoSize(source.logoSize);
+    
+    // Initialize hero image from DB
+    if (eventData.cover_image_url) setHeroImage(eventData.cover_image_url);
   }, [eventData, storageKey]);
 
   useEffect(() => {
@@ -117,6 +121,7 @@ export default function WizardStep2DesignStudio() {
     activeBlocks,
     logoUrl,
     logoSize,
+    heroImage,
     ...overrides
   });
 
@@ -125,6 +130,7 @@ export default function WizardStep2DesignStudio() {
     persistLocalDesign(payload);
     if (!eventData.id) return;
     await saveDraft({
+      cover_image_url: heroImage,
       branding_settings: {
         ...(eventData.branding_settings || {}),
         design_studio: payload
@@ -466,6 +472,9 @@ export default function WizardStep2DesignStudio() {
             isLogoUploading={isLogoUploading}
             logoSize={logoSize}
             onLogoSizeChange={setLogoSize}
+            eventId={eventData.id || eventId}
+            heroImage={heroImage}
+            onHeroImageChange={setHeroImage}
           />
 
           {/* Right: Preview Panel */}

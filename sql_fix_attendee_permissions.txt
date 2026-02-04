@@ -1,0 +1,90 @@
+-- FIX: Grant Permissions to View Session Attendees
+-- This script ensures Admins and Event Organizers can view attendee lists.
+
+-- 1. Policies for 'event_attendees'
+ALTER TABLE public.event_attendees ENABLE ROW LEVEL SECURITY;
+
+-- Allow Admins to view ALL attendees
+DROP POLICY IF EXISTS "Admins can view all attendees" ON public.event_attendees;
+CREATE POLICY "Admins can view all attendees"
+ON public.event_attendees
+FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.role = 'admin'
+  )
+);
+
+-- Allow Organizers to view attendees for their events
+DROP POLICY IF EXISTS "Organizers can view event attendees" ON public.event_attendees;
+CREATE POLICY "Organizers can view event attendees"
+ON public.event_attendees
+FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM public.events
+    WHERE events.id = event_attendees.event_id
+    AND events.organizer_id = auth.uid()
+  )
+);
+
+-- 2. Policies for 'event_attendee_sessions' (Junction table)
+ALTER TABLE public.event_attendee_sessions ENABLE ROW LEVEL SECURITY;
+
+-- Allow Admins to view ALL session registrations
+DROP POLICY IF EXISTS "Admins can view all session registrations" ON public.event_attendee_sessions;
+CREATE POLICY "Admins can view all session registrations"
+ON public.event_attendee_sessions
+FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.role = 'admin'
+  )
+);
+
+-- Allow Organizers to view session registrations for their events
+-- (This requires a join to events via event_sessions or direct event_id if available. 
+-- Assuming event_attendee_sessions doesn't have event_id directly, we join via session_id -> event_sessions -> events)
+DROP POLICY IF EXISTS "Organizers can view session registrations" ON public.event_attendee_sessions;
+CREATE POLICY "Organizers can view session registrations"
+ON public.event_attendee_sessions
+FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM public.event_sessions
+    JOIN public.events ON events.id = event_sessions.event_id
+    WHERE event_sessions.id = event_attendee_sessions.session_id
+    AND events.organizer_id = auth.uid()
+  )
+);
+
+-- 3. Policies for 'event_checkins'
+ALTER TABLE public.event_checkins ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Admins can view all checkins" ON public.event_checkins;
+CREATE POLICY "Admins can view all checkins"
+ON public.event_checkins
+FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.role = 'admin'
+  )
+);
+
+DROP POLICY IF EXISTS "Organizers can view event checkins" ON public.event_checkins;
+CREATE POLICY "Organizers can view event checkins"
+ON public.event_checkins
+FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM public.events
+    WHERE events.id = event_checkins.event_id
+    AND events.organizer_id = auth.uid()
+  )
+);
