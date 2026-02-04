@@ -338,8 +338,11 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
     }
   };
 
-  const openBuilderForForm = async (card: FormCard) => {
-    const row = await ensureFormRow(card);
+  const openBuilderForForm = async (card: FormCard, directRow?: DbEventFormRow) => {
+    let row = directRow || null;
+    if (!row) {
+      row = await ensureFormRow(card);
+    }
     const r = row || null;
     setCurrentFormRow(r);
     const fields = (r?.schema?.fields || []) as CustomField[];
@@ -697,7 +700,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
       setNewFormDescription('');
       setNewFormType('survey');
 
-      await openBuilderForForm(rowToCard(row, fieldFallbackLabel));
+      await openBuilderForForm(rowToCard(row, fieldFallbackLabel), row);
     } catch (e: any) {
       console.error('Error creating blank form:', e);
       toast.error('Failed to create form');
@@ -738,7 +741,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
       setFormsRows((prev) => [row, ...prev]);
       setShowTemplatesModal(false);
 
-      await openBuilderForForm(rowToCard(row, fieldFallbackLabel));
+      await openBuilderForForm(rowToCard(row, fieldFallbackLabel), row);
     } catch (e: any) {
       console.error('Error creating template form:', e);
       toast.error('Failed to create form');
@@ -1781,6 +1784,25 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                             </select>
                           )}
 
+                          {(field.type === 'checkbox' || field.type === 'multichoice') && (
+                            <div className="space-y-3 pt-2">
+                              {(field.options && field.options.length ? field.options : [
+                                t('wizard.step3.customForms.fieldOptions.option1'),
+                                t('wizard.step3.customForms.fieldOptions.option2'),
+                                t('wizard.step3.customForms.fieldOptions.option3')
+                              ]).map((opt, idx) => (
+                                <label key={idx} className="flex items-center gap-3 p-2 rounded-lg transition-colors hover:bg-white/5 cursor-default">
+                                  <div className="relative flex items-center justify-center w-5 h-5 rounded border-2 border-blue-500/50 bg-white/5">
+                                    {idx === 0 && <Check size={12} className="text-blue-500" />}
+                                  </div>
+                                  <span className="text-sm font-medium text-slate-300">
+                                    {opt}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+
                           {field.type === 'radio' && (
                             <div className="space-y-3 pt-2">
                               {(field.options && field.options.length ? field.options : [
@@ -1841,7 +1863,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
   }
 
   return (
-    <div className="forms-dashboard-container" style={{ backgroundColor: '#0B2641', paddingBottom: '80px', minHeight: 'calc(100vh - 300px)' }}>
+    <div className="forms-dashboard-container" style={{ backgroundColor: '#0B2641', paddingBottom: '160px', minHeight: 'calc(100vh - 300px)' }}>
       <style>{`
         @media (max-width: 1024px) {
           .forms-dashboard-container { padding: 16px !important; }
@@ -1879,7 +1901,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
 
         {/* Filter & Search Bar */}
         {/* Search Bar - Simplified */}
-        <div className="search-bar-container flex items-center justify-end mb-8">
+        <div className="search-bar-container flex items-center justify-end mb-12">
           <div className="search-input-wrapper relative">
             <Search
               size={18}
@@ -1908,8 +1930,8 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
         </div>
 
         {/* Default Forms Section */}
-        <div className="mb-12">
-          <div className="mb-4">
+        <div className="mb-16">
+          <div className="mb-6">
             <p className="text-xs mb-1" style={{ color: '#94A3B8', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               {t('wizard.step3.customForms.sections.defaultTitle')}
             </p>
@@ -1925,40 +1947,42 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
         </div>
 
         {/* Custom Forms Section */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <p className="text-xs" style={{ color: '#94A3B8', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                {t('wizard.step3.customForms.sections.customTitle')}
-              </p>
-              <span
-                className="px-2.5 py-0.5 rounded-full text-xs"
-                style={{
-                  backgroundColor: 'rgba(255,255,255,0.1)',
-                  color: '#94A3B8',
-                  fontWeight: 500
-                }}
-              >
-                {t('wizard.step3.customForms.sections.customCount', { count: customForms?.length || 0 })}
-              </span>
+        {customCards.length > 0 && (
+          <div className="mb-16">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <p className="text-xs" style={{ color: '#94A3B8', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {t('wizard.step3.customForms.sections.customTitle')}
+                </p>
+                <span
+                  className="px-2.5 py-0.5 rounded-full text-xs"
+                  style={{
+                    backgroundColor: 'rgba(255,255,255,0.1)',
+                    color: '#94A3B8',
+                    fontWeight: 500
+                  }}
+                >
+                  {customCards.length}
+                </span>
+              </div>
+              {customCards.length > 6 && (
+                <button className="text-xs transition-colors hover:underline" style={{ color: '#0684F5', fontWeight: 500 }}>
+                  {t('wizard.step3.customForms.sections.viewAll')}
+                </button>
+              )}
             </div>
-            {customForms?.length > 6 && (
-              <button className="text-xs transition-colors hover:underline" style={{ color: '#0684F5', fontWeight: 500 }}>
-                {t('wizard.step3.customForms.sections.viewAll')}
-              </button>
-            )}
+            <div className="space-y-8">
+              {customCards.map((form) => (
+                <FormCardComponent key={form.id} form={form} />
+              ))}
+            </div>
           </div>
-          <div className="space-y-8">
-            {customCards.map((form) => (
-              <FormCardComponent key={form.id} form={form} />
-            ))}
-          </div>
-        </div>
+        )}
 
         {/* Empty State (shown when no custom forms) */}
-        {customForms?.length === 0 && (
+        {customCards.length === 0 && (
           <div
-            className="rounded-xl p-16 text-center"
+            className="rounded-xl p-16 text-center mb-16"
             style={{
               border: '2px dashed rgba(255,255,255,0.2)',
               backgroundColor: 'rgba(255,255,255,0.03)'

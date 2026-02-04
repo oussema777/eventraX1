@@ -150,6 +150,10 @@ export function useEventStats(eventId?: string) {
         // 3. Type-Specific Stats Calculation
         const newTypeStats: TypeSpecificStats = {};
         
+        // Always fetch meetings for Core KPI
+        const { count: meetingsCount } = await supabase.from('b2b_meetings').select('id', { count: 'exact', head: true }).eq('event_id', eventId);
+        newTypeStats.meetingsScheduled = meetingsCount || 0;
+        
         if (['summit', 'conference'].includes(type.toLowerCase())) {
           const { count: sponsorsCount } = await supabase.from('event_sponsors').select('id', { count: 'exact', head: true }).eq('event_id', eventId);
           newTypeStats.sponsorsCount = sponsorsCount || 0;
@@ -164,8 +168,6 @@ export function useEventStats(eventId?: string) {
           // Quiz scores would be in a separate table
           newTypeStats.avgQuizScore = 0; 
         } else if (type.toLowerCase() === 'networking') {
-           const { count: meetingsCount } = await supabase.from('b2b_meetings').select('id', { count: 'exact', head: true }).eq('event_id', eventId);
-           newTypeStats.meetingsScheduled = meetingsCount || 0;
            // Connections might be same as meetings or different
            newTypeStats.connectionsMade = meetingsCount || 0;
         }

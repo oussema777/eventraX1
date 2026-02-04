@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import { useI18n } from '../../i18n/I18nContext';
+import SmartKpiGrid from './SmartKpiGrid';
 
 export default function EventReportingTab({ eventId }: { eventId: string }) {
   const [dateRange, setDateRange] = useState('event-duration');
@@ -1049,6 +1050,11 @@ const handleExport = (type: 'attendees' | 'checkins' | 'sessions' | 'b2b') => {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* SMART KPIS */}
+        <div style={{ marginBottom: '40px' }}>
+           <SmartKpiGrid eventId={eventId} />
         </div>
 
         {/* ATTENDANCE ANALYTICS */}

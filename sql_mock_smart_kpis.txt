@@ -1,0 +1,94 @@
+-- Variables (Replace with actual IDs when running)
+-- defaulting to a known event ID or user ID if available, otherwise using placeholders
+DO $$
+DECLARE
+    v_event_id UUID; -- Replace with target Event ID
+    v_owner_id UUID; -- Replace with your User ID
+    v_form_id UUID;
+    v_attendee_id UUID;
+BEGIN
+    -- 1. Set specific Event and Owner IDs
+    v_event_id := 'ce684d95-537d-549a-91f4-dd32dede6cb5';
+    v_owner_id := 'de586ab3-321a-4a1b-85cc-da0995f3da5a';
+
+    -- 2. Create the "Smart Registration Form" with KPI fields
+    INSERT INTO public.event_forms (event_id, title, description, form_type, status, schema)
+    VALUES (
+        v_event_id,
+        'Global Tech Summit Registration',
+        'Official registration form with smart KPI tracking',
+        'registration',
+        'active',
+        '{
+            "fields": [
+                {
+                    "id": "job_title",
+                    "type": "text",
+                    "label": "Job Title",
+                    "required": true,
+                    "is_kpi": true
+                },
+                {
+                    "id": "company_size",
+                    "type": "select",
+                    "label": "Company Size",
+                    "options": ["1-10", "11-50", "51-200", "201-500", "500+"],
+                    "required": true,
+                    "is_kpi": true
+                },
+                {
+                    "id": "industry",
+                    "type": "select",
+                    "label": "Industry",
+                    "options": ["Fintech", "HealthTech", "E-commerce", "SaaS", "Education", "Other"],
+                    "required": true,
+                    "is_kpi": true
+                },
+                {
+                    "id": "dietary",
+                    "type": "multiselect",
+                    "label": "Dietary Requirements",
+                    "options": ["None", "Vegetarian", "Vegan", "Gluten-Free", "Halal", "Kosher"],
+                    "required": false,
+                    "is_kpi": false
+                }
+            ]
+        }'::jsonb
+    )
+    RETURNING id INTO v_form_id;
+
+    RAISE NOTICE 'Created Form ID: %', v_form_id;
+
+    -- 3. Insert Mock Submissions (Generating 50 random entries)
+    -- We'll use a loop to generate variations
+    
+    -- Entry 1: Fintech / 500+ / CEO
+    INSERT INTO public.event_form_submissions (event_id, form_id, data) VALUES 
+    (v_event_id, v_form_id, '{"job_title": "CEO", "company_size": "500+", "industry": "Fintech", "dietary": ["None"]}');
+    
+    -- Entry 2: SaaS / 11-50 / Developer
+    INSERT INTO public.event_form_submissions (event_id, form_id, data) VALUES 
+    (v_event_id, v_form_id, '{"job_title": "Senior Developer", "company_size": "11-50", "industry": "SaaS", "dietary": ["Vegan"]}');
+
+    -- Entry 3: HealthTech / 51-200 / Product Manager
+    INSERT INTO public.event_form_submissions (event_id, form_id, data) VALUES 
+    (v_event_id, v_form_id, '{"job_title": "Product Manager", "company_size": "51-200", "industry": "HealthTech", "dietary": ["Gluten-Free"]}');
+
+    -- Bulk Insert Simulation (Randomized Data)
+    FOR i IN 1..47 LOOP
+        INSERT INTO public.event_form_submissions (event_id, form_id, data)
+        VALUES (
+            v_event_id,
+            v_form_id,
+            jsonb_build_object(
+                'job_title', (ARRAY['CTO', 'Founder', 'Marketing Lead', 'Developer', 'Sales Manager', 'HR Director'])[floor(random() * 6 + 1)],
+                'company_size', (ARRAY['1-10', '11-50', '51-200', '201-500', '500+'])[floor(random() * 5 + 1)],
+                'industry', (ARRAY['Fintech', 'HealthTech', 'E-commerce', 'SaaS', 'Education'])[floor(random() * 5 + 1)],
+                'dietary', jsonb_build_array((ARRAY['None', 'Vegetarian'])[floor(random() * 2 + 1)])
+            )
+        );
+    END LOOP;
+
+    RAISE NOTICE 'Inserted 50 mock submissions for Form %', v_form_id;
+
+END $$;

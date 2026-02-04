@@ -27,6 +27,7 @@ import { toast } from 'sonner@2.0.3';
 import { supabase } from '../../lib/supabase';
 import { useI18n } from '../../i18n/I18nContext';
 import BadgeEditorSimple from './BadgeEditorSimple';
+import ImportAttendeesModal from './modals/ImportAttendeesModal';
 
 interface AttendeesTabProps {
   eventId: string;
@@ -63,6 +64,7 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
   // View State
   const [isAdding, setIsAdding] = useState(false);
   const [isDesigningBadges, setIsDesigningBadges] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   
   // Dynamic Data
   const [formFields, setFormFields] = useState<CustomField[]>([]);
@@ -80,6 +82,35 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
     fetchAttendees();
     fetchEventMetadata();
   }, [eventId]);
+
+  const handleBulkImport = async (importedData: any[]) => {
+    try {
+      const payload = importedData.map(a => ({
+        event_id: eventId,
+        name: a.name,
+        email: a.email,
+        ticket_type: a.ticket_type || 'General Admission',
+        ticket_color: '#0684F5',
+        price: 0, // Default to 0 or match ticket price if sophisticated logic added
+        status: a.status || 'approved',
+        checked_in: false,
+        confirmation_code: generateConfirmationCode(),
+        meta: { company: a.company }
+      }));
+
+      const { error } = await supabase
+        .from('event_attendees')
+        .insert(payload);
+
+      if (error) throw error;
+
+      toast.success(`Successfully imported ${payload.length} attendees`);
+      fetchAttendees();
+    } catch (error) {
+      console.error('Bulk import failed:', error);
+      toast.error('Failed to import attendees. Check console for details.');
+    }
+  };
 
   const fetchAttendees = async () => {
     try {
@@ -302,9 +333,9 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
           </div>
         </div>
 
-        {/* ACTIONS ROW (Add, Export) */}
+        {/* ACTIONS ROW (Add, Export, Import) */}
         {!isAdding && (
-          <div className="grid grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-3 gap-6 mb-8">
             <div 
               className="p-6 rounded-xl border border-dashed border-emerald-500/30 bg-emerald-500/5 flex flex-col items-center justify-center text-center hover:bg-emerald-500/10 hover:border-emerald-500/60 hover:-translate-y-1 hover:shadow-lg hover:shadow-emerald-500/10 transition-all cursor-pointer group duration-300"
               onClick={() => setIsAdding(true)}
@@ -313,7 +344,18 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                 <Plus size={28} className="text-emerald-500" />
               </div>
               <h3 className="text-lg font-bold text-white mb-1 group-hover:text-emerald-400 transition-colors">Add Manually</h3>
-              <p className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">Register new attendee form</p>
+              <p className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">Register single attendee</p>
+            </div>
+
+            <div 
+              className="p-6 rounded-xl border border-dashed border-blue-500/30 bg-blue-500/5 flex flex-col items-center justify-center text-center hover:bg-blue-500/10 hover:border-blue-500/60 hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/10 transition-all cursor-pointer group duration-300"
+              onClick={() => setIsImportModalOpen(true)}
+            >
+              <div className="w-14 h-14 rounded-full bg-blue-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 group-hover:bg-blue-500/20 border border-blue-500/20">
+                <Upload size={28} className="text-blue-500" />
+              </div>
+              <h3 className="text-lg font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">Import CSV</h3>
+              <p className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">Bulk upload list</p>
             </div>
 
             <div 
@@ -328,6 +370,13 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
             </div>
           </div>
         )}
+
+        {/* IMPORT MODAL */}
+        <ImportAttendeesModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          onImport={handleBulkImport}
+        />
 
         {/* INLINE ADD FORM */}
         {isAdding && (

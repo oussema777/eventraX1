@@ -175,7 +175,7 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
         <DynamicKpiGrid eventId={eventId} />
 
         {/* 2. Standard BI Charts Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="mb-8">
             <DashboardChartWidget
                 title={t('manageEvent.overview.charts.registrationTrends.title')}
                 subtitle="Last 7 Days Activity"
@@ -183,15 +183,6 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
                 data={registrationTrendData}
                 dataKey="registrations"
                 color="#0684F5"
-            />
-            <DashboardChartWidget
-                title="Ticket Sales"
-                subtitle="Sold vs Remaining Capacity"
-                type="pie"
-                data={ticketSalesData}
-                dataKey="value"
-                nameKey="name"
-                color="#10B981"
             />
         </div>
 
@@ -202,7 +193,7 @@ export default function EventOverviewTab({ eventId }: EventOverviewTabProps) {
                     <BarChart3 className="text-[#F59E0B]" />
                     Custom KPI Insights
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-2 gap-6">
                     {kpiCharts.map((chart, idx) => (
                         <DashboardChartWidget
                             key={idx}

@@ -502,8 +502,45 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                 <div style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '2px' }}>{a.meta?.['Job Title'] || a.meta?.['Title'] || a.meta?.job_title || 'Professional'}</div>
                 <div style={{ fontSize: '13px', color: brandColor, fontWeight: 500, marginBottom: '20px' }}>{a.company || a.meta?.['Company'] || a.meta?.['Organization'] || ''}</div>
                 <div style={{ width: '100%', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <button onClick={(e) => { e.stopPropagation(); if (!user) { navigate(`/event/${eventId}/register`); return; } if (a.profile_id) setSelectedAttendee({ id: a.profile_id, name: a.name }); }} style={{ width: '100%', height: '36px', backgroundColor: brandColor, color: '#FFFFFF', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>Book Meeting</button>
-                  <button disabled={isMessageLoading} onClick={(e) => { e.stopPropagation(); if (a.profile_id) handleMessage(a.profile_id); }} style={{ width: '100%', height: '36px', backgroundColor: 'rgba(255,255,255,0.1)', color: '#FFFFFF', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', opacity: isMessageLoading ? 0.7 : 1 }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)'; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}>{isMessageLoading ? 'Loading...' : 'Message'}</button>
+                  <button 
+                    disabled={!a.profile_id}
+                    onClick={(e) => { e.stopPropagation(); if (!user) { navigate(`/event/${eventId}/register`); return; } if (a.profile_id) setSelectedAttendee({ id: a.profile_id, name: a.name }); }} 
+                    style={{ 
+                      width: '100%', 
+                      height: '36px', 
+                      backgroundColor: a.profile_id ? brandColor : 'rgba(255,255,255,0.1)', 
+                      color: a.profile_id ? '#FFFFFF' : 'rgba(255,255,255,0.4)', 
+                      border: 'none', 
+                      borderRadius: '8px', 
+                      fontSize: '13px', 
+                      fontWeight: 600, 
+                      cursor: a.profile_id ? 'pointer' : 'not-allowed', 
+                      transition: 'all 0.2s' 
+                    }}
+                  >
+                    {a.profile_id ? 'Book Meeting' : 'Guest User'}
+                  </button>
+                  <button 
+                    disabled={isMessageLoading || !a.profile_id} 
+                    onClick={(e) => { e.stopPropagation(); if (a.profile_id) handleMessage(a.profile_id); }} 
+                    style={{ 
+                      width: '100%', 
+                      height: '36px', 
+                      backgroundColor: 'rgba(255,255,255,0.1)', 
+                      color: a.profile_id ? '#FFFFFF' : 'rgba(255,255,255,0.4)', 
+                      border: 'none', 
+                      borderRadius: '8px', 
+                      fontSize: '13px', 
+                      fontWeight: 600, 
+                      cursor: (isMessageLoading || !a.profile_id) ? 'not-allowed' : 'pointer', 
+                      transition: 'all 0.2s', 
+                      opacity: isMessageLoading ? 0.7 : 1 
+                    }} 
+                    onMouseEnter={(e) => { if (a.profile_id) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)'; }} 
+                    onMouseLeave={(e) => { if (a.profile_id) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
+                  >
+                    {isMessageLoading ? 'Loading...' : 'Message'}
+                  </button>
                 </div>
               </div>
             ))}

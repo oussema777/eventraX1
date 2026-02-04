@@ -187,12 +187,6 @@ export default function EventCard({ event, onDuplicate, onMoreActions, onDelete 
             <MapPin size={16} />
             <span>{event.location}</span>
           </div>
-
-          {/* Attendees */}
-          <div className="flex items-center gap-2 text-sm" style={{ color: '#10B981', fontWeight: 500 }}>
-            <Users size={16} />
-            <span>{event.attendees}</span>
-          </div>
         </div>
       </div>
 
@@ -201,26 +195,8 @@ export default function EventCard({ event, onDuplicate, onMoreActions, onDelete 
         className="px-5 py-4 border-t flex items-center justify-between"
         style={{ borderColor: '#E5E7EB', backgroundColor: '#F9FAFB' }}
       >
-        {/* Quick Stats */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5 text-xs" style={{ color: '#6B7280' }}>
-            <Eye size={14} />
-            <span>{t('dashboard.card.views', { count: event.views })}</span>
-          </div>
-          <div 
-            className="flex items-center gap-1.5 text-xs"
-            style={{ 
-              color: parseFloat(event.ticketsSold) > 80 ? '#10B981' : '#6B7280',
-              fontWeight: 500
-            }}
-          >
-            <Ticket size={14} />
-            <span>{t('dashboard.card.sold', { percent: event.ticketsSold })}</span>
-          </div>
-        </div>
-
         {/* Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 ml-auto">
           <button
             onClick={(e) => {
               e.stopPropagation();

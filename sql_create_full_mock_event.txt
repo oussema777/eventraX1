@@ -1,0 +1,184 @@
+DO $$
+DECLARE
+    -- The user provided these IDs
+    v_event_id UUID := 'ce684d95-537d-549a-91f4-dd32dede6cb5';
+    v_owner_id UUID := 'de586ab3-321a-4a1b-85cc-da0995f3da5a';
+    
+    -- Variables for generated IDs
+    v_speaker_1_id UUID;
+    v_speaker_2_id UUID;
+    v_ticket_1_id UUID;
+    v_ticket_2_id UUID;
+    v_form_id UUID;
+    v_session_1_id UUID;
+    v_session_2_id UUID;
+    
+    -- Date constants (May 2026 as per user request)
+    v_start_date TIMESTAMPTZ := '2026-05-15 09:00:00+01';
+    v_end_date TIMESTAMPTZ := '2026-05-17 18:00:00+01';
+BEGIN
+
+    -- 1. UPSERT EVENT
+    -- Using the provided ID to update the existing shell or insert if missing
+    INSERT INTO public.events (
+        id, owner_id, name, tagline, event_type, event_status, event_format, 
+        location_address, start_date, end_date, timezone, 
+        capacity_limit, waitlist_enabled, visibility, community_enabled
+    )
+    VALUES (
+        v_event_id, v_owner_id, 
+        'Global Tech Innovation Summit 2026', 
+        'Shaping the Future of Decentralized Intelligence',
+        'Summit', 'paid', 'in-person', 
+        'Palais des Congrès, Tunis, Tunisia', 
+        v_start_date, v_end_date, 'UTC+1', 
+        500, true, 'public', true
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        tagline = EXCLUDED.tagline,
+        event_type = EXCLUDED.event_type,
+        event_status = EXCLUDED.event_status,
+        event_format = EXCLUDED.event_format,
+        location_address = EXCLUDED.location_address,
+        start_date = EXCLUDED.start_date,
+        end_date = EXCLUDED.end_date,
+        capacity_limit = EXCLUDED.capacity_limit,
+        visibility = EXCLUDED.visibility,
+        community_enabled = EXCLUDED.community_enabled;
+
+    RAISE NOTICE 'Event Created/Updated: %', v_event_id;
+
+    -- 2. CREATE SPEAKERS
+    -- Speaker 1: Firas
+    INSERT INTO public.event_speakers (event_id, full_name, title, company, bio, status, type)
+    VALUES (v_event_id, 'Firas Belhia', 'CEO', 'iLab', 'Visionary leader in 3D printing and digital innovation.', 'confirmed', 'keynote')
+    RETURNING id INTO v_speaker_1_id;
+
+    -- Speaker 2: Sarah
+    INSERT INTO public.event_speakers (event_id, full_name, title, company, bio, status, type)
+    VALUES (v_event_id, 'Sarah J.', 'CTO', 'Eventra', 'Expert in enterprise SaaS scaling and cloud architecture.', 'confirmed', 'speaker')
+    RETURNING id INTO v_speaker_2_id;
+
+    RAISE NOTICE 'Speakers Created: %, %', v_speaker_1_id, v_speaker_2_id;
+
+    -- 3. CREATE TICKETS
+    -- Early Bird
+    INSERT INTO public.event_tickets (event_id, name, description, price, total, status, type, start_date, end_date)
+    VALUES (
+        v_event_id, 'Early Bird Access', 'Full 3-day access at a discounted rate.', 
+        150, 200, 'active', 'paid', NOW(), v_start_date - INTERVAL '1 month'
+    )
+    RETURNING id INTO v_ticket_1_id;
+
+    -- VIP
+    INSERT INTO public.event_tickets (event_id, name, description, price, total, status, type, start_date, end_date)
+    VALUES (
+        v_event_id, 'VIP Experience', 'Exclusive access to VIP lounge and speaker dinner.', 
+        450, 50, 'active', 'paid', NOW(), v_start_date
+    )
+    RETURNING id INTO v_ticket_2_id;
+
+    RAISE NOTICE 'Tickets Created: %, %', v_ticket_1_id, v_ticket_2_id;
+
+    -- 4. CREATE SESSIONS
+    -- Session 1: Opening Keynote
+    INSERT INTO public.event_sessions (
+        event_id, title, description, starts_at, ends_at, location, 
+        speaker_ids, type, status, capacity
+    )
+    VALUES (
+        v_event_id, 'The Future of 3D Printing in Tech', 'Opening keynote exploring the intersection of manufacturing and software.',
+        v_start_date, v_start_date + INTERVAL '1.5 hours', 'Main Hall',
+        ARRAY[v_speaker_1_id], 'keynote', 'confirmed', 500
+    )
+    RETURNING id INTO v_session_1_id;
+
+    -- Session 2: Tech Talk
+    INSERT INTO public.event_sessions (
+        event_id, title, description, starts_at, ends_at, location, 
+        speaker_ids, type, status, capacity
+    )
+    VALUES (
+        v_event_id, 'Scaling Enterprise SaaS', 'Deep dive into microservices and multi-tenant architecture.',
+        v_start_date + INTERVAL '2 hours', v_start_date + INTERVAL '3 hours', 'Room A',
+        ARRAY[v_speaker_2_id], 'workshop', 'confirmed', 100
+    )
+    RETURNING id INTO v_session_2_id;
+
+    RAISE NOTICE 'Sessions Created';
+
+    -- 5. CREATE SMART REGISTRATION FORM (With KPIs)
+    -- First, try to update existing default registration form if it exists
+    UPDATE public.event_forms 
+    SET status = 'archived' 
+    WHERE event_id = v_event_id AND form_type = 'registration';
+
+    INSERT INTO public.event_forms (event_id, title, description, form_type, status, is_default, schema)
+    VALUES (
+        v_event_id,
+        'Global Tech Summit Registration',
+        'Official registration form with smart KPI tracking',
+        'registration',
+        'active',
+        true,
+        '{
+            "fields": [
+                {
+                    "id": "default-name", "type": "text", "label": "Full Name", "required": true, "isSystem": true
+                },
+                {
+                    "id": "default-email", "type": "email", "label": "Email Address", "required": true, "isSystem": true
+                },
+                {
+                    "id": "job_title", "type": "text", "label": "Job Title", "required": true, "is_kpi": true
+                },
+                {
+                    "id": "company_size", "type": "select", "label": "Company Size", "options": ["1-10", "11-50", "51-200", "201-500", "500+"], "required": true, "is_kpi": true
+                },
+                {
+                    "id": "industry", "type": "select", "label": "Industry", "options": ["Fintech", "HealthTech", "E-commerce", "SaaS", "Education", "Other"], "required": true, "is_kpi": true
+                },
+                {
+                    "id": "dietary", "type": "multiselect", "label": "Dietary Requirements", "options": ["None", "Vegetarian", "Vegan", "Gluten-Free", "Halal", "Kosher"], "required": false
+                }
+            ]
+        }'::jsonb
+    )
+    RETURNING id INTO v_form_id;
+
+    RAISE NOTICE 'Smart Form Created: %', v_form_id;
+
+    -- 6. INSERT MOCK ATTENDEES & SUBMISSIONS
+    -- We will insert 50 mock entries
+    FOR i IN 1..50 LOOP
+        INSERT INTO public.event_form_submissions (event_id, form_id, data)
+        VALUES (
+            v_event_id,
+            v_form_id,
+            jsonb_build_object(
+                'Full Name', 'Attendee ' || i,
+                'Email Address', 'attendee' || i || '@example.com',
+                'Job Title', (ARRAY['CTO', 'Founder', 'Marketing Lead', 'Developer', 'Sales Manager', 'HR Director'])[floor(random() * 6 + 1)],
+                'Company Size', (ARRAY['1-10', '11-50', '51-200', '201-500', '500+'])[floor(random() * 5 + 1)],
+                'Industry', (ARRAY['Fintech', 'HealthTech', 'E-commerce', 'SaaS', 'Education'])[floor(random() * 5 + 1)],
+                'Dietary Requirements', jsonb_build_array((ARRAY['None', 'Vegetarian'])[floor(random() * 2 + 1)])
+            )
+        );
+        
+        -- Also create an attendee record for them so they show up in lists
+        INSERT INTO public.event_attendees (event_id, email, name, status, ticket_type, ticket_color)
+        VALUES (
+            v_event_id, 
+            'attendee' || i || '@example.com', 
+            'Attendee ' || i, 
+            'registered', 
+            (ARRAY['Early Bird Access', 'VIP Experience'])[floor(random() * 2 + 1)],
+            (ARRAY['#10B981', '#F59E0B'])[floor(random() * 2 + 1)]
+        )
+        ON CONFLICT (email, event_id) DO NOTHING;
+    END LOOP;
+
+    RAISE NOTICE 'Mock Data Generation Complete!';
+
+END $$;

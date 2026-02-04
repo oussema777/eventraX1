@@ -13,12 +13,21 @@ import {
   Target,
   Calendar
 } from 'lucide-react';
+import { 
+  PieChart as RePieChart, 
+  Pie, 
+  Cell, 
+  ResponsiveContainer, 
+  Tooltip as ReTooltip 
+} from 'recharts';
 import { useEventStats } from '../../hooks/useEventStats';
 import { useI18n } from '../../i18n/I18nContext';
 
 interface DynamicKpiGridProps {
   eventId?: string;
 }
+
+const COLORS = ['#0684F5', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'];
 
 export default function DynamicKpiGrid({ eventId }: DynamicKpiGridProps) {
   const { baseStats, typeStats, audienceInsights, eventType, isLoading } = useEventStats(eventId);
@@ -47,19 +56,19 @@ export default function DynamicKpiGrid({ eventId }: DynamicKpiGridProps) {
       color: '#0684F5'
     },
     {
-      label: t('manageEvent.overview.metrics.revenue.label'),
-      value: fmtMoney(baseStats.revenue),
-      change: baseStats.revenue > 0 ? t('manageEvent.overview.metrics.revenue.fromSales') : t('manageEvent.overview.metrics.revenue.none'),
-      trend: baseStats.revenue > 0 ? 'up' : 'neutral',
-      icon: DollarSign,
+      label: 'Exhibitors',
+      value: baseStats.exhibitors.toLocaleString(),
+      change: baseStats.exhibitors > 0 ? 'Active Partners' : 'No Exhibitors',
+      trend: baseStats.exhibitors > 0 ? 'up' : 'neutral',
+      icon: Handshake,
       color: '#10B981'
     },
     {
-      label: t('manageEvent.overview.metrics.ticketsSold.label'),
-      value: baseStats.ticketsTotal > 0 ? `${baseStats.ticketsSold} / ${baseStats.ticketsTotal}` : `${baseStats.ticketsSold}`,
-      change: baseStats.ticketsTotal > 0 ? `${capacityPct}% Capacity` : 'No Limit',
+      label: 'B2B Meetings',
+      value: (typeStats.meetingsScheduled || 0).toLocaleString(),
+      change: 'Confirmed',
       trend: 'neutral',
-      icon: Ticket,
+      icon: Link,
       color: '#F59E0B'
     }
   ];
@@ -222,56 +231,140 @@ export default function DynamicKpiGrid({ eventId }: DynamicKpiGridProps) {
 
       {/* Smart Audience Insights Row */}
       <div 
-          className="rounded-xl p-6"
+          className="rounded-xl p-6 relative overflow-hidden"
           style={{
             backgroundColor: '#0D3052',
             border: '1px solid rgba(255, 255, 255, 0.1)',
-            background: 'linear-gradient(135deg, rgba(13, 48, 82, 1) 0%, rgba(13, 48, 82, 0.8) 100%)'
+            background: 'linear-gradient(135deg, rgba(13, 48, 82, 1) 0%, rgba(13, 48, 82, 0.95) 100%)'
           }}
       >
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-6 relative z-10">
             <div className="flex items-center gap-2">
-              <Target size={20} className="text-[#0684F5]" />
-              <h3 className="text-lg font-bold text-white">
-                Audience Insights
-                {audienceInsights.length > 0 && <span className="ml-2 text-sm font-normal text-gray-400">Top {audienceInsights[0].label}</span>}
-              </h3>
+              <div className="p-2 rounded-lg bg-[#0684F5]/20">
+                <Target size={20} className="text-[#0684F5]" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white leading-tight">
+                  Audience Intelligence
+                </h3>
+                <p className="text-xs text-gray-400 font-medium">
+                  Analysis based on {audienceInsights.length > 0 ? audienceInsights[0].label : 'registration data'}
+                </p>
+              </div>
             </div>
-            <span className="text-xs px-2 py-1 rounded bg-white/10 text-gray-400 uppercase tracking-wider">
-              Type: {eventType}
-            </span>
+            {audienceInsights.length > 0 && (
+              <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-[#0684F5]/10 text-[#0684F5] border border-[#0684F5]/20 uppercase tracking-wide">
+                Active
+              </span>
+            )}
         </div>
         
         {audienceInsights.length > 0 ? (
-          <div className="grid grid-cols-3 gap-6">
-            {audienceInsights.map((item, idx) => (
-                <div key={idx} className="relative pt-1">
-                  <div className="flex mb-2 items-center justify-between">
-                    <div>
-                      <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-[#0684F5] bg-[#0684F5]/10">
-                        {item.value}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xs font-semibold inline-block text-white">
-                        {item.percentage}%
-                      </span>
-                    </div>
+          <div className="relative z-10">
+             {/* 1. Human-Readable Narrative */}
+             <div className="mb-8 p-5 rounded-xl bg-gradient-to-r from-white/10 to-transparent border border-white/10 backdrop-blur-sm">
+                <div className="flex gap-4 items-start">
+                  <div className="p-2 bg-[#F59E0B]/20 rounded-lg text-[#F59E0B] mt-0.5">
+                    <Target size={18} />
                   </div>
-                  <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-[#0684F5]/20">
-                    <div style={{ width: `${item.percentage}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-[#0684F5]"></div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white mb-1">Strategic Insight</h4>
+                    <p className="text-sm text-gray-300 leading-relaxed">
+                      {audienceInsights[0].percentage > 50 
+                        ? <><strong>Dominant Segment Detected:</strong> The majority of your audience ({audienceInsights[0].percentage}%) are <strong>{audienceInsights[0].value}s</strong>. Consider tailoring your keynote to address their specific challenges.</>
+                        : audienceInsights[0].percentage > 25
+                          ? <><strong>Key Segment Identified:</strong> A significant portion ({audienceInsights[0].percentage}%) identifies as <strong>{audienceInsights[0].value}</strong>. Make sure your program includes relevant content for this group.</>
+                          : <><strong>Diverse Audience:</strong> Your attendees come from varied backgrounds, with <strong>{audienceInsights[0].value}</strong> being the largest single group ({audienceInsights[0].percentage}%).</>
+                      }
+                    </p>
                   </div>
-                  <p className="text-xs text-gray-400">{item.count} attendees</p>
                 </div>
-            ))}
+             </div>
+
+             {/* 2. Visual Breakdown & Chart */}
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                {/* Chart Column */}
+                <div className="relative h-[220px] w-full flex items-center justify-center">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RePieChart>
+                      <Pie
+                        data={audienceInsights.slice(0, 5)}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={65}
+                        outerRadius={85}
+                        paddingAngle={4}
+                        dataKey="count"
+                        nameKey="value"
+                        stroke="none"
+                      >
+                        {audienceInsights.slice(0, 5).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <ReTooltip 
+                        contentStyle={{ 
+                          backgroundColor: '#0F172A', 
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: '8px',
+                          color: '#fff',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.5)'
+                        }}
+                        itemStyle={{ color: '#E2E8F0' }}
+                        cursor={false}
+                      />
+                    </RePieChart>
+                  </ResponsiveContainer>
+                  
+                  {/* Center Label */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-3xl font-bold text-white">{baseStats.registrations}</span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Attendees</span>
+                  </div>
+                </div>
+
+                {/* Legend / List Column */}
+                <div className="space-y-4 pr-4">
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 pl-1">Top Segments</h4>
+                  <div className="space-y-3">
+                    {audienceInsights.slice(0, 4).map((item, idx) => (
+                        <div 
+                          key={idx} 
+                          className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-all cursor-default"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div 
+                              className="w-3 h-3 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)]" 
+                              style={{ backgroundColor: COLORS[idx % COLORS.length] }} 
+                            />
+                            <div className="flex flex-col">
+                              <span className="text-sm font-semibold text-white truncate max-w-[120px] sm:max-w-[160px]" title={item.value}>
+                                {item.value}
+                              </span>
+                              <span className="text-[10px] text-gray-400">
+                                {item.count} attendee{item.count !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end">
+                            <span className="text-sm font-bold text-white">
+                              {item.percentage}%
+                            </span>
+                          </div>
+                        </div>
+                    ))}
+                  </div>
+                </div>
+             </div>
           </div>
         ) : (
-          <div className="text-center py-6 border-2 border-dashed border-white/10 rounded-lg">
-            <p className="text-gray-400 text-sm">
-              Waiting for attendee data to generate insights...
-            </p>
-            <p className="text-xs text-gray-600 mt-1">
-              (This section will auto-analyze Job Titles or Industries once registrations arrive)
+          <div className="text-center py-8 px-4 rounded-lg border border-dashed border-white/10 bg-white/5">
+            <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-3">
+              <PieChart size={20} className="text-gray-500" />
+            </div>
+            <h4 className="text-white font-medium mb-1">Awaiting Data</h4>
+            <p className="text-gray-400 text-sm max-w-sm mx-auto">
+              Once attendees start registering, we'll automatically analyze their Job Titles, Industries, or Locations to give you actionable insights here.
             </p>
           </div>
         )}

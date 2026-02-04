@@ -12,6 +12,7 @@ interface Event {
   description: string;
   organizer_id: string;
   created_at: string;
+  start_date?: string;
   moderation_status: 'pending' | 'approved' | 'rejected';
   is_approved: boolean;
 }
@@ -299,8 +300,9 @@ export default function AdminDashboard() {
                 <thead>
                   <tr className="border-b border-white/10 bg-white/[0.02]">
                     <th className="px-8 py-5 text-[11px] font-bold text-[#94A3B8] uppercase tracking-[0.1em]">Event Details</th>
-                    <th className="px-8 py-5 text-[11px] font-bold text-[#94A3B8] uppercase tracking-[0.1em]">Submission Date</th>
-                    <th className="px-8 py-5 text-[11px] font-bold text-[#94A3B8] uppercase tracking-[0.1em]">Moderation Status</th>
+                    <th className="px-8 py-5 text-[11px] font-bold text-[#94A3B8] uppercase tracking-[0.1em]">Start Date</th>
+                    <th className="px-8 py-5 text-[11px] font-bold text-[#94A3B8] uppercase tracking-[0.1em]">Submitted</th>
+                    <th className="px-8 py-5 text-[11px] font-bold text-[#94A3B8] uppercase tracking-[0.1em]">Status</th>
                     <th className="px-8 py-5 text-[11px] font-bold text-[#94A3B8] uppercase tracking-[0.1em] text-right">Approval Actions</th>
                   </tr>
                 </thead>
@@ -318,6 +320,20 @@ export default function AdminDashboard() {
                             Live Preview <ExternalLink size={12} />
                           </button>
                         </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        {event.start_date ? (
+                          <div className="flex flex-col">
+                            <span className={`text-sm font-bold ${new Date(event.start_date) < new Date() ? 'text-red-400' : 'text-white'}`}>
+                              {new Date(event.start_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </span>
+                            <span className="text-xs text-[#94A3B8] mt-0.5">
+                              {new Date(event.start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-[#94A3B8] italic">TBD</span>
+                        )}
                       </td>
                       <td className="px-8 py-6">
                         <div className="flex flex-col">

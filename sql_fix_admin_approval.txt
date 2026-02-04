@@ -1,0 +1,74 @@
+-- FIX: Enable Admin Permissions for Event Approval
+-- This script ensures Admins can update any event, bypassing "Owner only" restrictions.
+
+-- 1. Ensure 'role' column exists in profiles
+-- (Supabase usually allows idempotent column addition via UI, but here is SQL just in case)
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'role') THEN
+        ALTER TABLE public.profiles ADD COLUMN role text DEFAULT 'user';
+    END IF;
+END $$;
+
+-- 2. Create Policy for Admins to UPDATE events
+-- This allows users with role='admin' to update ANY event row.
+DROP POLICY IF EXISTS "Admins can update any event" ON public.events;
+
+CREATE POLICY "Admins can update any event"
+ON public.events
+FOR UPDATE
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.role = 'admin'
+  )
+);
+
+-- 3. Create Policy for Admins to DELETE events
+DROP POLICY IF EXISTS "Admins can delete any event" ON public.events;
+
+CREATE POLICY "Admins can delete any event"
+ON public.events
+FOR DELETE
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.role = 'admin'
+  )
+);
+
+-- 4. Create Policy for Admins to UPDATE Business Profiles
+DROP POLICY IF EXISTS "Admins can update any business" ON public.business_profiles;
+
+CREATE POLICY "Admins can update any business"
+ON public.business_profiles
+FOR UPDATE
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.role = 'admin'
+  )
+);
+
+-- 5. Grant Admin Role to specific users
+-- This ensures the current user has the 'admin' role in the database
+UPDATE public.profiles
+SET role = 'admin'
+WHERE id IN (
+  SELECT id FROM auth.users 
+  WHERE email IN (
+    'marketing@redstart.tn', 
+    'admin@eventra.com', 
+    'demo@eventra.com',
+    'oussema.lamine@ilab.tn'
+  )
+);
+
+-- 6. Grant Admin Role to 'oussema.lamine@ilab.tn' specifically if not covered above
+-- (Using a direct check on profiles.email if it exists, as auth.users might be restricted in some contexts)
+UPDATE public.profiles
+SET role = 'admin'
+WHERE email = 'oussema.lamine@ilab.tn';

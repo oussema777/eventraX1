@@ -35,9 +35,31 @@ export default function FooterBlock({ showEditControls = true, brandColor, onEdi
   const eventTagline = event?.tagline || t('wizard.designStudio.footer.tagline');
   const eventLocation = event?.location_address || t('wizard.designStudio.footer.location');
   
-  const defaultQuickLinks = tList<string>('wizard.designStudio.footer.quickLinks', []).map(label => ({ label, url: '#' }));
+  const defaultQuickLinks = tList<string>('wizard.designStudio.footer.quickLinks', []).map(label => {
+    // Attempt to map common labels to section IDs
+    const lower = label.toLowerCase();
+    let url = '#';
+    if (lower.includes('agenda') || lower.includes('schedule') || lower.includes('program')) url = '#agenda';
+    else if (lower.includes('speaker')) url = '#speakers';
+    else if (lower.includes('ticket') || lower.includes('register')) url = '#tickets';
+    else if (lower.includes('faq')) url = '#faq';
+    else if (lower.includes('about') || lower.includes('propos')) url = '#about';
+    
+    return { label, url };
+  });
+
   // If settings exist, use them (even if empty). Fallback to defaults only if settings are completely missing.
   const quickLinks = settings ? (settings.quickLinks || []) : defaultQuickLinks;
+  
+  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, url: string) => {
+    if (url.startsWith('#') && url.length > 1) {
+      e.preventDefault();
+      const element = document.querySelector(url);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  };
   
   const copyright = settings?.copyrightText || t('wizard.designStudio.footer.copyright');
   const showSocials = settings?.showSocialLinks !== false;
@@ -148,6 +170,7 @@ export default function FooterBlock({ showEditControls = true, brandColor, onEdi
                   href={link.url}
                   target={link.url.startsWith('http') ? '_blank' : '_self'}
                   rel="noopener noreferrer"
+                  onClick={(e) => handleLinkClick(e, link.url)}
                   style={{
                     fontSize: '14px',
                     color: 'rgba(255, 255, 255, 0.7)',

@@ -149,13 +149,34 @@ export default function EventRegistrationFlow() {
       const { data: formsData } = await supabase
         .from('event_forms')
         .select('*')
-        .eq('event_id', eventId)
-        .eq('status', 'active');
+        .eq('event_id', eventId);
 
-      // Prioritize 'registration' type, then default, then first available
-      const formData = formsData?.find((f: any) => f.form_type === 'registration') 
-                    || formsData?.find((f: any) => f.is_default) 
-                    || formsData?.[0];
+      let formData = null;
+
+      if (formsData && formsData.length > 0) {
+        // Sort by most recently updated first
+        formsData.sort((a: any, b: any) => 
+          new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime()
+        );
+
+        // Priority 1: Active 'registration' form
+        formData = formsData.find((f: any) => f.form_type === 'registration' && f.status === 'active');
+
+        // Priority 2: Active default form
+        if (!formData) {
+          formData = formsData.find((f: any) => f.is_default && f.status === 'active');
+        }
+
+        // Priority 3: ANY active form (e.g. user made a custom form and activated it)
+        if (!formData) {
+          formData = formsData.find((f: any) => f.status === 'active');
+        }
+
+        // Priority 4: Fallback to the most recent form (even if draft) - helps during testing
+        if (!formData) {
+          formData = formsData[0];
+        }
+      }
 
       const defaultFields: FormField[] = [
         { 
@@ -524,7 +545,7 @@ export default function EventRegistrationFlow() {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#0B2641', color: '#FFFFFF' }}>
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#0B2641', color: '#FFFFFF' }}>
       {/* Header */}
       <header
         className="sticky top-0 z-50"
@@ -614,7 +635,7 @@ export default function EventRegistrationFlow() {
       </header>
 
       {/* Main Content */}
-      <main className="py-10 px-6">
+      <main className="pt-10 pb-10 px-6 flex-grow">
         <div
           className="mx-auto rounded-2xl p-10"
           style={{
@@ -860,6 +881,9 @@ export default function EventRegistrationFlow() {
                   </div>
                 ))}
               </div>
+              
+              {/* Spacer for better visual flow before the bottom navigation bar */}
+              <div className="h-12" />
             </div>
           )}
 
@@ -1078,7 +1102,7 @@ export default function EventRegistrationFlow() {
       {/* Footer Navigation */}
       {currentStep < 3 && (
         <footer
-          className="fixed bottom-0 left-0 right-0 z-40 px-6 py-4"
+          className="mt-auto px-6 py-8"
           style={{
             backgroundColor: 'rgba(11, 38, 65, 0.95)',
             borderTop: '1px solid rgba(255, 255, 255, 0.1)',
