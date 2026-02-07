@@ -76,7 +76,7 @@ export default function ModalRegistrationEntry({
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(window.location.pathname)}`
+          redirectTo: `${window.location.origin}/auth/callback?flow=register&next=${encodeURIComponent(window.location.pathname)}`
         }
       });
 
@@ -222,20 +222,6 @@ export default function ModalRegistrationEntry({
       return;
     }
 
-    try {
-      await supabase
-        .from('users')
-        .upsert(
-          {
-            id: activeUser.id,
-            email: activeUser.email
-          },
-          { onConflict: 'id' }
-        );
-    } catch (_error) {
-      // Ignore if public users table is missing or blocked by RLS.
-    }
-
     await supabase.auth.updateUser({ data: { full_name: fullName } });
     await refreshProfile();
     localStorage.removeItem('pendingProfileSetup');
@@ -271,20 +257,6 @@ export default function ModalRegistrationEntry({
         },
         { onConflict: 'id' }
       );
-
-    try {
-      await supabase
-        .from('users')
-        .upsert(
-          {
-            id: activeUser.id,
-            email: activeUser.email
-          },
-          { onConflict: 'id' }
-        );
-    } catch (_error) {
-      // Ignore if public users table is missing or blocked by RLS.
-    }
 
     await refreshProfile();
     localStorage.removeItem('pendingProfileSetup');

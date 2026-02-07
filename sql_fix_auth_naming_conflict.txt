@@ -1,0 +1,15 @@
+-- FIX: Auth Naming Conflict
+-- This script renames the 'public.users' table to avoid conflicts with Supabase's internal 'auth.users' table.
+-- This resolves the "Scan error on column index 3" issue.
+
+BEGIN;
+
+-- 1. Rename the conflicting table if it exists
+DO $$ 
+BEGIN 
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users') THEN
+        ALTER TABLE public.users RENAME TO app_users;
+    END IF;
+END $$;
+
+COMMIT;
