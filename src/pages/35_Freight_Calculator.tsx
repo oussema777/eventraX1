@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { toast } from 'sonner@2.0.3';
+import { useMemo, useState, useCallback } from 'react';
+import { toast } from 'sonner';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';
 import ModalLogin from '../components/modals/ModalLogin';
@@ -15,29 +15,64 @@ const INCOTERMS = ['EXW', 'FOB', 'CIF', 'DAP', 'DDP'];
 const MODES = ['Air', 'Sea', 'Road'];
 const CARGO_TYPES = ['General', 'Perishable', 'Hazardous', 'Oversized'];
 
+type FieldName = 'origin' | 'destination' | 'weight' | 'volume' | 'packagesCount' | 'cargoValue';
+
 export default function FreightCalculatorPage() {
   const { user, profile, signOut } = useAuth();
   const { t } = useI18n();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
 
-  const [origin, setOrigin] = useState('');
-  const [destination, setDestination] = useState('');
+  const [formState, setFormState] = useState({
+    origin: '',
+    destination: '',
+    weight: '',
+    volume: '',
+    packagesCount: '',
+    cargoValue: '',
+  });
+
+  const [errors, setErrors] = useState<Record<FieldName, string>>({
+    origin: '',
+    destination: '',
+    weight: '',
+    volume: '',
+    packagesCount: '',
+    cargoValue: '',
+  });
+
   const [mode, setMode] = useState(MODES[0]);
   const [incoterm, setIncoterm] = useState(INCOTERMS[0]);
   const [cargoType, setCargoType] = useState(CARGO_TYPES[0]);
-  const [weight, setWeight] = useState('');
-  const [volume, setVolume] = useState('');
-  const [packagesCount, setPackagesCount] = useState('');
   const [readyDate, setReadyDate] = useState('');
-  const [cargoValue, setCargoValue] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [quoteResult, setQuoteResult] = useState<any | null>(null);
 
+  const validateField = useCallback((name: FieldName, value: string): string => {
+    if (['origin', 'destination', 'weight', 'volume'].includes(name) && !value.trim()) {
+      return 'This field is required.';
+    }
+    if (['weight', 'volume', 'packagesCount', 'cargoValue'].includes(name) && value) {
+      const numValue = Number(value);
+      if (isNaN(numValue) || numValue <= 0) {
+        return 'Please enter a positive number.';
+      }
+    }
+    return '';
+  }, []);
+  
+  const handleInputChange = (name: FieldName, value: string) => {
+    setFormState(prev => ({ ...prev, [name]: value }));
+    setErrors(prev => ({ ...prev, [name]: validateField(name, value) }));
+  };
+
+  const hasErrors = useMemo(() => Object.values(errors).some(error => error !== ''), [errors]);
+
   const canSubmit = useMemo(() => {
-    return origin.trim() && destination.trim() && weight.trim() && volume.trim();
-  }, [origin, destination, weight, volume]);
+    const requiredFieldsFilled = formState.origin.trim() && formState.destination.trim() && formState.weight.trim() && formState.volume.trim();
+    return requiredFieldsFilled && !hasErrors;
+  }, [formState, hasErrors]);
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -48,16 +83,16 @@ export default function FreightCalculatorPage() {
     setIsSubmitting(true);
     try {
       const payload = {
-        origin,
-        destination,
+        origin: formState.origin,
+        destination: formState.destination,
         mode,
         incoterm,
         cargoType,
-        weight: Number(weight),
-        volume: Number(volume),
-        packagesCount: packagesCount ? Number(packagesCount) : null,
+        weight: Number(formState.weight),
+        volume: Number(formState.volume),
+        packagesCount: formState.packagesCount ? Number(formState.packagesCount) : null,
         readyDate: readyDate || null,
-        cargoValue: cargoValue ? Number(cargoValue) : null,
+        cargoValue: formState.cargoValue ? Number(formState.cargoValue) : null,
         notes: notes.trim() || null
       };
       const res = await fetch(FREIGHT_EXPORT_ENDPOINT, {
@@ -95,6 +130,24 @@ export default function FreightCalculatorPage() {
   const handleSwitchToLogin = () => {
     setShowRegistrationModal(false);
     setShowLoginModal(true);
+  };
+
+  const getInputStyle = (fieldName: FieldName) => {
+    const baseStyle: React.CSSProperties = {
+      width: '100%',
+      marginTop: '6px',
+      padding: '10px 12px',
+      borderRadius: '10px',
+      border: '1px solid rgba(255,255,255,0.15)',
+      backgroundColor: 'rgba(255,255,255,0.05)',
+      color: '#FFFFFF',
+      fontSize: '13px',
+      transition: 'border-color 0.2s',
+    };
+    if (errors[fieldName]) {
+      return { ...baseStyle, borderColor: '#EF4444' };
+    }
+    return baseStyle;
   };
 
   return (
@@ -138,59 +191,32 @@ export default function FreightCalculatorPage() {
                 <div>
                   <label style={{ fontSize: '12px', color: '#94A3B8' }}>Origin Country/Port</label>
                   <input
-                    value={origin}
-                    onChange={(event) => setOrigin(event.target.value)}
+                    value={formState.origin}
+                    onChange={(e) => handleInputChange('origin', e.target.value)}
                     placeholder="e.g., Tunis, Tunisia"
-                    className="freight-calc__input"
-                    style={{
-                      width: '100%',
-                      marginTop: '6px',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      color: '#FFFFFF',
-                      fontSize: '13px'
-                    }}
+                    style={getInputStyle('origin')}
                   />
+                  {errors.origin && <p style={{ color: '#EF4444', fontSize: '12px', marginTop: '4px' }}>{errors.origin}</p>}
                 </div>
                 <div>
                   <label style={{ fontSize: '12px', color: '#94A3B8' }}>Destination Country/Port</label>
                   <input
-                    value={destination}
-                    onChange={(event) => setDestination(event.target.value)}
+                    value={formState.destination}
+                    onChange={(e) => handleInputChange('destination', e.target.value)}
                     placeholder="e.g., Marseille, France"
-                    className="freight-calc__input"
-                    style={{
-                      width: '100%',
-                      marginTop: '6px',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      color: '#FFFFFF',
-                      fontSize: '13px'
-                    }}
+                    style={getInputStyle('destination')}
                   />
+                  {errors.destination && <p style={{ color: '#EF4444', fontSize: '12px', marginTop: '4px' }}>{errors.destination}</p>}
                 </div>
                 <div>
                   <label style={{ fontSize: '12px', color: '#94A3B8' }}>Mode</label>
                   <select
                     value={mode}
                     onChange={(event) => setMode(event.target.value)}
-                    style={{
-                      width: '100%',
-                      marginTop: '6px',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      color: '#FFFFFF',
-                      fontSize: '13px'
-                    }}
+                    style={{...getInputStyle('packagesCount' /* dummy value */), appearance: 'none'}}
                   >
                     {MODES.map((item) => (
-                      <option key={item} value={item}>
+                      <option key={item} value={item} style={{ backgroundColor: '#0B2641'}}>
                         {item}
                       </option>
                     ))}
@@ -201,19 +227,10 @@ export default function FreightCalculatorPage() {
                   <select
                     value={incoterm}
                     onChange={(event) => setIncoterm(event.target.value)}
-                    style={{
-                      width: '100%',
-                      marginTop: '6px',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      color: '#FFFFFF',
-                      fontSize: '13px'
-                    }}
+                    style={{...getInputStyle('packagesCount' /* dummy value */), appearance: 'none'}}
                   >
                     {INCOTERMS.map((item) => (
-                      <option key={item} value={item}>
+                      <option key={item} value={item} style={{ backgroundColor: '#0B2641'}}>
                         {item}
                       </option>
                     ))}
@@ -224,19 +241,10 @@ export default function FreightCalculatorPage() {
                   <select
                     value={cargoType}
                     onChange={(event) => setCargoType(event.target.value)}
-                    style={{
-                      width: '100%',
-                      marginTop: '6px',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      color: '#FFFFFF',
-                      fontSize: '13px'
-                    }}
+                    style={{...getInputStyle('packagesCount' /* dummy value */), appearance: 'none'}}
                   >
                     {CARGO_TYPES.map((item) => (
-                      <option key={item} value={item}>
+                      <option key={item} value={item} style={{ backgroundColor: '#0B2641'}}>
                         {item}
                       </option>
                     ))}
@@ -248,93 +256,52 @@ export default function FreightCalculatorPage() {
                     type="date"
                     value={readyDate}
                     onChange={(event) => setReadyDate(event.target.value)}
-                    style={{
-                      width: '100%',
-                      marginTop: '6px',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      color: '#FFFFFF',
-                      fontSize: '13px'
-                    }}
+                    style={{...getInputStyle('packagesCount' /* dummy value */), appearance: 'none'}}
                   />
                 </div>
                 <div>
                   <label style={{ fontSize: '12px', color: '#94A3B8' }}>Total Weight (kg)</label>
                   <input
                     type="number"
-                    value={weight}
-                    onChange={(event) => setWeight(event.target.value)}
+                    value={formState.weight}
+                    onChange={(e) => handleInputChange('weight', e.target.value)}
                     placeholder="0"
-                    style={{
-                      width: '100%',
-                      marginTop: '6px',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      color: '#FFFFFF',
-                      fontSize: '13px'
-                    }}
+                    style={getInputStyle('weight')}
                   />
+                  {errors.weight && <p style={{ color: '#EF4444', fontSize: '12px', marginTop: '4px' }}>{errors.weight}</p>}
                 </div>
                 <div>
                   <label style={{ fontSize: '12px', color: '#94A3B8' }}>Total Volume (CBM)</label>
                   <input
                     type="number"
-                    value={volume}
-                    onChange={(event) => setVolume(event.target.value)}
+                    value={formState.volume}
+                    onChange={(e) => handleInputChange('volume', e.target.value)}
                     placeholder="0"
-                    style={{
-                      width: '100%',
-                      marginTop: '6px',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      color: '#FFFFFF',
-                      fontSize: '13px'
-                    }}
+                    style={getInputStyle('volume')}
                   />
+                  {errors.volume && <p style={{ color: '#EF4444', fontSize: '12px', marginTop: '4px' }}>{errors.volume}</p>}
                 </div>
                 <div>
                   <label style={{ fontSize: '12px', color: '#94A3B8' }}>Packages Count</label>
                   <input
                     type="number"
-                    value={packagesCount}
-                    onChange={(event) => setPackagesCount(event.target.value)}
+                    value={formState.packagesCount}
+                    onChange={(e) => handleInputChange('packagesCount', e.target.value)}
                     placeholder="0"
-                    style={{
-                      width: '100%',
-                      marginTop: '6px',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      color: '#FFFFFF',
-                      fontSize: '13px'
-                    }}
+                    style={getInputStyle('packagesCount')}
                   />
+                  {errors.packagesCount && <p style={{ color: '#EF4444', fontSize: '12px', marginTop: '4px' }}>{errors.packagesCount}</p>}
                 </div>
                 <div>
                   <label style={{ fontSize: '12px', color: '#94A3B8' }}>Cargo Value (USD)</label>
                   <input
                     type="number"
-                    value={cargoValue}
-                    onChange={(event) => setCargoValue(event.target.value)}
+                    value={formState.cargoValue}
+                    onChange={(e) => handleInputChange('cargoValue', e.target.value)}
                     placeholder="0"
-                    style={{
-                      width: '100%',
-                      marginTop: '6px',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      color: '#FFFFFF',
-                      fontSize: '13px'
-                    }}
+                    style={getInputStyle('cargoValue')}
                   />
+                  {errors.cargoValue && <p style={{ color: '#EF4444', fontSize: '12px', marginTop: '4px' }}>{errors.cargoValue}</p>}
                 </div>
               </div>
 
@@ -392,8 +359,8 @@ export default function FreightCalculatorPage() {
               </h3>
               {quoteResult ? (
                 <div style={{ color: '#E2E8F0', fontSize: '14px', lineHeight: 1.6 }}>
-                  <div>Origin: {quoteResult.origin || origin}</div>
-                  <div>Destination: {quoteResult.destination || destination}</div>
+                  <div>Origin: {quoteResult.origin || formState.origin}</div>
+                  <div>Destination: {quoteResult.destination || formState.destination}</div>
                   <div>Mode: {quoteResult.mode || mode}</div>
                   <div style={{ marginTop: '12px', color: '#94A3B8' }}>
                     {quoteResult.summary || 'Quote generated successfully.'}
@@ -409,14 +376,16 @@ export default function FreightCalculatorPage() {
         </div>
       </div>
       <style>{`
+        /* Responsive layout for the main two-column grid */
         @media (max-width: 900px) {
           .freight-calc__layout {
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr; /* Stack the form and results on smaller screens */
           }
         }
+        /* Responsive layout for the inner form grid and header */
         @media (max-width: 600px) {
           .freight-calc__grid {
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr; /* Stack form inputs on very small screens */
           }
           .freight-calc__header h1 {
             font-size: 24px;

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type MouseEvent } from 'react';
-import { toast } from 'sonner@2.0.3';
+import { useEffect, useMemo, useState, useCallback, type MouseEvent } from 'react';
+import { toast } from 'sonner';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';
 import ModalLogin from '../components/modals/ModalLogin';
@@ -18,6 +18,7 @@ type ContainerLine = {
   id: string;
   type: '20std' | '40std' | '40hc';
   qty: number;
+  error?: string; // Add error field to container line
 };
 
 const LOGISTICS_API_BASE = import.meta.env.VITE_LOGISTICS_API_BASE || '';
@@ -60,9 +61,45 @@ export default function ContainerShippingCostsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [quoteResult, setQuoteResult] = useState<any | null>(null);
 
+  // Validation states
+  const [fromQueryError, setFromQueryError] = useState('');
+  const [toQueryError, setToQueryError] = useState('');
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+
+
+  const validateFromQuery = useCallback((value: string): string => {
+    if (!value.trim() && !fromPort) {
+      return 'Origin port is required.';
+    }
+    return '';
+  }, [fromPort]);
+
+  const validateToQuery = useCallback((value: string): string => {
+    if (!value.trim() && !toPort) {
+      return 'Destination port is required.';
+    }
+    return '';
+  }, [toPort]);
+
+  const validateContainerQty = useCallback((qty: number): string => {
+    if (isNaN(qty) || qty <= 0) {
+      return 'Qty must be a positive number.';
+    }
+    return '';
+  }, []);
+
+  const hasFormErrors = useMemo(() => {
+    return !!fromQueryError || !!toQueryError || containers.some(c => c.error);
+  }, [fromQueryError, toQueryError, containers]);
+
   const canSubmit = useMemo(() => {
-    return (fromQuery.trim() || fromPort) && (toQuery.trim() || toPort) && containers.length > 0;
-  }, [fromQuery, fromPort, toQuery, toPort, containers]);
+    const allContainersValid = containers.every(c => c.qty > 0 && !c.error);
+    // Only consider the form valid if there are no general form errors and all required fields are filled.
+    // The hasFormErrors already covers fromQuery.trim() || fromPort and toQuery.trim() || toPort indirectly
+    // because validateFromQuery and validateToQuery are called on submit.
+    return !hasFormErrors && allContainersValid && containers.length > 0;
+  }, [containers, hasFormErrors]);
+  
 
   const fetchPorts = async (query: string, setter: (ports: Port[]) => void) => {
     if (!PORTS_ENDPOINT || !query.trim()) {
@@ -98,12 +135,18 @@ export default function ContainerShippingCostsPage() {
     if (target === 'from') {
       setFromPort(port);
       setFromQuery(port.name);
+      if (hasAttemptedSubmit) { // Only clear error if submit has been attempted
+        setFromQueryError(''); 
+      }
       if (port.lat != null && port.lon != null) {
         setFromCoords({ lat: Number(port.lat), lon: Number(port.lon) });
       }
     } else {
       setToPort(port);
       setToQuery(port.name);
+      if (hasAttemptedSubmit) { // Only clear error if submit has been attempted
+        setToQueryError(''); 
+      }
       if (port.lat != null && port.lon != null) {
         setToCoords({ lat: Number(port.lat), lon: Number(port.lon) });
       }
@@ -119,9 +162,15 @@ export default function ContainerShippingCostsPage() {
     if (activePin === 'from') {
       setFromCoords({ lat, lon });
       if (!fromQuery.trim()) setFromQuery('Custom origin');
+      if (hasAttemptedSubmit) { // Only clear error if submit has been attempted
+        setFromQueryError('');
+      }
     } else {
       setToCoords({ lat, lon });
       if (!toQuery.trim()) setToQuery('Custom destination');
+      if (hasAttemptedSubmit) { // Only clear error if submit has been attempted
+        setToQueryError('');
+      }
     }
   };
 
@@ -133,7 +182,18 @@ export default function ContainerShippingCostsPage() {
   };
 
   const handleUpdateContainer = (id: string, updates: Partial<ContainerLine>) => {
-    setContainers((prev) => prev.map((line) => (line.id === id ? { ...line, ...updates } : line)));
+    setContainers((prev) =>
+      prev.map((line) => {
+        if (line.id === id) {
+          const updatedLine = { ...line, ...updates };
+          if (updates.qty !== undefined) {
+            updatedLine.error = validateContainerQty(updatedLine.qty);
+          }
+          return updatedLine;
+        }
+        return line;
+      })
+    );
   };
 
   const handleRemoveContainer = (id: string) => {
@@ -141,7 +201,32 @@ export default function ContainerShippingCostsPage() {
   };
 
   const handleSubmit = async () => {
-    if (!canSubmit) return;
+    setHasAttemptedSubmit(true); // User has attempted to submit
+
+    // Re-validate all fields on submit attempt
+    const newFromQueryError = validateFromQuery(fromQuery);
+    const newToQueryError = validateToQuery(toQuery);
+    const updatedContainers = containers.map(c => ({ ...c, error: validateContainerQty(c.qty) }));
+
+    setFromQueryError(newFromQueryError);
+    setToQueryError(newToQueryError);
+    setContainers(updatedContainers);
+
+    const hasAnyContainerErrors = updatedContainers.some(c => !!c.error);
+
+    if (newFromQueryError || newToQueryError || hasAnyContainerErrors || containers.length === 0) {
+      toast.error('Please correct the errors in the form.');
+      return;
+    }
+    
+    // Final check for canSubmit after updating all errors.
+    // This is important because canSubmit relies on the error states.
+    if (!canSubmit) {
+      toast.error('Please correct the errors in the form.');
+      return;
+    }
+
+
     if (!QUOTE_ENDPOINT) {
       toast.error('Logistics API is not configured.');
       return;
@@ -198,6 +283,42 @@ export default function ContainerShippingCostsPage() {
   const fromMarker = fromCoords ? { x: toSvgX(fromCoords.lon), y: toSvgY(fromCoords.lat) } : null;
   const toMarker = toCoords ? { x: toSvgX(toCoords.lon), y: toSvgY(toCoords.lat) } : null;
 
+  const getInputStyle = (hasError: boolean) => {
+    const baseStyle: React.CSSProperties = {
+      width: '100%',
+      marginTop: '6px',
+      padding: '10px 12px',
+      borderRadius: '10px',
+      border: '1px solid rgba(255,255,255,0.15)',
+      backgroundColor: 'rgba(255,255,255,0.05)',
+      color: '#FFFFFF',
+      fontSize: '13px',
+      transition: 'border-color 0.2s',
+      appearance: 'none', // For select elements to remove default arrow
+    };
+    if (hasAttemptedSubmit && hasError) {
+      return { ...baseStyle, borderColor: '#EF4444' };
+    }
+    return baseStyle;
+  };
+  
+  const getContainerInputStyle = (hasError: boolean) => {
+    const baseStyle: React.CSSProperties = {
+      padding: '8px 10px',
+      borderRadius: '8px',
+      border: '1px solid rgba(255,255,255,0.15)',
+      backgroundColor: 'rgba(255,255,255,0.05)',
+      color: '#FFFFFF',
+      fontSize: '12px',
+      transition: 'border-color 0.2s',
+      appearance: 'none',
+    };
+    if (hasAttemptedSubmit && hasError) {
+      return { ...baseStyle, borderColor: '#EF4444' };
+    }
+    return baseStyle;
+  };
+
   return (
     <>
       {user ? (
@@ -244,17 +365,9 @@ export default function ContainerShippingCostsPage() {
                       setFromPort(null);
                     }}
                     placeholder="Search port or city"
-                    style={{
-                      width: '100%',
-                      marginTop: '6px',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      color: '#FFFFFF',
-                      fontSize: '13px'
-                    }}
+                    style={getInputStyle(!!fromQueryError)}
                   />
+                  {hasAttemptedSubmit && fromQueryError && <p style={{ color: '#EF4444', fontSize: '12px', marginTop: '4px' }}>{fromQueryError}</p>}
                   {fromSuggestions.length > 0 && (
                     <div className="container-calc__suggestions">
                       {fromSuggestions.slice(0, 6).map((port) => (
@@ -278,17 +391,9 @@ export default function ContainerShippingCostsPage() {
                       setToPort(null);
                     }}
                     placeholder="Search port or city"
-                    style={{
-                      width: '100%',
-                      marginTop: '6px',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      color: '#FFFFFF',
-                      fontSize: '13px'
-                    }}
+                    style={getInputStyle(!!toQueryError)}
                   />
+                  {hasAttemptedSubmit && toQueryError && <p style={{ color: '#EF4444', fontSize: '12px', marginTop: '4px' }}>{toQueryError}</p>}
                   {toSuggestions.length > 0 && (
                     <div className="container-calc__suggestions">
                       {toSuggestions.slice(0, 6).map((port) => (
@@ -308,19 +413,10 @@ export default function ContainerShippingCostsPage() {
                   <select
                     value={currency}
                     onChange={(event) => setCurrency(event.target.value)}
-                    style={{
-                      width: '100%',
-                      marginTop: '6px',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      color: '#FFFFFF',
-                      fontSize: '13px'
-                    }}
+                    style={getInputStyle(false)}
                   >
                     {CURRENCIES.map((item) => (
-                      <option key={item} value={item}>
+                      <option key={item} value={item} style={{ backgroundColor: '#0B2641'}}>
                         {item}
                       </option>
                     ))}
@@ -347,17 +443,10 @@ export default function ContainerShippingCostsPage() {
                         onChange={(event) =>
                           handleUpdateContainer(line.id, { type: event.target.value as ContainerLine['type'] })
                         }
-                        style={{
-                          padding: '8px 10px',
-                          borderRadius: '8px',
-                          border: '1px solid rgba(255,255,255,0.15)',
-                          backgroundColor: 'rgba(255,255,255,0.05)',
-                          color: '#FFFFFF',
-                          fontSize: '12px'
-                        }}
+                        style={getContainerInputStyle(false)}
                       >
                         {CONTAINER_TYPES.map((item) => (
-                          <option key={item.id} value={item.id}>
+                          <option key={item.id} value={item.id} style={{ backgroundColor: '#0B2641'}}>
                             {item.label}
                           </option>
                         ))}
@@ -367,14 +456,7 @@ export default function ContainerShippingCostsPage() {
                         min={1}
                         value={line.qty}
                         onChange={(event) => handleUpdateContainer(line.id, { qty: Number(event.target.value) })}
-                        style={{
-                          padding: '8px 10px',
-                          borderRadius: '8px',
-                          border: '1px solid rgba(255,255,255,0.15)',
-                          backgroundColor: 'rgba(255,255,255,0.05)',
-                          color: '#FFFFFF',
-                          fontSize: '12px'
-                        }}
+                        style={getContainerInputStyle(!!line.error)}
                       />
                       <button
                         onClick={() => handleRemoveContainer(line.id)}
@@ -389,6 +471,7 @@ export default function ContainerShippingCostsPage() {
                       >
                         x
                       </button>
+                      {hasAttemptedSubmit && line.error && <p style={{ color: '#EF4444', fontSize: '12px', marginTop: '4px', gridColumn: '1 / -1' }}>{line.error}</p>}
                     </div>
                   ))}
                 </div>
@@ -606,14 +689,16 @@ export default function ContainerShippingCostsPage() {
           display: grid;
           gap: 4px;
         }
+        /* Responsive layout for the main two-column grid */
         @media (max-width: 900px) {
           .container-calc__layout {
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr; /* Stack the form and results on smaller screens */
           }
         }
+        /* Responsive layout for smaller screen adjustments */
         @media (max-width: 600px) {
           .container-calc__container-row {
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr; /* Stack container inputs */
           }
           .container-calc__map {
             height: 200px;
