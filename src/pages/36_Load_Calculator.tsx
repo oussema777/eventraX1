@@ -7,6 +7,7 @@ import ModalRegistrationEntry from '../components/modals/ModalRegistrationEntry'
 import { useAuth } from '../contexts/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
 import { EURO_PALLET_DIMENSIONS, STANDARD_PALLET_DIMENSIONS, PalletDimensions } from '../data/palletDimensions';
+import { CONTAINER_DIMENSIONS_MAP } from '../data/containerDimensions';
 
 
 const CONTAINER_TYPES = [
@@ -15,15 +16,13 @@ const CONTAINER_TYPES = [
   { id: '40hc', label: "40' High Cube" }
 ];
 
-type FieldName = 'unitLength' | 'unitWidth' | 'unitHeight' | 'unitWeight' | 'quantity';
-
-interface PalletCalculationParams {
-  cargoLength: number;
-  cargoWidth: number;
-  cargoHeight: number;
-  cargoQuantity: number;
-  stackable: boolean;
-  palletType: PalletDimensions;
+interface PalletCalculationResult {
+  palletCount: number;
+  unitsPerPallet: number;
+  palletVolumeUtilization: string; // Percentage, e.g., "75.25%"
+  explanation: string; // Explains what these numbers mean
+  palletTypeVolume: number; // Volume of the pallet type in cm^3
+  cargoVolumePerPallet: number; // Volume of cargo that fits in one pallet in cm^3
 }
 
 
@@ -54,9 +53,10 @@ export default function LoadCalculatorPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<any | null>(null);
   const [palletResults, setPalletResults] = useState<{
-    euroPallets: number | null;
-    standardPallets: number | null;
-} | null>(null);
+    euroPallets: PalletCalculationResult | string | null;
+    standardPallets: PalletCalculationResult | string | null;
+    betterOption: 'Euro Pallet' | 'Standard Pallet' | 'None' | null;
+  } | null>(null);
 
 
   const validateField = useCallback((name: FieldName, value: string): string => {
@@ -90,26 +90,61 @@ export default function LoadCalculatorPage() {
     cargoQuantity,
     stackable,
     palletType,
-  }: PalletCalculationParams): number => {
+  }: PalletCalculationParams): PalletCalculationResult | string => { // Changed return type
+    if (cargoLength <= 0 || cargoWidth <= 0 || cargoHeight <= 0 || cargoQuantity <= 0) {
+      return "Invalid cargo dimensions or quantity (must be positive numbers).";
+    }
+
     // How many units fit on a single layer of the pallet (floor plan)
+    // Option 1: cargoLength along pallet length, cargoWidth along pallet width
     const fitLWCargoL = Math.floor(palletType.length / cargoLength) * Math.floor(palletType.width / cargoWidth);
+    // Option 2: cargoWidth along pallet length, cargoLength along pallet width (rotated)
     const fitLWCargoW = Math.floor(palletType.length / cargoWidth) * Math.floor(palletType.width / cargoLength);
     const unitsPerLayer = Math.max(fitLWCargoL, fitLWCargoW);
 
-    if (unitsPerLayer === 0) return Infinity; // Cannot fit any unit on a pallet
+    if (unitsPerLayer === 0) {
+      return `Cargo unit (${cargoLength}x${cargoWidth}cm) is too large for the ${palletType.length}x${palletType.width}cm pallet surface.`;
+    }
 
     // Determine how many layers can be stacked
-    let layers = 1;
+    let layers = 1; // Default to 1 layer if not stackable or calculations result in less than 1
     if (stackable) {
       layers = Math.floor(palletType.height / cargoHeight);
-      if (layers === 0) layers = 1; // At least one layer even if cargo height is greater than pallet height
+      if (layers === 0) { // If cargo height is greater than pallet height even for one layer
+        return `Cargo unit height (${cargoHeight}cm) exceeds ${palletType.height}cm pallet usable height, even with stacking enabled.`;
+      }
+    } else { // Not stackable
+      if (cargoHeight > palletType.height) { // If not stackable and cargo height exceeds pallet height
+        return `Cargo unit height (${cargoHeight}cm) exceeds ${palletType.height}cm pallet usable height, and stacking is not allowed.`;
+      }
     }
 
     const unitsPerPallet = unitsPerLayer * layers;
 
-    if (unitsPerPallet === 0) return Infinity; // Avoid division by zero
+    if (unitsPerPallet === 0) {
+      return "No units can fit on a pallet due to size constraints."; // Fallback, should ideally be caught by above checks
+    }
 
-    return Math.ceil(cargoQuantity / unitsPerPallet);
+    const palletCount = Math.ceil(cargoQuantity / unitsPerPallet);
+
+    // Calculate volume utilization
+    const cargoUnitVolume = cargoLength * cargoWidth * cargoHeight;
+    const totalCargoVolumeOnPallet = unitsPerPallet * cargoUnitVolume; // Volume of cargo that fits on one pallet
+
+    const palletTypeVolume = palletType.length * palletType.width * palletType.height; // Usable volume of the pallet type
+    let palletVolumeUtilization = "0.00";
+    if (palletTypeVolume > 0) {
+      palletVolumeUtilization = ((totalCargoVolumeOnPallet / palletTypeVolume) * 100).toFixed(2);
+    }
+    
+    return {
+      palletCount,
+      unitsPerPallet,
+      palletVolumeUtilization: palletVolumeUtilization + '%',
+      explanation: `Each pallet holds ${unitsPerPallet} units. Total volume used on one pallet is ${ (totalCargoVolumeOnPallet / 1_000_000).toFixed(2) } m³ out of ${ (palletTypeVolume / 1_000_000).toFixed(2) } m³ available.`,
+      palletTypeVolume: palletTypeVolume,
+      cargoVolumePerPallet: totalCargoVolumeOnPallet
+    };
   }, []);
 
 
@@ -120,30 +155,45 @@ export default function LoadCalculatorPage() {
     setPalletResults(null); // Clear previous pallet results
     setResult(null); // Clear previous container results
 
-    try {
-      const cargoLength = Number(formState.unitLength);
-      const cargoWidth = Number(formState.unitWidth);
-      const cargoHeight = Number(formState.unitHeight);
-      const cargoQuantity = Number(formState.quantity);
+    // Declare variables outside try block to ensure scope
+    let calculatedTotalWeight = 0;
+    let calculatedTotalCargoVolume = 0; // In cm^3
+    let calculatedUtilization: string | number = 'N/A';
 
-      // Local container calculation (previously mocked by backend)
-      const totalWeight = Number(formState.unitWeight) * cargoQuantity;
-      const totalVolume = (cargoLength * cargoWidth * cargoHeight * cargoQuantity) / 1_000_000; // cm^3 to m^3
-      // A more accurate utilization would require container dimensions,
-      // which are not currently available here without the backend API.
-      // For now, we'll keep it as a placeholder or a simpler calculation if possible.
-      const utilization = (Math.random() * 100).toFixed(2); // Keep as random for now or implement basic if container dims are added
+    const cargoLength = Number(formState.unitLength);
+    const cargoWidth = Number(formState.unitWidth);
+    const cargoHeight = Number(formState.unitHeight);
+    const cargoQuantity = Number(formState.quantity);
+    const unitWeight = Number(formState.unitWeight); // Define unitWeight here
+
+    try {
+      // Local container calculation
+      calculatedTotalWeight = unitWeight * cargoQuantity;
+      calculatedTotalCargoVolume = (cargoLength * cargoWidth * cargoHeight * cargoQuantity); // cm^3
+
+      const selectedContainerDimensions = CONTAINER_DIMENSIONS_MAP[containerType];
+
+      if (selectedContainerDimensions) {
+        const containerVolume = selectedContainerDimensions.length * selectedContainerDimensions.width * selectedContainerDimensions.height; // cm^3
+        if (containerVolume > 0) {
+          calculatedUtilization = ((calculatedTotalCargoVolume / containerVolume) * 100).toFixed(2);
+        } else {
+          calculatedUtilization = '0.00'; // Avoid division by zero if container volume somehow ends up zero
+        }
+      } else {
+        toast.info('Container dimensions not found for selected type. Utilization will be approximate.');
+      }
 
       setResult({
         totalUnits: cargoQuantity,
-        totalWeight: totalWeight,
-        totalVolume: totalVolume,
-        utilization: utilization,
+        totalWeight: calculatedTotalWeight,
+        totalVolume: (calculatedTotalCargoVolume / 1_000_000).toFixed(2), // Convert to m^3 for display
+        utilization: calculatedUtilization,
         summary: 'Local container calculation completed.'
       });
 
       // Calculate pallet requirements
-      const euroPalletsNeeded = calculatePalletRequirements({
+      const euroPalletResult = calculatePalletRequirements({ // Declare here
         cargoLength,
         cargoWidth,
         cargoHeight,
@@ -152,7 +202,7 @@ export default function LoadCalculatorPage() {
         palletType: EURO_PALLET_DIMENSIONS,
       });
 
-      const standardPalletsNeeded = calculatePalletRequirements({
+      const standardPalletResult = calculatePalletRequirements({ // Declare here
         cargoLength,
         cargoWidth,
         cargoHeight,
@@ -161,9 +211,32 @@ export default function LoadCalculatorPage() {
         palletType: STANDARD_PALLET_DIMENSIONS,
       });
 
+      let betterOption: 'Euro Pallet' | 'Standard Pallet' | 'None' = 'None';
+      // Determine better option based on pallet count, then utilization
+      if (typeof euroPalletResult === 'object' && euroPalletResult !== null && typeof standardPalletResult === 'object' && standardPalletResult !== null) {
+        if (euroPalletResult.palletCount < standardPalletResult.palletCount) {
+          betterOption = 'Euro Pallet';
+        } else if (standardPalletResult.palletCount < euroPalletResult.palletCount) {
+          betterOption = 'Standard Pallet';
+        } else { // Pallet counts are equal, compare by utilization
+          const euroUtil = parseFloat(euroPalletResult.palletVolumeUtilization);
+          const standardUtil = parseFloat(standardPalletResult.palletVolumeUtilization);
+          if (euroUtil > standardUtil) {
+            betterOption = 'Euro Pallet';
+          } else if (standardUtil > euroUtil) {
+            betterOption = 'Standard Pallet';
+          }
+        }
+      } else if (typeof euroPalletResult === 'object' && euroPalletResult !== null) { // Only Euro pallet fits
+        betterOption = 'Euro Pallet';
+      } else if (typeof standardPalletResult === 'object' && standardPalletResult !== null) { // Only Standard pallet fits
+        betterOption = 'Standard Pallet';
+      }
+
       setPalletResults({
-        euroPallets: euroPalletsNeeded,
-        standardPallets: standardPalletsNeeded,
+        euroPallets: euroPalletResult, // Use declared variable
+        standardPallets: standardPalletResult, // Use declared variable
+        betterOption: betterOption,
       });
 
     } catch (error: any) {
@@ -365,7 +438,7 @@ export default function LoadCalculatorPage() {
                 <div style={{ color: '#E2E8F0', fontSize: '14px', lineHeight: 1.6 }}>
                   <div>Total Units: {result.totalUnits ?? formState.quantity}</div>
                   <div>Total Weight: {result.totalWeight ?? '—'} kg</div>
-                  <div>Total Volume: {result.totalVolume ?? '—'} cbm</div>
+                  <div>Total Volume: {result.totalVolume ?? '—'} m³</div>
                   <div>Utilization: {result.utilization ?? '—'}%</div>
                   <div style={{ marginTop: '12px', color: '#94A3B8' }}>
                     {result.summary || 'Calculation completed.'}
@@ -383,22 +456,52 @@ export default function LoadCalculatorPage() {
                       Pallet Fit Comparison
                     </h4>
                     <div style={{ display: 'flex', justifyContent: 'space-between', color: '#E2E8F0', fontSize: '14px', lineHeight: 1.6 }}>
-                      <div>
-                        {palletResults.euroPallets !== null && palletResults.euroPallets !== Infinity && (
-                          <div>Euro Pallets: <span style={{ fontWeight: 600 }}>{palletResults.euroPallets}</span></div>
+                      {/* Euro Pallet Results */}
+                      <div style={{ flex: 1, marginRight: '16px' }}>
+                        <h5 style={{ fontWeight: 700, marginBottom: '4px' }}>Euro Pallet:</h5>
+                        {typeof palletResults.euroPallets === 'object' && palletResults.euroPallets !== null ? (
+                          <>
+                            <div>Required: <span style={{ fontWeight: 600 }}>{palletResults.euroPallets.palletCount}</span></div>
+                            <div>Units per Pallet: {palletResults.euroPallets.unitsPerPallet}</div>
+                            <div>Volume Util.: {palletResults.euroPallets.palletVolumeUtilization}</div>
+                            <p style={{ fontSize: '12px', color: '#94A3B8', marginTop: '4px' }}>
+                              {palletResults.euroPallets.explanation}
+                            </p>
+                          </>
+                        ) : (
+                          <p style={{ color: '#EF4444' }}>
+                            {palletResults.euroPallets ? String(palletResults.euroPallets) : 'Not calculated'}
+                          </p>
                         )}
                       </div>
-                      <div>
-                        {palletResults.standardPallets !== null && palletResults.standardPallets !== Infinity && (
-                          <div>Standard Pallets: <span style={{ fontWeight: 600 }}>{palletResults.standardPallets}</span></div>
+
+                      {/* Standard Pallet Results */}
+                      <div style={{ flex: 1 }}>
+                        <h5 style={{ fontWeight: 700, marginBottom: '4px' }}>Standard Pallet:</h5>
+                        {typeof palletResults.standardPallets === 'object' && palletResults.standardPallets !== null ? (
+                          <>
+                            <div>Required: <span style={{ fontWeight: 600 }}>{palletResults.standardPallets.palletCount}</span></div>
+                            <div>Units per Pallet: {palletResults.standardPallets.unitsPerPallet}</div>
+                            <div>Volume Util.: {palletResults.standardPallets.palletVolumeUtilization}</div>
+                            <p style={{ fontSize: '12px', color: '#94A3B8', marginTop: '4px' }}>
+                              {palletResults.standardPallets.explanation}
+                            </p>
+                          </>
+                        ) : (
+                          <p style={{ color: '#EF4444' }}>
+                            {palletResults.standardPallets ? String(palletResults.standardPallets) : 'Not calculated'}
+                          </p>
                         )}
                       </div>
                     </div>
-                       {(palletResults.euroPallets === Infinity || palletResults.standardPallets === Infinity) && (
-                        <p style={{ color: '#EF4444', fontSize: '13px', marginTop: '8px' }}>
-                          Cargo cannot fit on selected pallet types.
-                        </p>
-                      )}
+
+                    {palletResults.betterOption !== 'None' && (
+                      <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                        <h5 style={{ color: '#0684F5', fontWeight: 700, fontSize: '15px' }}>
+                          Better Option: {palletResults.betterOption}
+                        </h5>
+                      </div>
+                    )}
                   </div>
                 )}
             </div>
