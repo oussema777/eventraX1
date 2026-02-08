@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
 import { EURO_PALLET_DIMENSIONS, STANDARD_PALLET_DIMENSIONS, PalletDimensions } from '../data/palletDimensions';
 import { CONTAINER_DIMENSIONS_MAP } from '../data/containerDimensions';
+import PdfDownloader from '../components/common/PdfDownloader';
 
 
 const CONTAINER_TYPES = [
@@ -57,6 +58,8 @@ export default function LoadCalculatorPage() {
     standardPallets: PalletCalculationResult | string | null;
     betterOption: 'Euro Pallet' | 'Standard Pallet' | 'None' | null;
   } | null>(null);
+
+  const [pdfSummaryContent, setPdfSummaryContent] = useState('');
 
 
   const validateField = useCallback((name: FieldName, value: string): string => {
@@ -147,6 +150,107 @@ export default function LoadCalculatorPage() {
     };
   }, []);
 
+
+  const generatePdfSummaryHtml = useCallback((
+    containerResult: any | null,
+    palletComparisonResults: {
+      euroPallets: PalletCalculationResult | string | null;
+      standardPallets: PalletCalculationResult | string | null;
+      betterOption: 'Euro Pallet' | 'Standard Pallet' | 'None' | null;
+    } | null,
+    formInput: typeof formState, // Pass the formState to include inputs
+    containerTypeLabel: string, // Pass the label of the selected container type
+    stackableCargo: boolean, // Pass the stackable state
+  ): string => {
+    let html = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+        <h1 style="color: #0684F5; text-align: center;">Load Calculation Summary</h1>
+        <p style="text-align: center; color: #555;">Generated on ${new Date().toLocaleDateString()}</p>
+        
+        <h2 style="color: #0B2641; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 20px;">Input Parameters</h2>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9; width: 50%;">Container Type:</td><td style="padding: 8px; border: 1px solid #ddd;">${containerTypeLabel}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9;">Quantity (units):</td><td style="padding: 8px; border: 1px solid #ddd;">${formInput.quantity}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9;">Unit Length (cm):</td><td style="padding: 8px; border: 1px solid #ddd;">${formInput.unitLength}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9;">Unit Width (cm):</td><td style="padding: 8px; border: 1px solid #ddd;">${formInput.unitWidth}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9;">Unit Height (cm):</td><td style="padding: 8px; border: 1px solid #ddd;">${formInput.unitHeight}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9;">Unit Weight (kg):</td><td style="padding: 8px; border: 1px solid #ddd;">${formInput.unitWeight}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9;">Stackable Cargo:</td><td style="padding: 8px; border: 1px solid #ddd;">${stackableCargo ? 'Yes' : 'No'}</td></tr>
+        </table>
+    `;
+
+    if (containerResult) {
+      html += `
+        <h2 style="color: #0B2641; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 20px;">Container Utilization Summary</h2>
+        <p>This section summarizes the estimated utilization of the selected container type based on the provided cargo dimensions.</p>
+        <ul style="list-style-type: disc; margin-left: 20px;">
+          <li><strong>Total Units:</strong> ${containerResult.totalUnits}</li>
+          <li><strong>Total Weight:</strong> ${containerResult.totalWeight} kg</li>
+          <li><strong>Total Volume:</strong> ${containerResult.totalVolume} m³</li>
+          <li><strong>Utilization:</strong> ${containerResult.utilization}%</li>
+        </ul>
+        <p style="font-style: italic; color: #777;">${containerResult.summary}</p>
+      `;
+    } else {
+      html += `
+        <h2 style="color: #0B2641; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 20px;">Container Utilization Summary</h2>
+        <p style="color: #EF4444;">No container utilization data available. Please ensure all inputs are valid and re-run the calculation.</p>
+      `;
+    }
+
+    if (palletComparisonResults) {
+      html += `
+        <h2 style="color: #0B2641; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 20px;">Pallet Fit Comparison</h2>
+        <p>Below is a comparison of how your cargo fits on Euro Pallets and Standard Pallets.</p>
+      `;
+
+      // Euro Pallet Results
+      if (typeof palletComparisonResults.euroPallets === 'object' && palletComparisonResults.euroPallets !== null) {
+        html += `
+          <h3 style="color: #0684F5; margin-top: 15px;">Euro Pallet</h3>
+          <ul style="list-style-type: disc; margin-left: 20px;">
+            <li><strong>Required Pallets:</strong> ${palletComparisonResults.euroPallets.palletCount}</li>
+            <li><strong>Units per Pallet:</strong> ${palletComparisonResults.euroPallets.unitsPerPallet}</li>
+            <li><strong>Volume Utilization:</strong> ${palletComparisonResults.euroPallets.palletVolumeUtilization}</li>
+          </ul>
+          <p style="font-style: italic; color: #777;">${palletComparisonResults.euroPallets.explanation}</p>
+        `;
+      } else {
+        html += `<p style="color: #EF4444;">Euro Pallet: ${String(palletComparisonResults.euroPallets || 'Not calculated')}</p>`;
+      }
+
+      // Standard Pallet Results
+      if (typeof palletComparisonResults.standardPallets === 'object' && palletComparisonResults.standardPallets !== null) {
+        html += `
+          <h3 style="color: #0684F5; margin-top: 15px;">Standard Pallet</h3>
+          <ul style="list-style-type: disc; margin-left: 20px;">
+            <li><strong>Required Pallets:</strong> ${palletComparisonResults.standardPallets.palletCount}</li>
+            <li><strong>Units per Pallet:</strong> ${palletComparisonResults.standardPallets.unitsPerPallet}</li>
+            <li><strong>Volume Utilization:</strong> ${palletComparisonResults.standardPallets.palletVolumeUtilization}</li>
+          </ul>
+          <p style="font-style: italic; color: #777;">${palletComparisonResults.standardPallets.explanation}</p>
+        `;
+      } else {
+        html += `<p style="color: #EF4444;">Standard Pallet: ${String(palletComparisonResults.standardPallets || 'Not calculated')}</p>`;
+      }
+
+      if (palletComparisonResults.betterOption !== 'None') {
+        html += `
+          <p style="margin-top: 20px; font-weight: bold; color: #0684F5;">
+            Overall Better Option: ${palletComparisonResults.betterOption}
+          </p>
+        `;
+      }
+    } else {
+      html += `
+        <h2 style="color: #0B2641; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 20px;">Pallet Fit Comparison</h2>
+        <p style="color: #EF4444;">No pallet fit comparison data available. Please ensure all inputs are valid and re-run the calculation.</p>
+      `;
+    }
+
+    html += `</div>`;
+    return html;
+  }, [formState, containerType, stackable]);
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -243,6 +347,10 @@ export default function LoadCalculatorPage() {
       toast.error(error.message || 'Failed to perform local calculation.');
     } finally {
       setIsSubmitting(false);
+      const selectedContainerLabel = CONTAINER_TYPES.find(c => c.id === containerType)?.label || containerType;
+      const generatedHtml = generatePdfSummaryHtml(result, palletResults, formState, selectedContainerLabel, stackable);
+      setPdfSummaryContent(generatedHtml);
+      console.log('PDF Summary Content (from generator):', generatedHtml); // Debugging line
     }
   };
 
@@ -422,89 +530,207 @@ export default function LoadCalculatorPage() {
               </button>
             </div>
 
-            <div
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: '16px',
-                padding: '24px',
-                minHeight: '320px'
-              }}
-            >
-              <h3 style={{ color: '#FFFFFF', fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>
-                Utilization Summary
-              </h3>
-              {result ? (
-                <div style={{ color: '#E2E8F0', fontSize: '14px', lineHeight: 1.6 }}>
-                  <div>Total Units: {result.totalUnits ?? formState.quantity}</div>
-                  <div>Total Weight: {result.totalWeight ?? '—'} kg</div>
-                  <div>Total Volume: {result.totalVolume ?? '—'} m³</div>
-                  <div>Utilization: {result.utilization ?? '—'}%</div>
-                  <div style={{ marginTop: '12px', color: '#94A3B8' }}>
-                    {result.summary || 'Calculation completed.'}
-                  </div>
-                </div>
-              ) : (
-                <p style={{ color: '#94A3B8', fontSize: '13px' }}>
-                  Submit the form to see container utilization.
-                </p>
-              )}
+                        <div
 
-                {palletResults && (
-                  <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                    <h4 style={{ color: '#FFFFFF', fontSize: '15px', fontWeight: 600, marginBottom: '8px' }}>
-                      Pallet Fit Comparison
-                    </h4>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#E2E8F0', fontSize: '14px', lineHeight: 1.6 }}>
-                      {/* Euro Pallet Results */}
-                      <div style={{ flex: 1, marginRight: '16px' }}>
-                        <h5 style={{ fontWeight: 700, marginBottom: '4px' }}>Euro Pallet:</h5>
-                        {typeof palletResults.euroPallets === 'object' && palletResults.euroPallets !== null ? (
-                          <>
-                            <div>Required: <span style={{ fontWeight: 600 }}>{palletResults.euroPallets.palletCount}</span></div>
-                            <div>Units per Pallet: {palletResults.euroPallets.unitsPerPallet}</div>
-                            <div>Volume Util.: {palletResults.euroPallets.palletVolumeUtilization}</div>
-                            <p style={{ fontSize: '12px', color: '#94A3B8', marginTop: '4px' }}>
-                              {palletResults.euroPallets.explanation}
+                          style={{
+
+                            backgroundColor: 'rgba(255,255,255,0.04)',
+
+                            border: '1px solid rgba(255,255,255,0.1)',
+
+                            borderRadius: '16px',
+
+                            padding: '24px',
+
+                            minHeight: '320px'
+
+                          }}
+
+                        >
+
+                          <h3 style={{ color: '#FFFFFF', fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>
+
+                            Utilization Summary
+
+                          </h3>
+
+                          {result ? (
+
+                            <div style={{ color: '#E2E8F0', fontSize: '14px', lineHeight: 1.6 }}>
+
+                              <div>Total Units: {result.totalUnits ?? formState.quantity}</div>
+
+                              <div>Total Weight: {result.totalWeight ?? '—'} kg</div>
+
+                              <div>Total Volume: {result.totalVolume ?? '—'} m³</div>
+
+                              <div>Utilization: {result.utilization ?? '—'}%</div>
+
+                              <div style={{ marginTop: '12px', color: '#94A3B8' }}>
+
+                                {result.summary || 'Calculation completed.'}
+
+                              </div>
+
+                            </div>
+
+                          ) : (
+
+                            <p style={{ color: '#94A3B8', fontSize: '13px' }}>
+
+                              Submit the form to see container utilization.
+
                             </p>
-                          </>
-                        ) : (
-                          <p style={{ color: '#EF4444' }}>
-                            {palletResults.euroPallets ? String(palletResults.euroPallets) : 'Not calculated'}
-                          </p>
-                        )}
-                      </div>
 
-                      {/* Standard Pallet Results */}
-                      <div style={{ flex: 1 }}>
-                        <h5 style={{ fontWeight: 700, marginBottom: '4px' }}>Standard Pallet:</h5>
-                        {typeof palletResults.standardPallets === 'object' && palletResults.standardPallets !== null ? (
-                          <>
-                            <div>Required: <span style={{ fontWeight: 600 }}>{palletResults.standardPallets.palletCount}</span></div>
-                            <div>Units per Pallet: {palletResults.standardPallets.unitsPerPallet}</div>
-                            <div>Volume Util.: {palletResults.standardPallets.palletVolumeUtilization}</div>
-                            <p style={{ fontSize: '12px', color: '#94A3B8', marginTop: '4px' }}>
-                              {palletResults.standardPallets.explanation}
-                            </p>
-                          </>
-                        ) : (
-                          <p style={{ color: '#EF4444' }}>
-                            {palletResults.standardPallets ? String(palletResults.standardPallets) : 'Not calculated'}
-                          </p>
-                        )}
-                      </div>
-                    </div>
+                          )}
 
-                    {palletResults.betterOption !== 'None' && (
-                      <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                        <h5 style={{ color: '#0684F5', fontWeight: 700, fontSize: '15px' }}>
-                          Better Option: {palletResults.betterOption}
-                        </h5>
-                      </div>
-                    )}
-                  </div>
-                )}
-            </div>
+            
+
+                            {palletResults && (
+
+                              <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+
+                                <h4 style={{ color: '#FFFFFF', fontSize: '15px', fontWeight: 600, marginBottom: '8px' }}>
+
+                                  Pallet Fit Comparison
+
+                                </h4>
+
+                                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#E2E8F0', fontSize: '14px', lineHeight: 1.6 }}>
+
+                                  {/* Euro Pallet Results */}
+
+                                  <div style={{ flex: 1, marginRight: '16px' }}>
+
+                                    <h5 style={{ fontWeight: 700, marginBottom: '4px' }}>Euro Pallet:</h5>
+
+                                    {typeof palletResults.euroPallets === 'object' && palletResults.euroPallets !== null ? (
+
+                                      <>
+
+                                        <div>Required: <span style={{ fontWeight: 600 }}>
+
+                                            {palletResults.euroPallets.palletCount}
+
+                                          </span>
+
+                                        </div>
+
+                                        <div>Units per Pallet: {palletResults.euroPallets.unitsPerPallet}</div>
+
+                                        <div>Volume Util.: {palletResults.euroPallets.palletVolumeUtilization}</div>
+
+                                        <p style={{ fontSize: '12px', color: '#94A3B8', marginTop: '4px' }}>
+
+                                          {palletResults.euroPallets.explanation}
+
+                                        </p>
+
+                                      </>
+
+                                    ) : (
+
+                                      <p style={{ color: '#EF4444' }}>
+
+                                        {palletResults.euroPallets ? String(palletResults.euroPallets) : 'Not calculated'}
+
+                                      </p>
+
+                                    )}
+
+                                  </div>
+
+            
+
+                                  {/* Standard Pallet Results */}
+
+                                  <div style={{ flex: 1 }}>
+
+                                    <h5 style={{ fontWeight: 700, marginBottom: '4px' }}>Standard Pallet:</h5>
+
+                                    {typeof palletResults.standardPallets === 'object' && palletResults.standardPallets !== null ? (
+
+                                      <>
+
+                                        <div>Required: <span style={{ fontWeight: 600 }}>
+
+                                            {palletResults.standardPallets.palletCount}
+
+                                          </span>
+
+                                        </div>
+
+                                        <div>Units per Pallet: {palletResults.standardPallets.unitsPerPallet}</div>
+
+                                        <div>Volume Util.: {palletResults.standardPallets.palletVolumeUtilization}</div>
+
+                                        <p style={{ fontSize: '12px', color: '#94A3B8', marginTop: '4px' }}>
+
+                                          {palletResults.standardPallets.explanation}
+
+                                        </p>
+
+                                      </>
+
+                                    ) : (
+
+                                      <p style={{ color: '#EF4444' }}>
+
+                                        {palletResults.standardPallets ? String(palletResults.standardPallets) : 'Not calculated'}
+
+                                      </p>
+
+                                    )}
+
+                                  </div>
+
+                                </div>
+
+            
+
+                                {palletResults.betterOption !== 'None' && (
+
+                                  <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+
+                                    <h5 style={{ color: '#0684F5', fontWeight: 700, fontSize: '15px' }}>
+
+                                      Better Option: {palletResults.betterOption}
+
+                                    </h5>
+
+                                  </div>
+
+                                )}
+
+                              </div>
+
+                            )}
+
+                            {result && (
+
+                              <div style={{ marginTop: '24px' }}>
+
+                                <PdfDownloader
+
+                                  rootElementId="pdf-summary-content"
+
+                                  fileName="LoadCalculationSummary.pdf"
+
+                                  buttonText="Download Calculation Summary"
+
+                                  disabled={isSubmitting}
+
+                                />
+
+                              </div>
+
+                            )}
+
+                        </div>
+
+                                                            {/* Hidden div for PDF content */}
+
+                                                            <div id="pdf-summary-content" style={{ display: 'none' }} dangerouslySetInnerHTML={{ __html: pdfSummaryContent }} />
           </div>
         </div>
       </div>
