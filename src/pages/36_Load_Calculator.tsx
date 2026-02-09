@@ -256,13 +256,21 @@ export default function LoadCalculatorPage() {
     if (!canSubmit) return;
 
     setIsSubmitting(true);
-    setPalletResults(null); // Clear previous pallet results
-    setResult(null); // Clear previous container results
+    // Clear previous results immediately for UI feedback
+    setPalletResults(null);
+    setResult(null);
 
     // Declare variables outside try block to ensure scope
     let calculatedTotalWeight = 0;
     let calculatedTotalCargoVolume = 0; // In cm^3
     let calculatedUtilization: string | number = 'N/A';
+    let currentContainerResult: any | null = null; // Local variable for container results
+    let currentPalletResults: { // Local variable for pallet comparison results
+      euroPallets: PalletCalculationResult | string | null;
+      standardPallets: PalletCalculationResult | string | null;
+      betterOption: 'Euro Pallet' | 'Standard Pallet' | 'None' | null;
+    } | null = null;
+
 
     const cargoLength = Number(formState.unitLength);
     const cargoWidth = Number(formState.unitWidth);
@@ -288,16 +296,17 @@ export default function LoadCalculatorPage() {
         toast.info('Container dimensions not found for selected type. Utilization will be approximate.');
       }
 
-      setResult({
+      currentContainerResult = {
         totalUnits: cargoQuantity,
         totalWeight: calculatedTotalWeight,
         totalVolume: (calculatedTotalCargoVolume / 1_000_000).toFixed(2), // Convert to m^3 for display
         utilization: calculatedUtilization,
         summary: 'Local container calculation completed.'
-      });
+      };
+      setResult(currentContainerResult); // Update state with fresh local variable
 
       // Calculate pallet requirements
-      const euroPalletResult = calculatePalletRequirements({ // Declare here
+      const euroPalletResult = calculatePalletRequirements({
         cargoLength,
         cargoWidth,
         cargoHeight,
@@ -306,7 +315,7 @@ export default function LoadCalculatorPage() {
         palletType: EURO_PALLET_DIMENSIONS,
       });
 
-      const standardPalletResult = calculatePalletRequirements({ // Declare here
+      const standardPalletResult = calculatePalletRequirements({
         cargoLength,
         cargoWidth,
         cargoHeight,
@@ -337,18 +346,22 @@ export default function LoadCalculatorPage() {
         betterOption = 'Standard Pallet';
       }
 
-      setPalletResults({
-        euroPallets: euroPalletResult, // Use declared variable
-        standardPallets: standardPalletResult, // Use declared variable
+      currentPalletResults = {
+        euroPallets: euroPalletResult,
+        standardPallets: standardPalletResult,
         betterOption: betterOption,
-      });
+      };
+      setPalletResults(currentPalletResults); // Update state with fresh local variable
 
     } catch (error: any) {
       toast.error(error.message || 'Failed to perform local calculation.');
+      // If error, ensure PDF content is cleared or indicates error
+      setPdfSummaryContent('');
     } finally {
       setIsSubmitting(false);
       const selectedContainerLabel = CONTAINER_TYPES.find(c => c.id === containerType)?.label || containerType;
-      const generatedHtml = generatePdfSummaryHtml(result, palletResults, formState, selectedContainerLabel, stackable);
+      // Pass the local variables (which hold the latest data) to the PDF generator
+      const generatedHtml = generatePdfSummaryHtml(currentContainerResult, currentPalletResults, formState, selectedContainerLabel, stackable);
       setPdfSummaryContent(generatedHtml);
       console.log('PDF Summary Content (from generator):', generatedHtml); // Debugging line
     }
@@ -710,31 +723,37 @@ export default function LoadCalculatorPage() {
 
                               <div style={{ marginTop: '24px' }}>
 
-                                <PdfDownloader
+                                                                <PdfDownloader
 
-                                  rootElementId="pdf-summary-content"
+                                                                  rootElementId="pdf-summary-content"
 
-                                  fileName="LoadCalculationSummary.pdf"
+                                                                  fileName="LoadCalculationSummary.pdf"
 
-                                  buttonText="Download Calculation Summary"
+                                                                  buttonText="Download Calculation Summary"
 
-                                  disabled={isSubmitting}
+                                                                  disabled={isSubmitting}
 
-                                />
+                                                                />
 
-                              </div>
+                                                              </div>
 
-                            )}
+                                                            )}
 
-                        </div>
+                                                        </div>
 
-                                                            {/* Hidden div for PDF content */}
+                                
 
-                                                            <div id="pdf-summary-content" style={{ display: 'none' }} dangerouslySetInnerHTML={{ __html: pdfSummaryContent }} />
-          </div>
-        </div>
-      </div>
-      <style>{`
+                                                                                            {/* Hidden div for PDF content */}
+
+                                                                                            <div id="pdf-summary-content" style={{ position: 'absolute', left: '-9999px', opacity: 0 }} dangerouslySetInnerHTML={{ __html: pdfSummaryContent }} />
+
+                                          </div>
+
+                                        </div>
+
+                                      </div>
+
+                                      <style>{`
         /* Responsive layout for the main two-column grid */
         @media (max-width: 900px) {
           .load-calc__layout {
