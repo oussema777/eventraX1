@@ -88,40 +88,95 @@ app.post('/api/freight-export', (req, res) => {
     return res.status(400).json({ ok: false, error: 'Origin, Destination, Weight, and Volume are required.' });
   }
 
-  // Dummy Distance Calculation (placeholder for actual logic)
+  // --- Distance Calculation (More Realistic) ---
   let distance = 0;
-  // Very simplistic example: assign a fixed distance for certain pairs or a random value
-  if (origin.toLowerCase().includes('tunis') && destination.toLowerCase().includes('marseille')) {
-    distance = 800; // Example distance in km
-  } else if (origin.toLowerCase().includes('london') && destination.toLowerCase().includes('new york')) {
-    distance = 5500;
+  const originLower = origin.toLowerCase();
+  const destinationLower = destination.toLowerCase();
+
+  // Expanded lookup table for major routes (approximate distances in km)
+  const distances = {
+    'tunis-marseille': 800,
+    'tunis-paris': 1500,
+    'london-new york': 5500,
+    'shanghai-los angeles': 10500,
+    'sydney-tokyo': 7800,
+    'dubai-london': 5400,
+    'frankfurt-shanghai': 8200,
+    'singapore-rotterdam': 11000,
+  };
+
+  const routeKey1 = `${originLower}-${destinationLower}`;
+  const routeKey2 = `${destinationLower}-${originLower}`; // Check reverse route as well
+
+  if (distances[routeKey1]) {
+    distance = distances[routeKey1];
+  } else if (distances[routeKey2]) {
+    distance = distances[routeKey2];
   } else {
-    distance = Math.floor(Math.random() * 10000) + 100; // Random distance
+    // Fallback: simple heuristic based on string length difference, very rough
+    const avgCityLength = (origin.length + destination.length) / 2;
+    distance = Math.floor(avgCityLength * 100 + Math.random() * 2000) + 500;
+  }
+  
+  // Ensure distance is at least 100km
+  distance = Math.max(100, distance);
+
+  // --- Chargeable Weight Calculation ---
+  let chargeableWeight = weight;
+  const volumeWeightAirFactor = 167; // kg per CBM for air freight (approx. 1:6000 density)
+  const volumeWeightSeaRoadFactor = 333; // kg per CBM for sea/road freight (approx. 1:3000 density for some LCL)
+
+  if (mode === 'Air') {
+    chargeableWeight = Math.max(weight, volume * volumeWeightAirFactor);
+  } else if (mode === 'Sea' || mode === 'Road') {
+    chargeableWeight = Math.max(weight, volume * volumeWeightSeaRoadFactor);
   }
 
-  // Dummy Cost Calculation (placeholder for actual logic)
+  // --- Cost Calculation (More Realistic) ---
   let cost = 0;
   let currency = 'USD'; // Default currency
 
-  // Simple cost logic based on weight and volume
-  const weightFactor = 2.5; // Cost per kg
-  const volumeFactor = 150; // Cost per CBM
-
-  cost = (weight * weightFactor) + (volume * volumeFactor);
-
-  // Add some variability based on mode (e.g., air is more expensive)
+  // Base rates per chargeable weight (USD per kg)
+  let ratePerKg = 0;
   if (mode === 'Air') {
-    cost *= 1.8;
+    ratePerKg = 5; // Air cargo is generally most expensive
   } else if (mode === 'Sea') {
-    cost *= 1.2;
+    ratePerKg = 0.5; // Sea freight is typically cheaper
+  } else if (mode === 'Road') {
+    ratePerKg = 1.5; // Road freight is in between
   }
 
-  // Further adjustments based on cargo type, incoterm, etc. could be added here
+  cost = chargeableWeight * ratePerKg;
+
+  // Add a distance-based component
+  if (mode === 'Air') {
+    cost += distance * 0.15; // Higher per-km cost for air
+  } else if (mode === 'Sea') {
+    cost += distance * 0.02; // Lower per-km cost for sea
+  } else if (mode === 'Road') {
+    cost += distance * 0.05; // Medium per-km cost for road
+  }
+
+  // Surcharges based on cargo type
   if (cargoType === 'Hazardous') {
-    cost += 500; // Surcharge for hazardous
+    cost += 1500; // Significant surcharge
+  } else if (cargoType === 'Perishable') {
+    cost += 1000;
+  } else if (cargoType === 'Oversized') {
+    cost += 750;
   }
 
-  const summary = `Estimated freight from ${origin} to ${destination} via ${mode}.`;
+  // Incoterm impact (simplified - could be more complex with actual responsibilities)
+  if (incoterm === 'EXW') {
+    cost += 300; // Extra local pickup/handling
+  } else if (incoterm === 'DDP') {
+    cost += (cargoValue || 0) * 0.1 + 500; // Add percentage of cargo value for duties/taxes + handling
+  }
+
+  // Add a small base fee
+  cost += 100;
+
+  const summary = `API estimate from ${origin} to ${destination} via ${mode}. Charged on ${chargeableWeight.toFixed(2)} kg.`;
 
   res.status(200).json({
     ok: true,
@@ -131,7 +186,7 @@ app.post('/api/freight-export', (req, res) => {
       mode,
       cost: parseFloat(cost.toFixed(2)),
       currency,
-      distance,
+      distance: Math.floor(distance),
       summary,
     },
   });
