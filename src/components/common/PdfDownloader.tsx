@@ -19,45 +19,30 @@ const PdfDownloader: React.FC<PdfDownloaderProps> = ({
   className,
   disabled = false,
 }) => {
-  const handleDownloadPdf = async () => { // Made function async
+  const handleDownloadPdf = async () => {
     const element = document.getElementById(rootElementId);
-    if (!element) {
-      console.error(`Element with ID "${rootElementId}" not found.`);
+    if (!element || !element.innerHTML) {
+      console.error(`Element with ID "${rootElementId}" not found or is empty.`);
       return;
     }
-
-    // Clone the element to manipulate its visibility without affecting the original
-    const clonedElement = element.cloneNode(true) as HTMLElement;
-
-    // Apply temporary styles to the cloned element to make it renderable but off-screen
-    clonedElement.style.display = 'block';
-    clonedElement.style.position = 'absolute';
-    clonedElement.style.left = '-9999px';
-    clonedElement.style.opacity = '0'; // Keep it invisible
-    // Set a fixed width to prevent layout issues if content is too wide for standard A4 portrait
-    clonedElement.style.width = '210mm'; // Standard A4 width
-    clonedElement.style.padding = '20mm'; // Add some padding
-    clonedElement.style.backgroundColor = 'white'; // Ensure background is white for print
-
-    document.body.appendChild(clonedElement); // Temporarily append to body
 
     const opt = {
       margin: 10,
       filename: fileName,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, logging: true, dpi: 192, letterRendering: true }, // Changed logging to false
+      html2canvas: { scale: 2, logging: false, dpi: 192, letterRendering: true },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
       pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
     try {
-      await html2pdf().set(opt).from(clonedElement).save();
+      // Directly pass the innerHTML string to html2pdf
+      await html2pdf().set(opt).from(element.innerHTML).save();
     } catch (error) {
       console.error("Error generating PDF:", error);
       // Optionally, show a toast or other user feedback
-    } finally {
-      document.body.removeChild(clonedElement); // Clean up: remove the cloned element
     }
+    // No need to remove cloned element as we are no longer cloning
   };
 
   return (

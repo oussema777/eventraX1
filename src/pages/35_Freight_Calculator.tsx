@@ -6,6 +6,7 @@ import ModalLogin from '../components/modals/ModalLogin';
 import ModalRegistrationEntry from '../components/modals/ModalRegistrationEntry';
 import { useAuth } from '../contexts/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
+import PdfDownloader from '../components/common/PdfDownloader';
 
 const LOGISTICS_API_BASE = import.meta.env.VITE_LOGISTICS_API_BASE || '';
 const FREIGHT_EXPORT_ENDPOINT =
@@ -145,6 +146,51 @@ export default function FreightCalculatorPage() {
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [quoteResult, setQuoteResult] = useState<QuoteResult | null>(null);
+  const [pdfSummaryContent, setPdfSummaryContent] = useState('');
+
+  const generatePdfSummaryHtml = useCallback((
+    quote: QuoteResult,
+    formInput: typeof formState,
+    selectedMode: string,
+    selectedIncoterm: string,
+    selectedCargoType: string,
+    selectedReadyDate: string,
+    notesInput: string,
+  ): string => {
+    let html = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+        <h1 style="color: #0684F5; text-align: center;">Freight Calculation Summary</h1>
+        <p style="text-align: center; color: #555;">Generated on ${new Date().toLocaleDateString()}</p>
+        
+        <h2 style="color: #0B2641; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 20px;">Input Parameters</h2>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9; width: 50%;">Origin:</td><td style="padding: 8px; border: 1px solid #ddd;">${formInput.origin}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9;">Destination:</td><td style="padding: 8px; border: 1px solid #ddd;">${formInput.destination}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9;">Mode:</td><td style="padding: 8px; border: 1px solid #ddd;">${selectedMode}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9;">Incoterm:</td><td style="padding: 8px; border: 1px solid #ddd;">${selectedIncoterm}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9;">Cargo Type:</td><td style="padding: 8px; border: 1px solid #ddd;">${selectedCargoType}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9;">Ready Date:</td><td style="padding: 8px; border: 1px solid #ddd;">${selectedReadyDate || 'N/A'}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9;">Total Weight (kg):</td><td style="padding: 8px; border: 1px solid #ddd;">${formInput.weight}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9;">Total Volume (CBM):</td><td style="padding: 8px; border: 1px solid #ddd;">${formInput.volume}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9;">Packages Count:</td><td style="padding: 8px; border: 1px solid #ddd;">${formInput.packagesCount || 'N/A'}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9;">Cargo Value (USD):</td><td style="padding: 8px; border: 1px solid #ddd;">${formInput.cargoValue || 'N/A'}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9;">Notes:</td><td style="padding: 8px; border: 1px solid #ddd;">${notesInput || 'N/A'}</td></tr>
+        </table>
+
+        <h2 style="color: #0B2641; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 20px;">Estimated Quote</h2>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9; width: 50%;">Source:</td><td style="padding: 8px; border: 1px solid #ddd;">${quote.source} Estimate</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9;">Origin:</td><td style="padding: 8px; border: 1px solid #ddd;">${quote.origin}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9;">Destination:</td><td style="padding: 8px; border: 1px solid #ddd;">${quote.destination}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9;">Mode:</td><td style="padding: 8px; border: 1px solid #ddd;">${quote.mode}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9;">Distance:</td><td style="padding: 8px; border: 1px solid #ddd;">${quote.distance} km</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; background-color: #f9f9f9;">Estimated Cost:</td><td style="padding: 8px; border: 1px solid #ddd;">${quote.cost} ${quote.currency}</td></tr>
+        </table>
+        <p style="font-style: italic; color: #777;">${quote.summary || 'Quote generated successfully.'}</p>
+      </div>
+    `;
+    return html;
+  }, []);
 
   const validateField = useCallback((name: FieldName, value: string): string => {
     if (['origin', 'destination', 'weight', 'volume'].includes(name) && !value.trim()) {
@@ -241,6 +287,19 @@ export default function FreightCalculatorPage() {
     
     setQuoteResult(calculatedQuote);
     setIsSubmitting(false);
+
+    if (calculatedQuote) {
+      const generatedHtml = generatePdfSummaryHtml(
+        calculatedQuote,
+        formState,
+        mode,
+        incoterm,
+        cargoType,
+        readyDate,
+        notes,
+      );
+      setPdfSummaryContent(generatedHtml);
+    }
   };
 
   const handleLogout = async () => {
@@ -493,6 +552,11 @@ export default function FreightCalculatorPage() {
                   <div style={{ marginBottom: '8px', fontWeight: 600, color: quoteResult.source === 'Local' ? '#FBBF24' : '#6EE7B7' }}>
                     Source: {quoteResult.source} Estimate
                   </div>
+                  {quoteResult.source === 'Local' && (
+                    <p style={{ color: '#FBBF24', fontSize: '12px', marginTop: '-4px', marginBottom: '8px' }}>
+                      (API was unavailable or not configured, using local approximation)
+                    </p>
+                  )}
                   <div>Origin: {quoteResult.origin || formState.origin}</div>
                   <div>Destination: {quoteResult.destination || formState.destination}</div>
                   <div>Mode: {quoteResult.mode || mode}</div>
@@ -507,10 +571,24 @@ export default function FreightCalculatorPage() {
                   Submit the form to see your freight estimate.
                 </p>
               )}
+
+              {quoteResult && (
+                <div style={{ marginTop: '24px' }}>
+                  <PdfDownloader
+                    rootElementId="freight-pdf-summary-content"
+                    fileName="FreightCalculationSummary.pdf"
+                    buttonText="Download Freight Summary"
+                    disabled={isSubmitting}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Hidden div for PDF content */}
+      <div id="freight-pdf-summary-content" style={{ position: 'absolute', left: '-9999px', opacity: 0 }} dangerouslySetInnerHTML={{ __html: pdfSummaryContent }} />
       <style>{`
         /* Responsive layout for the main two-column grid */
         @media (max-width: 900px) {
