@@ -78,6 +78,65 @@ app.post('/api/send-email', async (req, res) => {
   }
 });
 
+
+// Freight Export Endpoint
+app.post('/api/freight-export', (req, res) => {
+  const { origin, destination, weight, volume, mode, incoterm, cargoType, packagesCount, readyDate, cargoValue, notes } = req.body;
+
+  // Basic validation
+  if (!origin || !destination || !weight || !volume) {
+    return res.status(400).json({ ok: false, error: 'Origin, Destination, Weight, and Volume are required.' });
+  }
+
+  // Dummy Distance Calculation (placeholder for actual logic)
+  let distance = 0;
+  // Very simplistic example: assign a fixed distance for certain pairs or a random value
+  if (origin.toLowerCase().includes('tunis') && destination.toLowerCase().includes('marseille')) {
+    distance = 800; // Example distance in km
+  } else if (origin.toLowerCase().includes('london') && destination.toLowerCase().includes('new york')) {
+    distance = 5500;
+  } else {
+    distance = Math.floor(Math.random() * 10000) + 100; // Random distance
+  }
+
+  // Dummy Cost Calculation (placeholder for actual logic)
+  let cost = 0;
+  let currency = 'USD'; // Default currency
+
+  // Simple cost logic based on weight and volume
+  const weightFactor = 2.5; // Cost per kg
+  const volumeFactor = 150; // Cost per CBM
+
+  cost = (weight * weightFactor) + (volume * volumeFactor);
+
+  // Add some variability based on mode (e.g., air is more expensive)
+  if (mode === 'Air') {
+    cost *= 1.8;
+  } else if (mode === 'Sea') {
+    cost *= 1.2;
+  }
+
+  // Further adjustments based on cargo type, incoterm, etc. could be added here
+  if (cargoType === 'Hazardous') {
+    cost += 500; // Surcharge for hazardous
+  }
+
+  const summary = `Estimated freight from ${origin} to ${destination} via ${mode}.`;
+
+  res.status(200).json({
+    ok: true,
+    data: {
+      origin,
+      destination,
+      mode,
+      cost: parseFloat(cost.toFixed(2)),
+      currency,
+      distance,
+      summary,
+    },
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Custom Email Backend running on http://localhost:${PORT}`);
 });

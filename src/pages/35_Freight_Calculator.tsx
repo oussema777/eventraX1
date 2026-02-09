@@ -15,7 +15,104 @@ const INCOTERMS = ['EXW', 'FOB', 'CIF', 'DAP', 'DDP'];
 const MODES = ['Air', 'Sea', 'Road'];
 const CARGO_TYPES = ['General', 'Perishable', 'Hazardous', 'Oversized'];
 
+type LocalEstimatePayload = {
+  origin: string;
+  destination: string;
+  weight: number;
+  volume: number;
+  mode: string;
+  incoterm: string;
+  cargoType: string;
+};
+
+// Local Estimation Function (Phase 2)
+const calculateLocalFreightEstimate = (payload: LocalEstimatePayload): QuoteResult => {
+  const { origin, destination, weight, volume, mode, incoterm, cargoType } = payload;
+
+  // 1. Chargeable Weight Calculation
+  let chargeableWeight = weight;
+  const volumeWeightAirFactor = 167; // kg per CBM for air freight (approx. 1:6000 density)
+  const volumeWeightSeaRoadFactor = 333; // kg per CBM for sea/road freight (approx. 1:3000 density for some LCL)
+
+  if (mode === 'Air') {
+    chargeableWeight = Math.max(weight, volume * volumeWeightAirFactor);
+  } else if (mode === 'Sea' || mode === 'Road') {
+    chargeableWeight = Math.max(weight, volume * volumeWeightSeaRoadFactor);
+  }
+
+  // 2. Dummy Distance Calculation (more refined than backend placeholder)
+  let distance = 0;
+  const originLower = origin.toLowerCase();
+  const destinationLower = destination.toLowerCase();
+
+  if (originLower.includes('tunis') && destinationLower.includes('marseille')) {
+    distance = 800;
+  } else if (originLower.includes('london') && destinationLower.includes('new york')) {
+    distance = 5500;
+  } else if (originLower.includes('shanghai') && destinationLower.includes('los angeles')) {
+    distance = 10500;
+  } else if (originLower.includes('sydney') && destinationLower.includes('tokyo')) {
+    distance = 7800;
+  } else {
+    // Fallback: estimate based on random distance per 1000km range
+    const distanceSeed = (origin.length + destination.length) % 10;
+    distance = (distanceSeed * 1000) + Math.floor(Math.random() * 999) + 100;
+  }
+
+  // 3. Dummy Cost Calculation (more refined than backend placeholder)
+  let cost = chargeableWeight * 5; // Base rate per chargeable kg/unit
+  if (mode === 'Air') {
+    cost += distance * 0.1; // Distance factor for air
+    cost *= 2; // Higher base multiplier for air
+  } else if (mode === 'Sea') {
+    cost += distance * 0.02; // Distance factor for sea
+    cost *= 0.8; // Lower base multiplier for sea
+  } else if (mode === 'Road') {
+    cost += distance * 0.05; // Distance factor for road
+    cost *= 1.2; // Medium base multiplier for road
+  }
+
+  // Add surcharges for cargo type
+  if (cargoType === 'Hazardous') {
+    cost += 1000;
+  } else if (cargoType === 'Perishable') {
+    cost += 750;
+  }
+
+  // Add incoterm impact (simplistic)
+  if (incoterm === 'EXW') {
+    cost += 200; // Extra local handling
+  } else if (incoterm === 'DDP') {
+    cost += 300; // Extra duties/taxes handling
+  }
+
+  const currency = 'USD';
+  const summary = `Local estimate from ${origin} to ${destination} via ${mode}. Charged on ${chargeableWeight.toFixed(2)} kg.`;
+
+  return {
+    origin,
+    destination,
+    mode,
+    cost: parseFloat(cost.toFixed(2)),
+    currency,
+    distance: Math.floor(distance),
+    summary,
+    source: 'Local', // Indicate local estimate
+  };
+};
+
 type FieldName = 'origin' | 'destination' | 'weight' | 'volume' | 'packagesCount' | 'cargoValue';
+
+type QuoteResult = {
+  origin: string;
+  destination: string;
+  mode: string;
+  cost: number;
+  currency: string;
+  distance: number; // Assuming distance in km
+  summary?: string;
+  source: 'API' | 'Local'; // New field to indicate source
+};
 
 export default function FreightCalculatorPage() {
   const { user, profile, signOut } = useAuth();
@@ -47,7 +144,7 @@ export default function FreightCalculatorPage() {
   const [readyDate, setReadyDate] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [quoteResult, setQuoteResult] = useState<any | null>(null);
+  const [quoteResult, setQuoteResult] = useState<QuoteResult | null>(null);
 
   const validateField = useCallback((name: FieldName, value: string): string => {
     if (['origin', 'destination', 'weight', 'volume'].includes(name) && !value.trim()) {
@@ -76,40 +173,74 @@ export default function FreightCalculatorPage() {
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
-    if (!FREIGHT_EXPORT_ENDPOINT) {
-      toast.error('Logistics API is not configured.');
-      return;
-    }
     setIsSubmitting(true);
-    try {
-      const payload = {
-        origin: formState.origin,
-        destination: formState.destination,
-        mode,
-        incoterm,
-        cargoType,
-        weight: Number(formState.weight),
-        volume: Number(formState.volume),
-        packagesCount: formState.packagesCount ? Number(formState.packagesCount) : null,
-        readyDate: readyDate || null,
-        cargoValue: formState.cargoValue ? Number(formState.cargoValue) : null,
-        notes: notes.trim() || null
-      };
-      const res = await fetch(FREIGHT_EXPORT_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (!res.ok || data?.ok === false) {
-        throw new Error(data?.error || 'Failed to calculate freight');
+
+    const payload = {
+      origin: formState.origin,
+      destination: formState.destination,
+      mode,
+      incoterm,
+      cargoType,
+      weight: Number(formState.weight),
+      volume: Number(formState.volume),
+      packagesCount: formState.packagesCount ? Number(formState.packagesCount) : null,
+      readyDate: readyDate || null,
+      cargoValue: formState.cargoValue ? Number(formState.cargoValue) : null,
+      notes: notes.trim() || null
+    };
+
+    let calculatedQuote: QuoteResult | null = null;
+
+    if (FREIGHT_EXPORT_ENDPOINT) {
+      try {
+        const res = await fetch(FREIGHT_EXPORT_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok || data?.ok === false) {
+          throw new Error(data?.error || 'Failed to calculate freight via API');
+        }
+        calculatedQuote = {
+          origin: data.data?.origin || formState.origin,
+          destination: data.data?.destination || formState.destination,
+          mode: data.data?.mode || mode,
+          cost: data.data?.cost,
+          currency: data.data?.currency || 'USD',
+          distance: data.data?.distance,
+          summary: data.data?.summary,
+          source: 'API',
+        };
+      } catch (apiError: any) {
+        toast.error(`API Error: ${apiError.message}. Falling back to local estimation.`);
+        console.error('API call failed:', apiError);
+        // Fallback to local estimation if API fails
+        calculatedQuote = calculateLocalFreightEstimate({
+          origin: payload.origin,
+          destination: payload.destination,
+          weight: payload.weight,
+          volume: payload.volume,
+          mode: payload.mode,
+          incoterm: payload.incoterm,
+          cargoType: payload.cargoType,
+        });
       }
-      setQuoteResult(data?.data || data);
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to calculate freight');
-    } finally {
-      setIsSubmitting(false);
+    } else {
+      toast.info('Logistics API is not configured. Using local estimation.');
+      calculatedQuote = calculateLocalFreightEstimate({
+        origin: payload.origin,
+        destination: payload.destination,
+        weight: payload.weight,
+        volume: payload.volume,
+        mode: payload.mode,
+        incoterm: payload.incoterm,
+        cargoType: payload.cargoType,
+      });
     }
+    
+    setQuoteResult(calculatedQuote);
+    setIsSubmitting(false);
   };
 
   const handleLogout = async () => {
@@ -359,11 +490,16 @@ export default function FreightCalculatorPage() {
               </h3>
               {quoteResult ? (
                 <div style={{ color: '#E2E8F0', fontSize: '14px', lineHeight: 1.6 }}>
+                  <div style={{ marginBottom: '8px', fontWeight: 600, color: quoteResult.source === 'Local' ? '#FBBF24' : '#6EE7B7' }}>
+                    Source: {quoteResult.source} Estimate
+                  </div>
                   <div>Origin: {quoteResult.origin || formState.origin}</div>
                   <div>Destination: {quoteResult.destination || formState.destination}</div>
                   <div>Mode: {quoteResult.mode || mode}</div>
+                  {quoteResult.distance && <div>Distance: {quoteResult.distance} km</div>}
+                  {quoteResult.cost && <div>Estimated Cost: {quoteResult.cost} {quoteResult.currency}</div>}
                   <div style={{ marginTop: '12px', color: '#94A3B8' }}>
-                    {quoteResult.summary || 'Quote generated successfully.'}
+                    {quoteResult.summary || `Quote generated successfully from ${quoteResult.source}.`}
                   </div>
                 </div>
               ) : (
