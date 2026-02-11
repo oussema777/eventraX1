@@ -1,6 +1,7 @@
-import { User, Briefcase, Calendar, Building2, Mail, LogOut, Lock } from 'lucide-react';
+import { User, Briefcase, Calendar, Building2, Mail, LogOut, Lock, Crown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../i18n/I18nContext';
+import { usePlan } from '../../hooks/usePlan';
 
 interface UserDropdownMenuProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export default function UserDropdownMenu({
   hasBusinessProfile = false
 }: UserDropdownMenuProps) {
   const navigate = useNavigate();
+  const { isPro } = usePlan();
   const { t } = useI18n();
   const resolvedUserName = userName || t('nav.placeholders.userName');
   const resolvedUserEmail = userEmail || t('nav.placeholders.userEmail');
@@ -61,15 +63,38 @@ export default function UserDropdownMenu({
           borderBottom: '1px solid var(--border)'
         }}
       >
-        <p 
-          className="text-sm mb-1 truncate"
-          style={{ 
-            color: 'var(--foreground)',
-            fontWeight: 600
-          }}
-        >
-          {resolvedUserName}
-        </p>
+        <div className="flex items-center gap-2 mb-1">
+          <p 
+            className="text-sm truncate"
+            style={{ 
+              color: 'var(--foreground)',
+              fontWeight: 600
+            }}
+          >
+            {resolvedUserName}
+          </p>
+          {isPro && (
+            <div 
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '2px 8px',
+                background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                borderRadius: '100px',
+                fontSize: '10px',
+                fontWeight: 900,
+                color: '#FFFFFF',
+                boxShadow: '0 2px 4px rgba(217, 119, 6, 0.3)',
+                letterSpacing: '0.05em',
+                flexShrink: 0
+              }}
+            >
+              <Crown size={10} strokeWidth={3} />
+              PRO
+            </div>
+          )}
+        </div>
         <p 
           className="text-xs truncate"
           style={{ 

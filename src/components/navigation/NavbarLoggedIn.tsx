@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Menu, X, Bell, User, Lock } from 'lucide-react';
+import { ChevronDown, Menu, X, Bell, User, Lock, Crown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Logo from '../ui/Logo';
 import UserDropdownMenu from './UserDropdownMenu';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { useNotifications } from '../../hooks/useNotifications';
+import { usePlan } from '../../hooks/usePlan';
 import NotificationsDropdown from './NotificationsDropdown';
 import { useI18n } from '../../i18n/I18nContext';
 
@@ -29,6 +30,7 @@ export default function NavbarLoggedIn({
   currentPage
 }: NavbarLoggedInProps) {
   const { profile, user, signOut } = useAuth();
+  const { isPro } = usePlan();
   const { t, tList, locale, setLocale } = useI18n();
   const fallbackUserName = t('nav.placeholders.userName');
   const fallbackUserEmail = t('nav.placeholders.userEmail');
@@ -426,7 +428,7 @@ export default function NavbarLoggedIn({
                   setIsCommunitiesOpen(false);
                   setIsLogisticOpen(false);
                 }}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors relative"
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
                 }}
@@ -434,17 +436,33 @@ export default function NavbarLoggedIn({
                   e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
-                <div 
-                  className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden"
-                  style={{ 
-                    backgroundColor: 'var(--primary)',
-                    color: 'var(--primary-foreground)'
-                  }}
-                >
-                  {profile?.avatar_url ? (
-                    <img src={profile.avatar_url} className="w-full h-full object-cover" />
-                  ) : (
-                    <span style={{ fontWeight: 700 }}>{userName.charAt(0)}</span>
+                <div className="relative">
+                  <div 
+                    className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden"
+                    style={{ 
+                      backgroundColor: 'var(--primary)',
+                      color: 'var(--primary-foreground)',
+                      border: isPro ? '2px solid #F59E0B' : 'none'
+                    }}
+                  >
+                    {profile?.avatar_url ? (
+                      <img src={profile.avatar_url} className="w-full h-full object-cover" />
+                    ) : (
+                      <span style={{ fontWeight: 700 }}>{userName.charAt(0)}</span>
+                    )}
+                  </div>
+                  {isPro && (
+                    <div 
+                      className="absolute -bottom-1 -right-4 flex items-center gap-1 px-1.5 py-0.5 rounded-full"
+                      style={{
+                        background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                        transform: 'scale(0.8)'
+                      }}
+                    >
+                      <Crown size={8} strokeWidth={3} style={{ color: '#FFFFFF' }} />
+                      <span style={{ fontSize: '8px', fontWeight: 900, color: '#FFFFFF' }}>PRO</span>
+                    </div>
                   )}
                 </div>
                 <ChevronDown 
@@ -525,25 +543,64 @@ export default function NavbarLoggedIn({
               style={{ borderBottom: '1px solid var(--border)' }}
             >
               <div className="flex items-center gap-3 mb-3">
-                <div 
-                  className="w-10 h-10 rounded-full flex items-center justify-center"
-                  style={{ 
-                    backgroundColor: 'var(--primary)',
-                    color: 'var(--primary-foreground)'
-                  }}
-                >
-                  <User size={20} />
-                </div>
-                <div className="flex-1">
-                  <p 
-                    className="text-sm mb-0.5"
+                <div className="relative">
+                  <div 
+                    className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden"
                     style={{ 
-                      color: 'var(--foreground)',
-                      fontWeight: 600
+                      backgroundColor: 'var(--primary)',
+                      color: 'var(--primary-foreground)',
+                      border: isPro ? '2px solid #F59E0B' : 'none'
                     }}
                   >
-                    {userName}
-                  </p>
+                    {profile?.avatar_url ? (
+                      <img src={profile.avatar_url} className="w-full h-full object-cover" />
+                    ) : (
+                      <User size={20} />
+                    )}
+                  </div>
+                  {isPro && (
+                    <div 
+                      className="absolute -bottom-1 -right-1 flex items-center gap-1 px-1.5 py-0.5 rounded-full"
+                      style={{
+                        background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                      }}
+                    >
+                      <Crown size={10} strokeWidth={3} style={{ color: '#FFFFFF' }} />
+                      <span style={{ fontSize: '9px', fontWeight: 900, color: '#FFFFFF' }}>PRO</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <p 
+                      className="text-sm mb-0.5"
+                      style={{ 
+                        color: 'var(--foreground)',
+                        fontWeight: 600
+                      }}
+                    >
+                      {userName}
+                    </p>
+                    {isPro && (
+                      <div 
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '2px 8px',
+                          background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                          borderRadius: '100px',
+                          fontSize: '9px',
+                          fontWeight: 900,
+                          color: '#FFFFFF',
+                          letterSpacing: '0.05em'
+                        }}
+                      >
+                        PRO
+                      </div>
+                    )}
+                  </div>
                   <p 
                     className="text-xs"
                     style={{ color: 'var(--muted-foreground)' }}

@@ -11,6 +11,11 @@ import SpeakersBlock from '../components/design-studio/blocks/SpeakersBlock';
 import AgendaBlock from '../components/design-studio/blocks/AgendaBlock';
 import TicketsBlock from '../components/design-studio/blocks/TicketsBlock';
 import FooterBlock from '../components/design-studio/blocks/FooterBlock';
+import SponsorsBlock from '../components/design-studio/blocks/SponsorsBlock';
+import ExhibitorsBlock from '../components/design-studio/blocks/ExhibitorsBlock';
+import CountdownBlock from '../components/design-studio/blocks/CountdownBlock';
+import TestimonialsBlock from '../components/design-studio/blocks/TestimonialsBlock';
+import VideoHeroBlock from '../components/design-studio/blocks/VideoHeroBlock';
 import { ArrowLeft, ArrowRight, Save } from 'lucide-react';
 import { type WizardStep } from '../utils/wizardNavigation';
 import { toast } from 'sonner@2.0.3';
@@ -22,9 +27,15 @@ import { useI18n } from '../i18n/I18nContext';
 import { useSpeakers } from '../hooks/useSpeakers';
 import { useSessions } from '../hooks/useSessions';
 import { useTickets } from '../hooks/useTickets';
+import { useExhibitors } from '../hooks/useExhibitors';
 import AboutBlockSettingsModal from '../components/design-studio/modals/AboutBlockSettingsModal';
 import FooterBlockSettingsModal from '../components/design-studio/modals/FooterBlockSettingsModal';
 import HeroBlockSettingsModal from '../components/design-studio/modals/HeroBlockSettingsModal';
+import SponsorsBlockSettingsModal from '../components/design-studio/modals/SponsorsBlockSettingsModal';
+import ExhibitorsBlockSettingsModal from '../components/design-studio/modals/ExhibitorsBlockSettingsModal';
+import CountdownBlockSettingsModal from '../components/design-studio/modals/CountdownBlockSettingsModal';
+import TestimonialsBlockSettingsModal from '../components/design-studio/modals/TestimonialsBlockSettingsModal';
+import VideoHeroBlockSettingsModal from '../components/design-studio/modals/VideoHeroBlockSettingsModal';
 
 interface Block {
   id: string;
@@ -50,6 +61,7 @@ export default function WizardStep2DesignStudio() {
   const { speakers } = useSpeakers();
   const { sessions } = useSessions(eventId);
   const { tickets } = useTickets();
+  const { exhibitors } = useExhibitors(eventId);
   const { isPro } = usePlan();
   const { t } = useI18n();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -320,22 +332,101 @@ export default function WizardStep2DesignStudio() {
     features: t.includes || []
   })), [tickets]);
 
+  const mappedExhibitors = useMemo(() => (exhibitors || []).map(e => ({
+    id: e.id,
+    name: e.company,
+    logo: e.logo_url || '',
+    boothNumber: e.boothLocation,
+    category: e.industry,
+    website: e.website
+  })), [exhibitors]);
+
   const previewContent = useMemo(() => ({
     event: eventData,
     speakers: mappedSpeakers,
     sessions: mappedSessions,
     days: mappedDays,
-    tickets: mappedTickets
-  }), [eventData, mappedSpeakers, mappedSessions, mappedDays, mappedTickets]);
+    tickets: mappedTickets,
+    exhibitors: mappedExhibitors
+  }), [eventData, mappedSpeakers, mappedSessions, mappedDays, mappedTickets, mappedExhibitors]);
 
   const renderBlock = (block: ActiveBlock) => {
     if (!block.isVisible) return null;
 
     const isLocked = block.tier === 'PRO' && !isPro;
 
+    const renderLockOverlay = () => (
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 15,
+          borderRadius: 'inherit'
+        }}
+      >
+        <div style={{ textAlign: 'center', maxWidth: '400px', padding: '20px' }}>
+          <div
+            style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              backgroundColor: '#FFFFFF',
+              border: '3px solid #F59E0B',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px',
+              boxShadow: '0px 8px 24px rgba(245, 158, 11, 0.2)',
+              fontSize: '24px'
+            }}
+          >
+            🔒
+          </div>
+          <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#1A1D1F', marginBottom: '8px' }}>
+            {t('wizard.designStudio.locked.title', 'Premium Block')}
+          </h3>
+          <p style={{ fontSize: '14px', color: '#6F767E', marginBottom: '20px' }}>
+            {t('wizard.designStudio.locked.subtitle', 'Upgrade to PRO to unlock this section and customize it.')}
+          </p>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleUpgrade();
+            }}
+            style={{
+              height: '40px',
+              padding: '0 24px',
+              backgroundColor: '#635BFF',
+              borderRadius: '10px',
+              border: 'none',
+              fontSize: '14px',
+              fontWeight: 700,
+              color: '#FFFFFF',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            {t('wizard.designStudio.locked.cta', 'Upgrade Now')}
+          </button>
+        </div>
+      </div>
+    );
+
+    const wrapWithLock = (content: React.ReactNode) => (
+      <div style={{ position: 'relative', width: '100%' }}>
+        {isLocked && renderLockOverlay()}
+        {content}
+      </div>
+    );
+
     switch (block.type) {
       case 'hero':
-        return <HeroBlock key={block.id} isLocked={isLocked} event={eventData} brandColor={brandColor} brandColorSecondary={brandColorSecondary} buttonRadius={buttonRadius} logoUrl={logoUrl} logoSize={logoSize} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />;
+        return wrapWithLock(<HeroBlock isLocked={isLocked} event={eventData} brandColor={brandColor} brandColorSecondary={brandColorSecondary} buttonRadius={buttonRadius} logoUrl={logoUrl} logoSize={logoSize} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
       case 'about':
         const aboutData = {
           name: block.settings?.title || eventData.name,
@@ -344,15 +435,14 @@ export default function WizardStep2DesignStudio() {
           features: block.settings?.features || undefined,
           image: block.settings?.image
         };
-        return <AboutBlock key={block.id} event={aboutData} brandColor={brandColor} onEdit={() => handleOpenSettings(block.id)} />;
+        return wrapWithLock(<AboutBlock event={aboutData} brandColor={brandColor} onEdit={() => handleOpenSettings(block.id)} />);
       case 'details':
-        return <EventDetailsBlock key={block.id} event={eventData} brandColor={brandColor} onEdit={() => handleOpenSettings(block.id)} />;
+        return wrapWithLock(<EventDetailsBlock event={eventData} brandColor={brandColor} onEdit={() => handleOpenSettings(block.id)} />);
       case 'speakers':
-        return <SpeakersBlock key={block.id} speakers={mappedSpeakers} brandColor={brandColor} onEdit={() => handleOpenSettings(block.id)} />;
+        return wrapWithLock(<SpeakersBlock speakers={mappedSpeakers} brandColor={brandColor} onEdit={() => handleOpenSettings(block.id)} />);
       case 'agenda':
-        return (
+        return wrapWithLock(
           <AgendaBlock 
-            key={block.id} 
             days={mappedDays.length > 0 ? mappedDays : undefined} 
             sessions={mappedSessions} 
             brandColor={brandColor} 
@@ -361,9 +451,19 @@ export default function WizardStep2DesignStudio() {
           />
         );
       case 'tickets':
-        return <TicketsBlock key={block.id} tickets={mappedTickets} brandColor={brandColor} buttonRadius={buttonRadius} onEdit={() => handleOpenSettings(block.id)} />;
+        return wrapWithLock(<TicketsBlock tickets={mappedTickets} brandColor={brandColor} buttonRadius={buttonRadius} onEdit={() => handleOpenSettings(block.id)} />);
       case 'footer':
-        return <FooterBlock key={block.id} settings={block.settings} brandColor={brandColor} event={eventData} onEdit={() => handleOpenSettings(block.id)} />;
+        return wrapWithLock(<FooterBlock settings={block.settings} brandColor={brandColor} event={eventData} onEdit={() => handleOpenSettings(block.id)} />);
+      case 'video-hero':
+        return wrapWithLock(<VideoHeroBlock brandColor={brandColor} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
+      case 'sponsors':
+        return wrapWithLock(<SponsorsBlock brandColor={brandColor} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
+      case 'exhibitors':
+        return wrapWithLock(<ExhibitorsBlock exhibitors={mappedExhibitors} brandColor={brandColor} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
+      case 'countdown':
+        return wrapWithLock(<CountdownBlock brandColor={brandColor} targetDate={eventData.start_date} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
+      case 'testimonials':
+        return wrapWithLock(<TestimonialsBlock brandColor={brandColor} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
       default:
         return (
           <div
@@ -371,9 +471,11 @@ export default function WizardStep2DesignStudio() {
             style={{
               padding: '80px 40px',
               backgroundColor: '#F4F5F6',
-              textAlign: 'center'
+              textAlign: 'center',
+              position: 'relative'
             }}
           >
+            {isLocked && renderLockOverlay()}
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>{block.icon}</div>
             <div style={{ fontSize: '24px', fontWeight: 700, color: '#1A1D1F', marginBottom: '8px' }}>
               {block.name}
@@ -381,26 +483,6 @@ export default function WizardStep2DesignStudio() {
             <div style={{ fontSize: '16px', color: '#6F767E' }}>
               {block.description}
             </div>
-            {isLocked && (
-              <div style={{ marginTop: '24px' }}>
-                <button
-                  onClick={handleUpgrade}
-                  style={{
-                    height: '48px',
-                    padding: '0 32px',
-                    backgroundColor: '#635BFF',
-                    borderRadius: '12px',
-                    border: 'none',
-                    fontSize: '15px',
-                    fontWeight: 700,
-                    color: '#FFFFFF',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {t('wizard.designStudio.upgradeUnlock')}
-                </button>
-              </div>
-            )}
           </div>
         );
     }
@@ -479,7 +561,13 @@ export default function WizardStep2DesignStudio() {
             eventId={eventData.id || eventId}
             previewContent={previewContent}
           >
-            {activeBlocks.filter((b) => b.isVisible).map((block) => renderBlock(block))}
+            {activeBlocks
+              .filter((b) => b.isVisible)
+              .map((block) => (
+                <div key={`${block.id}-${JSON.stringify(block.settings || {})}`} style={{ width: '100%' }}>
+                  {renderBlock(block)}
+                </div>
+              ))}
           </PreviewPanel>
         </div>
       </div>
@@ -598,6 +686,41 @@ export default function WizardStep2DesignStudio() {
         settings={selectedBlock?.settings || {}}
         onSave={(data) => handleSaveBlockSettings('footer', data)}
         isSaving={isEventSaving}
+      />
+
+      <SponsorsBlockSettingsModal
+        isOpen={settingsBlockId === 'sponsors'}
+        onClose={() => setSettingsBlockId(null)}
+        settings={selectedBlock?.settings || {}}
+        onSave={(data) => handleSaveBlockSettings('sponsors', data)}
+      />
+
+      <ExhibitorsBlockSettingsModal
+        isOpen={settingsBlockId === 'exhibitors'}
+        onClose={() => setSettingsBlockId(null)}
+        settings={selectedBlock?.settings || {}}
+        onSave={(data) => handleSaveBlockSettings('exhibitors', data)}
+      />
+
+      <CountdownBlockSettingsModal
+        isOpen={settingsBlockId === 'countdown'}
+        onClose={() => setSettingsBlockId(null)}
+        settings={selectedBlock?.settings || {}}
+        onSave={(data) => handleSaveBlockSettings('countdown', data)}
+      />
+
+      <TestimonialsBlockSettingsModal
+        isOpen={settingsBlockId === 'testimonials'}
+        onClose={() => setSettingsBlockId(null)}
+        settings={selectedBlock?.settings || {}}
+        onSave={(data) => handleSaveBlockSettings('testimonials', data)}
+      />
+
+      <VideoHeroBlockSettingsModal
+        isOpen={settingsBlockId === 'video-hero'}
+        onClose={() => setSettingsBlockId(null)}
+        settings={selectedBlock?.settings || {}}
+        onSave={(data) => handleSaveBlockSettings('video-hero', data)}
       />
     </div>
   );

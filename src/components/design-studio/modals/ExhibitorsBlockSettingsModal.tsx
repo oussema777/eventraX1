@@ -1,0 +1,239 @@
+import { useState, useEffect } from 'react';
+import { X, Save, Building2, Loader2, Search, MapPin } from 'lucide-react';
+
+interface ExhibitorsBlockSettingsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  settings: any;
+  onSave: (settings: any) => void;
+  isSaving?: boolean;
+}
+
+export default function ExhibitorsBlockSettingsModal({
+  isOpen,
+  onClose,
+  settings,
+  onSave,
+  isSaving = false
+}: ExhibitorsBlockSettingsModalProps) {
+  const [formData, setFormData] = useState({
+    title: '',
+    subtitle: '',
+    showSearch: true,
+    showBoothNumber: true
+  });
+
+  useEffect(() => {
+    if (settings && isOpen) {
+      setFormData({
+        title: settings.title || '',
+        subtitle: settings.subtitle || '',
+        showSearch: settings.showSearch !== false,
+        showBoothNumber: settings.showBoothNumber !== false
+      });
+    }
+  }, [settings, isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+    onClose();
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 100,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        backdropFilter: 'blur(8px)'
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '500px',
+          maxHeight: '90vh',
+          backgroundColor: '#FFFFFF',
+          borderRadius: '16px',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          overflow: 'hidden',
+          border: '1px solid #E5E7EB',
+          display: 'flex',
+          flexDirection: 'column'
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 28px', borderBottom: '1px solid #F3F4F6' }}>
+          <div>
+            <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#111827', marginBottom: '4px' }}>
+              Exhibitors Settings
+            </h2>
+            <p style={{ fontSize: '13px', color: '#6B7280' }}>
+              Configure how your exhibitors are presented.
+            </p>
+          </div>
+          <button 
+            onClick={onClose} 
+            style={{ 
+              color: '#111827', 
+              backgroundColor: '#F3F4F6',
+              border: 'none', 
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer' 
+            }}
+          >
+            <X size={18} strokeWidth={2.5} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <form onSubmit={handleSubmit} style={{ padding: '28px', overflowY: 'auto' }}>
+          
+          {/* Header Text */}
+          <div style={{ marginBottom: '24px' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Section Header</h3>
+            
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
+                Main Title
+              </label>
+              <input
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                style={{ 
+                  width: '100%', 
+                  padding: '12px 16px', 
+                  borderRadius: '8px', 
+                  border: '2px solid #E5E7EB', 
+                  fontSize: '15px',
+                  color: '#111827',
+                  fontWeight: 500,
+                  outline: 'none'
+                }}
+                placeholder="e.g., Featured Exhibitors"
+              />
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
+                Subtitle
+              </label>
+              <textarea
+                value={formData.subtitle}
+                onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
+                style={{ 
+                  width: '100%', 
+                  padding: '12px 16px', 
+                  borderRadius: '8px', 
+                  border: '2px solid #E5E7EB', 
+                  fontSize: '15px',
+                  color: '#111827',
+                  fontWeight: 500,
+                  outline: 'none',
+                  minHeight: '80px',
+                  resize: 'none'
+                }}
+                placeholder="Brief description of your exhibitors..."
+              />
+            </div>
+          </div>
+
+          <div style={{ height: '1px', backgroundColor: '#F3F4F6', marginBottom: '24px' }} />
+
+          {/* Display Toggles */}
+          <div style={{ marginBottom: '24px' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Display Options</h3>
+            
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', backgroundColor: '#F9FAFB', borderRadius: '12px', border: '1px solid #E5E7EB', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Search size={18} style={{ color: '#6B7280' }} />
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#111827' }}>Enable Search Bar</div>
+                  <div style={{ fontSize: '12px', color: '#6B7280' }}>Allow users to search exhibitors</div>
+                </div>
+              </div>
+              <input 
+                type="checkbox" 
+                checked={formData.showSearch} 
+                onChange={(e) => setFormData({ ...formData, showSearch: e.target.checked })}
+                style={{ width: '18px', height: '18px', accentColor: '#0684F5', cursor: 'pointer' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', backgroundColor: '#F9FAFB', borderRadius: '12px', border: '1px solid #E5E7EB' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <MapPin size={18} style={{ color: '#6B7280' }} />
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#111827' }}>Show Booth Numbers</div>
+                  <div style={{ fontSize: '12px', color: '#6B7280' }}>Display location codes on cards</div>
+                </div>
+              </div>
+              <input 
+                type="checkbox" 
+                checked={formData.showBoothNumber} 
+                onChange={(e) => setFormData({ ...formData, showBoothNumber: e.target.checked })}
+                style={{ width: '18px', height: '18px', accentColor: '#0684F5', cursor: 'pointer' }}
+              />
+            </div>
+          </div>
+
+          {/* Footer Actions */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '12px', borderTop: '1px solid #F3F4F6' }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{ 
+                padding: '10px 20px', 
+                borderRadius: '8px', 
+                border: '2px solid #E5E7EB', 
+                backgroundColor: '#FFFFFF', 
+                color: '#374151', 
+                fontSize: '14px', 
+                fontWeight: 600, 
+                cursor: 'pointer'
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving}
+              style={{ 
+                padding: '10px 24px', 
+                borderRadius: '8px', 
+                border: 'none', 
+                backgroundColor: '#0684F5', 
+                color: '#FFFFFF', 
+                fontSize: '14px', 
+                fontWeight: 700, 
+                cursor: 'pointer', 
+                opacity: isSaving ? 0.7 : 1, 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px',
+                boxShadow: '0 4px 6px -1px rgba(6, 132, 245, 0.2)'
+              }}
+            >
+              {isSaving && <Loader2 size={16} className="animate-spin" />}
+              {isSaving ? 'Updating...' : 'Update Section'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

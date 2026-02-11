@@ -32,7 +32,8 @@ interface Block {
 
 interface ActiveBlock extends Block {
   position: number;
-  visible: boolean;
+  isVisible: boolean;
+  settings?: any;
 }
 
 interface BlockLibraryPanelProps {
@@ -187,6 +188,15 @@ export default function BlockLibraryPanel({
       icon: '💬'
     },
     {
+      id: 'exhibitors',
+      name: 'Exhibitors',
+      type: 'exhibitors',
+      description: t('wizard.designStudio.blocks.exhibitors.description', 'Showcase your event exhibitors.'),
+      tier: 'PRO',
+      thumbnail: 'grid',
+      icon: '🏢'
+    },
+    {
       id: 'custom-html',
       name: t('wizard.designStudio.blocks.customHtml.name'),
       type: 'custom-html',
@@ -255,8 +265,33 @@ export default function BlockLibraryPanel({
     { value: 'lato', label: t('wizard.designStudio.branding.fonts.lato') }
   ];
   const proFeatures = tList<string>('wizard.designStudio.pro.features', []);
-  const getTierLabel = (tier: 'FREE' | 'PRO') =>
-    tier === 'PRO' ? t('wizard.designStudio.tiers.pro') : t('wizard.designStudio.tiers.free');
+  const getTierLabel = (tier: 'FREE' | 'PRO') => {
+    if (tier === 'FREE') {
+      return (
+        <span style={{ color: '#9A9FA5', fontSize: '11px', fontWeight: 600 }}>
+          {t('wizard.designStudio.tiers.free')}
+        </span>
+      );
+    }
+    return (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          padding: '2px 8px',
+          backgroundColor: isPro ? 'rgba(245, 158, 11, 0.1)' : 'rgba(111, 118, 126, 0.1)',
+          borderRadius: '4px',
+          fontSize: '11px',
+          fontWeight: 700,
+          color: isPro ? '#F59E0B' : '#6F767E'
+        }}
+      >
+        {isPro ? <Crown size={10} /> : <Lock size={10} />}
+        {t('wizard.designStudio.tiers.pro')}
+      </div>
+    );
+  };
 
   return (
     <div

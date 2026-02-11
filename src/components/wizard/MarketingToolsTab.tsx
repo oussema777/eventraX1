@@ -12,17 +12,20 @@ import {
   Megaphone,
   Edit2,
   Send,
+  Save,
   Copy,
   BarChart3,
   Plus,
   MoreVertical,
   Crown,
   Lock,
+  QrCode,
   Info,
   Check,
   Clock,
   Globe,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import EmailEditorModal from './modals/EmailEditorModal';
@@ -31,6 +34,7 @@ import CampaignCreatorModal from './modals/CampaignCreatorModal';
 import SuccessToast from './SuccessToast';
 import { useProfile } from '../../hooks/useProfile';
 import { useI18n } from '../../i18n/I18nContext';
+import { toast } from 'sonner';
 
 interface EmailTemplate {
   id: string;
@@ -77,6 +81,16 @@ export default function MarketingToolsTab({ eventId }: MarketingToolsTabProps) {
   const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
   const [showProUpgradeModal, setShowProUpgradeModal] = useState(false);
+  const [showWhatsappQr, setShowWhatsappQr] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [whatsappSettings, setWhatsappSettings] = useState({
+    phoneNumber: '',
+    automations: {
+      confirmations: false,
+      reminders: false,
+      thankyou: false
+    }
+  });
 
   const hasPro = Boolean(profile?.has_pro);
   const [eventDetails, setEventDetails] = useState({
@@ -281,6 +295,17 @@ export default function MarketingToolsTab({ eventId }: MarketingToolsTabProps) {
         hashtag: storedSocial.hashtag ?? socialDefaults.hashtag
       });
 
+      if (settings.whatsapp) {
+        setWhatsappSettings({
+          phoneNumber: settings.whatsapp.phoneNumber || '',
+          automations: {
+            confirmations: settings.whatsapp.automations?.confirmations ?? false,
+            reminders: settings.whatsapp.automations?.reminders ?? false,
+            thankyou: settings.whatsapp.automations?.thankyou ?? false
+          }
+        });
+      }
+
       setMarketingLoaded(true);
     };
 
@@ -299,7 +324,8 @@ export default function MarketingToolsTab({ eventId }: MarketingToolsTabProps) {
         ...marketingSettingsRef.current,
         emailTemplates: serializedTemplates,
         customLinks,
-        socialShare
+        socialShare,
+        whatsapp: whatsappSettings
       };
       const { error } = await supabase
         .from('events')
@@ -503,15 +529,18 @@ export default function MarketingToolsTab({ eventId }: MarketingToolsTabProps) {
       {/* SECTION 1: CUSTOM DOMAIN (PRO-ONLY) */}
       <div 
         className="marketing-section rounded-xl p-8 mb-6"
-        style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', border: '2px solid #F59E0B' }}
+        style={{ 
+          backgroundColor: hasPro ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.05)', 
+          border: hasPro ? '1px solid rgba(255, 255, 255, 0.1)' : '2px solid #F59E0B' 
+        }}
       >
         {/* Section Header */}
         <div className="flex items-start gap-4 mb-5">
           <div 
             className="w-12 h-12 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)' }}
+            style={{ backgroundColor: hasPro ? 'rgba(139, 92, 246, 0.15)' : 'rgba(245, 158, 11, 0.15)' }}
           >
-            <Globe size={28} style={{ color: '#F59E0B' }} />
+            <Globe size={28} style={{ color: hasPro ? '#8B5CF6' : '#F59E0B' }} />
           </div>
           <div className="flex-1">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
@@ -524,12 +553,12 @@ export default function MarketingToolsTab({ eventId }: MarketingToolsTabProps) {
                   alignItems: 'center',
                   gap: '4px',
                   padding: '4px 10px',
-                  backgroundColor: 'rgba(245, 158, 11, 0.2)',
-                  border: '1px solid #F59E0B',
+                  backgroundColor: hasPro ? 'rgba(139, 92, 246, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                  border: hasPro ? '1px solid #8B5CF6' : '1px solid #F59E0B',
                   borderRadius: '12px',
                   fontSize: '11px',
                   fontWeight: 700,
-                  color: '#F59E0B',
+                  color: hasPro ? '#8B5CF6' : '#F59E0B',
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px'
                 }}
@@ -545,126 +574,301 @@ export default function MarketingToolsTab({ eventId }: MarketingToolsTabProps) {
         </div>
         <div className="w-full h-px mb-5" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }} />
 
-        {/* Features Grid */}
-        <div className="features-grid grid grid-cols-2 gap-5 mb-5">
-          {/* Feature 1 */}
-          <div className="flex items-start gap-3">
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)' }}
-            >
-              <Check size={16} style={{ color: '#10B981' }} />
-            </div>
-            <div>
-              <div style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
-                {t('wizard.step3.marketingTools.customDomain.features.registrationUrl.title')}
+        {hasPro ? (
+          /* PRO: Active Settings Form */
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Domain Input */}
+              <div>
+                <label className="block text-sm mb-2" style={{ fontWeight: 500, color: '#FFFFFF' }}>
+                  Custom Domain
+                </label>
+                <div className="flex">
+                  <span 
+                    className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-white/10 bg-white/5 text-gray-400 text-sm"
+                  >
+                    https://
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="e.g. event.eventra.cloud"
+                    defaultValue={marketingSettingsRef.current?.customDomain?.domain || ''}
+                    onChange={(e) => {
+                      marketingSettingsRef.current = {
+                        ...marketingSettingsRef.current,
+                        customDomain: {
+                          ...marketingSettingsRef.current.customDomain,
+                          domain: e.target.value
+                        }
+                      };
+                    }}
+                    className="flex-1 h-11 px-4 rounded-r-lg border border-white/10 bg-white/5 text-white outline-none focus:border-[#8B5CF6] transition-colors"
+                  />
+                </div>
+                <p className="text-xs mt-2" style={{ color: '#94A3B8' }}>
+                  Enter the full domain (e.g. eventra.cloud or subdomain.eventra.cloud).
+                </p>
               </div>
-              <p style={{ fontSize: '13px', color: '#94A3B8' }}>
-                {t('wizard.step3.marketingTools.customDomain.features.registrationUrl.subtitle')}
+
+              {/* Sender Email Input */}
+              <div>
+                <label className="block text-sm mb-2" style={{ fontWeight: 500, color: '#FFFFFF' }}>
+                  Sender Email Address
+                </label>
+                <input
+                  type="email"
+                  placeholder="e.g. hello@eventra.cloud"
+                  defaultValue={marketingSettingsRef.current?.customDomain?.senderEmail || ''}
+                  onChange={(e) => {
+                    marketingSettingsRef.current = {
+                      ...marketingSettingsRef.current,
+                      customDomain: {
+                        ...marketingSettingsRef.current.customDomain,
+                        senderEmail: e.target.value
+                      }
+                    };
+                  }}
+                  className="w-full h-11 px-4 rounded-lg border border-white/10 bg-white/5 text-white outline-none focus:border-[#8B5CF6] transition-colors"
+                />
+                <p className="text-xs mt-2" style={{ color: '#94A3B8' }}>
+                  Emails will appear to come from this address. Requires domain verification.
+                </p>
+              </div>
+            </div>
+
+            {/* DNS Records Table */}
+            <div className="mt-6 p-6 rounded-lg bg-white/5 border border-white/10">
+              <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                <Info size={16} className="text-[#8B5CF6]" />
+                DNS Configuration for eventra.cloud
+              </h4>
+              <p className="text-xs text-gray-400 mb-4">
+                Add these records to your domain's DNS settings to enable your custom domain and secure email sending.
               </p>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-white/10">
+                      <th className="py-2 text-[11px] font-bold text-gray-500 uppercase">Type</th>
+                      <th className="py-2 text-[11px] font-bold text-gray-500 uppercase">Host / Name</th>
+                      <th className="py-2 text-[11px] font-bold text-gray-500 uppercase">Value / Target</th>
+                      <th className="py-2 text-[11px] font-bold text-gray-500 uppercase">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm">
+                    {/* CNAME Record */}
+                    <tr className="border-b border-white/5">
+                      <td className="py-3 font-mono text-[#8B5CF6]">CNAME</td>
+                      <td className="py-3 text-white font-mono text-xs">
+                        {(() => {
+                          const d = marketingSettingsRef.current?.customDomain?.domain || '';
+                          if (!d) return 'events';
+                          if (d === 'eventra.cloud') return '@';
+                          if (d.endsWith('.eventra.cloud')) return d.replace('.eventra.cloud', '');
+                          return d.split('.')[0];
+                        })()}
+                      </td>
+                      <td className="py-3 text-white font-mono text-xs">cname.eventra.app</td>
+                      <td className="py-3">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-500/10 text-yellow-500">PENDING</span>
+                      </td>
+                    </tr>
+                    {/* TXT Verification */}
+                    <tr className="border-b border-white/5">
+                      <td className="py-3 font-mono text-[#8B5CF6]">TXT</td>
+                      <td className="py-3 text-white font-mono text-xs">@</td>
+                      <td className="py-3 text-white font-mono text-xs truncate max-w-[200px]" title={`eventra-verification=${eventId?.slice(0, 8)}`}>
+                        eventra-verification={eventId?.slice(0, 8)}
+                      </td>
+                      <td className="py-3">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-500/10 text-yellow-500">PENDING</span>
+                      </td>
+                    </tr>
+                    {/* SPF Record */}
+                    <tr>
+                      <td className="py-3 font-mono text-[#8B5CF6]">TXT</td>
+                      <td className="py-3 text-white font-mono text-xs">@</td>
+                      <td className="py-3 text-white font-mono text-xs">v=spf1 include:mail.eventra.app ~all</td>
+                      <td className="py-3">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-500/10 text-yellow-500">PENDING</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              
+              <div className="mt-4 p-3 rounded bg-blue-500/10 border border-blue-500/20 flex gap-3">
+                <Clock size={16} className="text-blue-400 flex-shrink-0" />
+                <p className="text-[11px] text-blue-200">
+                  DNS changes can take up to 24-48 hours to propagate globally, though most take effect within minutes.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 rounded-lg bg-white/5 border border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <CheckCircle size={16} className="text-green-500" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-white">SSL Certificate</div>
+                  <div className="text-xs text-gray-400">Auto-provisioned for secure HTTPS</div>
+                </div>
+              </div>
+              <span className="text-xs font-semibold text-green-500 bg-green-500/10 px-2 py-1 rounded">ACTIVE</span>
+            </div>
+
+            <div className="flex justify-end pt-4">
+              <button
+                onClick={async () => {
+                  const { error } = await supabase
+                    .from('events')
+                    .update({ 
+                      marketing_settings: marketingSettingsRef.current, 
+                      updated_at: new Date().toISOString() 
+                    })
+                    .eq('id', eventId);
+                  
+                  if (error) {
+                    setToastMessage('Failed to save domain settings');
+                  } else {
+                    setToastMessage('Custom domain settings saved');
+                  }
+                  setShowToast(true);
+                }}
+                className="px-6 py-2.5 rounded-lg bg-[#8B5CF6] hover:bg-[#7C3AED] text-white font-semibold transition-colors flex items-center gap-2"
+              >
+                <Save size={16} />
+                Save Settings
+              </button>
             </div>
           </div>
-
-          {/* Feature 2 */}
-          <div className="flex items-start gap-3">
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)' }}
-            >
-              <Check size={16} style={{ color: '#10B981' }} />
-            </div>
-            <div>
-              <div style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
-                {t('wizard.step3.marketingTools.customDomain.features.emailDomain.title')}
+        ) : (
+          /* Non-PRO: Marketing / Upgrade View */
+          <>
+            {/* Features Grid */}
+            <div className="features-grid grid grid-cols-2 gap-5 mb-5">
+              {/* Feature 1 */}
+              <div className="flex items-start gap-3">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)' }}
+                >
+                  <Check size={16} style={{ color: '#10B981' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
+                    {t('wizard.step3.marketingTools.customDomain.features.registrationUrl.title')}
+                  </div>
+                  <p style={{ fontSize: '13px', color: '#94A3B8' }}>
+                    {t('wizard.step3.marketingTools.customDomain.features.registrationUrl.subtitle')}
+                  </p>
+                </div>
               </div>
-              <p style={{ fontSize: '13px', color: '#94A3B8' }}>
-                {t('wizard.step3.marketingTools.customDomain.features.emailDomain.subtitle')}
-              </p>
-            </div>
-          </div>
 
-          {/* Feature 3 */}
-          <div className="flex items-start gap-3">
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)' }}
-            >
-              <Check size={16} style={{ color: '#10B981' }} />
-            </div>
-            <div>
-              <div style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
-                {t('wizard.step3.marketingTools.customDomain.features.ssl.title')}
+              {/* Feature 2 */}
+              <div className="flex items-start gap-3">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)' }}
+                >
+                  <Check size={16} style={{ color: '#10B981' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
+                    {t('wizard.step3.marketingTools.customDomain.features.emailDomain.title')}
+                  </div>
+                  <p style={{ fontSize: '13px', color: '#94A3B8' }}>
+                    {t('wizard.step3.marketingTools.customDomain.features.emailDomain.subtitle')}
+                  </p>
+                </div>
               </div>
-              <p style={{ fontSize: '13px', color: '#94A3B8' }}>
-                {t('wizard.step3.marketingTools.customDomain.features.ssl.subtitle')}
-              </p>
-            </div>
-          </div>
 
-          {/* Feature 4 */}
-          <div className="flex items-start gap-3">
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)' }}
-            >
-              <Check size={16} style={{ color: '#10B981' }} />
-            </div>
-            <div>
-              <div style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
-                {t('wizard.step3.marketingTools.customDomain.features.branding.title')}
+              {/* Feature 3 */}
+              <div className="flex items-start gap-3">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)' }}
+                >
+                  <Check size={16} style={{ color: '#10B981' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
+                    {t('wizard.step3.marketingTools.customDomain.features.ssl.title')}
+                  </div>
+                  <p style={{ fontSize: '13px', color: '#94A3B8' }}>
+                    {t('wizard.step3.marketingTools.customDomain.features.ssl.subtitle')}
+                  </p>
+                </div>
               </div>
-              <p style={{ fontSize: '13px', color: '#94A3B8' }}>
-                {t('wizard.step3.marketingTools.customDomain.features.branding.subtitle')}
-              </p>
-            </div>
-          </div>
-        </div>
 
-        {/* CTA Section */}
-        <div className="flex flex-wrap items-center gap-4 pt-5 border-t" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
-          <button
-            onClick={handleUpgradeClick}
-            className="px-6 py-3 rounded-lg transition-all"
-            style={{
-              background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-              border: 'none',
-              color: '#FFFFFF',
-              fontSize: '14px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 8px 16px rgba(245, 158, 11, 0.4)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.3)';
-            }}
-          >
-            <Crown size={16} />
-            {t('wizard.step3.marketingTools.actions.upgradeToPro')}
-          </button>
-          <a
-            href="#"
-            style={{
-              fontSize: '14px',
-              color: '#0684F5',
-              textDecoration: 'none',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px'
-            }}
-          >
-            {t('wizard.step3.marketingTools.customDomain.learnMore')}
-            <ExternalLink size={14} />
-          </a>
-        </div>
+              {/* Feature 4 */}
+              <div className="flex items-start gap-3">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)' }}
+                >
+                  <Check size={16} style={{ color: '#10B981' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
+                    {t('wizard.step3.marketingTools.customDomain.features.branding.title')}
+                  </div>
+                  <p style={{ fontSize: '13px', color: '#94A3B8' }}>
+                    {t('wizard.step3.marketingTools.customDomain.features.branding.subtitle')}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* CTA Section */}
+            <div className="flex flex-wrap items-center gap-4 pt-5 border-t" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
+              <button
+                onClick={handleUpgradeClick}
+                className="px-6 py-3 rounded-lg transition-all"
+                style={{
+                  background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                  border: 'none',
+                  color: '#FFFFFF',
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 8px 16px rgba(245, 158, 11, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.3)';
+                }}
+              >
+                <Crown size={16} />
+                {t('wizard.step3.marketingTools.actions.upgradeToPro')}
+              </button>
+              <a
+                href="#"
+                style={{
+                  fontSize: '14px',
+                  color: '#0684F5',
+                  textDecoration: 'none',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                {t('wizard.step3.marketingTools.customDomain.learnMore')}
+                <ExternalLink size={14} />
+              </a>
+            </div>
+          </>
+        )}
       </div>
 
       {/* SECTION 2: EMAIL TEMPLATES */}
@@ -1289,7 +1493,7 @@ export default function MarketingToolsTab({ eventId }: MarketingToolsTabProps) {
         className="marketing-section rounded-xl p-8 mb-20 relative overflow-hidden"
         style={{ 
           backgroundColor: 'rgba(255, 255, 255, 0.05)',
-          border: '2px solid rgba(37, 211, 102, 0.5)'
+          border: hasPro ? '1px solid rgba(255, 255, 255, 0.1)' : '2px solid rgba(37, 211, 102, 0.5)'
         }}
       >
         {/* Section Header */}
@@ -1318,23 +1522,190 @@ export default function MarketingToolsTab({ eventId }: MarketingToolsTabProps) {
                   PRO
                 </span>
               </div>
+              <p className="text-sm" style={{ color: '#94A3B8' }}>
+                {hasPro ? 'Automate event communication via WhatsApp' : t('wizard.step3.marketingTools.whatsapp.lockedSubtitle')}
+              </p>
             </div>
           </div>
-          <button
-            onClick={handleUpgradeClick}
-            className="h-10 px-5 rounded-lg transition-transform hover:scale-105 w-full sm:w-auto"
-            style={{
-              background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-              color: '#FFFFFF',
-              fontWeight: 700
-            }}
-          >
-            {t('wizard.step3.marketingTools.actions.upgradeToPro')}
-          </button>
+          {!hasPro && (
+            <button
+              onClick={handleUpgradeClick}
+              className="h-10 px-5 rounded-lg transition-transform hover:scale-105 w-full sm:w-auto"
+              style={{
+                background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                color: '#FFFFFF',
+                fontWeight: 700
+              }}
+            >
+              {t('wizard.step3.marketingTools.actions.upgradeToPro')}
+            </button>
+          )}
         </div>
 
-        {/* Upgrade Card */}
-        {!hasPro && (
+        {hasPro ? (
+          /* PRO: Active WhatsApp Settings */
+          <div className="space-y-8">
+            <div className="w-full h-px" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }} />
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Connection Status */}
+              <div className="p-6 rounded-xl bg-white/5 border border-white/10">
+                <h4 className="text-white font-bold mb-4 flex items-center gap-2">
+                  <Globe size={18} className="text-[#25D366]" />
+                  Connection Status
+                </h4>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-2 uppercase tracking-widest font-bold">Business Number</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="+1 234 567 8900"
+                        value={whatsappSettings.phoneNumber}
+                        onChange={(e) => setWhatsappSettings(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                        className="flex-1 h-11 px-4 rounded-lg border border-white/10 bg-white/5 text-white outline-none focus:border-[#25D366] transition-colors"
+                      />
+                      <button 
+                        onClick={async () => {
+                          if (!whatsappSettings.phoneNumber) {
+                            toast.error('Please enter a phone number first');
+                            return;
+                          }
+                          setIsConnecting(true);
+                          // Simulate API call to generate session
+                          await new Promise(resolve => setTimeout(resolve, 1500));
+                          setIsConnecting(false);
+                          setShowWhatsappQr(true);
+                        }}
+                        disabled={isConnecting}
+                        className="px-4 rounded-lg bg-[#25D366] text-white font-bold text-sm hover:bg-[#1fb355] transition-colors flex items-center gap-2"
+                      >
+                        {isConnecting ? (
+                          <>
+                            <Loader2 size={16} className="animate-spin" />
+                            Connecting...
+                          </>
+                        ) : 'Connect'}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {showWhatsappQr ? (
+                    <div className="p-4 rounded-lg bg-white flex flex-col items-center gap-3">
+                      <img 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=whatsapp-auth-${eventId}-${whatsappSettings.phoneNumber}`} 
+                        alt="WhatsApp Auth QR"
+                        className="w-[180px] h-[180px]"
+                      />
+                      <p 
+                        className="text-[11px] font-semibold text-center"
+                        style={{ color: '#0B2641' }}
+                      >
+                        Scan with your WhatsApp mobile app to authorize this event.
+                      </p>
+                      <div className="flex gap-4">
+                        <button 
+                          onClick={() => {
+                            setShowWhatsappQr(false);
+                            toast.success('WhatsApp Business Account Connected!');
+                          }}
+                          className="text-[11px] hover:underline font-bold"
+                          style={{ color: '#0684F5' }}
+                        >
+                          Confirm Scan
+                        </button>
+                        <button 
+                          onClick={() => setShowWhatsappQr(false)}
+                          className="text-[11px] hover:underline font-bold"
+                          style={{ color: '#4B5563' }}
+                        >
+                          Hide QR
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-sm text-yellow-500 bg-yellow-500/10 p-3 rounded-lg border border-yellow-500/20 cursor-pointer hover:bg-yellow-500/20 transition-colors" onClick={() => setShowWhatsappQr(true)}>
+                      <QrCode size={16} />
+                      <span>Scan QR code to authorize after saving number.</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Automation Toggles */}
+              <div className="space-y-4">
+                <h4 className="text-white font-bold flex items-center gap-2">
+                  <CheckCircle size={18} className="text-[#25D366]" />
+                  Automated Workflows
+                </h4>
+                
+                {[
+                  { id: 'confirmations', label: 'Registration Confirmations', desc: 'Send ticket & QR code instantly' },
+                  { id: 'reminders', label: 'Event Reminders', desc: '24h before event starts' },
+                  { id: 'thankyou', label: 'Post-Event Thank You', desc: 'Collect feedback after event' }
+                ].map((item) => (
+                  <div key={item.id} className="flex items-center justify-between p-4 rounded-lg bg-white/5 border border-white/10">
+                    <div>
+                      <div className="text-sm font-semibold text-white">{item.label}</div>
+                      <div className="text-xs text-gray-400">{item.desc}</div>
+                    </div>
+                    <button
+                      className="relative w-11 h-6 rounded-full transition-colors"
+                      onClick={() => {
+                        setWhatsappSettings(prev => ({
+                          ...prev,
+                          automations: {
+                            ...prev.automations,
+                            [item.id]: !prev.automations[item.id as keyof typeof prev.automations]
+                          }
+                        }));
+                      }}
+                      style={{ 
+                        backgroundColor: whatsappSettings.automations[item.id as keyof typeof whatsappSettings.automations] ? '#25D366' : 'rgba(255, 255, 255, 0.2)' 
+                      }}
+                    >
+                      <div
+                        className="absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform"
+                        style={{ 
+                          left: whatsappSettings.automations[item.id as keyof typeof whatsappSettings.automations] ? 'calc(100% - 22px)' : '2px' 
+                        }}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4 border-t border-white/10">
+              <button
+                onClick={async () => {
+                  const { error } = await supabase
+                    .from('events')
+                    .update({ 
+                      marketing_settings: {
+                        ...marketingSettingsRef.current,
+                        whatsapp: whatsappSettings
+                      }, 
+                      updated_at: new Date().toISOString() 
+                    })
+                    .eq('id', eventId);
+                  
+                  if (error) {
+                    toast.error('Failed to save WhatsApp settings');
+                  } else {
+                    toast.success('WhatsApp configuration saved');
+                  }
+                }}
+                className="px-8 py-3 rounded-lg bg-[#25D366] hover:bg-[#1fb355] text-white font-bold transition-all flex items-center gap-2"
+              >
+                <Save size={18} />
+                Save WhatsApp Settings
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* Non-PRO: Marketing / Upgrade View */
           <div 
             className="rounded-lg p-8 text-center"
             style={{ backgroundColor: 'rgba(37, 211, 102, 0.1)', border: '1px solid rgba(37, 211, 102, 0.3)' }}

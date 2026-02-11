@@ -7,6 +7,11 @@ import SpeakersBlock from '../components/design-studio/blocks/SpeakersBlock';
 import AgendaBlock from '../components/design-studio/blocks/AgendaBlock';
 import TicketsBlock from '../components/design-studio/blocks/TicketsBlock';
 import FooterBlock from '../components/design-studio/blocks/FooterBlock';
+import SponsorsBlock from '../components/design-studio/blocks/SponsorsBlock';
+import ExhibitorsBlock from '../components/design-studio/blocks/ExhibitorsBlock';
+import CountdownBlock from '../components/design-studio/blocks/CountdownBlock';
+import TestimonialsBlock from '../components/design-studio/blocks/TestimonialsBlock';
+import VideoHeroBlock from '../components/design-studio/blocks/VideoHeroBlock';
 
 interface ActiveBlock {
   id: string;
@@ -87,6 +92,16 @@ export default function DesignStudioPreview() {
         return <TicketsBlock key={block.id} {...blockProps} tickets={content?.tickets} />;
       case 'footer':
         return <FooterBlock key={block.id} {...blockProps} settings={block.settings} event={content?.event} />;
+      case 'video-hero':
+        return <VideoHeroBlock key={block.id} {...blockProps} settings={block.settings} />;
+      case 'sponsors':
+        return <SponsorsBlock key={block.id} {...blockProps} settings={block.settings} />;
+      case 'exhibitors':
+        return <ExhibitorsBlock key={block.id} {...blockProps} exhibitors={content?.exhibitors} settings={block.settings} />;
+      case 'countdown':
+        return <CountdownBlock key={block.id} {...blockProps} targetDate={content?.event?.start_date} settings={block.settings} />;
+      case 'testimonials':
+        return <TestimonialsBlock key={block.id} {...blockProps} settings={block.settings} />;
       default:
         return null;
     }
