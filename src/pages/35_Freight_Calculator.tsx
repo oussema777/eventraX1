@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner@2.0.3';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';
@@ -6,8 +6,15 @@ import ModalLogin from '../components/modals/ModalLogin';
 import ModalRegistrationEntry from '../components/modals/ModalRegistrationEntry';
 import { useAuth } from '../contexts/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
+import { supabase } from '../lib/supabase';
+
+type Port = {
+  id: string;
+  name: string;
+};
 
 const LOGISTICS_API_BASE = import.meta.env.VITE_LOGISTICS_API_BASE || '';
+const PORTS_ENDPOINT = LOGISTICS_API_BASE ? `${LOGISTICS_API_BASE}/ports` : '';
 const FREIGHT_EXPORT_ENDPOINT =
   import.meta.env.VITE_FREIGHT_EXPORT_ENDPOINT || (LOGISTICS_API_BASE ? `${LOGISTICS_API_BASE}/freight-export` : '');
 
@@ -23,6 +30,8 @@ export default function FreightCalculatorPage() {
 
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
+  const [originSuggestions, setOriginSuggestions] = useState<Port[]>([]);
+  const [destSuggestions, setDestSuggestions] = useState<Port[]>([]);
   const [mode, setMode] = useState(MODES[0]);
   const [incoterm, setIncoterm] = useState(INCOTERMS[0]);
   const [cargoType, setCargoType] = useState(CARGO_TYPES[0]);
@@ -38,6 +47,44 @@ export default function FreightCalculatorPage() {
   const canSubmit = useMemo(() => {
     return origin.trim() && destination.trim() && weight.trim() && volume.trim();
   }, [origin, destination, weight, volume]);
+
+  const fetchPorts = async (query: string, setter: (ports: Port[]) => void) => {
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery || trimmedQuery.length < 2) {
+      setter([]);
+      return;
+    }
+    
+    try {
+      console.log('Searching ports for:', trimmedQuery);
+      const { data, error } = await supabase
+        .from('logistics_ports')
+        .select('id, name')
+        .ilike('name', `%${trimmedQuery}%`)
+        .limit(10);
+      
+      if (error) {
+        console.error('Supabase Error:', error);
+        throw error;
+      }
+
+      console.log('Ports found:', data);
+      setter(data || []);
+    } catch (error) {
+      console.error('Failed to fetch ports:', error);
+      setter([]);
+    }
+  };
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => fetchPorts(origin, setOriginSuggestions), 300);
+    return () => window.clearTimeout(handle);
+  }, [origin]);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => fetchPorts(destination, setDestSuggestions), 300);
+    return () => window.clearTimeout(handle);
+  }, [destination]);
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -135,7 +182,7 @@ export default function FreightCalculatorPage() {
               }}
             >
               <div className="freight-calc__grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
+                <div style={{ position: 'relative' }}>
                   <label style={{ fontSize: '12px', color: '#94A3B8' }}>Origin Country/Port</label>
                   <input
                     value={origin}
@@ -153,8 +200,17 @@ export default function FreightCalculatorPage() {
                       fontSize: '13px'
                     }}
                   />
+                  {originSuggestions.length > 0 && (
+                    <div className="freight-calc__suggestions">
+                      {originSuggestions.map(port => (
+                        <button key={port.id} onClick={() => { setOrigin(port.name); setOriginSuggestions([]); }} className="freight-calc__suggestion">
+                          {port.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div>
+                <div style={{ position: 'relative' }}>
                   <label style={{ fontSize: '12px', color: '#94A3B8' }}>Destination Country/Port</label>
                   <input
                     value={destination}
@@ -172,6 +228,15 @@ export default function FreightCalculatorPage() {
                       fontSize: '13px'
                     }}
                   />
+                  {destSuggestions.length > 0 && (
+                    <div className="freight-calc__suggestions">
+                      {destSuggestions.map(port => (
+                        <button key={port.id} onClick={() => { setDestination(port.name); setDestSuggestions([]); }} className="freight-calc__suggestion">
+                          {port.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label style={{ fontSize: '12px', color: '#94A3B8' }}>Mode</label>
@@ -395,6 +460,9 @@ export default function FreightCalculatorPage() {
                   <div>Origin: {quoteResult.origin || origin}</div>
                   <div>Destination: {quoteResult.destination || destination}</div>
                   <div>Mode: {quoteResult.mode || mode}</div>
+                  <div style={{ marginTop: '12px', color: '#94A3B8', fontWeight: 600 }}>
+                    Estimated Cost: {quoteResult.cost} {quoteResult.currency}
+                  </div>
                   <div style={{ marginTop: '12px', color: '#94A3B8' }}>
                     {quoteResult.summary || 'Quote generated successfully.'}
                   </div>
@@ -409,6 +477,33 @@ export default function FreightCalculatorPage() {
         </div>
       </div>
       <style>{`
+        .freight-calc__suggestions {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          z-index: 50;
+          margin-top: 4px;
+          background: #0B2641;
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 10px;
+          max-height: 200px;
+          overflow-y: auto;
+          box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+        .freight-calc__suggestion {
+          width: 100%;
+          text-align: left;
+          padding: 8px 12px;
+          color: #FFFFFF;
+          font-size: 13px;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+        }
+        .freight-calc__suggestion:hover {
+          background: rgba(6,132,245,0.1);
+        }
         @media (max-width: 900px) {
           .freight-calc__layout {
             grid-template-columns: 1fr;

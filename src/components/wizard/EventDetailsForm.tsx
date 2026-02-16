@@ -237,8 +237,8 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
       event_status: eventStatus,
       event_format: eventFormat,
       location_address: venueAddress,
-      start_date: startDate,
-      end_date: endDate,
+      start_date: eventStatus === 'continuous' ? null : startDate,
+      end_date: eventStatus === 'continuous' ? null : endDate,
       capacity_limit: hasCapacityLimit ? parseInt(maxAttendees || '0', 10) : null,
       waitlist_enabled: enableWaitlist,
       attendee_settings: {
@@ -255,23 +255,62 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
       return;
     }
 
-    if (!startDate || !endDate) {
-      toast.error(t('wizard.details.errors.datesRequired', 'Please select start and end dates.'));
-      return;
-    }
+    if (eventStatus !== 'continuous') {
+      if (!startDate || !endDate) {
+        toast.error(t('wizard.details.errors.datesRequired', 'Please select start and end dates.'));
+        return;
+      }
 
-    const today = new Date().toISOString().split('T')[0];
-    if (startDate < today) {
-      toast.error(t('wizard.details.errors.startDatePast', 'Start date cannot be in the past.'));
-      return;
-    }
+      const today = new Date().toISOString().split('T')[0];
+      if (startDate < today) {
+        toast.error(t('wizard.details.errors.startDatePast', 'Start date cannot be in the past.'));
+        return;
+      }
 
-    if (endDate < startDate) {
-      toast.error(t('wizard.details.errors.endDateBeforeStart', 'End date cannot be before start date.'));
-      return;
+      if (endDate < startDate) {
+        toast.error(t('wizard.details.errors.endDateBeforeStart', 'End date cannot be before start date.'));
+        return;
+      }
     }
 
     const payload = buildPayload();
+    
+    // If skipping to registration, add a default hero block to design studio settings
+    if (target === 'registration') {
+      const defaultHeroBlock = {
+        id: 'hero',
+        name: t('wizard.designStudio.blocks.hero.name', 'Hero Section'),
+        type: 'hero',
+        description: t('wizard.designStudio.blocks.hero.description', 'Eye-catching header for your event.'),
+        tier: 'FREE',
+        thumbnail: 'gradient',
+        icon: '🎯',
+        position: 0,
+        isVisible: true,
+        settings: {}
+      };
+
+      const studioPayload = {
+        brandColor: '#635BFF',
+        brandColorSecondary: '#7C75FF',
+        fontFamily: 'inter',
+        buttonRadius: 12,
+        activeBlocks: [defaultHeroBlock],
+        logoUrl: '',
+        logoSize: 80
+      };
+
+      // Merge with existing branding settings if any
+      payload.branding_settings = {
+        ...(payload.branding_settings || {}),
+        design_studio: studioPayload
+      };
+
+      // Also persist to local storage to match Design Studio's behavior
+      const storageKey = eventData.id ? `eventra_design_studio_${eventData.id}` : 'eventra_design_studio';
+      window.localStorage.setItem(storageKey, JSON.stringify(studioPayload));
+    }
+
     const created = await saveDraft(payload, !eventData.id);
     const id = created?.id || eventData.id;
     if (id) {
@@ -548,55 +587,57 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
         </div>
 
         {/* Date & Time Section */}
-        <div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-2">
-            {/* Start Date & Time */}
-            <div>
-              <label className="block text-xs mb-2" style={{ fontWeight: 500, color: '#6B7280' }}>
-                {t('wizard.details.fields.startDate.label')} <span style={{ color: '#EF4444' }}>*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="date"
-                  value={startDate}
-                  min={new Date().toISOString().split('T')[0]}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full h-11 px-4 rounded-lg border outline-none transition-colors"
-                  style={{
-                    borderColor: '#10B981',
-                    color: '#0B2641'
-                  }}
-                />
+        {eventStatus !== 'continuous' && (
+          <div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-2">
+              {/* Start Date & Time */}
+              <div>
+                <label className="block text-xs mb-2" style={{ fontWeight: 500, color: '#6B7280' }}>
+                  {t('wizard.details.fields.startDate.label')} <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={startDate}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full h-11 px-4 rounded-lg border outline-none transition-colors"
+                    style={{
+                      borderColor: '#10B981',
+                      color: '#0B2641'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* End Date & Time */}
+              <div>
+                <label className="block text-xs mb-2" style={{ fontWeight: 500, color: '#6B7280' }}>
+                  {t('wizard.details.fields.endDate.label')} <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={endDate}
+                    min={startDate || new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full h-11 px-4 rounded-lg border outline-none transition-colors"
+                    style={{
+                      borderColor: '#10B981',
+                      color: '#0B2641'
+                    }}
+                  />
+                </div>
               </div>
             </div>
 
-            {/* End Date & Time */}
-            <div>
-              <label className="block text-xs mb-2" style={{ fontWeight: 500, color: '#6B7280' }}>
-                {t('wizard.details.fields.endDate.label')} <span style={{ color: '#EF4444' }}>*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="date"
-                  value={endDate}
-                  min={startDate || new Date().toISOString().split('T')[0]}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full h-11 px-4 rounded-lg border outline-none transition-colors"
-                  style={{
-                    borderColor: '#10B981',
-                    color: '#0B2641'
-                  }}
-                />
-              </div>
+            {/* Duration Display */}
+            <div className="flex items-center gap-2 text-xs" style={{ color: '#10B981', fontWeight: 500 }}>
+              <Check size={14} />
+              <span>{t('wizard.details.fields.durationHint')}</span>
             </div>
           </div>
-
-          {/* Duration Display */}
-        <div className="flex items-center gap-2 text-xs" style={{ color: '#10B981', fontWeight: 500 }}>
-          <Check size={14} />
-          <span>{t('wizard.details.fields.durationHint')}</span>
-        </div>
-      </div>
+        )}
 
         {/* Event Format */}
         <div>
@@ -644,7 +685,7 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
           </div>
 
           {/* Conditional Venue Address */}
-          {eventFormat === 'in-person' && (
+          {(eventFormat === 'in-person' || eventFormat === 'hybrid') && (
             <div className="mt-4 space-y-4">
               <div className="relative">
                 <MapPin

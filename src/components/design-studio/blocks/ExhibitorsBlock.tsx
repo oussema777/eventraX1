@@ -42,8 +42,8 @@ export default function ExhibitorsBlock({
     <div
       style={{
         position: 'relative',
-        padding: '80px 40px',
-        backgroundColor: '#FFFFFF',
+        padding: '100px 40px',
+        backgroundColor: '#F9FAFB',
         width: '100%'
       }}
       onMouseEnter={() => setIsHovered(true)}
@@ -69,69 +69,181 @@ export default function ExhibitorsBlock({
         {/* Exhibitors Grid */}
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
-          gap: '24px' 
+          gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', 
+          gap: '32px' 
         }}>
           {exhibitors.length > 0 ? (
             exhibitors.map((exhibitor) => (
               <div
                 key={exhibitor.id}
                 style={{
-                  padding: '24px',
-                  borderRadius: '16px',
-                  border: '1px solid #E9EAEB',
+                  padding: '0',
+                  borderRadius: '24px',
+                  border: '1px solid #F3F4F6',
                   backgroundColor: '#FFFFFF',
                   display: 'flex',
-                  alignItems: 'center',
-                  gap: '16px',
-                  transition: 'all 0.2s ease'
+                  flexDirection: 'column',
+                  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                  overflow: 'hidden',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-8px)';
+                  e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
+                  e.currentTarget.style.borderColor = brandColor + '40';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05)';
+                  e.currentTarget.style.borderColor = '#F3F4F6';
                 }}
               >
+                {/* Logo Section */}
                 <div style={{ 
-                  width: '64px', 
-                  height: '64px', 
-                  borderRadius: '12px', 
-                  backgroundColor: '#F4F5F6', 
+                  height: '180px',
+                  backgroundColor: '#F9FAFB',
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center', 
-                  overflow: 'hidden',
-                  flexShrink: 0
+                  padding: '40px',
+                  borderBottom: '1px solid #F3F4F6',
+                  position: 'relative',
+                  overflow: 'hidden'
                 }}>
+                  {/* Subtle Background Pattern/Icon */}
+                  <Building2 
+                    style={{ 
+                      position: 'absolute', 
+                      right: '-10px', 
+                      bottom: '-10px', 
+                      opacity: 0.03, 
+                      width: '120px', 
+                      height: '120px',
+                      transform: 'rotate(-15deg)'
+                    }} 
+                  />
+                  
                   {exhibitor.logo ? (
-                    <img src={exhibitor.logo} alt={exhibitor.name} style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '8px' }} />
+                    <img 
+                      src={exhibitor.logo} 
+                      alt={exhibitor.name} 
+                      style={{ 
+                        maxHeight: '100%', 
+                        maxWidth: '100%', 
+                        objectFit: 'contain',
+                        filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.05))'
+                      }} 
+                    />
                   ) : (
-                    <Building2 style={{ color: '#9A9FA5' }} size={24} />
+                    <div style={{
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: '20px',
+                      backgroundColor: '#FFFFFF',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                      color: brandColor
+                    }}>
+                      <Building2 size={40} />
+                    </div>
+                  )}
+
+                  {/* Booth Badge */}
+                  {exhibitor.boothNumber && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '16px',
+                      right: '16px',
+                      padding: '6px 12px',
+                      borderRadius: '100px',
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid #E5E7EB',
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      color: '#374151',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                      zIndex: 2
+                    }}>
+                      <MapPin size={12} className="text-[#6B7280]" />
+                      BOOTH {exhibitor.boothNumber}
+                    </div>
                   )}
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h3 style={{ 
-                    fontSize: '16px', 
-                    fontWeight: 700, 
-                    color: '#1A1D1F', 
-                    marginBottom: '4px',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis'
-                  }}>
-                    {exhibitor.name}
-                  </h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {exhibitor.boothNumber && (
-                      <span style={{ fontSize: '13px', color: brandColor, fontWeight: 600 }}>
-                        Booth {exhibitor.boothNumber}
+
+                {/* Content Section */}
+                <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ marginBottom: '16px' }}>
+                    {exhibitor.category && (
+                      <span style={{ 
+                        fontSize: '11px', 
+                        fontWeight: 700, 
+                        color: brandColor, 
+                        textTransform: 'uppercase', 
+                        letterSpacing: '0.05em',
+                        display: 'block',
+                        marginBottom: '4px'
+                      }}>
+                        {exhibitor.category}
                       </span>
                     )}
-                    {exhibitor.website && (
+                    <h3 style={{ 
+                      fontSize: '20px', 
+                      fontWeight: 800, 
+                      color: '#111827', 
+                      lineHeight: '1.2',
+                      marginBottom: '8px'
+                    }}>
+                      {exhibitor.name}
+                    </h3>
+                  </div>
+
+                  <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '16px', borderTop: '1px solid #F3F4F6' }}>
+                    {exhibitor.website ? (
                       <a
                         href={exhibitor.website}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{ color: '#9A9FA5', display: 'flex' }}
+                        style={{ 
+                          fontSize: '13px', 
+                          fontWeight: 600, 
+                          color: '#6B7280', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '6px',
+                          textDecoration: 'none',
+                          transition: 'color 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.color = brandColor}
+                        onMouseLeave={(e) => e.currentTarget.style.color = '#6B7280'}
+                        onClick={(e) => e.stopPropagation()}
                       >
+                        Visit Website
                         <ExternalLink size={14} />
                       </a>
+                    ) : (
+                      <span style={{ fontSize: '13px', color: '#9CA3AF' }}>Official Exhibitor</span>
                     )}
+                    
+                    <button style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '8px',
+                      backgroundColor: brandColor + '10',
+                      border: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: brandColor,
+                      transition: 'all 0.2s'
+                    }}>
+                      <ExternalLink size={16} />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -139,18 +251,21 @@ export default function ExhibitorsBlock({
           ) : (
             <div style={{ 
               gridColumn: '1 / -1', 
-              padding: '60px 20px', 
-              border: '2px dashed #E9EAEB', 
-              borderRadius: '16px', 
+              padding: '80px 20px', 
+              border: '2px dashed #E5E7EB', 
+              borderRadius: '24px', 
               display: 'flex', 
               flexDirection: 'column', 
               alignItems: 'center', 
               justifyContent: 'center', 
-              color: '#9A9FA5' 
+              color: '#9CA3AF',
+              backgroundColor: '#F9FAFB'
             }}>
-              <Building2 size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
-              <p style={{ fontSize: '16px', fontWeight: 600 }}>No exhibitors found</p>
-              <p style={{ fontSize: '14px' }}>Add exhibitors in Step 3 to see them here.</p>
+              <Building2 size={64} style={{ marginBottom: '20px', opacity: 0.2 }} />
+              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#4B5563', marginBottom: '8px' }}>No exhibitors found</h3>
+              <p style={{ fontSize: '14px', maxWidth: '300px', textAlign: 'center', lineHeight: '1.5' }}>
+                Exhibitors you add during the registration setup will automatically appear here.
+              </p>
             </div>
           )}
         </div>

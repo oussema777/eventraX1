@@ -459,6 +459,12 @@ export const translations = {
       }
     },
     landing: {
+      digest: {
+        tagline: 'Personalized for you',
+        title: 'Your Weekly Digest',
+        subtitle: 'A selection of events matched to your interests.',
+        viewAll: 'View all events'
+      },
       hero: {
         title: 'Create Unforgettable Events',
         subtitle: 'Professional event management platform trusted by businesses worldwide',
@@ -988,6 +994,7 @@ export const translations = {
             speakers: 'Speaker(s)',
             location: 'Location/Room',
             capacity: 'Capacity',
+            attendees: 'Session Attendance',
             status: 'Status',
             actions: 'Actions'
           },
@@ -6200,6 +6207,12 @@ export const translations = {
       }
     },
     landing: {
+      digest: {
+        tagline: 'Personnalise pour vous',
+        title: 'Votre Digest Hebdomadaire',
+        subtitle: 'Une selection d\'evenements correspondant a vos interets.',
+        viewAll: 'Voir tous les evenements'
+      },
       hero: {
         title: 'Creez des Evenements Inoubliables',
         subtitle: 'Plateforme de gestion d\'evenements professionnelle approuvee par les entreprises du monde entier',
@@ -7487,6 +7500,7 @@ export const translations = {
             speakers: 'Intervenant(s)',
             location: 'Lieu/Salle',
             capacity: 'Capacite',
+            attendees: 'Participants Inscrits',
             status: 'Statut',
             actions: 'Actions'
           },

@@ -755,14 +755,9 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
                   return (
                     <tr key={attendee.id} className="hover:bg-white/5 transition-colors group cursor-pointer" onClick={() => { setSelectedAttendee(attendee); setShowDetailModal(true); }}>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
-                            {attendee.name?.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="text-sm font-bold text-white">{attendee.name}</div>
-                            <div className="text-xs text-gray-400">{attendee.email}</div>
-                          </div>
+                        <div>
+                          <div className="text-sm font-bold text-white">{attendee.name}</div>
+                          <div className="text-xs text-gray-400">{attendee.email}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

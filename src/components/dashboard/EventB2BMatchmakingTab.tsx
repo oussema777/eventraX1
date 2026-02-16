@@ -73,6 +73,9 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
   const [meetingDateFilter, setMeetingDateFilter] = useState('all');
   const [meetingSort, setMeetingSort] = useState('recent');
   const [selectedMeetingIds, setSelectedMeetingIds] = useState<string[]>([]);
+  const [selectedSuggestionIds, setSelectedSuggestionIds] = useState<string[]>([]);
+  const [suggestionPage, setSuggestionPage] = useState(1);
+  const suggestionPageSize = 10;
   const [lastRunMeta, setLastRunMeta] = useState<any>(null);
   const [suggestionStats, setSuggestionStats] = useState({ total: 0, pending: 0, accepted: 0, dismissed: 0 });
   const [aiRunStats, setAiRunStats] = useState({ matchesCreated: 0, avgScore: 0, attendeesMatched: 0 });
@@ -151,7 +154,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
   };
 
   const overlapScore = (aList: string[], bList: string[]) => {
-    if (!aList.length || !bList.length) return { score: null, common: [] as string[] };
+    if (!aList.length || !bList.length) return { score: 0, common: [] as string[] };
     const aSet = new Set(aList.map((v) => v.toLowerCase()));
     const bSet = new Set(bList.map((v) => v.toLowerCase()));
     const common = Array.from(aSet).filter((v) => bSet.has(v));
@@ -216,11 +219,22 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
 
   const buildMatchProfile = (attendee: any) => {
     const meta = attendee?.meta || {};
+    const business = attendee?.business || {};
     const title = meta.jobTitle || meta.job_title || meta.title || meta.role || '';
-    const industries = normalizeTokens(meta.industry, meta.industries, meta.sector, meta.sectors, meta.market, meta.markets, meta.industryFocus);
-    const interests = normalizeTokens(meta.interests, meta.interest, meta.topics, meta.tags);
-    const goals = normalizeTokens(meta.goals, meta.goal, meta.objectives, meta.networkingGoals, meta.networking_goals);
-    const stage = normalizeStage(meta.companyStage || meta.company_stage || meta.stage);
+    
+    const industries = normalizeTokens(
+      meta.industry, meta.industries, meta.sector, meta.sectors, meta.market, meta.markets, meta.industryFocus,
+      business.industry, business.sector
+    );
+    const interests = normalizeTokens(
+      meta.interests, meta.interest, meta.topics, meta.tags,
+      business.tags, business.offerings
+    );
+    const goals = normalizeTokens(
+      meta.goals, meta.goal, meta.objectives, meta.networkingGoals, meta.networking_goals,
+      business.mission
+    );
+    const stage = normalizeStage(meta.companyStage || meta.company_stage || meta.stage || business.stage);
     const category = meta.category || meta.attendeeCategory || attendee?.ticket_type || meta.ticketType || '';
     const optIn = meta.b2bOptIn ?? meta.b2b_opt_in ?? meta.matchmakingOptIn ?? meta.matchmaking_opt_in ?? meta.matchmaking ?? meta.selectedForMatch ?? meta.shortlist ?? meta.isSelected ?? meta.b2b_selected;
     return {
@@ -231,7 +245,8 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
       stage,
       category,
       optIn: optIn === true,
-      meta
+      meta,
+      business
     };
   };
 
@@ -285,7 +300,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
     ];
 
     const weighted = criteria
-      .filter((c) => typeof c.score === 'number')
+      .filter((c) => typeof c.score === 'number' && c.score > 0)
       .reduce(
         (acc, c) => {
           const weight = Math.max(0, Number(c.weight) || 0);
@@ -296,8 +311,10 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
         },
         { weightSum: 0, total: 0 }
       );
-    const hasSignal = weighted.weightSum > 0;
-    const finalScore = hasSignal ? Math.round(weighted.total / weighted.weightSum) : 60;
+    
+    // hasSignal is only true if at least one criterion has a positive match
+    const hasSignal = weighted.weightSum > 0 && weighted.total > 0;
+    const finalScore = hasSignal ? Math.round(weighted.total / weighted.weightSum) : (30 + Math.floor(Math.random() * 10));
 
     const tags = Array.from(new Set([
       industry.common[0] ? `Industry: ${industry.common[0]}` : '',
@@ -479,13 +496,33 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
   const fetchAttendees = async () => {
     if (!eventId) return;
     try {
-      const { data, error } = await supabase
+      const { data: attendees, error } = await supabase
         .from('event_attendees')
-        .select('id,name,email,company,photo_url,avatar_url,ticket_type,meta,created_at')
+        .select('id,name,email,company,photo_url,avatar_url,ticket_type,meta,created_at,profile_id')
         .eq('event_id', eventId)
         .limit(600);
       if (error) return;
-      setAttendeesData(data || []);
+
+      const profileIds = (attendees || []).map(a => a.profile_id).filter(Boolean);
+      let businessMap: Record<string, any> = {};
+
+      if (profileIds.length > 0) {
+        const { data: businesses } = await supabase
+          .from('business_profiles')
+          .select('*')
+          .in('owner_profile_id', profileIds);
+        
+        (businesses || []).forEach(b => {
+          businessMap[b.owner_profile_id] = b;
+        });
+      }
+
+      const attendeesWithBusiness = (attendees || []).map(a => ({
+        ...a,
+        business: a.profile_id ? businessMap[a.profile_id] : null
+      }));
+
+      setAttendeesData(attendeesWithBusiness);
     } catch {}
   };
 
@@ -603,9 +640,8 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
         .from('event_b2b_suggestions')
         .select('*')
         .eq('event_id', eventId)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
-        .limit(30);
+        .in('status', ['pending', 'accepted'])
+        .order('score', { ascending: false });
       if (error) return;
       const rows: any[] = data || [];
       const ids = Array.from(new Set(rows.flatMap(r => [r.attendee_a_id, r.attendee_b_id]).filter(Boolean)));
@@ -613,13 +649,18 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
       if (ids.length) {
         const { data: a } = await supabase
           .from('event_attendees')
-          .select('id,name,company,photo_url,ticket_type,meta')
+          .select('id,name,company,photo_url,avatar_url,ticket_type,meta')
           .in('id', ids);
         (a || []).forEach((x: any) => { attendeeMap[x.id] = x; });
       }
       const mapped = rows.map((r) => {
         const a = attendeeMap[r.attendee_a_id] || {};
         const b = attendeeMap[r.attendee_b_id] || {};
+        
+        // Use the photo from the attendee map
+        const aPhoto = a.photo_url || a.avatar_url || a.meta?.photo || '';
+        const bPhoto = b.photo_url || b.avatar_url || b.meta?.photo || '';
+
         const tags = Array.isArray(r.meta?.tags) ? r.meta.tags : [];
         return {
           id: r.id,
@@ -628,12 +669,13 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
           aName: a.name || 'Attendee A',
           aTitle: (a.meta && (a.meta.jobTitle || a.meta.job_title || a.meta.title || a.meta.role)) || '',
           aCompany: a.company || '',
-          aPhoto: a.photo_url || a.avatar_url || a.meta?.photo || '',
+          aPhoto,
           bName: b.name || 'Attendee B',
           bTitle: (b.meta && (b.meta.jobTitle || b.meta.job_title || b.meta.title || b.meta.role)) || '',
           bCompany: b.company || '',
-          bPhoto: b.photo_url || b.avatar_url || b.meta?.photo || '',
+          bPhoto,
           score: Number(r.score || 0) || 0,
+          status: r.status,
           tags,
           breakdown: Array.isArray(r.meta?.breakdown) ? r.meta.breakdown : [],
           insights: Array.isArray(r.meta?.insights) ? r.meta.insights : [],
@@ -664,12 +706,8 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
     try {
       let list: any[] = attendeesData;
       if (!list.length) {
-        const { data: attendees } = await supabase
-          .from('event_attendees')
-          .select('id,name,company,photo_url,avatar_url,ticket_type,meta')
-          .eq('event_id', eventId)
-          .limit(600);
-        list = attendees || [];
+        await fetchAttendees();
+        list = attendeesData;
       }
       if (list.length < 2) return { created: 0, avgScore: 0, attendeesMatched: 0 };
 
@@ -837,8 +875,8 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
       }
 
       const notifyOk = await createNotification({
-        title: 'B2B meeting scheduled',
-        message: `Your networking meeting has been scheduled${startIso ? ` for ${formatDateTime(startIso)}` : ''}.`,
+        title: 'Eventra AI Matchmaker: New Match Found!',
+        message: `Great news! Our AI Matchmaker found a high-potential connection for you. We have scheduled a meeting${startIso ? ` for ${formatDateTime(startIso)}` : ''}. Log in to view details and start networking!`,
         channel: 'email',
         audience: { type: 'attendee', attendee_ids: [aId, bId], category: 'b2b_meeting' }
       });
@@ -1108,9 +1146,77 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
     await fetchSuggestionStats();
   };
 
+  const handleBulkCreateMeetings = async () => {
+    if (!eventId || !selectedSuggestionIds.length) {
+      toast.error('Select at least one match suggestion');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to create meetings for ${selectedSuggestionIds.size ? (selectedSuggestionIds as any).size : selectedSuggestionIds.length} matches?`)) return;
+
+    setSavingMeeting(true);
+    try {
+      const selectedSuggestions = suggestionsData.filter(s => selectedSuggestionIds.includes(s.id) && s.status === 'pending');
+      
+      if (!selectedSuggestions.length) {
+        toast.info('No pending suggestions selected');
+        return;
+      }
+
+      const meetingPayloads = selectedSuggestions.map(s => ({
+        event_id: eventId,
+        attendee_a_id: s.aId,
+        attendee_b_id: s.bId,
+        status: 'confirmed',
+        is_ai: true,
+        match_score: s.score,
+        meta: { 
+          breakdown: s.breakdown, 
+          insights: s.insights, 
+          topics: s.topics, 
+          tags: s.tags,
+          is_bulk: true
+        }
+      }));
+
+      const { error: meetingError } = await supabase
+        .from('event_b2b_meetings')
+        .insert(meetingPayloads);
+
+      if (meetingError) throw meetingError;
+
+      // Update suggestion statuses
+      await supabase
+        .from('event_b2b_suggestions')
+        .update({ status: 'accepted' })
+        .in('id', selectedSuggestions.map(s => s.id));
+
+      // Batch notifications
+      for (const s of selectedSuggestions) {
+        await createNotification({
+          title: 'Eventra AI Matchmaker: New Match Found!',
+          message: `Great news! Our AI Matchmaker found a high-potential connection for you. We have scheduled a meeting for you. Log in to view details and start networking!`,
+          channel: 'email',
+          audience: { type: 'attendee', attendee_ids: [s.aId, s.bId], category: 'b2b_meeting' }
+        });
+      }
+
+      toast.success(`${selectedSuggestions.length} meetings created and participants notified!`);
+      setSelectedSuggestionIds([]);
+      fetchMeetings();
+      fetchSuggestions();
+      fetchSuggestionStats();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to create bulk meetings');
+    } finally {
+      setSavingMeeting(false);
+    }
+  };
+
   const handleCompleteMatching = () => {
     setShowAIProcessing(false);
-    setActiveTab('all-meetings');
+    setActiveTab('suggestions');
     if (aiRunStats.matchesCreated) {
       toast.success(t('manageEvent.b2b.toasts.matchesSuccess', { count: aiRunStats.matchesCreated }));
     } else {
@@ -2681,189 +2787,266 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
         {/* TAB 4: SUGGESTIONS */}
         {activeTab === 'suggestions' && (
           <div>
-            <div style={{ marginBottom: '24px' }}>
-              <h3 style={{ fontSize: '22px', fontWeight: 600, color: '#FFFFFF', marginBottom: '8px' }}>
-                {t('manageEvent.b2b.suggestions.title')}
-              </h3>
-              <p style={{ fontSize: '14px', color: '#94A3B8' }}>
-                {t('manageEvent.b2b.suggestions.subtitle', { count: stats.pendingSuggestions })}
-              </p>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
-              {suggestionsData.length ? suggestionsData.map((suggestion: any, idx: number) => (
-                <div
-                  key={idx}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px' }}>
+              <div>
+                <h3 style={{ fontSize: '22px', fontWeight: 600, color: '#FFFFFF', marginBottom: '8px' }}>
+                  {t('manageEvent.b2b.suggestions.title')}
+                </h3>
+                <p style={{ fontSize: '14px', color: '#94A3B8' }}>
+                  {t('manageEvent.b2b.suggestions.subtitle', { count: stats.pendingSuggestions })}
+                </p>
+              </div>
+              
+              {selectedSuggestionIds.length > 0 && (
+                <button
+                  onClick={handleBulkCreateMeetings}
+                  disabled={savingMeeting}
                   style={{
-                    backgroundColor: 'rgba(255,255,255,0.05)',
-                    padding: '24px',
-                    borderRadius: '12px',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    transition: 'all 0.3s'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = '0 0 20px rgba(6,132,245,0.3)';
-                    e.currentTarget.style.transform = 'scale(1.02)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.transform = 'scale(1)';
+                    height: '40px',
+                    padding: '0 20px',
+                    backgroundColor: '#10B981',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#FFFFFF',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
                   }}
                 >
-                  {/* Header */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <span
-                      style={{
-                        padding: '4px 8px',
-                        borderRadius: '8px',
-                        background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                        color: '#FFFFFF',
-                        fontSize: '10px',
-                        fontWeight: 700,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px'
+                  <Plus size={18} />
+                  {savingMeeting ? 'Processing...' : `Accept & Schedule Selected (${selectedSuggestionIds.length})`}
+                </button>
+              )}
+            </div>
+
+            <div
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.05)',
+                borderRadius: '12px',
+                border: '1px solid rgba(255,255,255,0.1)',
+                overflow: 'hidden'
+              }}
+            >
+              {/* Table Header */}
+              <div
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.08)',
+                  padding: '16px 24px',
+                  display: 'grid',
+                  gridTemplateColumns: '40px 1fr 1fr 100px 140px 120px',
+                  gap: '16px',
+                  alignItems: 'center'
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={suggestionsData.length > 0 && selectedSuggestionIds.length === suggestionsData.filter(s => s.status === 'pending').length}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedSuggestionIds(suggestionsData.filter(s => s.status === 'pending').map(s => s.id));
+                    } else {
+                      setSelectedSuggestionIds([]);
+                    }
+                  }}
+                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                />
+                <p style={{ fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>Participant A</p>
+                <p style={{ fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>Participant B</p>
+                <p style={{ fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>Matching Criteria</p>
+                <p style={{ fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>Score</p>
+                <p style={{ fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>Status</p>
+                <p style={{ fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>Actions</p>
+              </div>
+
+              {suggestionsData.length ? suggestionsData.slice((suggestionPage - 1) * suggestionPageSize, suggestionPage * suggestionPageSize).map((suggestion: any, idx: number) => {
+                const isSelected = selectedSuggestionIds.includes(suggestion.id);
+                const isAccepted = suggestion.status === 'accepted';
+
+                return (
+                  <div
+                    key={suggestion.id || idx}
+                    style={{
+                      padding: '16px 24px',
+                      display: 'grid',
+                      gridTemplateColumns: '40px 1fr 1fr 1.5fr 100px 140px 120px',
+                      gap: '16px',
+                      alignItems: 'center',
+                      borderBottom: '1px solid rgba(255,255,255,0.05)',
+                      transition: 'background-color 0.2s',
+                      opacity: isAccepted ? 0.7 : 1
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <input
+                      type="checkbox"
+                      disabled={isAccepted}
+                      checked={isSelected}
+                      onChange={(e) => {
+                        if (e.target.checked) setSelectedSuggestionIds(prev => [...prev, suggestion.id]);
+                        else setSelectedSuggestionIds(prev => prev.filter(id => id !== suggestion.id));
                       }}
-                    >
-                      <Sparkles size={10} />
-                      {t('manageEvent.b2b.suggestions.card.match')}
-                    </span>
-                    <p style={{ fontSize: '24px', fontWeight: 700, color: '#10B981' }}>
+                      style={{ width: '18px', height: '18px', cursor: isAccepted ? 'not-allowed' : 'pointer' }}
+                    />
+                    
+                    {/* Participant A */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#1E3A5F', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                        {suggestion.aPhoto ? (
+                          <img src={suggestion.aPhoto} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#FFFFFF' }}>{getInitials(suggestion.aName)}</span>
+                        )}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{suggestion.aName}</p>
+                        <p style={{ fontSize: '12px', color: '#94A3B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{suggestion.aCompany}</p>
+                      </div>
+                    </div>
+
+                    {/* Participant B */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#1E3A5F', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                        {suggestion.bPhoto ? (
+                          <img src={suggestion.bPhoto} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#FFFFFF' }}>{getInitials(suggestion.bName)}</span>
+                        )}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{suggestion.bName}</p>
+                        <p style={{ fontSize: '12px', color: '#94A3B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{suggestion.bCompany}</p>
+                      </div>
+                    </div>
+
+                    {/* Criteria Tags */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                      {suggestion.tags?.length > 0 ? (
+                        suggestion.tags.slice(0, 2).map((tag: string, i: number) => (
+                          <span key={i} style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(6,132,245,0.1)', color: '#0684F5', fontSize: '10px', fontWeight: 600 }}>
+                            {tag}
+                          </span>
+                        ))
+                      ) : (
+                        <span style={{ color: '#6B7280', fontSize: '11px', fontStyle: 'italic' }}>Broad match</span>
+                      )}
+                      {suggestion.tags?.length > 2 && (
+                        <span style={{ color: '#94A3B8', fontSize: '10px' }}>+{suggestion.tags.length - 2} more</span>
+                      )}
+                    </div>
+
+                    <p style={{ fontSize: '16px', fontWeight: 700, color: suggestion.score >= 90 ? '#10B981' : suggestion.score >= 75 ? '#0684F5' : '#F59E0B' }}>
                       {suggestion.score}%
                     </p>
-                  </div>
 
-                  {/* Participants */}
-                  <div style={{ marginBottom: '16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
-                      <img
-                        src={suggestion.aPhoto}
-                        alt="Person"
-                        style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover' }}
-                      />
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', marginBottom: '2px' }}>
-                          {suggestion.aName}
-                        </p>
-                        <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '2px' }}>
-                          {suggestion.aTitle}
-                        </p>
-                        <p style={{ fontSize: '13px', color: '#6B7280' }}>
-                          {suggestion.aCompany}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div style={{ textAlign: 'center', margin: '12px 0' }}>
-                      <Handshake size={32} style={{ color: '#0684F5', margin: '0 auto' }} />
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                      <img
-                        src={suggestion.bPhoto}
-                        alt="Person"
-                        style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover' }}
-                      />
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', marginBottom: '2px' }}>
-                          {suggestion.bName}
-                        </p>
-                        <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '2px' }}>
-                          {suggestion.bTitle}
-                        </p>
-                        <p style={{ fontSize: '13px', color: '#6B7280' }}>
-                          {suggestion.bCompany}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Match Reasons */}
-                  <div style={{ marginBottom: '16px' }}>
-                    <p style={{ fontSize: '13px', fontWeight: 500, color: '#94A3B8', marginBottom: '8px' }}>
-                      {t('manageEvent.b2b.suggestions.card.why')}
-                    </p>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                      {(Array.isArray(suggestion.tags) && suggestion.tags.length ? suggestion.tags : [t('manageEvent.b2b.suggestions.card.noCriteria')]).map((tag: any, tagIdx: number) => (
-                        <span
-                          key={tagIdx}
-                          style={{
-                            padding: '4px 8px',
-                            borderRadius: '8px',
-                            backgroundColor: tagIdx === 0 ? 'rgba(6,132,245,0.15)' : tagIdx === 1 ? 'rgba(139,92,246,0.15)' : 'rgba(16,185,129,0.15)',
-                            color: tagIdx === 0 ? '#0684F5' : tagIdx === 1 ? '#8B5CF6' : '#10B981',
-                            fontSize: '11px',
-                            fontWeight: 600
-                          }}
-                        >
-                          {tag}
+                    <div>
+                      {isAccepted ? (
+                        <span style={{ padding: '4px 10px', borderRadius: '6px', backgroundColor: 'rgba(16,185,129,0.15)', color: '#10B981', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px', width: 'fit-content' }}>
+                          <Check size={12} strokeWidth={3} />
+                          SCHEDULED
                         </span>
-                      ))}
+                      ) : (
+                        <span style={{ padding: '4px 10px', borderRadius: '6px', backgroundColor: 'rgba(245,158,11,0.15)', color: '#F59E0B', fontSize: '11px', fontWeight: 700, width: 'fit-content', display: 'block' }}>
+                          PENDING
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => {
+                          setSelectedPair({
+                            aId: suggestion.aId,
+                            bId: suggestion.bId,
+                            aName: suggestion.aName,
+                            bName: suggestion.bName,
+                            score: suggestion.score,
+                            suggestionId: suggestion.id,
+                            aTitle: suggestion.aTitle,
+                            bTitle: suggestion.bTitle,
+                            aCompany: suggestion.aCompany,
+                            bCompany: suggestion.bCompany,
+                            tags: suggestion.tags,
+                            breakdown: suggestion.breakdown,
+                            insights: suggestion.insights,
+                            topics: suggestion.topics
+                          });
+                          setShowMatchDetails(true);
+                        }}
+                        style={{ padding: '6px', backgroundColor: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '6px', color: '#94A3B8', cursor: 'pointer' }}
+                      >
+                        <Eye size={16} />
+                      </button>
+                      {!isAccepted && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setSelectedPair({
+                                aId: suggestion.aId,
+                                bId: suggestion.bId,
+                                aName: suggestion.aName,
+                                bName: suggestion.bName,
+                                score: suggestion.score,
+                                suggestionId: suggestion.id,
+                                aTitle: suggestion.aTitle,
+                                bTitle: suggestion.bTitle,
+                                aCompany: suggestion.aCompany,
+                                bCompany: suggestion.bCompany,
+                                tags: suggestion.tags,
+                                breakdown: suggestion.breakdown,
+                                insights: suggestion.insights,
+                                topics: suggestion.topics
+                              });
+                              setShowCreateMeeting(true);
+                            }}
+                            style={{ padding: '6px', backgroundColor: 'rgba(16,185,129,0.1)', border: 'none', borderRadius: '6px', color: '#10B981', cursor: 'pointer' }}
+                          >
+                            <CheckCircle size={16} />
+                          </button>
+                          <button
+                            onClick={() => dismissSuggestion(suggestion.id)}
+                            style={{ padding: '6px', backgroundColor: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: '6px', color: '#EF4444', cursor: 'pointer' }}
+                          >
+                            <X size={16} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
-
-                  {/* Actions */}
-                  <div>
-                    <button
-                      onClick={() => {
-                        setSelectedPair({
-                          aId: suggestion.aId,
-                          bId: suggestion.bId,
-                          aName: suggestion.aName,
-                          bName: suggestion.bName,
-                          score: suggestion.score,
-                          suggestionId: suggestion.id,
-                          aTitle: suggestion.aTitle,
-                          bTitle: suggestion.bTitle,
-                          aCompany: suggestion.aCompany,
-                          bCompany: suggestion.bCompany,
-                          tags: suggestion.tags,
-                          breakdown: suggestion.breakdown,
-                          insights: suggestion.insights,
-                          topics: suggestion.topics
-                        });
-                        setShowCreateMeeting(true);
-                      }}
-                      style={{
-                        width: '100%',
-                        height: '40px',
-                        backgroundColor: '#0684F5',
-                        border: 'none',
-                        borderRadius: '8px',
-                        color: '#FFFFFF',
-                        fontSize: '14px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        marginBottom: '8px'
-                      }}
-                    >
-                      {t('manageEvent.b2b.suggestions.card.createMeeting')}
-                    </button>
-                    <button
-                      onClick={() => dismissSuggestion(suggestion.id)}
-                      style={{
-                        width: '100%',
-                        backgroundColor: 'transparent',
-                        border: 'none',
-                        color: '#6B7280',
-                        fontSize: '12px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {t('manageEvent.b2b.suggestions.card.dismiss')}
-                    </button>
-                  </div>
-
-                  <p style={{ fontSize: '11px', color: '#94A3B8', marginTop: '12px', textAlign: 'center' }}>
-                    {suggestion.createdAt ? t('manageEvent.b2b.suggestions.card.sent', { date: formatDateTime(suggestion.createdAt) }) : t('manageEvent.b2b.suggestions.card.sentRecently')}
-                  </p>
-                </div>
-              )) : (
-                <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '32px', color: '#94A3B8' }}>
+                );
+              }) : (
+                <div style={{ padding: '48px', textAlign: 'center', color: '#94A3B8' }}>
                   {t('manageEvent.b2b.suggestions.empty')}
                 </div>
               )}
             </div>
+
+            {/* Pagination */}
+            {suggestionsData.length > suggestionPageSize && (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '24px' }}>
+                <button
+                  disabled={suggestionPage === 1}
+                  onClick={() => setSuggestionPage(p => p - 1)}
+                  style={{ padding: '8px 16px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#FFFFFF', cursor: suggestionPage === 1 ? 'not-allowed' : 'pointer', opacity: suggestionPage === 1 ? 0.5 : 1 }}
+                >
+                  Previous
+                </button>
+                <span style={{ color: '#94A3B8', fontSize: '14px' }}>
+                  Page {suggestionPage} of {Math.ceil(suggestionsData.length / suggestionPageSize)}
+                </span>
+                <button
+                  disabled={suggestionPage >= Math.ceil(suggestionsData.length / suggestionPageSize)}
+                  onClick={() => setSuggestionPage(p => p + 1)}
+                  style={{ padding: '8px 16px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#FFFFFF', cursor: suggestionPage >= Math.ceil(suggestionsData.length / suggestionPageSize) ? 'not-allowed' : 'pointer', opacity: suggestionPage >= Math.ceil(suggestionsData.length / suggestionPageSize) ? 0.5 : 1 }}
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

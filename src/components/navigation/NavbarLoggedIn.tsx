@@ -451,19 +451,6 @@ export default function NavbarLoggedIn({
                       <span style={{ fontWeight: 700 }}>{userName.charAt(0)}</span>
                     )}
                   </div>
-                  {isPro && (
-                    <div 
-                      className="absolute -bottom-1 -right-4 flex items-center gap-1 px-1.5 py-0.5 rounded-full"
-                      style={{
-                        background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                        transform: 'scale(0.8)'
-                      }}
-                    >
-                      <Crown size={8} strokeWidth={3} style={{ color: '#FFFFFF' }} />
-                      <span style={{ fontSize: '8px', fontWeight: 900, color: '#FFFFFF' }}>PRO</span>
-                    </div>
-                  )}
                 </div>
                 <ChevronDown 
                   size={16}
@@ -558,18 +545,6 @@ export default function NavbarLoggedIn({
                       <User size={20} />
                     )}
                   </div>
-                  {isPro && (
-                    <div 
-                      className="absolute -bottom-1 -right-1 flex items-center gap-1 px-1.5 py-0.5 rounded-full"
-                      style={{
-                        background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                      }}
-                    >
-                      <Crown size={10} strokeWidth={3} style={{ color: '#FFFFFF' }} />
-                      <span style={{ fontSize: '9px', fontWeight: 900, color: '#FFFFFF' }}>PRO</span>
-                    </div>
-                  )}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
@@ -582,24 +557,6 @@ export default function NavbarLoggedIn({
                     >
                       {userName}
                     </p>
-                    {isPro && (
-                      <div 
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '2px 8px',
-                          background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                          borderRadius: '100px',
-                          fontSize: '9px',
-                          fontWeight: 900,
-                          color: '#FFFFFF',
-                          letterSpacing: '0.05em'
-                        }}
-                      >
-                        PRO
-                      </div>
-                    )}
                   </div>
                   <p 
                     className="text-xs"

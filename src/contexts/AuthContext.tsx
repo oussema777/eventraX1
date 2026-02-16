@@ -31,19 +31,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = async (authUser: User) => {
     try {
-      try {
-        await supabase
-          .from('users')
-          .upsert(
-            {
-              id: authUser.id,
-              email: authUser.email
-            },
-            { onConflict: 'id' }
-          );
-      } catch (_error) {
-        // Ignore if public users table is missing or blocked by RLS.
-      }
       const { data, error } = await supabase
         .from('profiles')
         .select('*')

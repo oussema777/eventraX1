@@ -85,30 +85,38 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
 
   const handleBulkImport = async (importedData: any[]) => {
     try {
-      const payload = importedData.map(a => ({
-        event_id: eventId,
-        name: a.name,
-        email: a.email,
-        ticket_type: a.ticket_type || 'General Admission',
-        ticket_color: '#0684F5',
-        price: 0, // Default to 0 or match ticket price if sophisticated logic added
-        status: a.status || 'approved',
-        checked_in: false,
-        confirmation_code: generateConfirmationCode(),
-        meta: { company: a.company }
-      }));
+      const payload = importedData.map(a => {
+        const confirmationCode = generateConfirmationCode();
+        return {
+          event_id: eventId,
+          name: a.name,
+          email: a.email,
+          ticket_type: a.ticket_type || 'General Admission',
+          ticket_color: '#0684F5',
+          price: 0,
+          status: a.status || 'approved',
+          checked_in: false,
+          confirmation_code: confirmationCode,
+          meta: { 
+            company: a.company,
+            imported: true,
+            importDate: new Date().toISOString(),
+            confirmationCode
+          }
+        };
+      });
 
       const { error } = await supabase
         .from('event_attendees')
-        .insert(payload);
+        .upsert(payload, { onConflict: 'email,event_id' });
 
       if (error) throw error;
 
       toast.success(`Successfully imported ${payload.length} attendees`);
       fetchAttendees();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Bulk import failed:', error);
-      toast.error('Failed to import attendees. Check console for details.');
+      toast.error('Failed to import attendees: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -260,6 +268,17 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
   };
 
 
+  const handleDownloadTemplate = () => {
+    const csvContent = "Full Name,Email Address,Ticket Type,Company,Status\nJohn Doe,john@example.com,VIP,Acme Inc,approved\nJane Smith,jane@example.com,General Admission,StartUp Co,pending";
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = "attendee_import_template.csv";
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   const handleExport = () => {
     if (attendees.length === 0) {
       toast.info('No attendees to export');
@@ -308,6 +327,13 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
           </div>
           
           <div className="flex items-center gap-3">
+             <button
+               onClick={handleDownloadTemplate}
+               className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg text-xs font-bold border border-white/10 transition-all shadow-sm"
+             >
+               <Download size={14} />
+               CSV Template
+             </button>
              <div className="relative group">
                 <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#0684F5] transition-colors" />
                 <input

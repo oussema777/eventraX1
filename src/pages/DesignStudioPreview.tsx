@@ -95,7 +95,7 @@ export default function DesignStudioPreview() {
       case 'video-hero':
         return <VideoHeroBlock key={block.id} {...blockProps} settings={block.settings} />;
       case 'sponsors':
-        return <SponsorsBlock key={block.id} {...blockProps} settings={block.settings} />;
+        return <SponsorsBlock key={block.id} {...blockProps} sponsors={content?.sponsors} packages={content?.sponsorPackages} settings={block.settings} />;
       case 'exhibitors':
         return <ExhibitorsBlock key={block.id} {...blockProps} exhibitors={content?.exhibitors} settings={block.settings} />;
       case 'countdown':

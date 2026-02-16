@@ -1,0 +1,27 @@
+-- FIX: Missing unique constraint for attendee import
+-- This script adds a unique constraint to event_attendees to support UPSERT by email and event_id.
+-- Run this in your Supabase SQL Editor.
+
+BEGIN;
+
+-- 1. Deduplicate: If there are already duplicates, the constraint will fail.
+-- This keeps the most recently created record for each (email, event_id) pair.
+DELETE FROM public.event_attendees a
+WHERE a.id NOT IN (
+    SELECT id
+    FROM (
+        SELECT id,
+        ROW_NUMBER() OVER (PARTITION BY email, event_id ORDER BY created_at DESC) as row_num
+        FROM public.event_attendees
+    ) t
+    WHERE t.row_num = 1
+);
+
+-- 2. Add the unique constraint
+ALTER TABLE public.event_attendees 
+DROP CONSTRAINT IF EXISTS event_attendees_email_event_id_key;
+
+ALTER TABLE public.event_attendees 
+ADD CONSTRAINT event_attendees_email_event_id_key UNIQUE (email, event_id);
+
+COMMIT;

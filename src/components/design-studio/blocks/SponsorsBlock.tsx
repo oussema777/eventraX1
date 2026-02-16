@@ -8,11 +8,20 @@ interface Sponsor {
   name: string;
   logo: string;
   website?: string;
-  tier?: 'platinum' | 'gold' | 'silver' | 'bronze';
+  tier?: string;
+}
+
+interface SponsorPackage {
+  id: string;
+  name: string;
+  value: number;
+  benefits: string[];
+  color: string;
 }
 
 interface SponsorsBlockProps {
   sponsors?: Sponsor[];
+  packages?: SponsorPackage[];
   brandColor?: string;
   settings?: {
     title?: string;
@@ -29,6 +38,7 @@ interface SponsorsBlockProps {
 
 export default function SponsorsBlock({
   sponsors = [],
+  packages = [],
   brandColor = '#635BFF',
   settings,
   onEdit,
@@ -41,10 +51,22 @@ export default function SponsorsBlock({
   const title = settings?.title || 'Our Official Partners';
   const subtitle = settings?.subtitle || 'Supported by leading organizations committed to innovation and excellence.';
   
-  // Group sponsors by tier
-  const platinumSponsors = sponsors.filter(s => s.tier === 'platinum');
-  const goldSponsors = sponsors.filter(s => s.tier === 'gold');
-  const otherSponsors = sponsors.filter(s => !s.tier || (s.tier !== 'platinum' && s.tier !== 'gold'));
+  // Define default tiers if no packages provided
+  const defaultPackages = [
+    { id: 'platinum', name: 'Platinum Sponsors', color: '#EFF6FF', textColor: '#2563EB' },
+    { id: 'gold', name: 'Gold Sponsors', color: '#FFFBEB', textColor: '#D97706' },
+    { id: 'silver', name: 'Silver Sponsors', color: '#F3F4F6', textColor: '#4B5563' },
+    { id: 'bronze', name: 'Bronze Sponsors', color: '#FFF7ED', textColor: '#C2410C' }
+  ];
+
+  const displayPackages = packages.length > 0 
+    ? packages.map(p => ({
+        id: p.id,
+        name: p.name,
+        color: p.color || '#F3F4F6',
+        textColor: '#4B5563' // Default text color
+      }))
+    : defaultPackages;
 
   const renderSponsorGrid = (items: Sponsor[], size: 'lg' | 'md' | 'sm') => {
     if (items.length === 0) return null;
@@ -136,44 +158,73 @@ export default function SponsorsBlock({
           {subtitle}
         </p>
 
-        {/* Tiers */}
-        {platinumSponsors.length > 0 && (
-          <div style={{ marginBottom: '60px' }}>
-            <div style={{ display: 'inline-block', padding: '4px 16px', borderRadius: '100px', backgroundColor: '#EFF6FF', color: '#2563EB', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '32px' }}>
-              Platinum Sponsors
-            </div>
-            {renderSponsorGrid(platinumSponsors, 'lg')}
-          </div>
-        )}
+        {/* Dynamic Tiers/Packages */}
+        {displayPackages.map((pkg, idx) => {
+          const tierSponsors = sponsors.filter(s => 
+            s.tier?.toLowerCase() === pkg.id.toLowerCase() || 
+            s.tier?.toLowerCase() === pkg.name.toLowerCase()
+          );
 
-        {goldSponsors.length > 0 && (
-          <div style={{ marginBottom: '60px' }}>
-            <div style={{ display: 'inline-block', padding: '4px 16px', borderRadius: '100px', backgroundColor: '#FFFBEB', color: '#D97706', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '32px' }}>
-              Gold Sponsors
-            </div>
-            {renderSponsorGrid(goldSponsors, 'md')}
-          </div>
-        )}
+          if (tierSponsors.length === 0) return null;
 
-        {(otherSponsors.length > 0 || sponsors.length === 0) && (
-          <div>
-            {sponsors.length > 0 && (
-              <div style={{ display: 'inline-block', padding: '4px 16px', borderRadius: '100px', backgroundColor: '#F3F4F6', color: '#6B7280', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '32px' }}>
-                Official Partners
+          // Determine grid size based on package order (first is largest)
+          const gridSize = idx === 0 ? 'lg' : idx === 1 ? 'md' : 'sm';
+
+          return (
+            <div key={pkg.id} style={{ marginBottom: '60px' }}>
+              <div style={{ 
+                display: 'inline-block', 
+                padding: '4px 16px', 
+                borderRadius: '100px', 
+                backgroundColor: pkg.color.startsWith('#') ? `${pkg.color}20` : pkg.color, 
+                color: pkg.textColor || pkg.color, 
+                fontSize: '11px', 
+                fontWeight: 800, 
+                textTransform: 'uppercase', 
+                letterSpacing: '0.1em', 
+                marginBottom: '32px' 
+              }}>
+                {pkg.name}
               </div>
-            )}
-            
-            {sponsors.length > 0 ? (
-              renderSponsorGrid(otherSponsors, 'sm')
-            ) : (
-              <div style={{ padding: '60px', border: '2px dashed #E5E7EB', borderRadius: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF' }}>
-                <Building2 size={48} style={{ marginBottom: '16px', opacity: 0.3 }} />
-                <p style={{ fontWeight: 600 }}>No sponsors added yet.</p>
-                <p style={{ fontSize: '14px' }}>Click the gear icon to manage your partners.</p>
-              </div>
-            )}
-          </div>
-        )}
+              {renderSponsorGrid(tierSponsors, gridSize)}
+            </div>
+          );
+        })}
+
+        {/* Catch-all for sponsors without a matching tier */}
+        {(() => {
+          const categorizedIds = new Set(
+            displayPackages.flatMap(pkg => 
+              sponsors.filter(s => 
+                s.tier?.toLowerCase() === pkg.id.toLowerCase() || 
+                s.tier?.toLowerCase() === pkg.name.toLowerCase()
+              ).map(s => s.id)
+            )
+          );
+          const uncategorizedSponsors = sponsors.filter(s => !categorizedIds.has(s.id));
+
+          if (uncategorizedSponsors.length === 0 && sponsors.length > 0) return null;
+
+          return (
+            <div>
+              {uncategorizedSponsors.length > 0 && (
+                <div style={{ display: 'inline-block', padding: '4px 16px', borderRadius: '100px', backgroundColor: '#F3F4F6', color: '#6B7280', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '32px' }}>
+                  Official Partners
+                </div>
+              )}
+              
+              {uncategorizedSponsors.length > 0 ? (
+                renderSponsorGrid(uncategorizedSponsors, 'sm')
+              ) : sponsors.length === 0 ? (
+                <div style={{ padding: '60px', border: '2px dashed #E5E7EB', borderRadius: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF' }}>
+                  <Building2 size={48} style={{ marginBottom: '16px', opacity: 0.3 }} />
+                  <p style={{ fontWeight: 600 }}>No sponsors added yet.</p>
+                  <p style={{ fontSize: '14px' }}>Click the gear icon to manage your partners.</p>
+                </div>
+              ) : null}
+            </div>
+          );
+        })()}
 
         {/* Call to Action */}
         {settings?.showBecomeSponsor && (

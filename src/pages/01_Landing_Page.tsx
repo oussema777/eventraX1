@@ -9,6 +9,7 @@ import HeroSection from '../components/landing/HeroSection';
 import FeaturesSection from '../components/landing/FeaturesSection';
 import HowItWorksSection from '../components/landing/HowItWorksSection';
 import TestimonialsSection from '../components/landing/TestimonialsSection';
+import WeeklyDigestSection from '../components/landing/WeeklyDigestSection';
 import FinalCTASection from '../components/landing/FinalCTASection';
 import Footer from '../components/landing/Footer';
 import { ROUTES } from '../utils/navigation';
@@ -102,6 +103,9 @@ export default function LandingPage() {
     navigate('/create/details/new');
   };
 
+  const isWeeklyDigestEnabled =
+    profile?.app_preferences?.notifications?.includes('Weekly Digest') || false;
+
   return (
     <div className="min-h-screen bg-background">
       {/* Dynamic Navigation - Shows NavbarLoggedIn or NavbarLoggedOut based on auth state */}
@@ -122,6 +126,15 @@ export default function LandingPage() {
       {/* Main Content */}
       <main>
         <HeroSection onCreateEventClick={handleCreateEventClick} />
+        
+        {user && isWeeklyDigestEnabled && (
+          <WeeklyDigestSection 
+            userId={user.id} 
+            userInterests={profile?.b2b_profile?.industries_of_interest || []}
+            userIndustry={profile?.industry}
+          />
+        )}
+
         <FeaturesSection />
         <HowItWorksSection />
         <TestimonialsSection />

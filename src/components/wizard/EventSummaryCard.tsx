@@ -6,6 +6,15 @@ export default function EventSummaryCard() {
   const { eventData } = useEventWizard();
   const { t } = useI18n();
 
+  // Try to find a real image:
+  // 1. Direct cover_image_url
+  // 2. Hero block background from Design Studio settings
+  // 3. Fallback placeholder
+  const heroBlock = eventData.branding_settings?.design_studio?.activeBlocks?.find((b: any) => b.type === 'hero');
+  const heroBg = heroBlock?.settings?.backgroundImage;
+  
+  const displayImage = eventData.cover_image_url || heroBg || "https://images.unsplash.com/photo-1700936655767-7049129f1995?w=400&h=300&fit=crop";
+
   return (
     <div 
       className="rounded-xl p-8 border"
@@ -19,7 +28,7 @@ export default function EventSummaryCard() {
         {/* Left - Event Cover */}
         <div className="relative">
           <img
-            src={eventData.cover_image_url || "https://images.unsplash.com/photo-1700936655767-7049129f1995?w=400&h=300&fit=crop"}
+            src={displayImage}
             alt={t('wizard.step4.summary.coverAlt')}
             className="w-[200px] h-[150px] rounded-lg object-cover"
           />

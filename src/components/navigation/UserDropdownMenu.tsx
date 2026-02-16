@@ -73,27 +73,6 @@ export default function UserDropdownMenu({
           >
             {resolvedUserName}
           </p>
-          {isPro && (
-            <div 
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '2px 8px',
-                background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                borderRadius: '100px',
-                fontSize: '10px',
-                fontWeight: 900,
-                color: '#FFFFFF',
-                boxShadow: '0 2px 4px rgba(217, 119, 6, 0.3)',
-                letterSpacing: '0.05em',
-                flexShrink: 0
-              }}
-            >
-              <Crown size={10} strokeWidth={3} />
-              PRO
-            </div>
-          )}
         </div>
         <p 
           className="text-xs truncate"

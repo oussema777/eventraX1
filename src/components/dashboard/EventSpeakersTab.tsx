@@ -38,7 +38,7 @@ import {
 } from 'lucide-react';
 
 type ViewMode = 'grid' | 'list';
-type ActiveTab = 'all-speakers' | 'by-session' | 'materials' | 'communication' | 'analytics';
+type ActiveTab = 'all-speakers' | 'by-session';
 type FilterType = 'all' | 'keynote' | 'panel' | 'workshop' | 'confirmed' | 'pending';
 type SpeakerType = 'keynote' | 'panel' | 'workshop' | 'regular';
 type SpeakerStatus = 'confirmed' | 'pending' | 'declined';
@@ -1290,6 +1290,19 @@ export default function EventSpeakersTab({ eventId }: { eventId: string }) {
   };
 
 
+  const handleDownloadTemplate = () => {
+    const headers = ['Full Name', 'Email', 'Title', 'Company', 'Bio', 'Phone', 'Type', 'Status', 'Expertise', 'LinkedIn URL', 'Twitter URL', 'Website URL'];
+    const example = ['John Doe', 'john@example.com', 'Senior Developer', 'Acme Corp', 'Expert in React', '+123456789', 'keynote', 'confirmed', 'React, TypeScript, Node.js', 'https://linkedin.com/in/johndoe', 'https://twitter.com/johndoe', 'https://johndoe.com'];
+    const csvContent = [headers.join(','), example.join(',')].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'speaker_import_template.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="event-speakers" style={{ padding: '32px 40px 80px', backgroundColor: '#0B2641', minHeight: '100vh' }}>
       <style>{`
@@ -1420,7 +1433,7 @@ export default function EventSpeakersTab({ eventId }: { eventId: string }) {
 
         <div className="event-speakers__actions" style={{ display: 'flex', gap: '12px' }}>
           <button
-            onClick={() => openCompose(speakers, 'Event Update')}
+            onClick={handleDownloadTemplate}
             style={{
               height: '44px',
               padding: '0 20px',
@@ -1437,8 +1450,8 @@ export default function EventSpeakersTab({ eventId }: { eventId: string }) {
               transition: 'all 0.2s'
             }}
           >
-            <Mail size={18} />
-            {t('manageEvent.speakers.header.sendUpdate')}
+            <Download size={18} />
+            CSV Template
           </button>
 
           <button
@@ -1577,56 +1590,51 @@ export default function EventSpeakersTab({ eventId }: { eventId: string }) {
             </div>
           </div>
 
-          {/* Materials Status */}
-          <div>
-            <FileText size={32} style={{ color: '#F59E0B', marginBottom: '12px', filter: 'drop-shadow(0 0 8px rgba(245,158,11,0.5))' }} />
-            <p style={{ fontSize: '13px', fontWeight: 500, color: '#94A3B8', marginBottom: '8px' }}>
-              {t('manageEvent.speakers.stats.materialsSubmitted')}
-            </p>
-            <p style={{ fontSize: '48px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px', lineHeight: 1 }}>
-              {stats.materialsSubmitted}/{stats.confirmed}
-            </p>
-            <p style={{ fontSize: '12px', color: '#F59E0B', marginBottom: '8px' }}>
-              {t('manageEvent.speakers.stats.pendingUploads', { count: stats.materialsPending })}
-            </p>
-            <button
-              onClick={() => sendMaterialReminders(speakers.filter((s) => !s.materials.submitted))}
-              style={{
-                padding: '0',
-                border: 'none',
-                background: 'none',
-                color: '#0684F5',
-                fontSize: '12px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                textDecoration: 'underline'
-              }}
-            >
-              {t('manageEvent.speakers.stats.sendReminder')}
-            </button>
-          </div>
-
-          {/* Engagement Score */}
+          {/* Keynote Speakers */}
           <div>
             <Star size={32} style={{ color: '#F59E0B', marginBottom: '12px', filter: 'drop-shadow(0 0 8px rgba(245,158,11,0.5))' }} />
             <p style={{ fontSize: '13px', fontWeight: 500, color: '#94A3B8', marginBottom: '8px' }}>
-              {t('manageEvent.speakers.stats.rating')}
+              Keynote Speakers
             </p>
             <p style={{ fontSize: '48px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px', lineHeight: 1 }}>
-              {stats.averageRating}/5
+              {stats.keynote}
             </p>
             <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '8px' }}>
-              {t('manageEvent.speakers.stats.basedOnFeedback')}
+              Confirmed Keynotes
             </p>
-            <div style={{ display: 'flex', gap: '2px' }}>
-              {[1, 2, 3, 4, 5].map(star => (
-                <Star
-                  key={star}
-                  size={14}
-                  fill={star <= parseFloat(stats.averageRating) ? '#F59E0B' : 'none'}
-                  style={{ color: star <= parseFloat(stats.averageRating) ? '#F59E0B' : '#6B7280' }}
-                />
-              ))}
+            <div style={{ width: '100%', height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}>
+              <div
+                style={{
+                  width: `${stats.total ? (stats.keynote / stats.total) * 100 : 0}%`,
+                  height: '100%',
+                  backgroundColor: '#F59E0B',
+                  borderRadius: '2px'
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Regular Speakers */}
+          <div>
+            <Users size={32} style={{ color: '#0684F5', marginBottom: '12px', filter: 'drop-shadow(0 0 8px rgba(6,132,245,0.5))' }} />
+            <p style={{ fontSize: '13px', fontWeight: 500, color: '#94A3B8', marginBottom: '8px' }}>
+              Guest Speakers
+            </p>
+            <p style={{ fontSize: '48px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px', lineHeight: 1 }}>
+              {stats.regular}
+            </p>
+            <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '8px' }}>
+              Standard Guest Speakers
+            </p>
+            <div style={{ width: '100%', height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}>
+              <div
+                style={{
+                  width: `${stats.total ? (stats.regular / stats.total) * 100 : 0}%`,
+                  height: '100%',
+                  backgroundColor: '#0684F5',
+                  borderRadius: '2px'
+                }}
+              />
             </div>
           </div>
         </div>
@@ -1646,10 +1654,7 @@ export default function EventSpeakersTab({ eventId }: { eventId: string }) {
       >
         {[ 
           { id: 'all-speakers', label: t('manageEvent.speakers.tabs.all') },
-          { id: 'by-session', label: t('manageEvent.speakers.tabs.bySession') },
-          { id: 'materials', label: t('manageEvent.speakers.tabs.materials') },
-          { id: 'communication', label: t('manageEvent.speakers.tabs.communication') },
-          { id: 'analytics', label: t('manageEvent.speakers.tabs.analytics') }
+          { id: 'by-session', label: t('manageEvent.speakers.tabs.bySession') }
         ].map(tab => (
           <button
             key={tab.id}
@@ -1934,60 +1939,8 @@ export default function EventSpeakersTab({ eventId }: { eventId: string }) {
           onAddSession={() => navigate(`/create/registration/${eventId}?substep=3.5`)}
         />
       )}
-      {activeTab === 'materials' && (
-        <MaterialsTrackingView
-          speakers={speakers}
-          onReminder={(speakerList) => sendMaterialReminders(speakerList)}
-        />
-      )}
-      {activeTab === 'communication' && (
-        <CommunicationLogView
-          eventId={eventId}
-          speakers={speakers}
-          refreshKey={commRefreshKey}
-        />
-      )}
-      {activeTab === 'analytics' && (
-        <AnalyticsView
-          speakers={speakers}
-          sessions={sessions}
-        />
-      )}
 
-            {/* Modals */}
-      {/* FLOATING COMPOSE BUTTON */}
-      <button
-        onClick={() => openCompose(speakers)}
-        style={{
-          position: 'fixed',
-          bottom: '32px',
-          right: '32px',
-          width: '56px',
-          height: '56px',
-          backgroundColor: '#0684F5',
-          border: 'none',
-          borderRadius: '50%',
-          color: '#FFFFFF',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          boxShadow: '0px 4px 16px rgba(6,132,245,0.4)',
-          transition: 'all 0.2s',
-          zIndex: 99
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'scale(1.1)';
-          e.currentTarget.style.boxShadow = '0px 6px 24px rgba(6,132,245,0.6)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'scale(1)';
-          e.currentTarget.style.boxShadow = '0px 4px 16px rgba(6,132,245,0.4)';
-        }}
-      >
-        <Mail size={24} />
-      </button>
-
+      {/* MODALS */}
       {/* MODALS */}
       {showDetailModal && selectedSpeaker && (
         <SpeakerDetailModal

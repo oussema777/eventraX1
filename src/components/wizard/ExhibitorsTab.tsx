@@ -81,21 +81,21 @@ export default function ExhibitorsTab({ eventId }: ExhibitorsTabProps) {
     if (!eventId) return;
     
     try {
-      let exhibitorId = selectedExhibitor?.id;
       let finalData = { ...data };
 
       if (selectedExhibitor) {
         // Updating existing
         if (logoFile) {
-          const logoUrl = await uploadExhibitorLogo(eventId, exhibitorId!, logoFile);
+          const logoUrl = await uploadExhibitorLogo(eventId, selectedExhibitor.id, logoFile);
           if (logoUrl) finalData.logo_url = logoUrl;
         }
-        await updateExhibitor(exhibitorId!, finalData);
+        await updateExhibitor(selectedExhibitor.id, finalData);
         toast.success(t('wizard.step3.exhibitors.toasts.updated'));
       } else {
-        // Creating new
+        // Creating new - First create without logo
         const newExhibitor = await createExhibitor(finalData);
         if (newExhibitor && logoFile) {
+          // Then upload logo and update
           const logoUrl = await uploadExhibitorLogo(eventId, newExhibitor.id, logoFile);
           if (logoUrl) {
             await updateExhibitor(newExhibitor.id, { logo_url: logoUrl });
@@ -1156,33 +1156,25 @@ function AddExhibitorModal({
                 >
                   <option value="">{t('wizard.step3.exhibitors.modal.fields.industryPlaceholder')}</option>
                   <option value="Technology & Software">Technology & Software</option>
-                  <option value="AI, IoT & Emerging Tech">AI, IoT & Emerging Tech</option>
-                  <option value="Developers & Engineers">Developers & Engineers</option>
                   <option value="Financial Services & Banking">Financial Services & Banking</option>
-                  <option value="Investment & Banking">Investment & Banking</option>
-                  <option value="Audit, Accounting & Finance">Audit, Accounting & Finance</option>
-                  <option value="Insurance & Microfinance">Insurance & Microfinance</option>
                   <option value="Healthcare & Pharmaceuticals">Healthcare & Pharmaceuticals</option>
-                  <option value="Education & Training">Education & Training</option>
-                  <option value="Universities & Academies">Universities & Academies</option>
-                  <option value="Students & Researchers">Students & Researchers</option>
-                  <option value="Media & Entertainment">Media & Entertainment</option>
-                  <option value="Audiovisual & Creative Industries">Audiovisual & Creative Industries</option>
-                  <option value="Marketing & Advertising">Marketing & Advertising</option>
-                  <option value="Retail & E-commerce">Retail & E-commerce</option>
                   <option value="Manufacturing & Production">Manufacturing & Production</option>
-                  <option value="Real Estate & Construction">Real Estate & Construction</option>
+                  <option value="Retail & E-commerce">Retail & E-commerce</option>
+                  <option value="Consulting & Professional Services">Consulting & Professional Services</option>
+                  <option value="Education & Training">Education & Training</option>
+                  <option value="Media & Entertainment">Media & Entertainment</option>
                   <option value="Transportation & Logistics">Transportation & Logistics</option>
                   <option value="Energy & Utilities">Energy & Utilities</option>
+                  <option value="Real Estate & Construction">Real Estate & Construction</option>
                   <option value="Hospitality & Tourism">Hospitality & Tourism</option>
                   <option value="Telecommunications">Telecommunications</option>
                   <option value="Agriculture & Food Production">Agriculture & Food Production</option>
+                  <option value="Automotive">Automotive</option>
+                  <option value="Aerospace & Defense">Aerospace & Defense</option>
                   <option value="Legal Services">Legal Services</option>
-                  <option value="Consulting & Professional Services">Consulting & Professional Services</option>
-                  <option value="Coaches & Trainers">Coaches & Trainers</option>
-                  <option value="Non-Profit & Civil Society">Non-Profit & Civil Society</option>
+                  <option value="Marketing & Advertising">Marketing & Advertising</option>
+                  <option value="Non-Profit & NGO">Non-Profit & NGO</option>
                   <option value="Government & Public Sector">Government & Public Sector</option>
-                  <option value="Entrepreneurs & Startups">Entrepreneurs & Startups</option>
                   <option value="Other">Other</option>
                 </select>
               </div>

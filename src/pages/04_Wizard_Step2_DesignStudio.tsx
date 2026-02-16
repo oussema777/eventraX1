@@ -6,6 +6,7 @@ import BlockLibraryPanel from '../components/design-studio/BlockLibraryPanel';
 import PreviewPanel from '../components/design-studio/PreviewPanel';
 import HeroBlock from '../components/design-studio/blocks/HeroBlock';
 import AboutBlock from '../components/design-studio/blocks/AboutBlock';
+import CustomHTMLBlock from '../components/design-studio/blocks/CustomHTMLBlock';
 import EventDetailsBlock from '../components/design-studio/blocks/EventDetailsBlock';
 import SpeakersBlock from '../components/design-studio/blocks/SpeakersBlock';
 import AgendaBlock from '../components/design-studio/blocks/AgendaBlock';
@@ -14,7 +15,6 @@ import FooterBlock from '../components/design-studio/blocks/FooterBlock';
 import SponsorsBlock from '../components/design-studio/blocks/SponsorsBlock';
 import ExhibitorsBlock from '../components/design-studio/blocks/ExhibitorsBlock';
 import CountdownBlock from '../components/design-studio/blocks/CountdownBlock';
-import TestimonialsBlock from '../components/design-studio/blocks/TestimonialsBlock';
 import VideoHeroBlock from '../components/design-studio/blocks/VideoHeroBlock';
 import { ArrowLeft, ArrowRight, Save } from 'lucide-react';
 import { type WizardStep } from '../utils/wizardNavigation';
@@ -28,13 +28,14 @@ import { useSpeakers } from '../hooks/useSpeakers';
 import { useSessions } from '../hooks/useSessions';
 import { useTickets } from '../hooks/useTickets';
 import { useExhibitors } from '../hooks/useExhibitors';
+import { useSponsors } from '../hooks/useSponsors';
 import AboutBlockSettingsModal from '../components/design-studio/modals/AboutBlockSettingsModal';
 import FooterBlockSettingsModal from '../components/design-studio/modals/FooterBlockSettingsModal';
 import HeroBlockSettingsModal from '../components/design-studio/modals/HeroBlockSettingsModal';
 import SponsorsBlockSettingsModal from '../components/design-studio/modals/SponsorsBlockSettingsModal';
 import ExhibitorsBlockSettingsModal from '../components/design-studio/modals/ExhibitorsBlockSettingsModal';
 import CountdownBlockSettingsModal from '../components/design-studio/modals/CountdownBlockSettingsModal';
-import TestimonialsBlockSettingsModal from '../components/design-studio/modals/TestimonialsBlockSettingsModal';
+import CustomHTMLBlockSettingsModal from '../components/design-studio/modals/CustomHTMLBlockSettingsModal';
 import VideoHeroBlockSettingsModal from '../components/design-studio/modals/VideoHeroBlockSettingsModal';
 
 interface Block {
@@ -62,6 +63,7 @@ export default function WizardStep2DesignStudio() {
   const { sessions } = useSessions(eventId);
   const { tickets } = useTickets();
   const { exhibitors } = useExhibitors(eventId);
+  const { sponsors, packages } = useSponsors();
   const { isPro } = usePlan();
   const { t } = useI18n();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -341,14 +343,24 @@ export default function WizardStep2DesignStudio() {
     website: e.website
   })), [exhibitors]);
 
+  const mappedSponsors = useMemo(() => (sponsors || []).map(s => ({
+    id: s.id,
+    name: s.name,
+    logo: s.logoUrl || '',
+    website: s.websiteUrl,
+    tier: (s.tier?.toLowerCase() || 'gold') as any
+  })), [sponsors]);
+
   const previewContent = useMemo(() => ({
     event: eventData,
     speakers: mappedSpeakers,
     sessions: mappedSessions,
     days: mappedDays,
     tickets: mappedTickets,
-    exhibitors: mappedExhibitors
-  }), [eventData, mappedSpeakers, mappedSessions, mappedDays, mappedTickets, mappedExhibitors]);
+    exhibitors: mappedExhibitors,
+    sponsors: mappedSponsors,
+    sponsorPackages: packages
+  }), [eventData, mappedSpeakers, mappedSessions, mappedDays, mappedTickets, mappedExhibitors, mappedSponsors, packages]);
 
   const renderBlock = (block: ActiveBlock) => {
     if (!block.isVisible) return null;
@@ -427,6 +439,8 @@ export default function WizardStep2DesignStudio() {
     switch (block.type) {
       case 'hero':
         return wrapWithLock(<HeroBlock isLocked={isLocked} event={eventData} brandColor={brandColor} brandColorSecondary={brandColorSecondary} buttonRadius={buttonRadius} logoUrl={logoUrl} logoSize={logoSize} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
+      case 'custom-html':
+        return wrapWithLock(<CustomHTMLBlock isLocked={isLocked} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
       case 'about':
         const aboutData = {
           name: block.settings?.title || eventData.name,
@@ -457,13 +471,11 @@ export default function WizardStep2DesignStudio() {
       case 'video-hero':
         return wrapWithLock(<VideoHeroBlock brandColor={brandColor} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
       case 'sponsors':
-        return wrapWithLock(<SponsorsBlock brandColor={brandColor} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
+        return wrapWithLock(<SponsorsBlock sponsors={previewContent.sponsors} packages={previewContent.sponsorPackages} brandColor={brandColor} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
       case 'exhibitors':
         return wrapWithLock(<ExhibitorsBlock exhibitors={mappedExhibitors} brandColor={brandColor} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
       case 'countdown':
         return wrapWithLock(<CountdownBlock brandColor={brandColor} targetDate={eventData.start_date} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
-      case 'testimonials':
-        return wrapWithLock(<TestimonialsBlock brandColor={brandColor} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
       default:
         return (
           <div
@@ -680,6 +692,13 @@ export default function WizardStep2DesignStudio() {
         isSaving={isEventSaving}
       />
 
+      <CustomHTMLBlockSettingsModal
+        isOpen={settingsBlockId === 'custom-html'}
+        onClose={() => setSettingsBlockId(null)}
+        settings={selectedBlock?.settings}
+        onSave={(data) => handleSaveBlockSettings('custom-html', data)}
+      />
+
       <FooterBlockSettingsModal
         isOpen={settingsBlockId === 'footer'}
         onClose={() => setSettingsBlockId(null)}
@@ -707,13 +726,6 @@ export default function WizardStep2DesignStudio() {
         onClose={() => setSettingsBlockId(null)}
         settings={selectedBlock?.settings || {}}
         onSave={(data) => handleSaveBlockSettings('countdown', data)}
-      />
-
-      <TestimonialsBlockSettingsModal
-        isOpen={settingsBlockId === 'testimonials'}
-        onClose={() => setSettingsBlockId(null)}
-        settings={selectedBlock?.settings || {}}
-        onSave={(data) => handleSaveBlockSettings('testimonials', data)}
       />
 
       <VideoHeroBlockSettingsModal

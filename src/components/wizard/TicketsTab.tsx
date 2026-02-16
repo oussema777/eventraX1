@@ -216,26 +216,11 @@ export default function TicketsTab({ eventId }: TicketsTabProps) {
             {/* Card Header */}
             <div className="ticket-card-header flex items-start justify-between mb-5 ml-8">
               <div className="flex items-center gap-3">
-                <div 
-                  className="w-12 h-12 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: 'rgba(6, 132, 245, 0.1)' }}
-                >
-                  <Ticket size={24} style={{ color: 'var(--primary)' }} />
-                </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="text-xl" style={{ color: '#FFFFFF', fontWeight: 600 }}>
                       {ticket.name}
                     </h3>
-                    {ticket.status === 'active' && (
-                      <span 
-                        className="px-2 py-1 rounded-full text-xs flex items-center gap-1"
-                        style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', fontWeight: 600 }}
-                      >
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--success)' }} />
-                        Active
-                      </span>
-                    )}
                     {ticket.status === 'expired' && (
                       <span 
                         className="px-2 py-1 rounded-full text-xs"
@@ -250,19 +235,6 @@ export default function TicketsTab({ eventId }: TicketsTabProps) {
                         style={{ backgroundColor: '#E5E7EB', color: '#6B7280', fontWeight: 600 }}
                       >
                         Disabled
-                      </span>
-                    )}
-                    {ticket.isPro && (
-                      <span 
-                        className="px-2 py-1 rounded-full text-xs flex items-center gap-1"
-                        style={{ 
-                          background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
-                          color: '#FFFFFF',
-                          fontWeight: 700
-                        }}
-                      >
-                        <Crown size={12} />
-                        PRO
                       </span>
                     )}
                   </div>

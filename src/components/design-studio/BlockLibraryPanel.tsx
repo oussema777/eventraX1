@@ -179,15 +179,6 @@ export default function BlockLibraryPanel({
       icon: '⏱️'
     },
     {
-      id: 'testimonials',
-      name: t('wizard.designStudio.blocks.testimonials.name'),
-      type: 'testimonials',
-      description: t('wizard.designStudio.blocks.testimonials.description'),
-      tier: 'PRO',
-      thumbnail: 'carousel',
-      icon: '💬'
-    },
-    {
       id: 'exhibitors',
       name: 'Exhibitors',
       type: 'exhibitors',

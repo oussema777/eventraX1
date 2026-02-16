@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
+import { toast } from 'sonner';
 import {
   Plus,
   Link2,
@@ -103,11 +104,10 @@ interface Sponsor {
 export default function EventExhibitorsTab({ eventId }: { eventId: string }) {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<TabMode>('exhibitors');
-  const [managementMode, setManagementMode] = useState<ManagementMode>('manual');
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [addModalType, setAddModalType] = useState<'exhibitor' | 'sponsor'>('exhibitor');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBooth, setSelectedBooth] = useState<string | null>(null);
@@ -117,7 +117,6 @@ export default function EventExhibitorsTab({ eventId }: { eventId: string }) {
   const [profileFilter, setProfileFilter] = useState<'all' | ProfileStatus>('all');
   const [tierFilter, setTierFilter] = useState<'all' | SponsorTier>('all');
   const [sortOption, setSortOption] = useState<'company' | 'booth' | 'date' | 'profile'>('company');
-  const [selfFillCopied, setSelfFillCopied] = useState(false);
 
   const [exhibitors, setExhibitors] = useState<Exhibitor[]>([]);
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
@@ -236,9 +235,6 @@ export default function EventExhibitorsTab({ eventId }: { eventId: string }) {
     window.location.href = `tel:${phone}`;
   };
 
-  useEffect(() => {
-    if (managementMode !== 'self-fill') setSelfFillCopied(false);
-  }, [managementMode]);
 
   const filteredExhibitors = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -676,28 +672,28 @@ export default function EventExhibitorsTab({ eventId }: { eventId: string }) {
         {/* Right Side: Action Buttons */}
         <div className="event-exhibitors__actions" style={{ display: 'flex', gap: '12px' }}>
           <button
-            onClick={() => setShowShareModal(true)}
+            onClick={() => setShowImportModal(true)}
             style={{
               height: '44px',
               padding: '0 20px',
               backgroundColor: 'transparent',
-              border: '2px solid #0684F5',
+              border: '2px solid #10B981',
               borderRadius: '8px',
               fontFamily: 'Inter',
               fontSize: '14px',
               fontWeight: 600,
-              color: '#0684F5',
+              color: '#10B981',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
               cursor: 'pointer',
               transition: 'all 0.2s'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.1)'}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)'}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
           >
-            <Link2 size={18} />
-            {t('manageEvent.exhibitors.header.shareLink')}
+            <Upload size={18} />
+            Import from Excel
           </button>
 
           <button
@@ -729,177 +725,10 @@ export default function EventExhibitorsTab({ eventId }: { eventId: string }) {
           >
             <Plus size={18} />
             {t('manageEvent.exhibitors.header.add')}
-            <ChevronDown size={16} style={{ marginLeft: '4px' }} />
           </button>
         </div>
       </div>
 
-      {/* MANAGEMENT MODE SELECTOR BANNER */}
-      <div
-        className="event-exhibitors__management"
-        style={{
-          background: 'linear-gradient(90deg, rgba(6, 132, 245, 0.15) 0%, rgba(6, 132, 245, 0.05) 100%)',
-          padding: '20px 24px',
-          borderRadius: '12px',
-          border: '1px solid rgba(6, 132, 245, 0.3)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '24px'
-        }}
-      >
-        {/* Left Side: Info */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <Info size={24} style={{ color: '#0684F5', flexShrink: 0 }} />
-          <div>
-            <h3 style={{ fontFamily: 'Inter', fontSize: '16px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>
-              {t('manageEvent.exhibitors.managementMode.title')}
-            </h3>
-            <p style={{ fontFamily: 'Inter', fontSize: '14px', color: '#94A3B8' }}>
-              {t('manageEvent.exhibitors.managementMode.subtitle')}
-            </p>
-          </div>
-        </div>
-
-        {/* Right Side: Mode Toggle */}
-        <div
-          className="event-exhibitors__management-toggle"
-          style={{
-            display: 'flex',
-            gap: '8px',
-            backgroundColor: 'rgba(255,255,255,0.08)',
-            padding: '4px',
-            borderRadius: '8px'
-          }}
-        >
-          {[
-            { id: 'manual', label: t('manageEvent.exhibitors.managementMode.manual') },
-            { id: 'self-fill', label: t('manageEvent.exhibitors.managementMode.selfFill') }
-          ].map(mode => (
-            <button
-              key={mode.id}
-              onClick={() => setManagementMode(mode.id as ManagementMode)}
-              style={{
-                height: '36px',
-                padding: '0 16px',
-                backgroundColor: managementMode === mode.id ? '#0684F5' : 'transparent',
-                border: 'none',
-                borderRadius: '6px',
-                fontFamily: 'Inter',
-                fontSize: '13px',
-                fontWeight: 600,
-                color: managementMode === mode.id ? '#FFFFFF' : '#94A3B8',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              {mode.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {managementMode === 'self-fill' && (
-        <div
-          className="event-exhibitors__self-fill"
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.08)',
-            padding: '20px 24px',
-            borderRadius: '12px',
-            border: '1px solid rgba(255,255,255,0.1)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '20px',
-            marginBottom: '24px'
-          }}
-        >
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h4 style={{ fontFamily: 'Inter', fontSize: '16px', fontWeight: 700, color: '#FFFFFF', marginBottom: '6px' }}>
-              {t('manageEvent.exhibitors.selfFill.title')}
-            </h4>
-            <p style={{ fontFamily: 'Inter', fontSize: '13px', color: '#94A3B8', marginBottom: '12px' }}>
-              {t('manageEvent.exhibitors.selfFill.subtitle', { type: activeTab === 'exhibitors' ? t('manageEvent.exhibitors.tabs.exhibitors').toLowerCase() : t('manageEvent.exhibitors.tabs.sponsors').toLowerCase() })}
-            </p>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                backgroundColor: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: '8px',
-                padding: '10px 12px'
-              }}
-            >
-              <Link2 size={16} style={{ color: '#94A3B8', flexShrink: 0 }} />
-              <span
-                style={{
-                  fontFamily: 'Inter',
-                  fontSize: '13px',
-                  color: '#FFFFFF',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  flex: 1
-                }}
-              >
-                {getSelfFillLink(activeTab === 'exhibitors' ? 'exhibitor' : 'sponsor')}
-              </span>
-            </div>
-          </div>
-          <div className="event-exhibitors__self-fill-actions" style={{ display: 'flex', gap: '12px', flexShrink: 0 }}>
-            <button
-              onClick={async () => {
-                const ok = await handleCopyLink(activeTab === 'exhibitors' ? 'exhibitor' : 'sponsor');
-                if (ok) {
-                  setSelfFillCopied(true);
-                  setTimeout(() => setSelfFillCopied(false), 2000);
-                }
-              }}
-              style={{
-                height: '40px',
-                padding: '0 16px',
-                backgroundColor: selfFillCopied ? '#1F7A3E' : 'transparent',
-                border: `1px solid ${selfFillCopied ? '#1F7A3E' : 'rgba(255,255,255,0.2)'}`,
-                borderRadius: '8px',
-                fontFamily: 'Inter',
-                fontSize: '13px',
-                fontWeight: 600,
-                color: '#FFFFFF',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                cursor: 'pointer'
-              }}
-            >
-              {selfFillCopied ? <Check size={14} /> : <Copy size={14} />}
-              {selfFillCopied ? t('manageEvent.exhibitors.selfFill.copied') : t('manageEvent.exhibitors.selfFill.copy')}
-            </button>
-            <button
-              onClick={() => window.open(getSelfFillLink(activeTab === 'exhibitors' ? 'exhibitor' : 'sponsor'), '_blank', 'noopener,noreferrer')}
-              style={{
-                height: '40px',
-                padding: '0 16px',
-                backgroundColor: '#0684F5',
-                border: 'none',
-                borderRadius: '8px',
-                fontFamily: 'Inter',
-                fontSize: '13px',
-                fontWeight: 600,
-                color: '#FFFFFF',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                cursor: 'pointer'
-              }}
-            >
-              <Eye size={14} />
-              {t('manageEvent.exhibitors.selfFill.preview')}
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* FILTERS & SEARCH BAR */}
       <div
@@ -1299,12 +1128,12 @@ export default function EventExhibitorsTab({ eventId }: { eventId: string }) {
         />
       )}
 
-      {showShareModal && (
-        <ShareLinkModal
-          activeTab={activeTab}
-          onClose={() => setShowShareModal(false)}
-          getSelfFillLink={getSelfFillLink}
-          onCopyLink={handleCopyLink}
+      {showImportModal && (
+        <ImportExcelModal
+          type={activeTab}
+          eventId={eventId}
+          onClose={() => setShowImportModal(false)}
+          onImported={() => refreshData()}
         />
       )}
     </div>
@@ -3549,7 +3378,267 @@ function AddExhibitorSponsorModal({ type, eventId, onClose, onAdded, initialData
   );
 }
 
-// Share Link Modal Component
+// Import Excel Modal Component
+function ImportExcelModal({ type, eventId, onClose, onImported }: {
+  type: 'exhibitors' | 'sponsors';
+  eventId: string;
+  onClose: () => void;
+  onImported: () => void;
+}) {
+  const [isUploading, setIsUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const downloadTemplate = () => {
+    const headers = type === 'exhibitors' 
+      ? ['companyName', 'category', 'contactName', 'contactRole', 'contactEmail', 'contactPhone', 'boothNumber', 'boothHall', 'description']
+      : ['companyName', 'tier', 'category', 'contactName', 'contactRole', 'contactEmail', 'contactPhone', 'description'];
+    
+    const csv = headers.join(',') + '\n';
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${type}-template.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleFileSelect = (file: File) => {
+    const validTypes = ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+    if (validTypes.includes(file.type) || file.name.endsWith('.csv') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+      setSelectedFile(file);
+    } else {
+      alert('Please upload a CSV or Excel file');
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleFileSelect(files[0]);
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleFileSelect(files[0]);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) return;
+    
+    setIsUploading(true);
+    
+    try {
+      // Read the file
+      const text = await selectedFile.text();
+      const rows = text.split('\n').map(row => row.trim()).filter(row => row);
+      
+      if (rows.length < 2) {
+        toast.error('File is empty or has no data rows');
+        setIsUploading(false);
+        return;
+      }
+      
+      // Parse CSV
+      const headers = rows[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const dataRows = rows.slice(1);
+      
+      const parsedData = dataRows.map(row => {
+        const values = row.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+        const obj: any = {};
+        headers.forEach((header, index) => {
+          obj[header] = values[index] || '';
+        });
+        return obj;
+      });
+      
+      // Insert data into Supabase
+      if (type === 'exhibitors') {
+        const exhibitorsToInsert = parsedData.map(data => ({
+          event_id: eventId,
+          company_name: data.companyName || '',
+          category: data.category || '',
+          contact_name: data.contactName || '',
+          contact_role: data.contactRole || '',
+          contact_email: data.contactEmail || '',
+          contact_phone: data.contactPhone || '',
+          booth_number: data.boothNumber || '',
+          booth_hall: data.boothHall || '',
+          description: data.description || '',
+          profile_status: 'incomplete',
+          completion_percentage: 0
+        }));
+        
+        const { error } = await supabase
+          .from('event_exhibitors')
+          .insert(exhibitorsToInsert);
+        
+        if (error) {
+          console.error('Error importing exhibitors:', error);
+          toast.error('Failed to import exhibitors: ' + error.message);
+          setIsUploading(false);
+          return;
+        }
+      } else {
+        const sponsorsToInsert = parsedData.map(data => ({
+          event_id: eventId,
+          company_name: data.companyName || '',
+          tier: data.tier || 'gold',
+          category: data.category || '',
+          contact_name: data.contactName || '',
+          contact_role: data.contactRole || '',
+          contact_email: data.contactEmail || '',
+          contact_phone: data.contactPhone || '',
+          description: data.description || '',
+          profile_status: 'incomplete',
+          completion_percentage: 0
+        }));
+        
+        const { error } = await supabase
+          .from('event_sponsors')
+          .insert(sponsorsToInsert);
+        
+        if (error) {
+          console.error('Error importing sponsors:', error);
+          toast.error('Failed to import sponsors: ' + error.message);
+          setIsUploading(false);
+          return;
+        }
+      }
+      
+      toast.success(`${parsedData.length} ${type === 'exhibitors' ? 'exhibitors' : 'sponsors'} imported successfully!`);
+      setIsUploading(false);
+      onImported();
+      onClose();
+    } catch (error) {
+      console.error('Error processing file:', error);
+      toast.error('Failed to process file. Please check the format.');
+      setIsUploading(false);
+    }
+  };
+
+  return (
+    <div 
+      style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+      onClick={onClose}
+    >
+      <div 
+        style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '32px', maxWidth: '500px', width: '90%' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#0B2641' }}>Import {type === 'exhibitors' ? 'Exhibitors' : 'Sponsors'}</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+            <X size={24} style={{ color: '#6B7280' }} />
+          </button>
+        </div>
+
+        <p style={{ fontSize: '14px', color: '#6B7280', marginBottom: '24px' }}>
+          Download the template, fill it with your data, and upload it back.
+        </p>
+
+        <button
+          onClick={downloadTemplate}
+          style={{
+            width: '100%',
+            height: '44px',
+            backgroundColor: '#10B981',
+            border: 'none',
+            borderRadius: '8px',
+            color: '#FFFFFF',
+            fontWeight: 600,
+            fontSize: '14px',
+            cursor: 'pointer',
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}
+        >
+          <Download size={18} />
+          Download Template
+        </button>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,.xlsx,.xls"
+          onChange={handleFileInputChange}
+          style={{ display: 'none' }}
+        />
+
+        <div 
+          onClick={() => fileInputRef.current?.click()}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          style={{
+            border: `2px dashed ${isDragging ? '#10B981' : '#E5E7EB'}`,
+            borderRadius: '8px',
+            padding: '32px',
+            textAlign: 'center',
+            backgroundColor: isDragging ? '#F0FDF4' : '#F9FAFB',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+        >
+          <Upload size={48} style={{ color: isDragging ? '#10B981' : '#9CA3AF', margin: '0 auto 16px' }} />
+          <p style={{ fontSize: '14px', color: '#6B7280', marginBottom: '8px' }}>
+            {selectedFile ? selectedFile.name : 'Drag and drop your file here, or click to browse'}
+          </p>
+          <p style={{ fontSize: '12px', color: '#9CA3AF' }}>
+            Supports CSV and Excel files
+          </p>
+        </div>
+
+        {selectedFile && (
+          <button
+            onClick={handleUpload}
+            disabled={isUploading}
+            style={{
+              width: '100%',
+              height: '44px',
+              backgroundColor: isUploading ? '#9CA3AF' : '#0684F5',
+              border: 'none',
+              borderRadius: '8px',
+              color: '#FFFFFF',
+              fontWeight: 600,
+              fontSize: '14px',
+              cursor: isUploading ? 'default' : 'pointer',
+              marginTop: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}
+          >
+            {isUploading ? 'Uploading...' : 'Upload and Import'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 function ShareLinkModal({ activeTab, onClose, getSelfFillLink, onCopyLink }: {
   activeTab: TabMode;
   onClose: () => void;

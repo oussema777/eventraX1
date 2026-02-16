@@ -25,15 +25,16 @@ export default function WizardStep1Details() {
     const details = getEventBasicDetails();
     const safeName =
       details.eventName?.trim() || draftName.trim() || eventData.name?.trim();
+    const resolvedStatus = details.eventStatus || eventData.event_status || 'free';
     return {
       name: safeName,
       tagline: details.tagline || eventData.tagline,
       event_type: details.eventType === 'Other' && details.otherEventType ? details.otherEventType : details.eventType,
-      event_status: details.eventStatus || eventData.event_status || 'free',
+      event_status: resolvedStatus,
       event_format: details.eventFormat || eventData.event_format || 'in-person',
       location_address: details.venueAddress || eventData.location_address,
-      start_date: details.startDate || eventData.start_date,
-      end_date: details.endDate || eventData.end_date,
+      start_date: resolvedStatus === 'continuous' ? null : (details.startDate || eventData.start_date),
+      end_date: resolvedStatus === 'continuous' ? null : (details.endDate || eventData.end_date),
       capacity_limit: details.hasCapacityLimit ? details.maxAttendees || null : null,
       waitlist_enabled: details.enableWaitlist || eventData.waitlist_enabled || false,
       attendee_settings: {
@@ -72,20 +73,22 @@ export default function WizardStep1Details() {
       return;
     }
 
-    if (!details.start_date || !details.end_date) {
-      toast.error(t('wizard.details.errors.datesRequired'));
-      return;
-    }
+    if (details.event_status !== 'continuous') {
+      if (!details.start_date || !details.end_date) {
+        toast.error(t('wizard.details.errors.datesRequired'));
+        return;
+      }
 
-    const today = new Date().toISOString().split('T')[0];
-    if (details.start_date < today) {
-      toast.error(t('wizard.details.errors.startDatePast'));
-      return;
-    }
+      const today = new Date().toISOString().split('T')[0];
+      if (details.start_date < today) {
+        toast.error(t('wizard.details.errors.startDatePast'));
+        return;
+      }
 
-    if (details.end_date < details.start_date) {
-      toast.error(t('wizard.details.errors.endDateBeforeStart'));
-      return;
+      if (details.end_date < details.start_date) {
+        toast.error(t('wizard.details.errors.endDateBeforeStart'));
+        return;
+      }
     }
 
     if (details.waitlist_enabled && details.capacity_limit && details.attendee_settings?.waitlist_capacity) {
@@ -139,20 +142,23 @@ export default function WizardStep1Details() {
       toast.error(t('wizard.details.errors.nameRequired', 'Event name is required.'));
       return;
     }
-    if (!details.startDate || !details.endDate) {
-      toast.error(t('wizard.details.errors.datesRequired', 'Please select start and end dates.'));
-      return;
-    }
 
-    const today = new Date().toISOString().split('T')[0];
-    if (details.startDate < today) {
-      toast.error(t('wizard.details.errors.startDatePast'));
-      return;
-    }
+    if (details.eventStatus !== 'continuous') {
+      if (!details.startDate || !details.endDate) {
+        toast.error(t('wizard.details.errors.datesRequired', 'Please select start and end dates.'));
+        return;
+      }
 
-    if (details.endDate < details.startDate) {
-      toast.error(t('wizard.details.errors.endDateBeforeStart'));
-      return;
+      const today = new Date().toISOString().split('T')[0];
+      if (details.startDate < today) {
+        toast.error(t('wizard.details.errors.startDatePast'));
+        return;
+      }
+
+      if (details.endDate < details.startDate) {
+        toast.error(t('wizard.details.errors.endDateBeforeStart'));
+        return;
+      }
     }
 
     // Auto-save and create event

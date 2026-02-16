@@ -4,7 +4,6 @@ import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import WizardSidebar from '../components/wizard/WizardSidebar';
 import LaunchHeader from '../components/wizard/LaunchHeader';
 import EventSummaryCard from '../components/wizard/EventSummaryCard';
-import IntegrationsSection from '../components/wizard/IntegrationsSection';
 import SEOSection from '../components/wizard/SEOSection';
 import PaymentGatewaySection from '../components/wizard/PaymentGatewaySection';
 import PrivacySection from '../components/wizard/PrivacySection';
@@ -165,9 +164,6 @@ export default function WizardStep4Launch() {
 
             {/* Event Summary */}
             <EventSummaryCard />
-
-            {/* Integrations */}
-            <IntegrationsSection />
 
             {/* SEO Settings */}
             <SEOSection />

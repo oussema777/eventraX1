@@ -1,8 +1,10 @@
-import { X, CheckCircle, Calendar, Plus, XCircle, DollarSign, Gift, AlertTriangle, Info, Crown } from 'lucide-react';
+import { X, CheckCircle, Calendar, Plus, XCircle, DollarSign, Gift, AlertTriangle, Info, Crown, Clock, Check } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { isEventPaid } from '../../../utils/eventStorage';
 import { useI18n } from '../../../i18n/I18nContext';
 import { TicketType } from '../../../hooks/useTickets';
+import { useEventWizard } from '../../../hooks/useEventWizard';
+import { useParams } from 'react-router-dom';
 
 interface TicketCreationModalProps {
   isOpen: boolean;
@@ -30,6 +32,7 @@ export interface TicketFormData {
   earlyBirdDiscount: number;
   earlyBirdStart: string;
   earlyBirdEnd: string;
+  useDefaultSalesPeriod: boolean;
 }
 
 const CURRENCIES = [
@@ -62,6 +65,8 @@ const CURRENCIES = [
 
 export default function TicketCreationModal({ isOpen, onClose, onSave, eventCapacity, hasPro = false, ticket }: TicketCreationModalProps) {
   const { t } = useI18n();
+  const { eventId } = useParams();
+  const { eventData } = useEventWizard(eventId);
   const [isSaving, setIsSaving] = useState(false);
 
   const [formData, setFormData] = useState<TicketFormData>({
@@ -80,7 +85,8 @@ export default function TicketCreationModal({ isOpen, onClose, onSave, eventCapa
     enableEarlyBird: false,
     earlyBirdDiscount: 0,
     earlyBirdStart: '',
-    earlyBirdEnd: ''
+    earlyBirdEnd: '',
+    useDefaultSalesPeriod: false
   });
 
   const [charCount, setCharCount] = useState(0);
@@ -107,7 +113,8 @@ export default function TicketCreationModal({ isOpen, onClose, onSave, eventCapa
           enableEarlyBird: ticket.isEarlyBird || false,
           earlyBirdDiscount: ticket.earlyBirdDiscount || 0,
           earlyBirdStart: '',
-          earlyBirdEnd: ticket.earlyBirdEndDate || ''
+          earlyBirdEnd: ticket.earlyBirdEndDate || '',
+          useDefaultSalesPeriod: false
         });
         setCharCount(ticket.description?.length || 0);
       } else {
@@ -128,12 +135,38 @@ export default function TicketCreationModal({ isOpen, onClose, onSave, eventCapa
           enableEarlyBird: false,
           earlyBirdDiscount: 0,
           earlyBirdStart: '',
-          earlyBirdEnd: ''
+          earlyBirdEnd: '',
+          useDefaultSalesPeriod: true
         });
         setCharCount(0);
       }
     }
   }, [isOpen, ticket]);
+
+  // Handle default sales period logic
+  useEffect(() => {
+    if (formData.useDefaultSalesPeriod && isOpen) {
+      const now = new Date();
+      const formatDate = (date: Date) => {
+        const offset = date.getTimezoneOffset();
+        const adjustedDate = new Date(date.getTime() - (offset * 60 * 1000));
+        return adjustedDate.toISOString().slice(0, 16);
+      };
+
+      const start = formatDate(now);
+      let end = '';
+      
+      if (eventData?.start_date) {
+        end = new Date(eventData.start_date).toISOString().slice(0, 16);
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        startDate: start,
+        endDate: end
+      }));
+    }
+  }, [formData.useDefaultSalesPeriod, eventData?.start_date, isOpen]);
 
   if (!isOpen) return null;
 
@@ -468,24 +501,43 @@ export default function TicketCreationModal({ isOpen, onClose, onSave, eventCapa
               )}
 
               <div>
-                <label 
-                  className="block text-sm mb-3"
-                  style={{ fontWeight: 500, color: '#0B2641' }}
-                >
-                  {t('wizard.step3.ticketsModal.fields.salesPeriod.label')}
-                </label>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center justify-between mb-3">
+                  <label 
+                    className="block text-sm"
+                    style={{ fontWeight: 500, color: '#0B2641' }}
+                  >
+                    {t('wizard.step3.ticketsModal.fields.salesPeriod.label')}
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                    <div 
+                      className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                        formData.useDefaultSalesPeriod 
+                          ? 'bg-[#0684F5] border-[#0684F5]' 
+                          : 'bg-white border-[#E5E7EB] group-hover:border-[#0684F5]'
+                      }`}
+                      onClick={() => setFormData({ ...formData, useDefaultSalesPeriod: !formData.useDefaultSalesPeriod })}
+                    >
+                      {formData.useDefaultSalesPeriod && <Check size={12} className="text-white" strokeWidth={4} />}
+                    </div>
+                    <span className="text-xs font-semibold text-gray-600 group-hover:text-[#0684F5] transition-colors">
+                      Today till Event Date
+                    </span>
+                  </label>
+                </div>
+                <div className={`grid grid-cols-2 gap-4 transition-all ${formData.useDefaultSalesPeriod ? 'opacity-70' : 'opacity-100'}`}>
                   <div>
                     <label className="block text-xs mb-2" style={{ color: '#6B7280' }}>
                       {t('wizard.step3.ticketsModal.fields.salesPeriod.start')}
                     </label>
-                    <div className="flex items-center gap-2 px-3 h-11 rounded-lg border" style={{ borderColor: '#E5E7EB' }}>
+                    <div 
+                      className={`flex items-center gap-2 px-3 h-11 rounded-lg border transition-colors ${formData.useDefaultSalesPeriod ? 'bg-gray-50 border-[#E5E7EB]' : 'bg-white border-[#E5E7EB] focus-within:border-[#0684F5]'}`}
+                    >
                       <Calendar size={16} style={{ color: '#6B7280' }} />
                       <input
                         type="datetime-local"
                         value={formData.startDate}
-                        onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                        className="flex-1 outline-none text-sm"
+                        onChange={(e) => setFormData({ ...formData, startDate: e.target.value, useDefaultSalesPeriod: false })}
+                        className="flex-1 outline-none text-sm bg-transparent"
                         style={{ color: '#0B2641' }}
                       />
                     </div>
@@ -494,18 +546,26 @@ export default function TicketCreationModal({ isOpen, onClose, onSave, eventCapa
                     <label className="block text-xs mb-2" style={{ color: '#6B7280' }}>
                       {t('wizard.step3.ticketsModal.fields.salesPeriod.end')}
                     </label>
-                    <div className="flex items-center gap-2 px-3 h-11 rounded-lg border" style={{ borderColor: '#E5E7EB' }}>
+                    <div 
+                      className={`flex items-center gap-2 px-3 h-11 rounded-lg border transition-colors ${formData.useDefaultSalesPeriod ? 'bg-gray-50 border-[#E5E7EB]' : 'bg-white border-[#E5E7EB] focus-within:border-[#0684F5]'}`}
+                    >
                       <Calendar size={16} style={{ color: '#6B7280' }} />
                       <input
                         type="datetime-local"
                         value={formData.endDate}
-                        onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                        className="flex-1 outline-none text-sm"
+                        onChange={(e) => setFormData({ ...formData, endDate: e.target.value, useDefaultSalesPeriod: false })}
+                        className="flex-1 outline-none text-sm bg-transparent"
                         style={{ color: '#0B2641' }}
                       />
                     </div>
                   </div>
                 </div>
+                {formData.useDefaultSalesPeriod && (
+                  <div className="mt-2 flex items-center gap-2 text-[11px] text-blue-600 font-medium animate-in fade-in slide-in-from-top-1">
+                    <Clock size={12} />
+                    Sales will automatically run from now until the event begins.
+                  </div>
+                )}
               </div>
 
               {formData.pricingType === 'paid' && (
