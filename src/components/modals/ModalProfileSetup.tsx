@@ -492,6 +492,7 @@ export default function ModalProfileSetup({
                               onChange={(e) => setCountryCodeSearch(e.target.value)}
                               placeholder={t('profileSetup.placeholders.searchCountry') || 'Search...'}
                               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md outline-none focus:border-[#0684F5]"
+                              style={{ color: '#111827' }}
                               onClick={(e) => e.stopPropagation()}
                               autoFocus
                             />
@@ -708,6 +709,7 @@ export default function ModalProfileSetup({
                             onChange={(e) => setCountrySearch(e.target.value)}
                             placeholder={t('profileSetup.placeholders.searchCountry') || 'Search...'}
                             className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md outline-none focus:border-[#0684F5]"
+                            style={{ color: '#111827' }}
                             onClick={(e) => e.stopPropagation()}
                             autoFocus
                           />
@@ -965,6 +967,7 @@ export default function ModalProfileSetup({
                             onChange={(e) => setIndustrySearch(e.target.value)}
                             placeholder={t('profileSetup.placeholders.searchIndustry') || 'Search industry...'}
                             className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md outline-none focus:border-[#0684F5]"
+                            style={{ color: '#111827' }}
                             onClick={(e) => e.stopPropagation()}
                             autoFocus
                           />
