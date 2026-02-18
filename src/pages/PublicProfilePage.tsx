@@ -119,22 +119,22 @@ export default function PublicProfilePage() {
     { id: 6, label: t('publicProfilePage.lookingFor.sharing'), key: 'sharing' }
   ].map(item => ({
     ...item,
-    checked: profile.b2b_profile?.meeting_goals?.includes(item.key) || false
+    checked: Array.isArray(profile.b2b_profile?.meeting_goals) && profile.b2b_profile.meeting_goals.includes(item.key)
   }));
 
-  const industriesOfInterest = (profile.b2b_profile?.industries_of_interest || []).map((name: string, i: number) => {
+  const industriesOfInterest = (Array.isArray(profile.b2b_profile?.industries_of_interest) ? profile.b2b_profile.industries_of_interest : []).map((name: string, i: number) => {
     const colors = ['#0684F5', '#06B6D4', '#8B5CF6', '#10B981', '#F59E0B'];
     return { name, color: colors[i % colors.length] };
   });
 
-  const companyStages = (profile.b2b_profile?.company_stages || []).map((name: string) => {
+  const companyStages = (Array.isArray(profile.b2b_profile?.company_stages) ? profile.b2b_profile.company_stages : []).map((name: string) => {
     let icon = Rocket;
     if (name.toLowerCase().includes('early')) icon = TrendingUp;
     if (name.toLowerCase().includes('growth')) icon = BarChart3;
     return { name, icon };
   });
 
-  const discussionTopics = (profile.b2b_profile?.meeting_topics || []).map((name: string) => ({
+  const discussionTopics = (Array.isArray(profile.b2b_profile?.meeting_topics) ? profile.b2b_profile.meeting_topics : []).map((name: string) => ({
     name,
     level: 'Expert' // Default level if not in DB
   }));
@@ -145,7 +145,7 @@ export default function PublicProfilePage() {
     { id: 'phone', label: t('publicProfilePage.meeting.formats.phone'), icon: Phone }
   ].map(f => ({
     ...f,
-    selected: profile.b2b_profile?.meeting_formats?.includes(f.id) || false
+    selected: Array.isArray(profile.b2b_profile?.meeting_formats) && profile.b2b_profile.meeting_formats.includes(f.id)
   }));
 
   const getExpertiseColor = (level: string) => {

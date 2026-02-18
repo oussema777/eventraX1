@@ -104,7 +104,8 @@ export default function LandingPage() {
   };
 
   const isWeeklyDigestEnabled =
-    profile?.app_preferences?.notifications?.includes('Weekly Digest') || false;
+    Array.isArray(profile?.app_preferences?.notifications) && 
+    profile.app_preferences.notifications.includes('Weekly Digest');
 
   return (
     <div className="min-h-screen bg-background">
@@ -130,7 +131,7 @@ export default function LandingPage() {
         {user && isWeeklyDigestEnabled && (
           <WeeklyDigestSection 
             userId={user.id} 
-            userInterests={profile?.b2b_profile?.industries_of_interest || []}
+            userInterests={Array.isArray(profile?.b2b_profile?.industries_of_interest) ? profile.b2b_profile.industries_of_interest : []}
             userIndustry={profile?.industry}
           />
         )}

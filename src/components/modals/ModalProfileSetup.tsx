@@ -73,6 +73,8 @@ export default function ModalProfileSetup({
   const [phoneError, setPhoneError] = useState('');
   const [showCountryCodeDropdown, setShowCountryCodeDropdown] = useState(false);
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  const [countryCodeSearch, setCountryCodeSearch] = useState('');
+  const [countrySearch, setCountrySearch] = useState('');
 
   // Professional Info (Step 2)
   const [jobTitle, setJobTitle] = useState('');
@@ -85,11 +87,28 @@ export default function ModalProfileSetup({
   const [showIndustryDropdown, setShowIndustryDropdown] = useState(false);
   const [showYearsDropdown, setShowYearsDropdown] = useState(false);
   const [showCompanySizeDropdown, setShowCompanySizeDropdown] = useState(false);
+  const [industrySearch, setIndustrySearch] = useState('');
 
   if (!isOpen) return null;
 
   // Get selected country data
   const selectedCountryData = countries.find(c => c.code === selectedCountryCode) || countries[0];
+
+  // Filtered countries for phone code
+  const filteredCountryCodes = countries.filter(country => 
+    country.name.toLowerCase().includes(countryCodeSearch.toLowerCase()) ||
+    country.phoneCode.includes(countryCodeSearch)
+  );
+
+  // Filtered countries for country select
+  const filteredCountries = countries.filter(country => 
+    country.name.toLowerCase().includes(countrySearch.toLowerCase())
+  );
+
+  // Filtered industries
+  const filteredIndustries = industries.filter(ind =>
+    ind.toLowerCase().includes(industrySearch.toLowerCase())
+  );
   
   // Form validation for Step 1
   const isStep1Valid = firstName.trim() !== '' && lastName.trim() !== '' && phoneNumber.trim() !== '' && selectedCountry !== '';
@@ -417,7 +436,11 @@ export default function ModalProfileSetup({
                     <div className="relative">
                       <button
                         type="button"
-                        onClick={() => setShowCountryCodeDropdown(!showCountryCodeDropdown)}
+                        onClick={() => {
+                          const next = !showCountryCodeDropdown;
+                          setShowCountryCodeDropdown(next);
+                          if (next) setCountryCodeSearch('');
+                        }}
                         className="flex items-center justify-between transition-all"
                         style={{
                           width: '90px',
@@ -455,41 +478,65 @@ export default function ModalProfileSetup({
                           style={{
                             backgroundColor: '#FFFFFF',
                             border: '1px solid #E5E7EB',
-                            maxHeight: '240px',
-                            overflowY: 'auto'
+                            maxHeight: '300px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            overflow: 'hidden'
                           }}
                         >
-                          {countries.map((country) => (
-                            <button
-                              key={country.code}
-                              type="button"
-                              onClick={() => {
-                                setSelectedCountryCode(country.code);
-                                setShowCountryCodeDropdown(false);
-                              }}
-                              className="w-full flex items-center gap-3 px-4 py-2.5 transition-colors"
-                              style={{
-                                border: 'none',
-                                backgroundColor: selectedCountryCode === country.code ? '#F3F4F6' : 'transparent',
-                                cursor: 'pointer',
-                                textAlign: 'left'
-                              }}
-                              onMouseEnter={(e) => {
-                                if (selectedCountryCode !== country.code) {
-                                  e.currentTarget.style.backgroundColor = '#F9FAFB';
-                                }
-                              }}
-                              onMouseLeave={(e) => {
-                                if (selectedCountryCode !== country.code) {
-                                  e.currentTarget.style.backgroundColor = 'transparent';
-                                }
-                              }}
-                            >
-                              <span style={{ fontSize: '20px' }}>{toFlagEmoji(country.code)}</span>
-                              <span style={{ fontSize: '14px', color: '#374151', flex: 1 }}>{country.name}</span>
-                              <span style={{ fontSize: '14px', color: '#6B7280' }}>{country.phoneCode}</span>
-                            </button>
-                          ))}
+                          {/* Search Input */}
+                          <div className="p-2 border-b border-gray-100">
+                            <input
+                              type="text"
+                              value={countryCodeSearch}
+                              onChange={(e) => setCountryCodeSearch(e.target.value)}
+                              placeholder={t('profileSetup.placeholders.searchCountry') || 'Search...'}
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md outline-none focus:border-[#0684F5]"
+                              onClick={(e) => e.stopPropagation()}
+                              autoFocus
+                            />
+                          </div>
+
+                          <div className="overflow-y-auto flex-1">
+                            {filteredCountryCodes.length > 0 ? (
+                              filteredCountryCodes.map((country) => (
+                                <button
+                                  key={country.code}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedCountryCode(country.code);
+                                    setShowCountryCodeDropdown(false);
+                                    setCountryCodeSearch('');
+                                  }}
+                                  className="w-full flex items-center gap-3 px-4 py-2.5 transition-colors"
+                                  style={{
+                                    border: 'none',
+                                    backgroundColor: selectedCountryCode === country.code ? '#F3F4F6' : 'transparent',
+                                    cursor: 'pointer',
+                                    textAlign: 'left'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (selectedCountryCode !== country.code) {
+                                      e.currentTarget.style.backgroundColor = '#F9FAFB';
+                                    }
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    if (selectedCountryCode !== country.code) {
+                                      e.currentTarget.style.backgroundColor = 'transparent';
+                                    }
+                                  }}
+                                >
+                                  <span style={{ fontSize: '20px' }}>{toFlagEmoji(country.code)}</span>
+                                  <span style={{ fontSize: '14px', color: '#374151', flex: 1 }}>{country.name}</span>
+                                  <span style={{ fontSize: '14px', color: '#6B7280' }}>{country.phoneCode}</span>
+                                </button>
+                              ))
+                            ) : (
+                              <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                                {t('profileSetup.noResults') || 'No results found'}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -596,7 +643,11 @@ export default function ModalProfileSetup({
                   <div className="relative">
                     <button
                       type="button"
-                      onClick={() => setShowCountryDropdown(!showCountryDropdown)}
+                      onClick={() => {
+                        const next = !showCountryDropdown;
+                        setShowCountryDropdown(next);
+                        if (next) setCountrySearch('');
+                      }}
                       className="w-full flex items-center justify-between transition-all"
                       style={{
                         height: '48px',
@@ -643,40 +694,64 @@ export default function ModalProfileSetup({
                         style={{
                           backgroundColor: '#FFFFFF',
                           border: '1px solid #E5E7EB',
-                          maxHeight: '240px',
-                          overflowY: 'auto'
+                          maxHeight: '300px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          overflow: 'hidden'
                         }}
                       >
-                        {countries.map((country) => (
-                          <button
-                            key={country.code}
-                            type="button"
-                            onClick={() => {
-                              setSelectedCountry(country.code);
-                              setShowCountryDropdown(false);
-                            }}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 transition-colors"
-                            style={{
-                              border: 'none',
-                              backgroundColor: selectedCountry === country.code ? '#F3F4F6' : 'transparent',
-                              cursor: 'pointer',
-                              textAlign: 'left'
-                            }}
-                            onMouseEnter={(e) => {
-                              if (selectedCountry !== country.code) {
-                                e.currentTarget.style.backgroundColor = '#F9FAFB';
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              if (selectedCountry !== country.code) {
-                                e.currentTarget.style.backgroundColor = 'transparent';
-                              }
-                            }}
-                          >
-                            <span style={{ fontSize: '20px' }}>{toFlagEmoji(country.code)}</span>
-                            <span style={{ fontSize: '14px', color: '#374151' }}>{country.name}</span>
-                          </button>
-                        ))}
+                        {/* Search Input */}
+                        <div className="p-2 border-b border-gray-100">
+                          <input
+                            type="text"
+                            value={countrySearch}
+                            onChange={(e) => setCountrySearch(e.target.value)}
+                            placeholder={t('profileSetup.placeholders.searchCountry') || 'Search...'}
+                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md outline-none focus:border-[#0684F5]"
+                            onClick={(e) => e.stopPropagation()}
+                            autoFocus
+                          />
+                        </div>
+
+                        <div className="overflow-y-auto flex-1">
+                          {filteredCountries.length > 0 ? (
+                            filteredCountries.map((country) => (
+                              <button
+                                key={country.code}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCountry(country.code);
+                                  setShowCountryDropdown(false);
+                                  setCountrySearch('');
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 transition-colors"
+                                style={{
+                                  border: 'none',
+                                  backgroundColor: selectedCountry === country.code ? '#F3F4F6' : 'transparent',
+                                  cursor: 'pointer',
+                                  textAlign: 'left'
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (selectedCountry !== country.code) {
+                                    e.currentTarget.style.backgroundColor = '#F9FAFB';
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (selectedCountry !== country.code) {
+                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                  }
+                                }}
+                              >
+                                <span style={{ fontSize: '20px' }}>{toFlagEmoji(country.code)}</span>
+                                <span style={{ fontSize: '14px', color: '#374151' }}>{country.name}</span>
+                              </button>
+                            ))
+                          ) : (
+                            <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                              {t('profileSetup.noResults') || 'No results found'}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -834,7 +909,11 @@ export default function ModalProfileSetup({
                   <div className="relative">
                     <button
                       type="button"
-                      onClick={() => setShowIndustryDropdown(!showIndustryDropdown)}
+                      onClick={() => {
+                        const next = !showIndustryDropdown;
+                        setShowIndustryDropdown(next);
+                        if (next) setIndustrySearch('');
+                      }}
                       className="w-full flex items-center justify-between transition-all"
                       style={{
                         height: '48px',
@@ -872,44 +951,68 @@ export default function ModalProfileSetup({
                         style={{
                           backgroundColor: '#FFFFFF',
                           border: '1px solid #E5E7EB',
-                          maxHeight: '240px',
-                          overflowY: 'auto'
+                          maxHeight: '300px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          overflow: 'hidden'
                         }}
                       >
-                        {industries.map((ind) => (
-                          <button
-                            key={ind}
-                            type="button"
-                            onClick={() => {
-                              setIndustry(ind);
-                              if (ind !== otherIndustryLabel) {
-                                setCustomIndustry('');
-                              }
-                              setShowIndustryDropdown(false);
-                            }}
-                            className="w-full px-4 py-2.5 transition-colors"
-                            style={{
-                              border: 'none',
-                              backgroundColor: industry === ind ? '#F3F4F6' : 'transparent',
-                              cursor: 'pointer',
-                              textAlign: 'left',
-                              fontSize: '14px',
-                              color: '#374151'
-                            }}
-                            onMouseEnter={(e) => {
-                              if (industry !== ind) {
-                                e.currentTarget.style.backgroundColor = '#F9FAFB';
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              if (industry !== ind) {
-                                e.currentTarget.style.backgroundColor = 'transparent';
-                              }
-                            }}
-                          >
-                            {ind}
-                          </button>
-                        ))}
+                        {/* Search Input */}
+                        <div className="p-2 border-b border-gray-100">
+                          <input
+                            type="text"
+                            value={industrySearch}
+                            onChange={(e) => setIndustrySearch(e.target.value)}
+                            placeholder={t('profileSetup.placeholders.searchIndustry') || 'Search industry...'}
+                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md outline-none focus:border-[#0684F5]"
+                            onClick={(e) => e.stopPropagation()}
+                            autoFocus
+                          />
+                        </div>
+
+                        <div className="overflow-y-auto flex-1">
+                          {filteredIndustries.length > 0 ? (
+                            filteredIndustries.map((ind) => (
+                              <button
+                                key={ind}
+                                type="button"
+                                onClick={() => {
+                                  setIndustry(ind);
+                                  if (ind !== otherIndustryLabel) {
+                                    setCustomIndustry('');
+                                  }
+                                  setShowIndustryDropdown(false);
+                                  setIndustrySearch('');
+                                }}
+                                className="w-full px-4 py-2.5 transition-colors"
+                                style={{
+                                  border: 'none',
+                                  backgroundColor: industry === ind ? '#F3F4F6' : 'transparent',
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
+                                  fontSize: '14px',
+                                  color: '#374151'
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (industry !== ind) {
+                                    e.currentTarget.style.backgroundColor = '#F9FAFB';
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (industry !== ind) {
+                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                  }
+                                }}
+                              >
+                                {ind}
+                              </button>
+                            ))
+                          ) : (
+                            <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                              {t('profileSetup.noResults') || 'No results found'}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>

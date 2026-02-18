@@ -6,6 +6,7 @@ import {
   Handshake,
   Sparkles,
   Clock,
+  Check,
   CheckCircle,
   TrendingUp,
   Users,

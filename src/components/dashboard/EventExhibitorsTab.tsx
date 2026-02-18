@@ -177,8 +177,23 @@ export default function EventExhibitorsTab({ eventId }: { eventId: string }) {
         supabase.from('event_exhibitors').select('*').eq('event_id', eventId),
         supabase.from('event_sponsors').select('*').eq('event_id', eventId)
       ]);
-      if (!exErr) setExhibitors((exData || []).map(mapExhibitorRow));
-      if (!spErr) setSponsors((spData || []).map(mapSponsorRow));
+      
+      if (exErr) {
+        console.error('Error fetching exhibitors:', exErr);
+        toast.error('Failed to load exhibitors: ' + exErr.message);
+      } else {
+        setExhibitors((exData || []).map(mapExhibitorRow));
+      }
+
+      if (spErr) {
+        console.error('Error fetching sponsors:', spErr);
+        toast.error('Failed to load sponsors: ' + spErr.message);
+      } else {
+        setSponsors((spData || []).map(mapSponsorRow));
+      }
+    } catch (error: any) {
+      console.error('Error refreshing data:', error);
+      toast.error('Refresh failed: ' + (error.message || 'Unknown error'));
     } finally {
       setIsLoading(false);
     }
@@ -2649,7 +2664,7 @@ function AddExhibitorSponsorModal({ type, eventId, onClose, onAdded, initialData
   initialData?: Exhibitor | Sponsor | null;
   startAssignBooth?: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, tList } = useI18n();
   const [assignBooth, setAssignBooth] = useState(startAssignBooth);
   const [selectedTier, setSelectedTier] = useState<SponsorTier>('gold');
   const [companyName, setCompanyName] = useState('');
@@ -2662,7 +2677,12 @@ function AddExhibitorSponsorModal({ type, eventId, onClose, onAdded, initialData
   const [contactPhone, setContactPhone] = useState('');
   const [boothNumber, setBoothNumber] = useState('');
   const [boothHall, setBoothHall] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const communitySectors = tList<string>('nav.communities.items', []);
+  const industryOptions = communitySectors.map(s => ({ value: s, label: s }));
 
   useEffect(() => {
     if (!initialData) {
@@ -2676,6 +2696,7 @@ function AddExhibitorSponsorModal({ type, eventId, onClose, onAdded, initialData
       setContactPhone('');
       setBoothNumber('');
       setBoothHall('');
+      setLogoUrl('');
       setSelectedTier('gold');
       setAssignBooth(startAssignBooth);
       return;
@@ -2688,6 +2709,7 @@ function AddExhibitorSponsorModal({ type, eventId, onClose, onAdded, initialData
     setContactRole(initialData.contact?.role || '');
     setContactEmail(initialData.contact?.email || '');
     setContactPhone(initialData.contact?.phone || '');
+    setLogoUrl(initialData.logo || '');
 
     if (type === 'exhibitor') {
       const exhibitor = initialData as Exhibitor;
@@ -2701,9 +2723,45 @@ function AddExhibitorSponsorModal({ type, eventId, onClose, onAdded, initialData
     }
   }, [initialData, startAssignBooth, type]);
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !eventId) return;
+
+    setUploadingLogo(true);
+    try {
+      // Use a temporary path if we don't have an exhibitor ID yet, 
+      // or just upload it to a general event assets folder
+      const extension = file.name.split('.').pop();
+      const timestamp = Date.now();
+      const filename = `logo_${timestamp}.${extension}`;
+      const path = `events/${eventId}/exhibitors/temp_${filename}`;
+
+      const { data, error } = await supabase.storage
+        .from('profiles')
+        .upload(path, file, { cacheControl: '3600', upsert: true });
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('profiles')
+        .getPublicUrl(data.path);
+
+      setLogoUrl(publicUrl);
+      toast.success('Logo uploaded successfully');
+    } catch (err) {
+      console.error('Error uploading logo:', err);
+      toast.error('Failed to upload logo');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
   const submit = async (draft: boolean) => {
     if (!eventId) return;
-    if (!companyName.trim()) return;
+    if (!companyName.trim()) {
+      toast.error('Company name is required');
+      return;
+    }
     setSaving(true);
     try {
       const isEdit = !!initialData;
@@ -2714,6 +2772,7 @@ function AddExhibitorSponsorModal({ type, eventId, onClose, onAdded, initialData
           description: description.trim(),
           industry: category || '',
           category: category || '',
+          logo_url: logoUrl,
           contact_name: contactName.trim(),
           contact_role: contactRole.trim(),
           contact_email: contactEmail.trim(),
@@ -2730,16 +2789,20 @@ function AddExhibitorSponsorModal({ type, eventId, onClose, onAdded, initialData
         }
         if (isEdit && initialData) {
           if (draft) payload.profile_status = 'pending';
-          await supabase
+          const { error } = await supabase
             .from('event_exhibitors')
             .update(payload)
             .eq('id', initialData.id)
             .eq('event_id', eventId);
+          if (error) throw error;
+          toast.success('Exhibitor updated successfully');
         } else {
           payload.event_id = eventId;
           payload.profile_status = draft ? 'pending' : 'incomplete';
           payload.completion_percentage = 0;
-          await supabase.from('event_exhibitors').insert([payload]);
+          const { error } = await supabase.from('event_exhibitors').insert([payload]);
+          if (error) throw error;
+          toast.success('Exhibitor added successfully');
         }
       } else {
         const payload: any = {
@@ -2748,28 +2811,31 @@ function AddExhibitorSponsorModal({ type, eventId, onClose, onAdded, initialData
           description: description.trim(),
           tier: selectedTier,
           benefits: [],
-          category: category.trim() || '',
-          contact_name: contactName.trim(),
-          contact_role: contactRole.trim(),
-          contact_email: contactEmail.trim(),
-          contact_phone: contactPhone.trim()
+          logo_url: logoUrl,
+          status: 'confirmed',
+          contribution_amount: 0,
+          notes: ''
         };
         if (isEdit && initialData) {
-          if (draft) payload.profile_status = 'pending';
-          await supabase
+          const { error } = await supabase
             .from('event_sponsors')
             .update(payload)
             .eq('id', initialData.id)
             .eq('event_id', eventId);
+          if (error) throw error;
+          toast.success('Sponsor updated successfully');
         } else {
           payload.event_id = eventId;
-          payload.profile_status = draft ? 'pending' : 'incomplete';
-          payload.completion_percentage = 0;
-          await supabase.from('event_sponsors').insert([payload]);
+          const { error } = await supabase.from('event_sponsors').insert([payload]);
+          if (error) throw error;
+          toast.success('Sponsor added successfully');
         }
       }
-      onAdded();
+      await onAdded();
       onClose();
+    } catch (err: any) {
+      console.error('Error saving:', err);
+      toast.error(err.message || 'Failed to save changes');
     } finally {
       setSaving(false);
     }
@@ -2862,13 +2928,27 @@ function AddExhibitorSponsorModal({ type, eventId, onClose, onAdded, initialData
                   border: '2px dashed #E9EAEB',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  overflow: 'hidden'
                 }}
               >
-                <Building2 size={32} style={{ color: '#9A9FA5' }} />
+                {logoUrl ? (
+                  <img src={logoUrl} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                ) : (
+                  <Building2 size={32} style={{ color: '#9A9FA5' }} />
+                )}
               </div>
               <div>
+                <input
+                  type="file"
+                  id="exhibitor-logo-upload"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  style={{ display: 'none' }}
+                />
                 <button
+                  disabled={uploadingLogo}
+                  onClick={() => document.getElementById('exhibitor-logo-upload')?.click()}
                   style={{
                     height: '36px',
                     padding: '0 16px',
@@ -2879,15 +2959,16 @@ function AddExhibitorSponsorModal({ type, eventId, onClose, onAdded, initialData
                     fontSize: '14px',
                     fontWeight: 600,
                     color: '#1A1D1F',
-                    cursor: 'pointer',
+                    cursor: uploadingLogo ? 'not-allowed' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
-                    marginBottom: '8px'
+                    marginBottom: '8px',
+                    opacity: uploadingLogo ? 0.7 : 1
                   }}
                 >
-                  <Upload size={16} />
-                  {t('manageEvent.exhibitors.modals.add.uploadLogo')}
+                  {uploadingLogo ? <RefreshCw className="animate-spin" size={16} /> : <Upload size={16} />}
+                  {uploadingLogo ? 'Uploading...' : t('manageEvent.exhibitors.modals.add.uploadLogo')}
                 </button>
                 <p style={{ fontFamily: 'Inter', fontSize: '12px', color: '#9A9FA5' }}>
                   {t('manageEvent.exhibitors.modals.add.logoHint')}
@@ -2981,12 +3062,12 @@ function AddExhibitorSponsorModal({ type, eventId, onClose, onAdded, initialData
                     outline: 'none'
                   }}
                 >
-                  <option>{t('manageEvent.exhibitors.modals.add.placeholders.category')}</option>
-                  <option>Technology</option>
-                  <option>Finance</option>
-                  <option>Healthcare</option>
-                  <option>Manufacturing</option>
-                  <option>Retail</option>
+                  <option value="">{t('manageEvent.exhibitors.modals.add.placeholders.category')}</option>
+                  {industryOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
                 </select>
                 <ChevronDown size={16} style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', color: '#6F767E', pointerEvents: 'none' }} />
               </div>

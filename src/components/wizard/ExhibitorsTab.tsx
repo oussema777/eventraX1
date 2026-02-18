@@ -944,7 +944,7 @@ function AddExhibitorModal({
   onClose: () => void;
   onSave: (data: any, logoFile?: File) => void;
 }) {
-  const { t } = useI18n();
+  const { t, tList } = useI18n();
   const [formData, setFormData] = useState({
     company: exhibitor?.company || '',
     industry: exhibitor?.industry || '',
@@ -957,6 +957,9 @@ function AddExhibitorModal({
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(exhibitor?.logo_url || null);
+
+  const communitySectors = tList<string>('nav.communities.items', []);
+  const industryOptions = communitySectors.map(s => ({ value: s, label: s }));
 
   const isFormValid = 
     formData.company.trim() !== '' && 
@@ -1155,27 +1158,11 @@ function AddExhibitorModal({
                   }}
                 >
                   <option value="">{t('wizard.step3.exhibitors.modal.fields.industryPlaceholder')}</option>
-                  <option value="Technology & Software">Technology & Software</option>
-                  <option value="Financial Services & Banking">Financial Services & Banking</option>
-                  <option value="Healthcare & Pharmaceuticals">Healthcare & Pharmaceuticals</option>
-                  <option value="Manufacturing & Production">Manufacturing & Production</option>
-                  <option value="Retail & E-commerce">Retail & E-commerce</option>
-                  <option value="Consulting & Professional Services">Consulting & Professional Services</option>
-                  <option value="Education & Training">Education & Training</option>
-                  <option value="Media & Entertainment">Media & Entertainment</option>
-                  <option value="Transportation & Logistics">Transportation & Logistics</option>
-                  <option value="Energy & Utilities">Energy & Utilities</option>
-                  <option value="Real Estate & Construction">Real Estate & Construction</option>
-                  <option value="Hospitality & Tourism">Hospitality & Tourism</option>
-                  <option value="Telecommunications">Telecommunications</option>
-                  <option value="Agriculture & Food Production">Agriculture & Food Production</option>
-                  <option value="Automotive">Automotive</option>
-                  <option value="Aerospace & Defense">Aerospace & Defense</option>
-                  <option value="Legal Services">Legal Services</option>
-                  <option value="Marketing & Advertising">Marketing & Advertising</option>
-                  <option value="Non-Profit & NGO">Non-Profit & NGO</option>
-                  <option value="Government & Public Sector">Government & Public Sector</option>
-                  <option value="Other">Other</option>
+                  {industryOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 

@@ -717,14 +717,17 @@ export const translations = {
         lastName: 'Doe',
         phoneNumber: '234 567 8900',
         country: 'Select your country',
+        searchCountry: 'Search country...',
         jobTitle: 'e.g., Product Manager',
         company: 'e.g., Acme Inc.',
         industry: 'Select your industry',
+        searchIndustry: 'Search industry...',
         industryOther: 'Enter your industry',
         department: 'e.g., Marketing',
         yearsExperience: 'Select years of experience',
         companySize: 'Select company size'
       },
+      noResults: 'No results found',
       errors: {
         phoneTooShort: 'Phone number too short'
       },
@@ -6465,14 +6468,17 @@ export const translations = {
         lastName: 'Dupont',
         phoneNumber: '06 12 34 56 78',
         country: 'Selectionnez votre pays',
+        searchCountry: 'Rechercher un pays...',
         jobTitle: 'ex: Chef de Produit',
         company: 'ex: Acme Inc.',
         industry: 'Selectionnez votre industrie',
+        searchIndustry: 'Rechercher une industrie...',
         industryOther: 'Entrez votre industrie',
         department: 'ex: Marketing',
         yearsExperience: 'Selectionnez vos annees d\'experience',
         companySize: 'Selectionnez la taille de l\'entreprise'
       },
+      noResults: 'Aucun résultat trouvé',
       errors: {
         phoneTooShort: 'Numero de telephone trop court'
       },

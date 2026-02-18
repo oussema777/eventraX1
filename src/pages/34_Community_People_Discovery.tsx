@@ -155,7 +155,7 @@ export default function CommunityPeopleDiscovery() {
   // Filter logic (same as before)
   const filteredPeople = people.filter(person => {
     if (selectedSector) {
-      const matchesSector = person.industry === selectedSector || (person.sectors && person.sectors.includes(selectedSector));
+      const matchesSector = person.industry === selectedSector || (Array.isArray(person.sectors) && person.sectors.includes(selectedSector));
       if (!matchesSector) return false;
     }
     if (searchQuery && !person.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
