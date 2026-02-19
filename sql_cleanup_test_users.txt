@@ -1,0 +1,15 @@
+-- UTILITY: Cleanup Test Users
+-- Use this script to remove "Ghost" or "Corrupted" user records during testing.
+-- Replace the email addresses with the ones you are testing.
+
+BEGIN;
+
+-- 1. Clean up identities
+DELETE FROM auth.identities 
+WHERE email IN ('marketing.redstart@gmail.com');
+
+-- 2. Clean up users
+DELETE FROM auth.users 
+WHERE email IN ('marketing.redstart@gmail.com');
+
+COMMIT;

@@ -1,0 +1,18 @@
+-- FIX: Supabase Auth Search Path & Defaults
+-- This script optimizes the database for Supabase Auth by prioritizing the auth schema.
+
+-- 1. Set search path for the authenticator role
+-- This prevents the Auth server from getting confused by naming collisions in 'public'.
+ALTER ROLE authenticator SET search_path = 'auth', 'public';
+
+-- 2. Ensure standard defaults exist in auth.users
+-- (Note: This may fail on some restricted projects, which is fine)
+DO $$ 
+BEGIN 
+  BEGIN
+    ALTER TABLE auth.users ALTER COLUMN role SET DEFAULT 'authenticated';
+    ALTER TABLE auth.users ALTER COLUMN aud SET DEFAULT 'authenticated';
+  EXCEPTION WHEN OTHERS THEN 
+    NULL; -- Ignore permission errors
+  END;
+END $$;

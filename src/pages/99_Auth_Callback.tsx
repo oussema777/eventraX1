@@ -10,6 +10,7 @@ export default function AuthCallback() {
     const finishAuth = async () => {
       const params = new URLSearchParams(window.location.search);
       const code = params.get('code');
+      const flow = params.get('flow') || 'register'; // Default to register for backward compatibility
       const next = params.get('next') || '/';
 
       if (code) {
@@ -21,7 +22,30 @@ export default function AuthCallback() {
       }
 
       const { data: { session } } = await supabase.auth.getSession();
+      
       if (session?.user) {
+        // PRO CHECK: If flow is 'login', check if profile exists
+        if (flow === 'login') {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('id', session.user.id)
+            .single();
+
+          if (!profile) {
+            // User logged in but has no profile -> Account doesn't exist for our app
+            await supabase.auth.signOut();
+            setMessage('Account not found. Please register first.');
+            
+            // Redirect to landing after a delay
+            setTimeout(() => {
+              navigate('/', { replace: true });
+            }, 3000);
+            return;
+          }
+        }
+
+        // Normal flow or successful login check
         navigate(next, { replace: true });
       } else {
         setMessage('Sign-in link expired. Please request a new link.');
