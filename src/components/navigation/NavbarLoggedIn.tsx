@@ -639,6 +639,7 @@ export default function NavbarLoggedIn({
             <button 
               onClick={() => {
                 if (isMarketplaceLocked) return;
+                setIsMobileMenuOpen(false);
                 navigate('/b2b-marketplace');
               }}
               className="w-full text-left py-3 text-sm relative"
@@ -672,7 +673,10 @@ export default function NavbarLoggedIn({
 
             {/* Mobile Browse Events */}
             <button 
-              onClick={() => navigate('/browse-events')}
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                navigate('/browse-events');
+              }}
               className="w-full text-left py-3 text-sm"
               style={{ 
                 color: 'var(--foreground)',
@@ -773,7 +777,14 @@ export default function NavbarLoggedIn({
                   <option value="fr">{t('nav.language.fr')}</option>
                 </select>
               </div>
-              <button className="w-full text-left py-2 text-sm" style={{ color: 'var(--foreground)', fontWeight: 500 }}>
+              <button 
+                onClick={() => {
+                  navigate('/my-profile');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full text-left py-2 text-sm" 
+                style={{ color: 'var(--foreground)', fontWeight: 500 }}
+              >
                 {t('nav.userMenu.myProfile')}
               </button>
               <button
@@ -789,7 +800,14 @@ export default function NavbarLoggedIn({
               >
                 {t('nav.userMenu.businessProfile')}
               </button>
-              <button className="w-full text-left py-2 text-sm" style={{ color: 'var(--foreground)', fontWeight: 500 }}>
+              <button 
+                onClick={() => {
+                  navigate('/my-events');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full text-left py-2 text-sm" 
+                style={{ color: 'var(--foreground)', fontWeight: 500 }}
+              >
                 {t('nav.userMenu.myEvents')}
               </button>
               <button

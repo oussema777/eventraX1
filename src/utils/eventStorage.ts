@@ -19,16 +19,20 @@ interface EventBasicDetails {
   waitlistCapacity?: number;
 }
 
-const STORAGE_KEY = 'eventra_wizard_state';
+const BASE_STORAGE_KEY = 'eventra_wizard_state';
 
-export function saveEventBasicDetails(details: Partial<EventBasicDetails>) {
-  const existing = getEventBasicDetails();
-  const updated = { ...existing, ...details };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+function getStorageKey(eventId?: string) {
+  return eventId ? `${BASE_STORAGE_KEY}_${eventId}` : BASE_STORAGE_KEY;
 }
 
-export function getEventBasicDetails(): Partial<EventBasicDetails> {
-  const stored = localStorage.getItem(STORAGE_KEY);
+export function saveEventBasicDetails(details: Partial<EventBasicDetails>, eventId?: string) {
+  const existing = getEventBasicDetails(eventId);
+  const updated = { ...existing, ...details };
+  localStorage.setItem(getStorageKey(eventId), JSON.stringify(updated));
+}
+
+export function getEventBasicDetails(eventId?: string): Partial<EventBasicDetails> {
+  const stored = localStorage.getItem(getStorageKey(eventId));
   if (!stored) return {};
   try {
     return JSON.parse(stored);
@@ -37,15 +41,19 @@ export function getEventBasicDetails(): Partial<EventBasicDetails> {
   }
 }
 
-export function getEventStatus(): EventStatus {
-  const details = getEventBasicDetails();
+export function getEventStatus(eventId?: string): EventStatus {
+  const details = getEventBasicDetails(eventId);
   return details.eventStatus || 'free';
 }
 
-export function isEventPaid(): boolean {
-  return getEventStatus() === 'paid';
+export function isEventPaid(eventId?: string): boolean {
+  return getEventStatus(eventId) === 'paid';
 }
 
-export function clearEventWizardState() {
-  localStorage.removeItem(STORAGE_KEY);
+export function clearEventWizardState(eventId?: string) {
+  localStorage.removeItem(getStorageKey(eventId));
+  if (!eventId) {
+    // Also clean up any legacy global state
+    localStorage.removeItem(BASE_STORAGE_KEY);
+  }
 }

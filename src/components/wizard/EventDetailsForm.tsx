@@ -120,7 +120,7 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
   useEffect(() => {
     if (isLoading) return;
     if (initializedRef.current) return;
-    const stored = getEventBasicDetails();
+    const stored = getEventBasicDetails(eventId);
     const resolvedName = stored.eventName || eventData.name || '';
     const rawEventType = stored.eventType || eventData.event_type || 'Conference';
     const isKnownType = eventTypeValues.includes(rawEventType);
@@ -161,7 +161,7 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
       setNameIsValid(true);
     }
     initializedRef.current = true;
-  }, [eventData, isLoading]);
+  }, [eventData, isLoading, eventId]);
 
   useEffect(() => {
     if (!initializedRef.current) return;
@@ -179,7 +179,7 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
       hasCapacityLimit,
       enableWaitlist,
       waitlistCapacity: enableWaitlist ? parseInt(waitlistCapacity || '0', 10) : undefined
-    });
+    }, eventId);
   }, [
     eventName,
     tagline,
@@ -193,7 +193,8 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
     hasCapacityLimit,
     maxAttendees,
     enableWaitlist,
-    waitlistCapacity
+    waitlistCapacity,
+    eventId
   ]);
 
   const handleEventNameChange = (value: string) => {

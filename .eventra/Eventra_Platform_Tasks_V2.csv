@@ -18,3 +18,4 @@ Access Control (RBAC),,Backend Related,Partial,High,Row Level Security (RLS) pol
 Event Creation (Design),,UI/UX Refined,Done,Normal,Hero background image upload and rendering enabled.,Added custom upload UI and overlay rendering.,2026-01-27,
 Admin Dashboard,,UI/UX Refined,Done,Normal,Upgraded request tables and tab switcher UI.,Added blurred glass theme and vibrant status badges.,2026-01-27,
 Landing Page,,Logic Related,Done,Normal,Implemented pagination for Attendees; Speakers; and Exhibitors.,Added Load More buttons with batch fetching.,2026-01-27,
+Marketplace Discovery (Mobile),,UI/UX Refined,Done,High,Fixed mobile menu closing logic and implemented collapsible filters for Browse Events.,Added showFilters state; mobile filter drawer; and dynamic filter count badges.,2026-02-21,

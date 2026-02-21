@@ -6,7 +6,8 @@ import {
   Clock,
   Heart,
   ChevronDown,
-  SlidersHorizontal
+  SlidersHorizontal,
+  X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
@@ -57,6 +58,7 @@ export default function BrowseEventsDiscovery() {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [timeFilter, setTimeFilter] = useState<'upcoming' | 'past'>('upcoming');
+  const [showFilters, setShowFilters] = useState(false);
 
   const [filters, setFilters] = useState<Filters>({
     format: ['all'],
@@ -116,20 +118,17 @@ export default function BrowseEventsDiscovery() {
           .from('events')
           .select('id, name, description, event_type, event_format, event_status, start_date, location_address, cover_image_url, branding_settings, is_approved, status');
 
-        // Only enforce strict public filters for non-admins
+        // Filtering based on role
         if (!isAdmin) {
-          query = query.eq('status', 'published').eq('is_approved', true);
+          // Public users only see published and approved events
+          query = query.or('status.eq.published,event_status.eq.published').eq('is_approved', true);
         } else {
-          // Admins see all published events even if approval is pending
-          query = query.eq('status', 'published');
+          // Admins see all published events
+          query = query.or('status.eq.published,event_status.eq.published');
         }
 
-        const now = new Date().toISOString();
-        if (timeFilter === 'upcoming') {
-          query = query.gte('start_date', now).order('start_date', { ascending: true });
-        } else {
-          query = query.lt('start_date', now).order('start_date', { ascending: false });
-        }
+        // Order by start_date to show soonest first
+        query = query.order('start_date', { ascending: true });
 
         const { data, error } = await query;
 
@@ -252,7 +251,7 @@ export default function BrowseEventsDiscovery() {
       price: [],
       date: []
     });
-    setPriceRange([0, 1000]);
+    setPriceRange([0, 5000]);
     setSearchQuery('');
     setLocation('');
     setCustomStartDate('');
@@ -297,6 +296,15 @@ export default function BrowseEventsDiscovery() {
     endOfWeekend.setHours(23, 59, 59, 999);
 
     return allEvents.filter((event) => {
+      // 1. Time Filter (Upcoming vs Past)
+      if (event.startTimestamp) {
+        const eventDate = new Date(event.startTimestamp);
+        // If it's today or in the future, it's upcoming
+        if (timeFilter === 'upcoming' && eventDate < startOfToday) return false;
+        // If it's strictly before today, it's past
+        if (timeFilter === 'past' && eventDate >= startOfToday) return false;
+      }
+
       const matchesFormat = filters.format.includes('all') || filters.format.includes(event.format);
       if (!matchesFormat) return false;
 
@@ -355,7 +363,7 @@ export default function BrowseEventsDiscovery() {
 
       return true;
     });
-  }, [allEvents, filters, location, priceRange, searchQuery, customStartDate, customEndDate]);
+  }, [allEvents, filters, location, priceRange, searchQuery, customStartDate, customEndDate, timeFilter]);
   const sortedEvents = useMemo(() => {
     const sorted = [...filteredEvents];
     sorted.sort((a, b) => {
@@ -388,6 +396,12 @@ export default function BrowseEventsDiscovery() {
   return (
     <div className="browse-events" style={{ backgroundColor: '#0B2641', minHeight: '100vh' }}>
       <style>{`
+        .browse-events__grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 24px;
+        }
+
         @media (max-width: 600px) {
           .browse-events__hero {
             height: auto !important;
@@ -425,23 +439,58 @@ export default function BrowseEventsDiscovery() {
           }
 
           .browse-events__filters {
+            display: ${showFilters ? 'block' : 'none'} !important;
             width: 100% !important;
+            position: fixed !important;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 1000;
+            background: #0B2641 !important;
+            padding: 24px !important;
+            overflow-y: auto;
+          }
+
+          .browse-events__filters-inner {
             position: static !important;
           }
 
           .browse-events__results-header {
-            flex-direction: column;
-            align-items: flex-start !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            flex-wrap: wrap;
             gap: 12px;
           }
 
           .browse-events__sort {
-            width: 100%;
+            width: auto !important;
           }
 
           .browse-events__grid {
             grid-template-columns: 1fr !important;
             gap: 16px !important;
+          }
+
+          .browse-events__mobile-filter-toggle {
+            display: flex !important;
+          }
+
+          .browse-events__mobile-filter-close {
+            display: flex !important;
+          }
+        }
+
+        @media (min-width: 601px) {
+          .browse-events__filters {
+            display: block !important;
+          }
+          .browse-events__mobile-filter-toggle {
+            display: none !important;
+          }
+          .browse-events__mobile-filter-close {
+            display: none !important;
           }
         }
 
@@ -589,6 +638,19 @@ export default function BrowseEventsDiscovery() {
             {/* Left Column: Filters */}
             <div className="browse-events__filters" style={{ width: '280px', flexShrink: 0 }}>
               <div className="browse-events__filters-inner sticky top-4">
+                {/* Mobile Header */}
+                <div className="browse-events__mobile-filter-close hidden items-center justify-between mb-8 pb-4 border-b border-white/10">
+                  <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#FFFFFF' }}>
+                    {t('browseEventsPage.filters.title')}
+                  </h2>
+                  <button 
+                    onClick={() => setShowFilters(false)}
+                    style={{ color: '#FFFFFF', padding: '8px' }}
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+
                 {/* Filter Header */}
                 <div className="flex items-center justify-between mb-6">
                   <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF' }}>
@@ -803,9 +865,32 @@ export default function BrowseEventsDiscovery() {
           <div className="flex-1">
             {/* Results Header */}
             <div className="browse-events__results-header flex items-center justify-between mb-6">
-              <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF' }}>
-                {t('browseEventsPage.results.count', { count: resultsCount })}
-              </h2>
+              <div className="flex items-center gap-4">
+                <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF' }}>
+                  {t('browseEventsPage.results.count', { count: resultsCount })}
+                </h2>
+                
+                {/* Mobile Filter Toggle */}
+                <button
+                  onClick={() => setShowFilters(true)}
+                  className="browse-events__mobile-filter-toggle hidden items-center gap-2 px-4 py-2 rounded-lg"
+                  style={{
+                    backgroundColor: 'rgba(6, 132, 245, 0.1)',
+                    border: '1px solid #0684F5',
+                    color: '#0684F5',
+                    fontSize: '14px',
+                    fontWeight: 600
+                  }}
+                >
+                  <SlidersHorizontal size={16} />
+                  <span>{t('browseEventsPage.filters.title')}</span>
+                  {(filters.format.filter(f => f !== 'all').length + filters.type.length + filters.price.length + filters.date.length) > 0 && (
+                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#0684F5] text-white text-[10px]">
+                      {filters.format.filter(f => f !== 'all').length + filters.type.length + filters.price.length + filters.date.length}
+                    </span>
+                  )}
+                </button>
+              </div>
               
               <div className="browse-events__sort relative">
                 <select

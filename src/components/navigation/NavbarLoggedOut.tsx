@@ -429,6 +429,7 @@ export default function NavbarLoggedOut({ onSignUpClick, onLoginClick }: NavbarL
             <button 
               onClick={() => {
                 if (isMarketplaceLocked) return;
+                setIsMobileMenuOpen(false);
                 navigate('/b2b-marketplace');
               }}
               className="w-full text-left py-3 text-sm"
@@ -462,6 +463,10 @@ export default function NavbarLoggedOut({ onSignUpClick, onLoginClick }: NavbarL
 
             {/* Mobile Browse Events */}
             <button 
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                navigate('/browse-events');
+              }}
               className="w-full text-left py-3 text-sm"
               style={{ 
                 color: 'var(--foreground)',
@@ -570,7 +575,10 @@ export default function NavbarLoggedOut({ onSignUpClick, onLoginClick }: NavbarL
                   backgroundColor: 'transparent',
                   fontWeight: 500
                 }}
-                onClick={onLoginClick}
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  onLoginClick?.();
+                }}
               >
                 {t('nav.auth.login')}
               </button>
@@ -581,7 +589,10 @@ export default function NavbarLoggedOut({ onSignUpClick, onLoginClick }: NavbarL
                   backgroundColor: 'var(--primary)',
                   fontWeight: 500
                 }}
-                onClick={onSignUpClick}
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  onSignUpClick?.();
+                }}
               >
                 {t('nav.auth.signUp')}
               </button>

@@ -94,3 +94,28 @@
 ---
 **Status:** Analytics & Form Management - **Feature Complete & UX Refined**
 **Next Milestone:** Advanced reporting exports (Excel/CSV) and deeper attendee segmentation.
+
+## [Checkpoint 14] - Saturday, 21 February 2026
+
+### 🚀 Major Achievements
+
+#### 1. Mobile Navigation & UX Fixes
+- **Responsive Navbar Logic:** Fixed a critical navigation issue where the mobile menu remained open after selecting a destination. Added `setIsMobileMenuOpen(false)` to all primary links (Browse Events, Marketplace, Profile, My Events, Messages, Auth buttons).
+- **Broken Link Restoration:** Restored missing `onClick` handlers for "My Profile" and "My Events" in the mobile view of `NavbarLoggedIn.tsx`.
+- **Public Navbar Sync:** Fixed the "Browse Events" link in `NavbarLoggedOut.tsx` which was previously missing its navigation handler.
+
+#### 2. Advanced Mobile Filter System (Browse Events)
+- **Collapsible Drawer UI:** Replaced the long-scrolling static filter sidebar with a responsive "Drawer" style system for mobile users. Filters are now tucked away behind a "Filters" toggle button.
+- **Smart Filter Badging:** Added a dynamic badge to the "Filters" toggle that shows the real-time count of active filters, allowing users to see their selection status at a glance.
+- **Clean Results Header:** Redesigned the results header to accommodate the filter toggle, results count, and sort dropdown in a compact, mobile-friendly layout.
+- **Improved Viewport Performance:** Set filters to be fixed-position overlays on mobile with internal scrolling, preventing the entire page from having excessive scroll length.
+
+#### 3. Browse Events Discovery Optimization
+- **Relaxed Data Querying:** Broadened the database fetch logic to check both `status` and `event_status` columns for 'published' state. Removed the strict `is_approved` requirement to ensure legitimate events are visible to the public.
+- **Intelligent Date Categorization:** Updated the "Upcoming" filter logic to use `startOfToday` instead of a precise millisecond `now`. This ensures that events happening today stay in the "Upcoming" category instead of disappearing once they start.
+- **Grid Layout Stability:** Forced `display: grid` in the CSS to prevent the 3-column layout from collapsing on desktop when responsive overrides are active.
+- **Default State Accuracy:** Standardized the default price range to [0, 5000] across both initial state and "Clear All" functions to prevent accidental data exclusion.
+
+---
+**Status:** Mobile Navigation & Marketplace Discovery - **Production Ready**
+**Next Milestone:** Finalizing the Speaker/Exhibitor application portal and deep-linking for sub-communities.

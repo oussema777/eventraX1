@@ -1,0 +1,51 @@
+DO $$
+DECLARE
+    v_event_id UUID := '2f9c0daa-c74c-53c4-980c-20e2492e697f';
+BEGIN
+    -- 1. Update Event Details for Abidjan
+    UPDATE public.events 
+    SET 
+        name = 'Sommet mondial de l''investissement et du commerce – GITS 2025 – Abidjan',
+        tagline = 'Global Collaboration for a Sustainable Future',
+        start_date = '2025-06-12 08:30:00+00',
+        end_date = '2025-06-13 17:00:00+00',
+        location_address = 'Hôtel AZALAÏ – Abidjan, Côte d''Ivoire',
+        event_type = 'Summit',
+        visibility = 'public'
+    WHERE id = v_event_id;
+
+    -- 2. Clear existing sessions for this event
+    DELETE FROM public.event_sessions WHERE event_id = v_event_id;
+
+    -- 3. Insert Day 1 Sessions (June 12, 2025)
+    INSERT INTO public.event_sessions (event_id, title, description, starts_at, ends_at, location, type, status)
+    VALUES 
+    (v_event_id, 'Accueil et Enregistrement', 'Arrival and registration of participants.', '2025-06-12 08:30:00+00', '2025-06-12 09:00:00+00', 'Reception Area', 'regular', 'confirmed'),
+    
+    (v_event_id, 'Visite officielle de l’Exposition', 'Vitrine de l''innovation sociale et réseautage. Dégustations et possibilités de réseautage.', '2025-06-12 09:00:00+00', '2025-06-12 09:30:00+00', 'Exhibition Hall', 'exhibition', 'confirmed'),
+    
+    (v_event_id, 'Ouverture Officielle du Sommet d’Abidjan', 'Mots de Bienvenus et discours officiels. Intervenants: M. Assem Kamel, Mme Douja Gharbi, M. Coffi Agossou, SE M. Zied Saadaoui, SE M. Sherif SEIF, Dr Vaflahi Meite.', '2025-06-12 09:30:00+00', '2025-06-12 10:00:00+00', 'Main Ballroom', 'keynote', 'confirmed'),
+    
+    (v_event_id, 'Présentation du projet JEUN’ESS', 'Délégation du BIT Tunisie. Intervenant: M. Youssef Fennira (ILO Tunisie).', '2025-06-12 10:00:00+00', '2025-06-12 10:15:00+00', 'Main Ballroom', 'presentation', 'confirmed'),
+    
+    (v_event_id, 'Panel 1: Préparation des MPME à l''exportation', 'Renforcement des services de développement des entreprises et des écosystèmes. Intervenants: Patrick M''Bengue, Dr. Walker Benjamin, Mme Stefani Machmouchi, M. Tièmoko TRAORE, M. Fabrice Adelphe BALOU.', '2025-06-12 10:15:00+00', '2025-06-12 11:30:00+00', 'Main Ballroom', 'panel', 'confirmed'),
+    
+    (v_event_id, 'Pause Café', 'Networking and coffee break.', '2025-06-12 11:30:00+00', '2025-06-12 11:45:00+00', 'Foyer', 'break', 'confirmed'),
+    
+    (v_event_id, 'Présentation du projet ACCEL', 'BIT Abidjan. Intervenant: M. Koffi, Paul Agenor.', '2025-06-12 11:45:00+00', '2025-06-12 12:00:00+00', 'Main Ballroom', 'presentation', 'confirmed'),
+    
+    (v_event_id, 'Panel 2: L’accès au financement, levier pour un meilleur accès au marché', 'Expériences croisées. Modératrice: Aïssata Dicko. Intervenants: Mme Djitaba Ouleymatou Sackho-Patel, M. Faycal Chroud, M. Miguel Nyamedi, Mme Traoré, M. Lionel YAO.', '2025-06-12 12:00:00+00', '2025-06-12 13:15:00+00', 'Main Ballroom', 'panel', 'confirmed'),
+    
+    (v_event_id, 'Déjeuner', 'Lunch break.', '2025-06-12 13:15:00+00', '2025-06-12 14:30:00+00', 'Hotel Restaurant', 'break', 'confirmed'),
+    
+    (v_event_id, 'B2B Meetings', 'Preorganized business meetings.', '2025-06-12 14:30:00+00', '2025-06-12 17:00:00+00', 'B2B Lounge', 'networking', 'confirmed');
+
+    -- 4. Insert Day 2 Sessions (June 13, 2025)
+    INSERT INTO public.event_sessions (event_id, title, description, starts_at, ends_at, location, type, status)
+    VALUES 
+    (v_event_id, 'Exposition, Networking et B2B', 'Exhibition and morning B2B sessions.', '2025-06-13 10:00:00+00', '2025-06-13 13:00:00+00', 'Exhibition Hall', 'networking', 'confirmed'),
+    
+    (v_event_id, 'Visite terrain', 'Field visit to local innovation sites.', '2025-06-13 15:00:00+00', '2025-06-13 17:00:00+00', 'External Site', 'regular', 'confirmed');
+
+    RAISE NOTICE 'GITS Abidjan Sessions successfully inserted for event: %', v_event_id;
+END $$;

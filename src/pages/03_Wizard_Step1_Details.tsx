@@ -22,7 +22,7 @@ export default function WizardStep1Details() {
   const untitledEvent = t('wizard.common.untitledEvent');
 
   const buildDraftPayload = () => {
-    const details = getEventBasicDetails();
+    const details = getEventBasicDetails(eventId);
     const safeName =
       details.eventName?.trim() || draftName.trim() || eventData.name?.trim();
     const resolvedStatus = details.eventStatus || eventData.event_status || 'free';
@@ -137,7 +137,7 @@ export default function WizardStep1Details() {
     }
 
     // If no ID (new event), validate and save first
-    const details = getEventBasicDetails();
+    const details = getEventBasicDetails(eventId);
     if (!details.eventName?.trim()) {
       toast.error(t('wizard.details.errors.nameRequired', 'Event name is required.'));
       return;

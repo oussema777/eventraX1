@@ -1,0 +1,57 @@
+DO $$
+DECLARE
+    v_event_id UUID := 'ce684d95-537d-549a-91f4-dd32dede6cb5';
+    v_start_date DATE := '2025-05-12';
+    v_end_date DATE := '2025-05-13';
+BEGIN
+    -- 1. Update Event Details to match GITS 2025
+    UPDATE public.events 
+    SET 
+        name = 'Global Investment & Trade Summit 2025 (GITS 2025)',
+        tagline = 'Global Collaboration for a Sustainable Future',
+        start_date = '2025-05-12 08:30:00+00',
+        end_date = '2025-05-13 18:00:00+00',
+        location_address = 'TBD (Egypt/Tunisia)',
+        event_type = 'Summit',
+        visibility = 'public'
+    WHERE id = v_event_id;
+
+    -- 2. Clear existing sessions for this event
+    DELETE FROM public.event_sessions WHERE event_id = v_event_id;
+
+    -- 3. Insert Day 1 Sessions (May 12, 2025)
+    INSERT INTO public.event_sessions (event_id, title, description, starts_at, ends_at, location, type, status)
+    VALUES 
+    (v_event_id, 'Visit the stands and registrations', 'Arrival and networking at the exhibition area.', '2025-05-12 08:30:00+00', '2025-05-12 09:30:00+00', 'Exhibition Hall', 'regular', 'confirmed'),
+    
+    (v_event_id, 'Opening Session', 'Opening ceremony with distinguished guests. Speakers: Mr. Assem Kamel (SEKETAK), Mrs. Sarah Sabri (ILO), Dr. Dhouha Chouikh, Mr. Christophe Malherbe (EU), Dr. Maher abo Gabel.', '2025-05-12 09:30:00+00', '2025-05-12 10:00:00+00', 'Main Auditorium', 'keynote', 'confirmed'),
+    
+    (v_event_id, 'Trade Innovation Showcase & Networking', 'Vibrant showcase of export-ready products, trade finance solutions, and logistics innovations. Includes live demonstrations and coffee break.', '2025-05-12 10:00:00+00', '2025-05-12 11:00:00+00', 'Showcase Area', 'exhibition', 'confirmed'),
+    
+    (v_event_id, 'Panel 1: Strategic Policies for Enhancing Trade Dynamics', 'Panel discussion on trade dynamics and employment creation. Speakers: Martin Ostermeier, Dima Chehabedine, Dalia Abdallah, Nejia Gharbi, Assem Kamel, Karima Alhakim.', '2025-05-12 11:00:00+00', '2025-05-12 12:30:00+00', 'Main Auditorium', 'panel', 'confirmed'),
+    
+    (v_event_id, 'Panel 2: Financing Global Trade and Inclusive Solutions', 'Take aways from Egypt on financing MSMEs. Speakers: Ali Saad, Manal Hassoun, Dalal Takla, Rasha Yousry, Shymaa Elbedwi, Diaa Youssef.', '2025-05-12 12:30:00+00', '2025-05-12 14:00:00+00', 'Main Auditorium', 'panel', 'confirmed'),
+    
+    (v_event_id, 'Networking Lunch', 'Lunch break and informal networking.', '2025-05-12 14:00:00+00', '2025-05-12 15:30:00+00', 'Dining Area', 'break', 'confirmed'),
+    
+    (v_event_id, 'Investor Pitch Clinic', 'Training for SMEs on crafting pitches for trade-focused VCs. Facilitated by Dr. Jane Hanna & Mrs. Margarette Magdy.', '2025-05-12 15:30:00+00', '2025-05-12 17:00:00+00', 'Workshop Room A', 'workshop', 'confirmed'),
+    
+    (v_event_id, 'B2B Meetings (Track 2)', 'Preorganized meetings to present export-ready products and services. Facilitated by Mrs. Dima Chehabedine.', '2025-05-12 15:30:00+00', '2025-05-12 17:00:00+00', 'B2B Lounge', 'networking', 'confirmed');
+
+    -- 4. Insert Day 2 Sessions (May 13, 2025)
+    INSERT INTO public.event_sessions (event_id, title, description, starts_at, ends_at, location, type, status)
+    VALUES 
+    (v_event_id, 'Panel 3: MSMEs Export Readiness', 'Strengthening Business Development Services and entrepreneurship ecosystems. Speakers: Douja Gharbi, Mohamed El Sery, Bahija Maala, Mariam Abdelkarim, Nevine Nakhla, Lamia Saleh, Mohamed abd el Aziz, Sheine Assem.', '2025-05-13 09:30:00+00', '2025-05-13 11:00:00+00', 'Main Auditorium', 'panel', 'confirmed'),
+    
+    (v_event_id, 'Coffee Break & Networking', 'Mid-morning break.', '2025-05-13 11:00:00+00', '2025-05-13 11:30:00+00', 'Showcase Area', 'break', 'confirmed'),
+    
+    (v_event_id, 'Panel 4: Challenges and Opportunities for Jobs', 'Creating more and better jobs through trade and investment. Moderator: Martin Ostermeier. Speakers: Nael Mohamed, Rasha Magdy, Mohammed Abdullatif, Hatem Kamal.', '2025-05-13 11:30:00+00', '2025-05-13 13:00:00+00', 'Main Auditorium', 'panel', 'confirmed'),
+    
+    (v_event_id, 'Closing Ceremony', 'Official closing of the summit by Dr. Jane Hanna.', '2025-05-13 13:00:00+00', '2025-05-13 13:30:00+00', 'Main Auditorium', 'keynote', 'confirmed'),
+    
+    (v_event_id, 'Lunch & Networking', 'Final lunch and networking session.', '2025-05-13 13:30:00+00', '2025-05-13 14:30:00+00', 'Dining Area', 'break', 'confirmed'),
+    
+    (v_event_id, 'B2B Meeting Session', 'Afternoon B2B meeting session.', '2025-05-13 14:00:00+00', '2025-05-13 16:00:00+00', 'B2B Lounge', 'networking', 'confirmed');
+
+    RAISE NOTICE 'GITS 2025 Sessions successfully inserted for event: %', v_event_id;
+END $$;

@@ -40,13 +40,21 @@ export function useEventWizard(initialEventId?: string) {
   const [isLoading, setIsLoading] = useState(true);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
-  // 1. Determine which ID to use (URL Params > Props > LocalStorage)
-  const effectiveId = urlEventId || initialEventId || localStorage.getItem('currentEventId');
+  // 1. Determine which ID to use (URL Params > Props)
+  // Removed localStorage fallback to prevent loading stale event IDs from previous sessions
+  const effectiveId = urlEventId || initialEventId;
 
   useEffect(() => {
     if (effectiveId && effectiveId !== 'new') {
       loadEvent(effectiveId);
     } else {
+      // If it's "new" or no ID, reset the data state but don't clear all storage yet
+      setEventData({
+        name: '',
+        status: 'draft',
+        event_format: 'in-person',
+        event_status: 'free'
+      });
       setIsLoading(false);
     }
   }, [effectiveId]);
@@ -67,10 +75,8 @@ export function useEventWizard(initialEventId?: string) {
       if (error) throw error;
       if (data) {
         setEventData(data);
-        localStorage.setItem('currentEventId', data.id);
       } else {
-        console.warn('Event ID found in storage but not DB. Clearing stale ID:', id);
-        localStorage.removeItem('currentEventId');
+        console.warn('Event ID not found in DB:', id);
       }
     } catch (err: any) {
       console.error('Error loading event:', err);
@@ -127,7 +133,7 @@ export function useEventWizard(initialEventId?: string) {
 
       // Attempt Save with Retry Logic for missing columns or constraints
       let result;
-      const currentId = !isNew ? (eventData.id || localStorage.getItem('currentEventId')) : null;
+      const currentId = !isNew ? (eventData.id || effectiveId) : null;
       let safePayload = { ...payload };
       
       for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -146,7 +152,6 @@ export function useEventWizard(initialEventId?: string) {
       
       if (result.data) {
         setEventData(result.data);
-        localStorage.setItem('currentEventId', result.data.id);
         setLastSaved(new Date());
       }
       return result.data;
@@ -157,10 +162,9 @@ export function useEventWizard(initialEventId?: string) {
     } finally {
       setIsSaving(false);
     }
-  }, [eventData.id, eventData.name]);
+  }, [eventData.id, eventData.name, effectiveId]);
 
   const resetWizard = () => {
-    localStorage.removeItem('currentEventId');
     clearEventWizardState();
     setEventData({ 
       name: '', 
