@@ -161,33 +161,6 @@ export default function BlockLibraryPanel({
       icon: '🎬'
     },
     {
-      id: 'sponsors',
-      name: t('wizard.designStudio.blocks.sponsors.name'),
-      type: 'sponsors',
-      description: t('wizard.designStudio.blocks.sponsors.description'),
-      tier: 'PRO',
-      thumbnail: 'logo-grid',
-      icon: '🏢'
-    },
-    {
-      id: 'countdown',
-      name: t('wizard.designStudio.blocks.countdown.name'),
-      type: 'countdown',
-      description: t('wizard.designStudio.blocks.countdown.description'),
-      tier: 'PRO',
-      thumbnail: 'timer',
-      icon: '⏱️'
-    },
-    {
-      id: 'exhibitors',
-      name: 'Exhibitors',
-      type: 'exhibitors',
-      description: t('wizard.designStudio.blocks.exhibitors.description', 'Showcase your event exhibitors.'),
-      tier: 'PRO',
-      thumbnail: 'grid',
-      icon: '🏢'
-    },
-    {
       id: 'custom-html',
       name: t('wizard.designStudio.blocks.customHtml.name'),
       type: 'custom-html',
@@ -195,6 +168,24 @@ export default function BlockLibraryPanel({
       tier: 'PRO',
       thumbnail: 'code',
       icon: '💻'
+    },
+    {
+      id: 'sponsor-packages',
+      name: 'Sponsor Packages',
+      type: 'sponsor-packages',
+      description: 'Display available sponsorship packages for purchase.',
+      tier: 'PRO',
+      thumbnail: 'pricing-cards',
+      icon: '💎'
+    },
+    {
+      id: 'networking',
+      name: 'B2B Networking',
+      type: 'networking',
+      description: 'Promote matchmaking and 1-on-1 meetings at your event.',
+      tier: 'PRO',
+      thumbnail: 'grid',
+      icon: '🤝'
     }
   ];
 

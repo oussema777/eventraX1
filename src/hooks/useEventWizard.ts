@@ -95,11 +95,15 @@ export function useEventWizard(initialEventId?: string) {
         } catch (_e) { /* ignore */ }
       };
 
-      const payload = {
+      const payload: any = {
         name: safeName,
         ...data,
-        owner_id: user.id,
       };
+
+      // Only set owner_id if it's a NEW event
+      if (isNew || (!eventData.id && !localStorage.getItem('currentEventId'))) {
+        payload.owner_id = user.id;
+      }
 
       const trySave = async (payloadToSave: any, existingId: string | null) => {
         let result;

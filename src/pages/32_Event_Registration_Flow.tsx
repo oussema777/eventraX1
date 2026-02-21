@@ -9,7 +9,8 @@ import {
   HelpCircle,
   Loader2,
   Lock,
-  ChevronDown
+  ChevronDown,
+  Download
 } from 'lucide-react';
 import Logo from '../components/ui/Logo';
 import { supabase } from '../lib/supabase';
@@ -89,23 +90,7 @@ export default function EventRegistrationFlow() {
 
   const handleDownloadTicket = async () => {
     if (!registeredAttendeeId) return;
-    try {
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${registeredAttendeeId}`;
-      const response = await fetch(qrUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Eventra-Ticket-${event?.name || 'Event'}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      toast.success('Ticket downloaded!');
-    } catch (e) {
-      console.error('Download failed:', e);
-      toast.error('Failed to download ticket');
-    }
+    window.print();
   };
 
   const fetchEventData = async () => {
@@ -546,9 +531,48 @@ export default function EventRegistrationFlow() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#0B2641', color: '#FFFFFF' }}>
+      <style>{`
+        @media print {
+          @page {
+            margin: 0;
+            size: auto;
+          }
+          body {
+            background-color: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          body * {
+            visibility: hidden !important;
+          }
+          .print-container, .print-container * {
+            visibility: visible !important;
+          }
+          .print-container {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 20px !important;
+            display: flex !important;
+            justify-content: center !important;
+          }
+          .print-voucher {
+            margin: 0 auto !important;
+            width: 100% !important;
+            max-width: 380px !important;
+            border: 1px solid #EEE !important;
+            box-shadow: none !important;
+          }
+          .print-summary, .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
       {/* Header */}
       <header
-        className="sticky top-0 z-50"
+        className="sticky top-0 z-50 no-print"
         style={{
           backgroundColor: 'rgba(11, 38, 65, 0.95)',
           borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
@@ -977,81 +1001,39 @@ export default function EventRegistrationFlow() {
           {currentStep === 3 && (
             <div className="text-center py-12">
               <div 
-                className="mx-auto mb-6 rounded-full w-20 h-20 flex items-center justify-center"
+                className="mx-auto mb-6 rounded-full w-20 h-20 flex items-center justify-center no-print"
                 style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)' }}
               >
                 <Check size={40} style={{ color: '#10B981' }} />
               </div>
 
-              <h1 className="text-3xl font-bold mb-4" style={{ color: '#FFFFFF' }}>
+              <h1 className="text-3xl font-bold mb-4 no-print" style={{ color: '#FFFFFF' }}>
                 You're All Set!
               </h1>
 
-              <p className="mb-6 max-w-md mx-auto" style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '16px' }}>
+              <p className="mb-8 max-w-md mx-auto no-print" style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '16px' }}>
                 Thank you for registering for <strong style={{ color: '#FFFFFF' }}>{event?.name}</strong>. 
                 A confirmation email has been sent to <strong style={{ color: '#FFFFFF' }}>{user?.email}</strong>.
               </p>
 
-              {/* QR Code Display */}
-              {registeredAttendeeId && (
-                <div 
-                  className="mb-8 p-6 rounded-xl border inline-block"
-                  style={{ backgroundColor: '#FFFFFF', borderColor: 'rgba(255, 255, 255, 0.1)' }}
-                >
-                  <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${registeredAttendeeId}`}
-                    alt="Check-in QR Code"
-                    style={{ width: '180px', height: '180px', display: 'block' }}
-                  />
-                  <p style={{ color: '#000000', fontSize: '13px', fontWeight: 600, marginTop: '12px' }}>
-                    Scan at entrance
-                  </p>
-                  {confirmationCode && (
-                    <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px dashed #E2E8F0' }}>
-                      <p style={{ color: '#64748B', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Confirmation Code</p>
-                      <p style={{ color: '#0B2641', fontSize: '24px', fontWeight: 800, letterSpacing: '0.1em' }}>{confirmationCode}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {selectedSessions.size > 0 && (
-                <div 
-                  className="rounded-xl p-6 mb-8 max-w-lg mx-auto text-left border"
-                  style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', borderColor: 'rgba(255, 255, 255, 0.1)' }}
-                >
-                  <h3 className="text-sm font-bold uppercase tracking-wider mb-4" style={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                    Your Agenda ({selectedSessions.size} sessions)
-                  </h3>
-                  <div className="space-y-3">
-                    {sessions
-                      .filter(s => selectedSessions.has(s.id))
-                      .map(s => (
-                        <div key={s.id} className="flex items-center justify-between text-sm">
-                          <span className="font-bold truncate pr-4" style={{ color: '#FFFFFF' }}>{s.title}</span>
-                          <span className="font-medium whitespace-nowrap" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>{formatTime(s.starts_at)}</span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex flex-col gap-3 max-w-xs mx-auto">
+              {/* Action Buttons - Moved Above */}
+              <div className="flex flex-col gap-3 max-w-xs mx-auto mb-12 no-print">
                 <button
                   onClick={handleDownloadTicket}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '8px',
-                    padding: '12px 24px',
-                    borderRadius: '8px',
+                    gap: '10px',
+                    padding: '14px 24px',
+                    borderRadius: '12px',
                     backgroundColor: '#0684F5',
                     color: '#FFFFFF',
                     fontWeight: 700,
                     border: 'none',
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease'
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 4px 12px rgba(6, 132, 245, 0.25)'
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = '#0571D0';
@@ -1062,8 +1044,8 @@ export default function EventRegistrationFlow() {
                     e.currentTarget.style.transform = 'translateY(0)';
                   }}
                 >
-                  <Calendar size={18} />
-                  Download Ticket
+                  <Download size={18} />
+                  Download Ticket Voucher
                 </button>
 
                 <button
@@ -1074,25 +1056,137 @@ export default function EventRegistrationFlow() {
                     justifyContent: 'center',
                     gap: '8px',
                     padding: '12px 24px',
-                    borderRadius: '8px',
-                    backgroundColor: 'transparent',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: '12px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
                     color: '#FFFFFF',
                     fontWeight: 600,
                     cursor: 'pointer',
                     transition: 'all 0.2s ease'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
-                    e.currentTarget.style.borderColor = '#FFFFFF';
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                   }}
                 >
                   Back to Event Page
                 </button>
+              </div>
+
+              {/* Printable Content Wrapper */}
+              <div className="print-container">
+                {/* Voucher Display */}
+                {registeredAttendeeId && (
+                  <div 
+                    className="mb-8 max-w-sm mx-auto overflow-hidden rounded-2xl shadow-2xl print-voucher"
+                    style={{ backgroundColor: '#FFFFFF', color: '#0B2641' }}
+                  >
+                    {/* Voucher Header */}
+                    <div className="p-6 text-left border-b border-dashed border-gray-200" style={{ backgroundColor: '#0B2641', color: '#FFFFFF' }}>
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-widest opacity-60 font-bold mb-1">Official Entry Ticket</p>
+                          <h2 className="text-xl font-black leading-tight">{event?.name}</h2>
+                        </div>
+                        <div className="bg-blue-500/20 p-2 rounded-lg">
+                          <Calendar size={20} className="text-blue-400" />
+                        </div>
+                      </div>
+                      <div className="flex gap-4 text-[11px] font-medium opacity-80">
+                        <div>
+                          <p className="uppercase opacity-60 mb-0.5">Date</p>
+                          <p>{event?.start_date ? new Date(event.start_date).toLocaleDateString() : 'TBD'}</p>
+                        </div>
+                        <div>
+                          <p className="uppercase opacity-60 mb-0.5">Time</p>
+                          <p>{event?.start_date ? new Date(event.start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'TBD'}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Voucher Main */}
+                    <div className="p-8 flex flex-col items-center">
+                      <div className="p-3 bg-gray-50 rounded-xl mb-6">
+                        <img 
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${registeredAttendeeId}`}
+                          alt="Check-in QR Code"
+                          style={{ width: '160px', height: '160px', display: 'block' }}
+                        />
+                      </div>
+                      
+                      <div className="text-center">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold mb-1">Attendee</p>
+                        <p className="text-lg font-bold mb-4">{profile?.full_name || user?.email?.split('@')[0]}</p>
+                        
+                        {confirmationCode && (
+                          <div className="inline-block px-4 py-2 bg-blue-50 rounded-lg">
+                            <p className="text-[9px] uppercase tracking-widest text-blue-600 font-bold mb-0.5">Conf. Code</p>
+                            <p className="text-xl font-black tracking-tighter text-blue-700">{confirmationCode}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Voucher Footer */}
+                    <div className="px-8 py-4 bg-gray-50 text-center border-t border-dashed border-gray-200">
+                      <p className="text-[10px] text-gray-400 font-medium italic">Please present this QR code at the event entrance for seamless check-in.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Session Review - Ecommerce Checkout Style */}
+                {selectedSessions.size > 0 && (
+                  <div 
+                    className="max-w-md mx-auto text-left print-summary"
+                    style={{ 
+                      borderTop: '1px solid rgba(255, 255, 255, 0.1)', 
+                      paddingTop: '32px' 
+                    }}
+                  >
+                    <div className="flex justify-between items-baseline mb-6">
+                      <h3 className="text-lg font-light tracking-tight" style={{ color: 'rgba(255, 255, 255, 0.9)' }}>
+                        Selected Sessions
+                      </h3>
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)', color: 'rgba(255, 255, 255, 0.6)' }}>
+                        {selectedSessions.size} items
+                      </span>
+                    </div>
+
+                    <div className="space-y-4">
+                      {sessions
+                        .filter(s => selectedSessions.has(s.id))
+                        .map(s => (
+                          <div key={s.id} className="flex justify-between items-start group">
+                            <div className="flex-1 pr-4">
+                              <p className="text-sm font-light leading-relaxed" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                                {s.title}
+                              </p>
+                              <p className="text-[11px] font-light mt-1" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
+                                {s.location || 'Main Hall'}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[12px] font-light tracking-wider" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+                                {formatTime(s.starts_at)}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+
+                    <div 
+                      className="mt-8 pt-6 flex justify-between items-center"
+                      style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}
+                    >
+                      <span className="text-sm font-light text-white/40">Registration Fee</span>
+                      <span className="text-sm font-light text-white">Free</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

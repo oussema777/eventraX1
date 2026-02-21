@@ -14,6 +14,8 @@ import TicketsBlock from '../components/design-studio/blocks/TicketsBlock';
 import FooterBlock from '../components/design-studio/blocks/FooterBlock';
 import SponsorsBlock from '../components/design-studio/blocks/SponsorsBlock';
 import ExhibitorsBlock from '../components/design-studio/blocks/ExhibitorsBlock';
+import SponsorPackagesBlock from '../components/design-studio/blocks/SponsorPackagesBlock';
+import NetworkingBlock from '../components/design-studio/blocks/NetworkingBlock';
 import CountdownBlock from '../components/design-studio/blocks/CountdownBlock';
 import VideoHeroBlock from '../components/design-studio/blocks/VideoHeroBlock';
 import { ArrowLeft, ArrowRight, Save } from 'lucide-react';
@@ -33,6 +35,8 @@ import AboutBlockSettingsModal from '../components/design-studio/modals/AboutBlo
 import FooterBlockSettingsModal from '../components/design-studio/modals/FooterBlockSettingsModal';
 import HeroBlockSettingsModal from '../components/design-studio/modals/HeroBlockSettingsModal';
 import SponsorsBlockSettingsModal from '../components/design-studio/modals/SponsorsBlockSettingsModal';
+import SponsorPackagesBlockSettingsModal from '../components/design-studio/modals/SponsorPackagesBlockSettingsModal';
+import NetworkingBlockSettingsModal from '../components/design-studio/modals/NetworkingBlockSettingsModal';
 import ExhibitorsBlockSettingsModal from '../components/design-studio/modals/ExhibitorsBlockSettingsModal';
 import CountdownBlockSettingsModal from '../components/design-studio/modals/CountdownBlockSettingsModal';
 import CustomHTMLBlockSettingsModal from '../components/design-studio/modals/CustomHTMLBlockSettingsModal';
@@ -470,8 +474,14 @@ export default function WizardStep2DesignStudio() {
         return wrapWithLock(<FooterBlock settings={block.settings} brandColor={brandColor} event={eventData} onEdit={() => handleOpenSettings(block.id)} />);
       case 'video-hero':
         return wrapWithLock(<VideoHeroBlock brandColor={brandColor} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
+      case 'custom-html':
+        return wrapWithLock(<CustomHTMLBlock isLocked={isLocked} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
       case 'sponsors':
         return wrapWithLock(<SponsorsBlock sponsors={previewContent.sponsors} packages={previewContent.sponsorPackages} brandColor={brandColor} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
+      case 'sponsor-packages':
+        return wrapWithLock(<SponsorPackagesBlock packages={previewContent.sponsorPackages} brandColor={brandColor} buttonRadius={buttonRadius} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
+      case 'networking':
+        return wrapWithLock(<NetworkingBlock brandColor={brandColor} buttonRadius={buttonRadius} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} onNavigate={() => navigate(`/event/${eventData.id || eventId}/attendees`)} />);
       case 'exhibitors':
         return wrapWithLock(<ExhibitorsBlock exhibitors={mappedExhibitors} brandColor={brandColor} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
       case 'countdown':
@@ -712,6 +722,20 @@ export default function WizardStep2DesignStudio() {
         onClose={() => setSettingsBlockId(null)}
         settings={selectedBlock?.settings || {}}
         onSave={(data) => handleSaveBlockSettings('sponsors', data)}
+      />
+
+      <SponsorPackagesBlockSettingsModal
+        isOpen={settingsBlockId === 'sponsor-packages'}
+        onClose={() => setSettingsBlockId(null)}
+        settings={selectedBlock?.settings || {}}
+        onSave={(data) => handleSaveBlockSettings('sponsor-packages', data)}
+      />
+
+      <NetworkingBlockSettingsModal
+        isOpen={settingsBlockId === 'networking'}
+        onClose={() => setSettingsBlockId(null)}
+        settings={selectedBlock?.settings || {}}
+        onSave={(data) => handleSaveBlockSettings('networking', data)}
       />
 
       <ExhibitorsBlockSettingsModal

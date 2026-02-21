@@ -8,6 +8,11 @@ import EventDetailsBlock from '../design-studio/blocks/EventDetailsBlock';
 import SpeakersBlock from '../design-studio/blocks/SpeakersBlock';
 import AgendaBlock from '../design-studio/blocks/AgendaBlock';
 import TicketsBlock from '../design-studio/blocks/TicketsBlock';
+import SponsorsBlock from '../design-studio/blocks/SponsorsBlock';
+import SponsorPackagesBlock from '../design-studio/blocks/SponsorPackagesBlock';
+import NetworkingBlock from '../design-studio/blocks/NetworkingBlock';
+import ExhibitorsBlock from '../design-studio/blocks/ExhibitorsBlock';
+import CountdownBlock from '../design-studio/blocks/CountdownBlock';
 import FooterBlock from '../design-studio/blocks/FooterBlock';
 import LandingPageNavbar from './LandingPageNavbar';
 import { useAuth } from '../../contexts/AuthContext';
@@ -120,6 +125,8 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
   const [sessions, setSessions] = useState<AgendaSession[]>([]);
   const [days, setDays] = useState<AgendaDay[]>([]);
   const [tickets, setTickets] = useState<TicketCard[]>([]);
+  const [sponsors, setSponsors] = useState<any[]>([]);
+  const [sponsorPackages, setSponsorPackages] = useState<any[]>([]);
   const [exhibitors, setExhibitors] = useState<any[]>([]);
   const [attendeesCount, setAttendeesCount] = useState(0);
 
@@ -168,6 +175,10 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
         if (eventError && eventError.code !== 'PGRST116') throw eventError;
 
         setEvent(eventData);
+        if (eventData?.sponsorship_settings) {
+          setSponsorPackages(eventData.sponsorship_settings);
+        }
+
         const designSettings = eventData?.branding_settings?.design_studio;
         if (designSettings) {
           setDesign({
@@ -180,15 +191,25 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
           setDesign(DEFAULT_DESIGN);
         }
 
-        const [speakerRes, sessionRes, ticketRes, exhibitorRes, attendeeRes] = await Promise.all([
+        const [speakerRes, sessionRes, ticketRes, sponsorRes, exhibitorRes, attendeeRes] = await Promise.all([
           supabase.from('event_speakers').select('*').eq('event_id', eventId),
           supabase.from('event_sessions').select('*').eq('event_id', eventId).order('starts_at', { ascending: true }),
           supabase.from('event_tickets').select('*').eq('event_id', eventId),
+          supabase.from('event_sponsors').select('*').eq('event_id', eventId),
           supabase.from('event_exhibitors').select('*').eq('event_id', eventId),
           supabase.from('event_attendees').select('id', { count: 'exact', head: true }).eq('event_id', eventId)
         ]);
 
-        if (exhibitorRes.data) setExhibitors(exhibitorRes.data);
+        if (exhibitorRes.data) {
+          setExhibitors(exhibitorRes.data.map((e: any) => ({
+            id: e.id,
+            name: e.company,
+            logo: e.logo_url,
+            boothNumber: e.booth_location,
+            category: e.industry,
+            website: e.website
+          })));
+        }
         if (attendeeRes.count) setAttendeesCount(attendeeRes.count);
 
         if (speakerRes.error) console.warn('Failed to load speakers:', speakerRes.error);
@@ -200,6 +221,16 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
           company: row.company || '',
           avatarUrl: row.avatar_url || row.photo_url || ''
         })));
+
+        if (sponsorRes.data) {
+          setSponsors(sponsorRes.data.map((s: any) => ({
+            id: s.id,
+            name: s.name,
+            logo: s.logo_url,
+            website: s.website_url,
+            tier: s.tier
+          })));
+        }
 
         const sessionRows = sessionRes.data || [];
         
@@ -352,6 +383,16 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
         return <AgendaBlock key={block.id} {...sharedProps} sessions={sessions} days={days} />;
       case 'tickets':
         return <TicketsBlock key={block.id} {...sharedProps} tickets={tickets} onRegister={handleRegister} />;
+      case 'sponsors':
+        return <SponsorsBlock key={block.id} {...sharedProps} sponsors={sponsors} packages={sponsorPackages} settings={block.settings} />;
+      case 'sponsor-packages':
+        return <SponsorPackagesBlock key={block.id} {...sharedProps} packages={sponsorPackages} settings={block.settings} />;
+      case 'networking':
+        return <NetworkingBlock key={block.id} {...sharedProps} settings={block.settings} onNavigate={() => navigate(`/event/${eventId}/attendees`)} />;
+      case 'exhibitors':
+        return <ExhibitorsBlock key={block.id} {...sharedProps} exhibitors={exhibitors} settings={block.settings} />;
+      case 'countdown':
+        return <CountdownBlock key={block.id} {...sharedProps} targetDate={event?.start_date} settings={block.settings} />;
       case 'footer':
         return <FooterBlock key={block.id} {...sharedProps} event={event || undefined} settings={block.settings} />;
       default:

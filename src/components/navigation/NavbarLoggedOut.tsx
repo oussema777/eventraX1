@@ -191,7 +191,8 @@ export default function NavbarLoggedOut({ onSignUpClick, onLoginClick }: NavbarL
             {t('nav.browseEvents')}
           </button>
 
-          {/* Logistic Solutions Dropdown */}
+          {/* Logistic Solutions Dropdown (Hidden) */}
+          {/*
           <div ref={logisticRef} className="relative">
             <button
               onClick={() => {
@@ -235,7 +236,6 @@ export default function NavbarLoggedOut({ onSignUpClick, onLoginClick }: NavbarL
               />
             </button>
 
-            {/* Logistic Dropdown Menu */}
             {isLogisticOpen && !isLogisticsLocked && (
               <div 
                 className="absolute top-full left-0 mt-2 rounded-lg overflow-hidden"
@@ -272,6 +272,7 @@ export default function NavbarLoggedOut({ onSignUpClick, onLoginClick }: NavbarL
               </div>
             )}
           </div>
+          */}
         </div>
 
         {/* RIGHT SECTION - Auth Buttons & Mobile Menu */}
@@ -470,7 +471,8 @@ export default function NavbarLoggedOut({ onSignUpClick, onLoginClick }: NavbarL
             {t('nav.browseEvents')}
             </button>
 
-            {/* Mobile Logistic Solutions */}
+            {/* Mobile Logistic Solutions (Hidden) */}
+            {/*
             <div>
               <button
                 onClick={() => {
@@ -530,6 +532,7 @@ export default function NavbarLoggedOut({ onSignUpClick, onLoginClick }: NavbarL
                 </div>
               )}
             </div>
+            */}
 
             {/* Mobile Auth Buttons */}
             <div className="pt-4 space-y-3 border-t" style={{ borderColor: 'var(--border)' }}>

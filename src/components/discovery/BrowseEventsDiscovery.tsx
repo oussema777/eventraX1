@@ -49,7 +49,7 @@ export default function BrowseEventsDiscovery() {
   const [loadError, setLoadError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState('');
-  const [priceRange, setPriceRange] = useState([0, 1000]); // Reverted to single value for range input
+  const [priceRange, setPriceRange] = useState([0, 5000]); // Increased from 1000 to 5000 to prevent filtering out high-end summits
   const [sortBy, setSortBy] = useState('upcoming');
   const [visibleCount, setVisibleCount] = useState(pageSize);
 
@@ -104,11 +104,25 @@ export default function BrowseEventsDiscovery() {
         setIsLoading(true);
         setLoadError('');
         
+        // 1. Fetch current profile to check if user is admin
+        const { data: { user } } = await supabase.auth.getUser();
+        let isAdmin = false;
+        if (user) {
+          const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+          isAdmin = profile?.role === 'admin';
+        }
+
         let query = supabase
           .from('events')
-          .select('id, name, description, event_type, event_format, event_status, start_date, location_address, cover_image_url')
-          .eq('status', 'published')
-          .eq('is_approved', true); // Only show approved events
+          .select('id, name, description, event_type, event_format, event_status, start_date, location_address, cover_image_url, branding_settings, is_approved, status');
+
+        // Only enforce strict public filters for non-admins
+        if (!isAdmin) {
+          query = query.eq('status', 'published').eq('is_approved', true);
+        } else {
+          // Admins see all published events even if approval is pending
+          query = query.eq('status', 'published');
+        }
 
         const now = new Date().toISOString();
         if (timeFilter === 'upcoming') {
@@ -166,10 +180,17 @@ export default function BrowseEventsDiscovery() {
             ? t('browseEventsPage.event.online')
             : (event.location_address || t('browseEventsPage.event.tbd'));
 
+          // Resolve the best available image
+          const brandingSettings = event?.branding_settings;
+          const designStudioLogo = brandingSettings?.design_studio?.logoUrl;
+          const brandingLogo = brandingSettings?.logoUrl;
+          const logoUrl = event?.logo_url || designStudioLogo || brandingLogo;
+          const resolvedImage = event.cover_image_url || logoUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800';
+
           return {
             id: event.id,
             title: event.name || t('browseEventsPage.event.untitled'),
-            image: event.cover_image_url || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800',
+            image: resolvedImage,
             date: { month, day },
             location: locationLabel,
             time: timeLabel,
@@ -832,11 +853,25 @@ export default function BrowseEventsDiscovery() {
                   }}
                 >
                   {/* Image Area */}
-                  <div className="relative" style={{ height: '180px' }}>
+                  <div 
+                    className="relative" 
+                    style={{ 
+                      height: '180px', 
+                      backgroundColor: '#FFFFFF',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '20px'
+                    }}
+                  >
                     <ImageWithFallback
                       src={event.image}
                       alt={event.title}
-                      className="w-full h-full object-cover"
+                      style={{ 
+                        maxHeight: '100%', 
+                        maxWidth: '100%', 
+                        objectFit: 'contain' 
+                      }}
                     />
 
                     {/* Date Badge */}

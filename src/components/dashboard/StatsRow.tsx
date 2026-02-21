@@ -2,10 +2,12 @@ import { Calendar, Users, TrendingUp, DollarSign, ArrowUp } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { useProfile } from '../../hooks/useProfile';
 import { useI18n } from '../../i18n/I18nContext';
 
 export default function StatsRow() {
   const { user } = useAuth();
+  const { profile } = useProfile();
   const { t, locale } = useI18n();
   const [statsData, setStatsData] = useState({
     totalEvents: 0,
@@ -20,13 +22,19 @@ export default function StatsRow() {
   );
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !profile) return;
     const fetchStats = async () => {
       try {
-        const { data: events, error } = await supabase
+        let query = supabase
           .from('events')
-          .select('id, status')
-          .eq('owner_id', user.id);
+          .select('id, status');
+        
+        // Only filter by owner if not admin
+        if (profile?.role !== 'admin') {
+          query = query.eq('owner_id', user.id);
+        }
+
+        const { data: events, error } = await query;
 
         if (error) throw error;
         const eventIds = (events || []).map((item: any) => item.id);
@@ -85,7 +93,7 @@ export default function StatsRow() {
     };
 
     fetchStats();
-  }, [user]);
+  }, [user, profile]);
 
   const stats = [
     {

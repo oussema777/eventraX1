@@ -8,6 +8,8 @@ import AgendaBlock from '../components/design-studio/blocks/AgendaBlock';
 import TicketsBlock from '../components/design-studio/blocks/TicketsBlock';
 import FooterBlock from '../components/design-studio/blocks/FooterBlock';
 import SponsorsBlock from '../components/design-studio/blocks/SponsorsBlock';
+import SponsorPackagesBlock from '../components/design-studio/blocks/SponsorPackagesBlock';
+import NetworkingBlock from '../components/design-studio/blocks/NetworkingBlock';
 import ExhibitorsBlock from '../components/design-studio/blocks/ExhibitorsBlock';
 import CountdownBlock from '../components/design-studio/blocks/CountdownBlock';
 import TestimonialsBlock from '../components/design-studio/blocks/TestimonialsBlock';
@@ -96,6 +98,10 @@ export default function DesignStudioPreview() {
         return <VideoHeroBlock key={block.id} {...blockProps} settings={block.settings} />;
       case 'sponsors':
         return <SponsorsBlock key={block.id} {...blockProps} sponsors={content?.sponsors} packages={content?.sponsorPackages} settings={block.settings} />;
+      case 'sponsor-packages':
+        return <SponsorPackagesBlock key={block.id} {...blockProps} packages={content?.sponsorPackages} settings={block.settings} />;
+      case 'networking':
+        return <NetworkingBlock key={block.id} {...blockProps} settings={block.settings} />;
       case 'exhibitors':
         return <ExhibitorsBlock key={block.id} {...blockProps} exhibitors={content?.exhibitors} settings={block.settings} />;
       case 'countdown':

@@ -1,0 +1,8 @@
+-- SQL SCRIPT: Auto-approve all existing published events
+-- This ensures that events already created by users show up in the browse events page.
+
+UPDATE public.events
+SET is_approved = true, 
+    moderation_status = 'approved',
+    is_public = true
+WHERE status = 'published';

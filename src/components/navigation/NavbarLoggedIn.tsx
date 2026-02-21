@@ -296,7 +296,8 @@ export default function NavbarLoggedIn({
             {t('nav.browseEvents')}
           </button>
 
-          {/* Logistic Solutions Dropdown */}
+          {/* Logistic Solutions Dropdown (Hidden) */}
+          {/*
           <div ref={logisticRef} className="relative">
             <button
               onClick={() => {
@@ -341,7 +342,6 @@ export default function NavbarLoggedIn({
               />
             </button>
 
-            {/* Logistic Dropdown Menu */}
             {isLogisticOpen && !isLogisticsLocked && (
               <div 
                 className="absolute top-full left-0 mt-2 rounded-lg overflow-hidden"
@@ -378,6 +378,7 @@ export default function NavbarLoggedIn({
               </div>
             )}
           </div>
+          */}
         </div>
 
         {/* RIGHT SECTION - Notifications & User Profile */}
@@ -681,7 +682,8 @@ export default function NavbarLoggedIn({
             {t('nav.browseEvents')}
             </button>
 
-            {/* Mobile Logistic Solutions */}
+            {/* Mobile Logistic Solutions (Hidden) */}
+            {/*
             <div>
               <button
                 onClick={() => {
@@ -741,6 +743,7 @@ export default function NavbarLoggedIn({
                 </div>
               )}
             </div>
+            */}
 
             {/* Mobile User Menu Items */}
             <div className="pt-4 space-y-2 border-t" style={{ borderColor: 'var(--border)' }}>

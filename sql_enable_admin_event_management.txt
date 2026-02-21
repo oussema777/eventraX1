@@ -1,0 +1,124 @@
+-- SQL SCRIPT: Enable Platform-Wide Event Management for Admins
+-- This script grants users with the 'admin' role full control over events, speakers, sessions, and attendees.
+
+-- 1. Ensure 'role' column exists and populate it
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'role') THEN
+        ALTER TABLE public.profiles ADD COLUMN role text DEFAULT 'user';
+    END IF;
+END $$;
+
+-- 2. Grant Admin permissions on EVENTS
+DROP POLICY IF EXISTS "Admins can manage all events" ON public.events;
+CREATE POLICY "Admins can manage all events"
+ON public.events
+FOR ALL
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.role = 'admin'
+  )
+);
+
+-- 3. Grant Admin permissions on EVENT_ATTENDEES
+DROP POLICY IF EXISTS "Admins can manage all attendees" ON public.event_attendees;
+CREATE POLICY "Admins can manage all attendees"
+ON public.event_attendees
+FOR ALL
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.role = 'admin'
+  )
+);
+
+-- 4. Grant Admin permissions on EVENT_SPEAKERS
+DROP POLICY IF EXISTS "Admins can manage all speakers" ON public.event_speakers;
+CREATE POLICY "Admins can manage all speakers"
+ON public.event_speakers
+FOR ALL
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.role = 'admin'
+  )
+);
+
+-- 5. Grant Admin permissions on EVENT_SESSIONS
+DROP POLICY IF EXISTS "Admins can manage all sessions" ON public.event_sessions;
+CREATE POLICY "Admins can manage all sessions"
+ON public.event_sessions
+FOR ALL
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.role = 'admin'
+  )
+);
+
+-- 6. Grant Admin permissions on EVENT_TICKETS
+DROP POLICY IF EXISTS "Admins can manage all tickets" ON public.event_tickets;
+CREATE POLICY "Admins can manage all tickets"
+ON public.event_tickets
+FOR ALL
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.role = 'admin'
+  )
+);
+
+-- 7. Grant Admin permissions on EVENT_SPONSORS
+DROP POLICY IF EXISTS "Admins can manage all sponsors" ON public.event_sponsors;
+CREATE POLICY "Admins can manage all sponsors"
+ON public.event_sponsors
+FOR ALL
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.role = 'admin'
+  )
+);
+
+-- 8. Grant Admin permissions on EVENT_EXHIBITORS
+DROP POLICY IF EXISTS "Admins can manage all exhibitors" ON public.event_exhibitors;
+CREATE POLICY "Admins can manage all exhibitors"
+ON public.event_exhibitors
+FOR ALL
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.role = 'admin'
+  )
+);
+
+-- 9. Grant Admin permissions on EVENT_FORMS
+DROP POLICY IF EXISTS "Admins can manage all forms" ON public.event_forms;
+CREATE POLICY "Admins can manage all forms"
+ON public.event_forms
+FOR ALL
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.role = 'admin'
+  )
+);
+
+-- 10. Ensure specific iLab users are Admins
+UPDATE public.profiles
+SET role = 'admin'
+WHERE email IN (
+  'marketing@redstart.tn', 
+  'admin@eventra.com', 
+  'demo@eventra.com',
+  'oussema.lamine@ilab.tn'
+);

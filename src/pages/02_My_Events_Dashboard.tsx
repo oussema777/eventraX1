@@ -8,9 +8,11 @@ import EventsGrid from '../components/dashboard/EventsGrid';
 import Pagination from '../components/dashboard/Pagination';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useProfile } from '../hooks/useProfile';
 
 export default function MyEventsDashboard() {
   const { user } = useAuth();
+  const { profile } = useProfile();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -24,11 +26,17 @@ export default function MyEventsDashboard() {
     if (!user) return;
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
+      
+      let query = supabase
         .from('events')
-        .select('*')
-        .eq('owner_id', user.id)
-        .order('created_at', { ascending: false });
+        .select('*');
+
+      // If user is not admin, only show their events
+      if (profile?.role !== 'admin') {
+        query = query.eq('owner_id', user.id);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
       setEvents(data || []);
@@ -40,10 +48,10 @@ export default function MyEventsDashboard() {
   };
 
   useEffect(() => {
-    if (user) {
+    if (user && profile) {
       fetchEvents();
     }
-  }, [user]);
+  }, [user, profile]);
 
   useEffect(() => {
     setCurrentPage(1);

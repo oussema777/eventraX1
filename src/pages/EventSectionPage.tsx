@@ -28,6 +28,8 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
   const [mySessionIds, setMySessionIds] = useState<Set<string>>(new Set());
   const [attendeeId, setAttendeeId] = useState<string | null>(null);
   const [selectedAttendee, setSelectedAttendee] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSector, setSelectedSector] = useState<string>('All');
   const [page, setPage] = useState(0);
   const ITEMS_PER_PAGE = 50;
 
@@ -333,8 +335,95 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
 
       <div style={{ padding: '60px 24px', maxWidth: '1200px', margin: '0 auto' }}>
         <h1 style={{ fontSize: '32px', fontWeight: 700, color: '#FFFFFF', marginBottom: '40px', textTransform: 'capitalize' }}>
-          {type}
+          {type === 'attendees' ? 'B2B Networking Center' : type}
         </h1>
+
+        {type === 'attendees' && (
+          <div style={{ marginBottom: '48px' }}>
+            {/* Networking Hero / Stats */}
+            <div 
+              style={{ 
+                background: `linear-gradient(135deg, ${brandColor}20 0%, rgba(11, 38, 65, 0.5) 100%)`,
+                borderRadius: '24px',
+                padding: '40px',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                marginBottom: '40px',
+                display: 'flex',
+                flexDirection: window.innerWidth < 768 ? 'column' : 'row',
+                alignItems: 'center',
+                gap: '40px'
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#FFFFFF', marginBottom: '12px' }}>
+                  Connect with Industry Leaders
+                </h2>
+                <p style={{ fontSize: '16px', color: '#94A3B8', lineHeight: '1.6', marginBottom: '24px', maxWidth: '500px' }}>
+                  Schedule 1-on-1 meetings, exchange messages, and expand your professional network during the {event?.name}.
+                </p>
+                <div style={{ display: 'flex', gap: '24px' }}>
+                  <div>
+                    <div style={{ fontSize: '24px', fontWeight: 800, color: brandColor }}>{counts.attendees}</div>
+                    <div style={{ fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '1px' }}>Participants</div>
+                  </div>
+                  <div style={{ width: '1px', backgroundColor: 'rgba(255, 255, 255, 0.1)' }} />
+                  <div>
+                    <div style={{ fontSize: '24px', fontWeight: 800, color: '#10B981' }}>{Math.floor(counts.attendees * 0.4)}</div>
+                    <div style={{ fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '1px' }}>Potential Matches</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div style={{ width: window.innerWidth < 768 ? '100%' : '400px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Search */}
+                <div style={{ position: 'relative' }}>
+                  <input 
+                    type="text" 
+                    placeholder="Search by name, company, or title..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{ 
+                      width: '100%', 
+                      height: '52px', 
+                      backgroundColor: 'rgba(255, 255, 255, 0.05)', 
+                      border: '1px solid rgba(255, 255, 255, 0.1)', 
+                      borderRadius: '12px', 
+                      padding: '0 20px 0 48px',
+                      color: '#FFFFFF',
+                      fontSize: '15px',
+                      outline: 'none'
+                    }}
+                  />
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }}><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </div>
+                
+                {/* Sector Filter */}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {['All', 'Technology', 'Marketing', 'Finance', 'Health', 'Education'].map(sector => (
+                    <button
+                      key={sector}
+                      onClick={() => setSelectedSector(sector)}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: '100px',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        backgroundColor: selectedSector === sector ? brandColor : 'rgba(255, 255, 255, 0.05)',
+                        color: '#FFFFFF',
+                        border: '1px solid',
+                        borderColor: selectedSector === sector ? brandColor : 'rgba(255, 255, 255, 0.1)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {sector}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {type === 'agenda' && (
           <div className="space-y-8">
@@ -448,102 +537,166 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
         )}
 
         {type === 'attendees' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '24px' }}>
-            {(data || []).map((a: any) => (
-              <div 
-                key={a.id} 
-                onClick={() => {
-                  console.log('Navigating to profile:', a.profile_id);
-                  if (a.profile_id) navigate(`/profile/${a.profile_id}`);
-                }}
-                style={{ 
-                  backgroundColor: 'rgba(255,255,255,0.03)', 
-                  borderRadius: '16px', 
-                  border: '1px solid rgba(255,255,255,0.1)', 
-                  padding: '24px', 
-                  textAlign: 'center', 
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  cursor: 'pointer'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-4px)';
-                  e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.08)';
-                  e.currentTarget.style.borderColor = brandColor;
-                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
-                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)';
-                }}
-              >
-                {/* Avatar Container */}
-                <div style={{ width: '80px', height: '80px', marginBottom: '16px', flexShrink: 0 }}>
-                  {a.final_avatar ? (
-                    <img 
-                      src={a.final_avatar} 
-                      style={{ 
-                        width: '100%', 
-                        height: '100%', 
-                        borderRadius: '50%', 
-                        objectFit: 'cover', 
-                        border: `3px solid #0B2641`, 
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.2)' 
-                      }} 
-                      onError={(e) => { const parent = e.currentTarget.parentElement; if (parent) { e.currentTarget.style.display = 'none'; const fallback = document.createElement('div'); fallback.style.width = '100%'; fallback.style.height = '100%'; fallback.style.borderRadius = '50%'; fallback.style.backgroundColor = brandColor; fallback.style.color = '#FFFFFF'; fallback.style.display = 'flex'; fallback.style.alignItems = 'center'; fallback.style.justifyContent = 'center'; fallback.style.fontSize = '24px'; fallback.style.fontWeight = '700'; fallback.style.border = '3px solid #0B2641'; fallback.innerText = getInitials(a.name); parent.appendChild(fallback); } }} 
-                    />
-                  ) : <div style={{ width: '100%', height: '100%', borderRadius: '50%', backgroundColor: brandColor, color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 700, border: '3px solid #0B2641', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>{getInitials(a.name)}</div>}
+          <div>
+            {/* Matchmaking Suggestions (Simulated for UX) */}
+            {searchQuery === '' && selectedSector === 'All' && (
+              <div style={{ marginBottom: '48px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
+                  </div>
+                  <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF' }}>Matchmaking Suggestions</h3>
                 </div>
-                <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>{a.name || 'Attendee'}</h3>
-                <div style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '2px' }}>{a.meta?.['Job Title'] || a.meta?.['Title'] || a.meta?.job_title || 'Professional'}</div>
-                <div style={{ fontSize: '13px', color: brandColor, fontWeight: 500, marginBottom: '20px' }}>{a.company || a.meta?.['Company'] || a.meta?.['Organization'] || ''}</div>
-                <div style={{ width: '100%', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <button 
-                    disabled={!a.profile_id}
-                    onClick={(e) => { e.stopPropagation(); if (!user) { navigate(`/event/${eventId}/register`); return; } if (a.profile_id) setSelectedAttendee({ id: a.profile_id, name: a.name }); }} 
-                    style={{ 
-                      width: '100%', 
-                      height: '36px', 
-                      backgroundColor: a.profile_id ? brandColor : 'rgba(255,255,255,0.1)', 
-                      color: a.profile_id ? '#FFFFFF' : 'rgba(255,255,255,0.4)', 
-                      border: 'none', 
-                      borderRadius: '8px', 
-                      fontSize: '13px', 
-                      fontWeight: 600, 
-                      cursor: a.profile_id ? 'pointer' : 'not-allowed', 
-                      transition: 'all 0.2s' 
-                    }}
-                  >
-                    {a.profile_id ? 'Book Meeting' : 'Guest User'}
-                  </button>
-                  <button 
-                    disabled={isMessageLoading || !a.profile_id} 
-                    onClick={(e) => { e.stopPropagation(); if (a.profile_id) handleMessage(a.profile_id); }} 
-                    style={{ 
-                      width: '100%', 
-                      height: '36px', 
-                      backgroundColor: 'rgba(255,255,255,0.1)', 
-                      color: a.profile_id ? '#FFFFFF' : 'rgba(255,255,255,0.4)', 
-                      border: 'none', 
-                      borderRadius: '8px', 
-                      fontSize: '13px', 
-                      fontWeight: 600, 
-                      cursor: (isMessageLoading || !a.profile_id) ? 'not-allowed' : 'pointer', 
-                      transition: 'all 0.2s', 
-                      opacity: isMessageLoading ? 0.7 : 1 
-                    }} 
-                    onMouseEnter={(e) => { if (a.profile_id) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)'; }} 
-                    onMouseLeave={(e) => { if (a.profile_id) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
-                  >
-                    {isMessageLoading ? 'Loading...' : 'Message'}
-                  </button>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '24px' }}>
+                  {(data || []).slice(0, 3).map((a: any) => (
+                    <div 
+                      key={`suggested-${a.id}`} 
+                      style={{ 
+                        backgroundColor: 'rgba(255,255,255,0.03)', 
+                        borderRadius: '24px', 
+                        border: `1px solid ${brandColor}40`, 
+                        padding: '24px', 
+                        textAlign: 'center', 
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        position: 'relative',
+                        boxShadow: `0 10px 30px -10px ${brandColor}20`
+                      }}
+                    >
+                      <div style={{ position: 'absolute', top: '16px', right: '16px', padding: '4px 10px', borderRadius: '100px', backgroundColor: '#10B981', color: '#FFFFFF', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Top Match</div>
+                      <div style={{ width: '90px', height: '90px', marginBottom: '16px', flexShrink: 0 }}>
+                        <img src={a.final_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(a.name)}&background=random`} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', border: `3px solid ${brandColor}`, padding: '2px' }} />
+                      </div>
+                      <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>{a.name}</h3>
+                      <div style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '20px' }}>{a.meta?.['Job Title'] || a.meta?.['Title'] || 'Executive'}</div>
+                      
+                      <div style={{ display: 'flex', gap: '6px', marginBottom: '24px' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 700, color: brandColor, padding: '4px 8px', backgroundColor: `${brandColor}10`, borderRadius: '6px' }}>{a.meta?.['Industry'] || 'Technology'}</span>
+                        <span style={{ fontSize: '10px', fontWeight: 700, color: '#10B981', padding: '4px 8px', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '6px' }}>High Compatibility</span>
+                      </div>
+
+                      <div style={{ width: '100%', display: 'flex', gap: '10px' }}>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); if (a.profile_id) setSelectedAttendee({ id: a.profile_id, name: a.name }); }} 
+                          style={{ flex: 1, height: '40px', backgroundColor: brandColor, color: '#FFFFFF', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
+                        >Book</button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); if (a.profile_id) handleMessage(a.profile_id); }} 
+                          style={{ width: '40px', height: '40px', backgroundColor: 'rgba(255,255,255,0.05)', color: '#FFFFFF', border: 'none', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
+            )}
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '48px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF' }}>All Participants</h3>
+              <span style={{ fontSize: '13px', color: '#94A3B8', fontWeight: 500 }}>({counts.attendees})</span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '24px' }}>
+              {(data || [])
+                .filter((a: any) => {
+                  const matchesSearch = !searchQuery || a.name?.toLowerCase().includes(searchQuery.toLowerCase()) || a.company?.toLowerCase().includes(searchQuery.toLowerCase()) || a.meta?.['Job Title']?.toLowerCase().includes(searchQuery.toLowerCase());
+                  const matchesSector = selectedSector === 'All' || a.meta?.['Industry'] === selectedSector;
+                  return matchesSearch && matchesSector;
+                })
+                .map((a: any) => (
+                <div 
+                  key={a.id} 
+                  onClick={() => {
+                    if (a.profile_id) navigate(`/profile/${a.profile_id}`);
+                  }}
+                  style={{ 
+                    backgroundColor: 'rgba(255,255,255,0.03)', 
+                    borderRadius: '16px', 
+                    border: '1px solid rgba(255,255,255,0.1)', 
+                    padding: '24px', 
+                    textAlign: 'center', 
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    cursor: 'pointer'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-4px)';
+                    e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.08)';
+                    e.currentTarget.style.borderColor = brandColor;
+                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)';
+                  }}
+                >
+                  <div style={{ width: '80px', height: '80px', marginBottom: '16px', flexShrink: 0 }}>
+                    <img 
+                      src={a.final_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(a.name)}&background=random`} 
+                      style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', border: `3px solid #0B2641`, boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }} 
+                    />
+                  </div>
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>{a.name || 'Attendee'}</h3>
+                  <div style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '2px' }}>{a.meta?.['Job Title'] || a.meta?.['Title'] || 'Professional'}</div>
+                  <div style={{ fontSize: '13px', color: brandColor, fontWeight: 500, marginBottom: '20px' }}>{a.company || a.meta?.['Company'] || ''}</div>
+                  
+                  {a.meta?.['Industry'] && (
+                    <div style={{ marginBottom: '20px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: '#94A3B8', padding: '4px 8px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '6px', textTransform: 'uppercase' }}>{a.meta['Industry']}</span>
+                    </div>
+                  )}
+
+                  <div style={{ width: '100%', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <button 
+                      disabled={!a.profile_id}
+                      onClick={(e) => { e.stopPropagation(); if (!user) { setShowRegistrationModal(true); return; } if (a.profile_id) setSelectedAttendee({ id: a.profile_id, name: a.name }); }} 
+                      style={{ 
+                        width: '100%', 
+                        height: '36px', 
+                        backgroundColor: a.profile_id ? brandColor : 'rgba(255,255,255,0.1)', 
+                        color: a.profile_id ? '#FFFFFF' : 'rgba(255,255,255,0.4)', 
+                        border: 'none', 
+                        borderRadius: '8px', 
+                        fontSize: '13px', 
+                        fontWeight: 600, 
+                        cursor: a.profile_id ? 'pointer' : 'not-allowed', 
+                        transition: 'all 0.2s' 
+                      }}
+                    >
+                      {a.profile_id ? 'Book Meeting' : 'Guest User'}
+                    </button>
+                    <button 
+                      disabled={isMessageLoading || !a.profile_id} 
+                      onClick={(e) => { e.stopPropagation(); if (a.profile_id) handleMessage(a.profile_id); }} 
+                      style={{ 
+                        width: '100%', 
+                        height: '36px', 
+                        backgroundColor: 'rgba(255,255,255,0.1)', 
+                        color: a.profile_id ? '#FFFFFF' : 'rgba(255,255,255,0.4)', 
+                        border: 'none', 
+                        borderRadius: '8px', 
+                        fontSize: '13px', 
+                        fontWeight: 600, 
+                        cursor: (isMessageLoading || !a.profile_id) ? 'not-allowed' : 'pointer', 
+                        transition: 'all 0.2s', 
+                        opacity: isMessageLoading ? 0.7 : 1 
+                      }} 
+                    >
+                      {isMessageLoading ? 'Loading...' : 'Message'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
