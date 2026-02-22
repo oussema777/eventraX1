@@ -129,6 +129,8 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
   const [sponsorPackages, setSponsorPackages] = useState<any[]>([]);
   const [exhibitors, setExhibitors] = useState<any[]>([]);
   const [attendeesCount, setAttendeesCount] = useState(0);
+  const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
+  const [attendeeId, setAttendeeId] = useState<string | null>(null);
 
   const handleRegister = () => {
     if (eventId) {
@@ -143,6 +145,38 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
       return;
     }
     navigate(`/event/${eventId}/${section}`);
+  };
+
+  const handleToggleSession = async (sessionId: string) => {
+    if (!user || !attendeeId) {
+      navigate(`/event/${eventId}/register`);
+      return;
+    }
+
+    const isSelected = selectedSessionIds.has(sessionId);
+    const newSelected = new Set(selectedSessionIds);
+
+    try {
+      if (isSelected) {
+        newSelected.delete(sessionId);
+        await supabase
+          .from('event_attendee_sessions')
+          .delete()
+          .eq('attendee_id', attendeeId)
+          .eq('session_id', sessionId);
+      } else {
+        newSelected.add(sessionId);
+        await supabase
+          .from('event_attendee_sessions')
+          .insert({
+            attendee_id: attendeeId,
+            session_id: sessionId
+          });
+      }
+      setSelectedSessionIds(newSelected);
+    } catch (err) {
+      console.error('Failed to toggle session:', err);
+    }
   };
 
   // 1. Public Data Fetch (Runs once)
@@ -215,12 +249,14 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
         if (speakerRes.error) console.warn('Failed to load speakers:', speakerRes.error);
         
         const speakerRows = speakerRes.data || [];
-        setSpeakers(speakerRows.map((row: any) => ({
+        const mappedSpeakers = speakerRows.map((row: any) => ({
+          id: row.id,
           name: row.full_name || row.name || 'Speaker',
           title: row.title || '',
           company: row.company || '',
           avatarUrl: row.avatar_url || row.photo_url || ''
-        })));
+        }));
+        setSpeakers(mappedSpeakers);
 
         if (sponsorRes.data) {
           setSponsors(sponsorRes.data.map((s: any) => ({
@@ -249,12 +285,21 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
           const tags = [];
           if (row.track) tags.push(row.track);
           if (row.status) tags.push(row.status);
+
+          // Map speaker details
+          const sessionSpeakers = (row.speaker_ids || []).map((sid: string) => {
+            return mappedSpeakers.find(s => s.id === sid);
+          }).filter(Boolean);
+
           return {
+            id: row.id,
             day: dayIndex,
             time: formatTime(row.starts_at),
             duration: formatDuration(row.starts_at, row.ends_at),
             title: row.title || 'Session',
-            speaker: row.speaker_name || row.speaker || 'TBD',
+            description: row.description || '',
+            speaker: row.speaker_name || row.speaker || (sessionSpeakers[0]?.name) || 'TBD',
+            speaker_details: sessionSpeakers,
             location: row.location || eventData?.location_address || 'TBD',
             tags
           };
@@ -323,17 +368,31 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
     const loadPrivate = async () => {
       if (!user) {
         setIsRegistered(false);
+        setAttendeeId(null);
+        setSelectedSessionIds(new Set());
         return;
       }
       try {
-        const { data } = await supabase
+        const { data: regData } = await supabase
           .from('event_attendees')
           .select('id')
           .eq('event_id', eventId)
           .eq('profile_id', user.id)
           .maybeSingle();
         
-        setIsRegistered(!!data);
+        setIsRegistered(!!regData);
+        if (regData) {
+          setAttendeeId(regData.id);
+          // Fetch selected sessions
+          const { data: sessionData } = await supabase
+            .from('event_attendee_sessions')
+            .select('session_id')
+            .eq('attendee_id', regData.id);
+          
+          if (sessionData) {
+            setSelectedSessionIds(new Set(sessionData.map(s => s.session_id)));
+          }
+        }
       } catch (e) {
         console.error('Failed to check registration:', e);
       }
@@ -380,7 +439,21 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
       case 'speakers':
         return <SpeakersBlock key={block.id} {...sharedProps} speakers={speakers} />;
       case 'agenda':
-        return <AgendaBlock key={block.id} {...sharedProps} sessions={sessions} days={days} />;
+        // Enrich sessions with selection status
+        const enrichedSessions = sessions.map(s => ({
+          ...s,
+          is_selected: selectedSessionIds.has(s.id)
+        }));
+        return (
+          <AgendaBlock 
+            key={block.id} 
+            {...sharedProps} 
+            sessions={enrichedSessions} 
+            days={days} 
+            isRegistered={isRegistered}
+            onToggleSession={handleToggleSession}
+          />
+        );
       case 'tickets':
         return <TicketsBlock key={block.id} {...sharedProps} tickets={tickets} onRegister={handleRegister} />;
       case 'sponsors':

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { Loader2, User, MapPin } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';
@@ -10,6 +10,8 @@ import ModalRegistrationEntry from '../components/modals/ModalRegistrationEntry'
 import { useAuth } from '../contexts/AuthContext';
 import BookMeetingModal from '../components/networking/BookMeetingModal';
 import { useMessageThread } from '../hooks/useMessageThread';
+import { toast } from 'sonner';
+import { useI18n } from '../i18n/I18nContext';
 
 type SectionType = 'agenda' | 'speakers' | 'exhibitors' | 'attendees';
 
@@ -18,6 +20,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
   const navigate = useNavigate();
   const { user, isLoading: isLoadingAuth, signOut } = useAuth();
   const { getOrCreateThread, loading: isMessageLoading } = useMessageThread();
+  const { t } = useI18n();
   
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -60,8 +63,23 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
         });
 
         if (type === 'agenda') {
-          const { data: sessions } = await supabase.from('event_sessions').select('*').eq('event_id', eventId).order('starts_at', { ascending: true });
-          setData(sessions);
+          // Fetch sessions AND speakers to link them
+          const [sessionsRes, speakersRes] = await Promise.all([
+            supabase.from('event_sessions').select('*').eq('event_id', eventId).order('starts_at', { ascending: true }),
+            supabase.from('event_speakers').select('*').eq('event_id', eventId)
+          ]);
+
+          const speakerMap: Record<string, any> = {};
+          (speakersRes.data || []).forEach(s => {
+            speakerMap[s.id] = s;
+          });
+
+          const enrichedSessions = (sessionsRes.data || []).map(sess => ({
+            ...sess,
+            speaker_details: (sess.speaker_ids || []).map((id: string) => speakerMap[id]).filter(Boolean)
+          }));
+
+          setData(enrichedSessions);
         } else if (type === 'speakers') {
           await fetchSpeakerBatch(0, true);
         } else if (type === 'exhibitors') {
@@ -309,6 +327,51 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
 
   return (
     <div style={{ backgroundColor: '#0B2641', minHeight: '100vh', color: '#FFFFFF' }}>
+      <style>{`
+        .agenda-card {
+          display: grid;
+          grid-template-columns: 140px 1fr 180px 140px 50px;
+          gap: 24px;
+          align-items: center;
+          padding: 24px;
+          background-color: rgba(255,255,255,0.03);
+          border-bottom: 1px solid rgba(255,255,255,0.05);
+          transition: background-color 0.2s;
+        }
+        
+        @media (max-width: 1024px) {
+          .agenda-card {
+            grid-template-columns: 140px 1fr 140px 50px;
+          }
+          .agenda-speaker-col {
+            display: none;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .agenda-card {
+            grid-template-columns: 1fr auto;
+            gap: 16px;
+            padding: 20px;
+          }
+          .agenda-time-col {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 12px;
+            width: 100% !important;
+          }
+          .agenda-location-col {
+            display: none;
+          }
+          .agenda-speaker-mobile {
+            display: flex !important;
+            margin-top: 12px;
+          }
+        }
+      `}</style>
       {user ? (
         <NavbarLoggedIn onLogout={handleLogout} />
       ) : (
@@ -440,46 +503,81 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                    <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#94A3B8', marginBottom: '20px', paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                      {date}
                    </h3>
-                   <div style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+                   <div style={{ backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden' }}>
                      {sessions.map((s: any, index: number) => {
                        const start = s.starts_at ? new Date(s.starts_at) : null;
                        const end = s.ends_at ? new Date(s.ends_at) : null;
+                       const sessionSpeakers = s.speaker_details || [];
+
                        return (
-                         <div key={s.id} style={{ display: 'flex', alignItems: 'center', padding: '20px 24px', borderBottom: index === sessions.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.05)', gap: '24px', transition: 'background-color 0.2s' }} className="agenda-row">
-                           <div style={{ width: '140px', flexShrink: 0 }}>
+                         <div key={s.id} className="agenda-card">
+                           {/* Time Column */}
+                           <div className="agenda-time-col" style={{ width: '140px', flexShrink: 0 }}>
                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#FFFFFF', fontWeight: 600 }}>
                                <div style={{ padding: '6px', borderRadius: '6px', backgroundColor: 'rgba(255,255,255,0.1)' }}>
                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                                </div>
                                <div>
                                  <div style={{ fontSize: '15px' }}>{start ? start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'TBD'}</div>
-                                 <div style={{ fontSize: '12px', color: '#94A3B8', marginTop: '2px' }}>{end ? end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''}</div>
+                                 <div style={{ fontSize: '12px', color: '#94A3B8' }}>{end ? end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''}</div>
                                </div>
                              </div>
                            </div>
-                           <div style={{ flex: 1 }}>
+
+                           {/* Content Column */}
+                           <div style={{ flex: 1, minWidth: 0 }}>
                              {s.track && <span style={{ display: 'inline-block', marginBottom: '6px', padding: '2px 8px', borderRadius: '4px', backgroundColor: `${brandColor}20`, color: brandColor, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}>{s.track}</span>}
-                             <h4 style={{ fontSize: '16px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>{s.title}</h4>
-                             {s.type && <span style={{ fontSize: '12px', color: '#94A3B8', textTransform: 'capitalize' }}>{s.type.replace('_', ' ')}</span>}
-                           </div>
-                           <div style={{ width: '180px', flexShrink: 0 }}>
-                             {s.speaker_name ? (
-                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                 <img src={s.speaker_photo || 'https://via.placeholder.com/40'} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }} />
-                                 <div style={{ overflow: 'hidden' }}>
-                                   <div style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.speaker_name}</div>
-                                   <div style={{ fontSize: '12px', color: '#94A3B8' }}>Speaker</div>
+                             <h4 style={{ fontSize: '17px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px', wordBreak: 'break-word', lineHeight: '1.4' }}>{s.title}</h4>
+                             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                               {s.type && <span style={{ fontSize: '12px', color: '#94A3B8', textTransform: 'capitalize' }}>{s.type.replace('_', ' ')}</span>}
+                               {s.location && (
+                                 <div className="md:hidden" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#94A3B8' }}>
+                                   <MapPin size={12} color="#94A3B8" />
+                                   {s.location}
                                  </div>
+                               )}
+                             </div>
+
+                             {/* Speaker Mobile View */}
+                             {sessionSpeakers.length > 0 && (
+                               <div className="agenda-speaker-mobile" style={{ display: 'none', gap: '12px', flexWrap: 'wrap', marginTop: '12px' }}>
+                                 {sessionSpeakers.map((spk: any) => (
+                                   <div key={spk.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                     <img src={spk.avatar_url || spk.photo_url || 'https://via.placeholder.com/32'} style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }} />
+                                     <span style={{ fontSize: '13px', color: '#E2E8F0', fontWeight: 500 }}>{spk.full_name || spk.name}</span>
+                                   </div>
+                                 ))}
+                               </div>
+                             )}
+                           </div>
+
+                           {/* Speaker Desktop Column */}
+                           <div className="agenda-speaker-col" style={{ width: '180px', flexShrink: 0 }}>
+                             {sessionSpeakers.length > 0 ? (
+                               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                 {sessionSpeakers.map((spk: any) => (
+                                   <div key={spk.id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                     <img src={spk.avatar_url || spk.photo_url || 'https://via.placeholder.com/40'} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }} />
+                                     <div style={{ overflow: 'hidden' }}>
+                                       <div style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{spk.full_name || spk.name}</div>
+                                       <div style={{ fontSize: '11px', color: '#94A3B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{spk.title}</div>
+                                     </div>
+                                   </div>
+                                 ))}
                                </div>
                              ) : <span style={{ fontSize: '13px', color: '#6B7280', fontStyle: 'italic' }}>No speaker</span>}
                            </div>
-                           <div style={{ width: '140px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+
+                           {/* Location Column */}
+                           <div className="agenda-location-col" style={{ width: '140px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
                              <span style={{ fontSize: '14px', color: '#94A3B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.location || 'TBD'}</span>
                            </div>
+
+                           {/* Action Column */}
                            <div style={{ width: '50px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
                              {isRegistered && (
-                               <button onClick={() => handleToggleSession(s.id)} title={mySessionIds.has(s.id) ? "Remove from my agenda" : "Add to my agenda"} style={{ width: '36px', height: '36px', borderRadius: '8px', border: '1px solid', borderColor: mySessionIds.has(s.id) ? 'transparent' : 'rgba(255,255,255,0.2)', backgroundColor: mySessionIds.has(s.id) ? '#10B981' : 'rgba(255,255,255,0.05)', color: mySessionIds.has(s.id) ? '#FFFFFF' : '#94A3B8', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', boxShadow: mySessionIds.has(s.id) ? '0 2px 4px rgba(16, 185, 129, 0.3)' : 'none' }}>
+                               <button onClick={() => handleToggleSession(s.id)} title={mySessionIds.has(s.id) ? "Remove from my agenda" : "Add to my agenda"} style={{ width: '40px', height: '40px', borderRadius: '10px', border: '1px solid', borderColor: mySessionIds.has(s.id) ? 'transparent' : 'rgba(255,255,255,0.2)', backgroundColor: mySessionIds.has(s.id) ? '#10B981' : 'rgba(255,255,255,0.05)', color: mySessionIds.has(s.id) ? '#FFFFFF' : '#94A3B8', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2', boxShadow: mySessionIds.has(s.id) ? '0 2px 4px rgba(16, 185, 129, 0.3)' : 'none' }}>
                                  {mySessionIds.has(s.id) ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>}
                                </button>
                              )}
@@ -580,11 +678,27 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
 
                       <div style={{ width: '100%', display: 'flex', gap: '10px' }}>
                         <button 
-                          onClick={(e) => { e.stopPropagation(); if (a.profile_id) setSelectedAttendee({ id: a.profile_id, name: a.name }); }} 
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            if (!user) {
+                              toast.info(t('networking.auth.bookingPrompt') || 'Please sign in or create an account to book meetings.');
+                              setShowLoginModal(true);
+                              return;
+                            }
+                            if (a.profile_id) setSelectedAttendee({ id: a.profile_id, name: a.name }); 
+                          }} 
                           style={{ flex: 1, height: '40px', backgroundColor: brandColor, color: '#FFFFFF', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
                         >Book</button>
                         <button 
-                          onClick={(e) => { e.stopPropagation(); if (a.profile_id) handleMessage(a.profile_id); }} 
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            if (!user) {
+                              toast.info(t('networking.auth.messagePrompt') || 'Please sign in to send messages.');
+                              setShowLoginModal(true);
+                              return;
+                            }
+                            if (a.profile_id) handleMessage(a.profile_id); 
+                          }} 
                           style={{ width: '40px', height: '40px', backgroundColor: 'rgba(255,255,255,0.05)', color: '#FFFFFF', border: 'none', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                         >
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
@@ -611,7 +725,11 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                 .map((a: any) => (
                 <div 
                   key={a.id} 
-                  onClick={() => {
+                  onPointerUp={(e) => {
+                    // Only navigate if clicking the card body, not buttons
+                    const target = e.target as HTMLElement;
+                    if (target.closest('button')) return;
+                    
                     if (a.profile_id) navigate(`/profile/${a.profile_id}`);
                   }}
                   style={{ 
@@ -624,13 +742,16 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    cursor: 'pointer'
+                    cursor: a.profile_id ? 'pointer' : 'default',
+                    touchAction: 'manipulation'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.08)';
-                    e.currentTarget.style.borderColor = brandColor;
-                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)';
+                    if (a.profile_id) {
+                      e.currentTarget.style.transform = 'translateY(-4px)';
+                      e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.08)';
+                      e.currentTarget.style.borderColor = brandColor;
+                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)';
+                    }
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
@@ -657,8 +778,46 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
 
                   <div style={{ width: '100%', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <button 
-                      disabled={!a.profile_id}
-                      onClick={(e) => { e.stopPropagation(); if (!user) { setShowRegistrationModal(true); return; } if (a.profile_id) setSelectedAttendee({ id: a.profile_id, name: a.name }); }} 
+                      onPointerUp={(e) => { 
+                        e.stopPropagation(); 
+                        if (a.profile_id) navigate(`/profile/${a.profile_id}`); 
+                      }}
+                      style={{ 
+                        width: '100%', 
+                        height: '36px', 
+                        backgroundColor: 'transparent', 
+                        color: '#FFFFFF', 
+                        border: '1px solid rgba(255,255,255,0.2)', 
+                        borderRadius: '8px', 
+                        fontSize: '13px', 
+                        fontWeight: 600, 
+                        cursor: a.profile_id ? 'pointer' : 'not-allowed', 
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (a.profile_id) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (a.profile_id) e.currentTarget.style.backgroundColor = 'transparent';
+                      }}
+                    >
+                      <User size={14} />
+                      View Profile
+                    </button>
+                    <button 
+                      onPointerUp={(e) => { 
+                        e.stopPropagation(); 
+                        if (!user) { 
+                          toast.info(t('networking.auth.bookingPrompt') || 'Please sign in or create an account to book meetings and access B2B features.');
+                          setShowLoginModal(true); 
+                          return; 
+                        } 
+                        if (a.profile_id) setSelectedAttendee({ id: a.profile_id, name: a.name }); 
+                      }}
                       style={{ 
                         width: '100%', 
                         height: '36px', 
@@ -669,14 +828,23 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                         fontSize: '13px', 
                         fontWeight: 600, 
                         cursor: a.profile_id ? 'pointer' : 'not-allowed', 
-                        transition: 'all 0.2s' 
+                        transition: 'all 0.2s',
+                        touchAction: 'none'
                       }}
                     >
                       {a.profile_id ? 'Book Meeting' : 'Guest User'}
                     </button>
                     <button 
                       disabled={isMessageLoading || !a.profile_id} 
-                      onClick={(e) => { e.stopPropagation(); if (a.profile_id) handleMessage(a.profile_id); }} 
+                      onPointerUp={(e) => { 
+                        e.stopPropagation(); 
+                        if (!user) { 
+                          toast.info(t('networking.auth.messagePrompt') || 'Please sign in to send messages to other participants.');
+                          setShowLoginModal(true); 
+                          return; 
+                        }
+                        if (a.profile_id) handleMessage(a.profile_id); 
+                      }} 
                       style={{ 
                         width: '100%', 
                         height: '36px', 
@@ -688,7 +856,8 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                         fontWeight: 600, 
                         cursor: (isMessageLoading || !a.profile_id) ? 'not-allowed' : 'pointer', 
                         transition: 'all 0.2s', 
-                        opacity: isMessageLoading ? 0.7 : 1 
+                        opacity: isMessageLoading ? 0.7 : 1,
+                        touchAction: 'none'
                       }} 
                     >
                       {isMessageLoading ? 'Loading...' : 'Message'}

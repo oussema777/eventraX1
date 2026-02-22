@@ -1454,22 +1454,25 @@ export default function UserB2BCenter() {
       <div className="networking-hub__main" style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px 40px 80px 40px' }}>
         {/* Tab Navigation */}
         <div 
-          className="networking-hub__tabs flex items-center gap-8 mb-8"
+          className="networking-hub__tabs flex items-center gap-2 md:gap-8 mb-8"
           style={{ borderBottom: '2px solid rgba(255,255,255,0.1)' }}
         >
           <button
             onClick={() => setActiveTab('schedule')}
-            className="pb-4 transition-colors relative"
+            className="pb-4 transition-colors relative flex items-center gap-2"
             style={{
               fontSize: '16px',
               fontWeight: 600,
               color: activeTab === 'schedule' ? '#FFFFFF' : '#94A3B8',
               backgroundColor: 'transparent',
               border: 'none',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              flex: 1,
+              justifyContent: 'center'
             }}
           >
-            {t('networking.tabs.schedule')}
+            <Calendar size={18} />
+            <span className="tab-label">{t('networking.tabs.schedule')}</span>
             {activeTab === 'schedule' && (
               <div
                 style={{
@@ -1493,21 +1496,25 @@ export default function UserB2BCenter() {
               color: activeTab === 'matches' ? '#FFFFFF' : '#94A3B8',
               backgroundColor: 'transparent',
               border: 'none',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              flex: 1,
+              justifyContent: 'center'
             }}
           >
-            {t('networking.tabs.matches')}
+            <Sparkles size={18} />
+            <span className="tab-label">{t('networking.tabs.matches')}</span>
             {newMatchesCount > 0 && (
               <span
                 className="px-2 py-0.5 rounded-full"
                 style={{
                   backgroundColor: '#A855F7',
                   color: '#FFFFFF',
-                  fontSize: '11px',
-                  fontWeight: 700
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  marginLeft: '2px'
                 }}
               >
-                {newMatchesCount} New
+                {newMatchesCount}
               </span>
             )}
             {activeTab === 'matches' && (
@@ -1533,18 +1540,22 @@ export default function UserB2BCenter() {
               color: activeTab === 'requests' ? '#FFFFFF' : '#94A3B8',
               backgroundColor: 'transparent',
               border: 'none',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              flex: 1,
+              justifyContent: 'center'
             }}
           >
-            {t('networking.tabs.requests')}
+            <UserPlus size={18} />
+            <span className="tab-label">{t('networking.tabs.requests')}</span>
             {pendingRequestsCount > 0 && (
               <span
                 className="px-2 py-0.5 rounded-full"
                 style={{
                   backgroundColor: '#F59E0B',
                   color: '#FFFFFF',
-                  fontSize: '11px',
-                  fontWeight: 700
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  marginLeft: '2px'
                 }}
               >
                 {pendingRequestsCount}
@@ -1566,17 +1577,20 @@ export default function UserB2BCenter() {
 
           <button
             onClick={() => setActiveTab('connections')}
-            className="pb-4 transition-colors relative"
+            className="pb-4 transition-colors relative flex items-center gap-2"
             style={{
               fontSize: '16px',
               fontWeight: 600,
               color: activeTab === 'connections' ? '#FFFFFF' : '#94A3B8',
               backgroundColor: 'transparent',
               border: 'none',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              flex: 1,
+              justifyContent: 'center'
             }}
           >
-            {t('networking.tabs.connections')}
+            <Users size={18} />
+            <span className="tab-label">{t('networking.tabs.connections')}</span>
             {activeTab === 'connections' && (
               <div
                 style={{
@@ -2897,6 +2911,14 @@ export default function UserB2BCenter() {
       )}
 
       <style>{`
+        @media (max-width: 768px) {
+          .tab-label {
+            display: none;
+          }
+          .networking-hub__tabs button {
+            padding-bottom: 12px !important;
+          }
+        }
         @media (max-width: 600px) {
           .networking-hub__hero {
             padding: 24px 16px 16px;

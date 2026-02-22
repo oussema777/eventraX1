@@ -177,6 +177,93 @@ export default function PublicProfilePage() {
 
   return (
     <div style={{ backgroundColor: '#0B2641', minHeight: '100vh' }}>
+      <style>{`
+        .profile-container {
+          padding: 112px 40px 80px;
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+
+        .profile-header-inner {
+          padding: 0 40px 40px;
+          margin-top: -70px;
+          position: relative;
+        }
+
+        .profile-grid {
+          display: grid;
+          grid-template-columns: 1fr 380px;
+          gap: 24px;
+        }
+
+        .looking-for-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+        }
+
+        .professional-info-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 20px;
+          margin-bottom: 28px;
+        }
+
+        @media (max-width: 1024px) {
+          .profile-grid {
+            grid-template-columns: 1fr;
+          }
+          .profile-sidebar {
+            order: 2;
+          }
+          .profile-main-content {
+            order: 1;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .profile-container {
+            padding: 92px 16px 40px;
+          }
+          .profile-header-inner {
+            padding: 0 20px 32px;
+            margin-top: -60px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+          }
+          .profile-avatar-wrapper {
+            margin: 0 auto 16px !important;
+          }
+          .profile-info-row {
+            justify-content: center !important;
+          }
+          .profile-actions {
+            justify-content: center;
+            width: 100%;
+          }
+          .profile-actions button {
+            flex: 1;
+            justify-content: center;
+          }
+          .professional-info-grid {
+            grid-template-columns: 1fr;
+          }
+          .looking-for-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .profile-actions {
+            flex-direction: column;
+          }
+          .profile-header-title {
+            font-size: 24px !important;
+          }
+        }
+      `}</style>
       {currentUser ? (
         <NavbarLoggedIn onLogout={handleLogout} />
       ) : (
@@ -186,7 +273,7 @@ export default function PublicProfilePage() {
         />
       )}
 
-      <div style={{ paddingTop: '112px', maxWidth: '1200px', margin: '0 auto', padding: '112px 40px 80px' }}>
+      <div className="profile-container">
         
         {/* Navigation/Actions Bar */}
         <div className="flex items-center justify-between" style={{ marginBottom: '24px' }}>
@@ -240,8 +327,8 @@ export default function PublicProfilePage() {
             }}
           />
 
-          <div style={{ padding: '0 40px 40px', marginTop: '-70px', position: 'relative' }}>
-            <div style={{ position: 'relative', width: 'fit-content', marginBottom: '20px' }}>
+          <div className="profile-header-inner">
+            <div className="profile-avatar-wrapper" style={{ position: 'relative', width: 'fit-content', marginBottom: '20px' }}>
               <img
                 src={avatarUrl}
                 alt={fullName}
@@ -271,14 +358,14 @@ export default function PublicProfilePage() {
             </div>
 
             <div style={{ marginBottom: '24px' }}>
-              <h1 style={{ fontSize: '32px', fontWeight: 700, color: '#FFFFFF', marginBottom: '8px' }}>
+              <h1 className="profile-header-title" style={{ fontSize: '32px', fontWeight: 700, color: '#FFFFFF', marginBottom: '8px' }}>
                 {fullName}
               </h1>
               <p style={{ fontSize: '18px', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '12px', fontWeight: 500 }}>
                 {profile.job_title} {profile.company ? `@ ${profile.company}` : ''}
               </p>
 
-              <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', marginBottom: '16px' }}>
+              <div className="profile-info-row" style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', marginBottom: '16px' }}>
                 {profile.location && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'rgba(255, 255, 255, 0.6)' }}>
                     <MapPin size={16} />
@@ -326,7 +413,7 @@ export default function PublicProfilePage() {
               )}
             </div>
 
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <div className="profile-actions" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               {!isOwnProfile && (
                 <>
                   <button
@@ -402,13 +489,13 @@ export default function PublicProfilePage() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '24px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div className="profile-grid">
+          <div className="profile-main-content" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             
             <div
               style={{
                 background: 'rgba(255, 255, 255, 0.03)',
-                padding: '32px',
+                padding: 'clamp(20px, 5vw, 32px)',
                 borderRadius: '12px',
                 border: '1px solid rgba(255, 255, 255, 0.08)',
                 boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.2)'
@@ -425,7 +512,7 @@ export default function PublicProfilePage() {
             <div
               style={{
                 background: 'rgba(255, 255, 255, 0.03)',
-                padding: '32px',
+                padding: 'clamp(20px, 5vw, 32px)',
                 borderRadius: '12px',
                 border: '1px solid rgba(255, 255, 255, 0.08)',
                 boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.2)'

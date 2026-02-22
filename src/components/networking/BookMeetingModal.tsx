@@ -317,37 +317,39 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
       <div
-        className="relative rounded-xl"
+        className="relative rounded-xl w-full"
         style={{
-          width: '720px',
+          maxWidth: '720px',
           backgroundColor: '#1E3A5F',
           border: '1px solid rgba(255,255,255,0.15)',
           boxShadow: '0px 10px 40px rgba(0,0,0,0.5)',
           maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
           overflow: 'hidden'
         }}
         onClick={(event) => event.stopPropagation()}
       >
         <div
-          className="flex items-center justify-between px-6 py-4"
+          className="flex items-center justify-between px-6 py-4 flex-shrink-0"
           style={{ borderBottom: '1px solid rgba(255,255,255,0.15)' }}
         >
-          <div>
-            <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF' }}>
+          <div style={{ minWidth: 0, paddingRight: '12px' }}>
+            <h3 style={{ fontSize: 'clamp(16px, 4vw, 20px)', fontWeight: 600, color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {meetingEditId ? 'Reschedule Meeting' : 'Schedule Meeting'}
             </h3>
-            <p style={{ fontSize: '13px', color: '#94A3B8', marginTop: '4px' }}>
+            <p style={{ fontSize: '13px', color: '#94A3B8', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               With {recipient.name}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="transition-colors"
+            className="transition-colors p-2"
             style={{ color: '#94A3B8' }}
             onMouseEnter={(event) => { event.currentTarget.style.color = '#FFFFFF'; }}
             onMouseLeave={(event) => { event.currentTarget.style.color = '#94A3B8'; }}
@@ -356,10 +358,10 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
           </button>
         </div>
 
-        <div className="px-6 py-5" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+        <div className="px-6 py-5 overflow-y-auto custom-scrollbar" style={{ flex: 1 }}>
           <div className="mb-5">
             <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '10px' }}>Meeting Type</p>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               {[
                 { id: 'video', label: 'Online' },
                 { id: 'in-person', label: 'In-person' },
@@ -368,7 +370,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
                 <button
                   key={option.id}
                   onClick={() => setMeetingType(option.id as any)}
-                  className="px-4 py-2 rounded-lg transition-colors"
+                  className="px-4 py-2 rounded-lg transition-colors flex-1 min-w-[100px]"
                   style={{
                     backgroundColor: meetingType === option.id ? '#0684F5' : 'rgba(255,255,255,0.05)',
                     color: meetingType === option.id ? '#FFFFFF' : '#94A3B8',
@@ -425,19 +427,23 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
                   {isLoadingEvents ? (
                     <div style={{ color: '#94A3B8', fontSize: '13px' }}>Loading slots...</div>
                   ) : generatedSlots.length > 0 ? (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', 
+                      gap: '8px' 
+                    }}>
                       {generatedSlots.map((slot, idx) => (
                         <button
                           key={idx}
                           disabled={slot.available <= 0}
                           onClick={() => setSelectedSlot(slot)}
                           style={{
-                            padding: '10px',
+                            padding: '10px 4px',
                             borderRadius: '8px',
                             backgroundColor: selectedSlot?.iso === slot.iso ? '#0684F5' : slot.available > 0 ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)',
                             border: selectedSlot?.iso === slot.iso ? 'none' : '1px solid rgba(255,255,255,0.1)',
                             color: selectedSlot?.iso === slot.iso ? '#FFFFFF' : slot.available > 0 ? '#FFFFFF' : 'rgba(255,255,255,0.2)',
-                            fontSize: '13px',
+                            fontSize: '12px',
                             fontWeight: 500,
                             cursor: slot.available > 0 ? 'pointer' : 'not-allowed',
                             position: 'relative'
@@ -445,8 +451,8 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
                         >
                           {slot.time}
                           {slot.available <= 3 && slot.available > 0 && (
-                            <span style={{ position: 'absolute', top: -4, right: -4, fontSize: '9px', backgroundColor: '#F59E0B', color: '#000', padding: '1px 4px', borderRadius: '4px' }}>
-                              {slot.available} left
+                            <span style={{ position: 'absolute', top: -4, right: -4, fontSize: '8px', backgroundColor: '#F59E0B', color: '#000', padding: '1px 3px', borderRadius: '4px', fontWeight: 700 }}>
+                              {slot.available}
                             </span>
                           )}
                         </button>
@@ -461,7 +467,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
           )}
 
           {meetingType === 'video' && (
-            <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
               <div>
                 <label style={{ fontSize: '12px', color: '#94A3B8' }}>Meeting Date</label>
                 <input
@@ -505,7 +511,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
               placeholder="Add a message to your meeting request..."
               style={{
                 width: '100%',
-                minHeight: '100px',
+                minHeight: '80px',
                 padding: '12px',
                 borderRadius: '8px',
                 backgroundColor: 'rgba(255,255,255,0.05)',
@@ -513,19 +519,19 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
                 color: '#FFFFFF',
                 fontSize: '14px',
                 outline: 'none',
-                resize: 'vertical'
+                resize: 'none'
               }}
             />
           </div>
         </div>
 
         <div
-          className="flex items-center justify-between px-6 py-4"
+          className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 gap-3 flex-shrink-0"
           style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}
         >
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg transition-colors"
+            className="w-full sm:w-auto px-6 py-2 rounded-lg transition-colors order-2 sm:order-1"
             style={{
               backgroundColor: 'transparent',
               color: '#94A3B8',
@@ -546,7 +552,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
           </button>
           <button
             onClick={handleSubmit}
-            className="px-4 py-2 rounded-lg transition-colors"
+            className="w-full sm:w-auto px-6 py-2 rounded-lg transition-colors order-1 sm:order-2"
             style={{
               backgroundColor: '#0684F5',
               color: '#FFFFFF',
@@ -564,6 +570,22 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
           </button>
         </div>
       </div>
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.2);
+        }
+      `}</style>
     </div>
   );
 }

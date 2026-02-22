@@ -810,6 +810,16 @@ export default function NavbarLoggedIn({
               >
                 {t('nav.userMenu.myEvents')}
               </button>
+              <button 
+                onClick={() => {
+                  navigate('/my-networking');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full text-left py-2 text-sm" 
+                style={{ color: 'var(--foreground)', fontWeight: 500 }}
+              >
+                {t('nav.userMenu.myNetworking')}
+              </button>
               <button
                 onClick={() => {
                   navigate('/messages');

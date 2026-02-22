@@ -10,7 +10,8 @@ import {
   CheckCheck,
   X,
   User,
-  List
+  List,
+  ArrowLeft
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -460,9 +461,13 @@ export default function UserMessagesCenter() {
       className={`messages-center flex ${isSidebarOpen ? 'messages-center--sidebar-open' : ''}`}
       style={{ 
         backgroundColor: '#0B2641', 
-        height: 'calc(100vh - 72px)',
+        height: '100vh',
+        width: '100%',
         maxWidth: '1440px',
-        margin: '0 auto'
+        margin: '0 auto',
+        position: 'relative',
+        overflow: 'hidden',
+        paddingTop: '90px'
       }}
     >
       {/* LEFT COLUMN - Conversation List */}
@@ -471,7 +476,8 @@ export default function UserMessagesCenter() {
         style={{ 
           width: '350px',
           borderRight: '1px solid rgba(255,255,255,0.1)',
-          height: '100%'
+          height: '100%',
+          backgroundColor: '#0B2641'
         }}
       >
         {/* Header & Search */}
@@ -752,327 +758,279 @@ export default function UserMessagesCenter() {
       </div>
 
       {/* RIGHT COLUMN - Active Conversation */}
-      {activeConversation ? (
-        <div className="messages-center__content flex-1 flex flex-col" style={{ height: '100%' }}>
-          <div className="messages-center__mobile-header">
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="messages-center__mobile-toggle p-2 rounded-lg transition-colors"
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                color: '#FFFFFF'
+      <div 
+        className="messages-center__content flex-1 flex flex-col" 
+        style={{ 
+          height: '100%',
+          backgroundColor: '#0B2641',
+          zIndex: 10
+        }}
+      >
+        {activeConversation ? (
+          <>
+            {/* Chat Header */}
+            <div 
+              className="messages-center__chat-header flex items-center justify-between px-4 md:px-6"
+              style={{ 
+                height: '72px',
+                borderBottom: '1px solid rgba(255,255,255,0.1)',
+                backgroundColor: '#0B2641'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
             >
-              <List size={18} />
-            </button>
-            <div className="flex items-center gap-3">
-              <div
-                className="rounded-full flex items-center justify-center"
-                style={{
-                  width: '36px',
-                  height: '36px',
-                  backgroundColor: 'rgba(6, 132, 245, 0.2)',
-                  border: '2px solid #0684F5'
-                }}
-              >
-                <User size={18} style={{ color: '#0684F5' }} />
-              </div>
-              <div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF' }}>
-                  {activeConversation.userName}
+              {/* Recipient Info */}
+              <div className="flex items-center gap-3 overflow-hidden">
+                <button
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="messages-center__mobile-toggle p-2 rounded-lg transition-colors flex-shrink-0"
+                  style={{
+                    backgroundColor: 'rgba(255,255,255,0.1)',
+                    color: '#FFFFFF'
+                  }}
+                >
+                  <ArrowLeft size={20} />
+                </button>
+                <div
+                  className="rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    backgroundColor: 'rgba(6, 132, 245, 0.2)',
+                    border: '2px solid #0684F5'
+                  }}
+                >
+                  <User size={20} style={{ color: '#0684F5' }} />
                 </div>
-                {activeConversation.userTitle && (
-                  <div style={{ fontSize: '12px', color: '#94A3B8' }}>
-                    {activeConversation.userTitle}
-                  </div>
-                )}
+                <div className="min-w-0">
+                  <h2 style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {activeConversation.userName}
+                  </h2>
+                  {activeConversation.userTitle && (
+                    <p style={{ fontSize: '12px', color: '#94A3B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {activeConversation.userTitle}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-1 md:gap-2">
+                <button
+                  onClick={handleViewProfile}
+                  className="px-3 md:px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+                  style={{
+                    backgroundColor: 'transparent',
+                    color: '#94A3B8',
+                    fontSize: '12px md:13px',
+                    fontWeight: 500,
+                    border: '1px solid rgba(255,255,255,0.2)'
+                  }}
+                >
+                  <span className="hidden sm:inline">{t('messages.actions.viewProfile')}</span>
+                  <User className="sm:hidden" size={18} />
+                </button>
+                <button
+                  className="p-2 rounded-lg transition-colors"
+                  style={{
+                    backgroundColor: 'transparent',
+                    color: '#94A3B8'
+                  }}
+                >
+                  <MoreVertical size={18} />
+                </button>
               </div>
             </div>
-          </div>
-          {/* Chat Header */}
-          <div 
-            className="messages-center__chat-header flex items-center justify-between px-6"
-            style={{ 
-              height: '72px',
-              borderBottom: '1px solid rgba(255,255,255,0.1)'
-            }}
-          >
-            {/* Recipient Info */}
-            <div className="flex items-center gap-3">
+
+            {/* Message Stream */}
+            <div 
+              className="messages-center__stream flex-1 overflow-y-auto px-4 md:px-6 py-6"
+              style={{
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'rgba(255,255,255,0.2) transparent'
+              }}
+            >
+              {/* Date Divider */}
+              <div className="flex items-center justify-center mb-6">
+                <span 
+                  className="px-3 py-1 rounded-full"
+                  style={{ 
+                    fontSize: '12px', 
+                    color: '#6B7280',
+                    backgroundColor: 'rgba(255,255,255,0.05)'
+                  }}
+                >
+                  {t('messages.dateDivider', { date: 'Today' })}
+                </span>
+              </div>
+
+              {/* Messages */}
+              <div className="space-y-4">
+                {isLoadingMessages && (
+                  <div className="text-center" style={{ color: '#94A3B8' }}>
+                    {t('messages.loading.messages')}
+                  </div>
+                )}
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className="flex gap-2"
+                    style={{
+                      flexDirection: message.isSent ? 'row-reverse' : 'row',
+                      alignItems: 'flex-end'
+                    }}
+                  >
+                    {/* Avatar for received messages */}
+                    {!message.isSent && (
+                      <div
+                        className="rounded-full flex items-center justify-center flex-shrink-0"
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          backgroundColor: 'rgba(6, 132, 245, 0.2)',
+                          border: '2px solid #0684F5'
+                        }}
+                      >
+                        <User size={16} style={{ color: '#0684F5' }} />
+                      </div>
+                    )}
+
+                    {/* Message Bubble */}
+                    <div style={{ maxWidth: '85%', sm: '70%' }}>
+                      <div
+                        className="px-4 py-2 md:py-3"
+                        style={{
+                          backgroundColor: message.isSent ? '#0684F5' : 'rgba(255,255,255,0.1)',
+                          color: '#FFFFFF',
+                          fontSize: '14px',
+                          lineHeight: '1.5',
+                          borderRadius: '16px',
+                          borderTopLeftRadius: message.isSent ? '16px' : '4px',
+                          borderTopRightRadius: message.isSent ? '4px' : '16px',
+                          wordBreak: 'break-word'
+                        }}
+                      >
+                        {message.text}
+                      </div>
+                      
+                      {/* Timestamp & Read Receipt */}
+                      <div 
+                        className="flex items-center gap-1 mt-1 px-1"
+                        style={{ 
+                          fontSize: '10px', 
+                          color: '#6B7280',
+                          justifyContent: message.isSent ? 'flex-end' : 'flex-start'
+                        }}
+                      >
+                        <span>{message.timestamp}</span>
+                        {message.isSent && (
+                          message.isRead ? (
+                            <CheckCheck size={14} style={{ color: '#0684F5' }} />
+                          ) : (
+                            <Check size={14} style={{ color: '#6B7280' }} />
+                          )
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Composer */}
+            <div 
+              className="messages-center__composer px-4 md:px-6 py-4 md:py-5"
+              style={{ 
+                borderTop: '1px solid rgba(255,255,255,0.1)',
+                backgroundColor: '#0B2641'
+              }}
+            >
+              <div 
+                className="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2"
+                style={{ 
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  borderRadius: '24px'
+                }}
+              >
+                {/* Attachment Icon */}
+                <button
+                  className="transition-colors flex-shrink-0"
+                  style={{ color: '#94A3B8' }}
+                >
+                  <Paperclip size={20} />
+                </button>
+
+                {/* Text Input */}
+                  <input
+                    type="text"
+                    placeholder={t('messages.composer.placeholder')}
+                    value={messageInput}
+                    onChange={(e) => setMessageInput(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    className="flex-1 bg-transparent border-none outline-none py-1"
+                    style={{
+                      color: '#FFFFFF',
+                      fontSize: '14px',
+                      minWidth: 0
+                    }}
+                  />
+
+                {/* Emoji Icon - Hidden on small mobile */}
+                <button
+                  className="hidden sm:flex transition-colors flex-shrink-0"
+                  style={{ color: '#94A3B8' }}
+                >
+                  <Smile size={20} />
+                </button>
+
+                {/* Send Button */}
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!messageInput.trim()}
+                  className="flex items-center justify-center rounded-full transition-colors flex-shrink-0"
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    backgroundColor: messageInput.trim() ? '#0684F5' : 'rgba(255,255,255,0.1)',
+                    color: '#FFFFFF',
+                    cursor: messageInput.trim() ? 'pointer' : 'not-allowed'
+                  }}
+                >
+                  <Send size={18} />
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="messages-center__empty flex-1 flex items-center justify-center p-6">
+            <div className="text-center">
               <button
                 onClick={() => setIsSidebarOpen(true)}
                 className="messages-center__mobile-toggle p-2 rounded-lg transition-colors"
                 style={{
                   backgroundColor: 'rgba(255,255,255,0.1)',
-                  color: '#FFFFFF'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
-              >
-                <List size={18} />
-              </button>
-              <div
-                className="rounded-full flex items-center justify-center"
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  backgroundColor: 'rgba(6, 132, 245, 0.2)',
-                  border: '2px solid #0684F5'
-                }}
-              >
-                <User size={20} style={{ color: '#0684F5' }} />
-              </div>
-              <div>
-                <h2 style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', marginBottom: '2px' }}>
-                  {activeConversation.userName}
-                </h2>
-                {activeConversation.userTitle && (
-                  <p style={{ fontSize: '12px', color: '#94A3B8' }}>
-                    {activeConversation.userTitle}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleViewProfile}
-                className="px-4 py-2 rounded-lg transition-colors"
-                style={{
-                  backgroundColor: 'transparent',
-                  color: '#94A3B8',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  border: '1px solid rgba(255,255,255,0.2)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
-                  e.currentTarget.style.color = '#FFFFFF';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.color = '#94A3B8';
-                }}
-              >
-                {t('messages.actions.viewProfile')}
-              </button>
-              <button
-                className="p-2 rounded-lg transition-colors"
-                style={{
-                  backgroundColor: 'transparent',
-                  color: '#94A3B8'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
-                  e.currentTarget.style.color = '#FFFFFF';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.color = '#94A3B8';
-                }}
-              >
-                <MoreVertical size={18} />
-              </button>
-            </div>
-          </div>
-
-          {/* Message Stream */}
-          <div 
-            className="messages-center__stream flex-1 overflow-y-auto px-6 py-6"
-            style={{
-              scrollbarWidth: 'thin',
-              scrollbarColor: 'rgba(255,255,255,0.2) transparent'
-            }}
-          >
-            {/* Date Divider */}
-            <div className="flex items-center justify-center mb-6">
-              <span 
-                className="px-3 py-1 rounded-full"
-                style={{ 
-                  fontSize: '12px', 
-                  color: '#6B7280',
-                  backgroundColor: 'rgba(255,255,255,0.05)'
-                }}
-              >
-                {t('messages.dateDivider', { date: 'Dec 17' })}
-              </span>
-            </div>
-
-            {/* Messages */}
-            <div className="space-y-4">
-              {isLoadingMessages && (
-                <div className="text-center" style={{ color: '#94A3B8' }}>
-                  {t('messages.loading.messages')}
-                </div>
-              )}
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className="flex gap-2"
-                  style={{
-                    flexDirection: message.isSent ? 'row-reverse' : 'row',
-                    alignItems: 'flex-end'
-                  }}
-                >
-                  {/* Avatar for received messages */}
-                  {!message.isSent && (
-                    <div
-                      className="rounded-full flex items-center justify-center flex-shrink-0"
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        backgroundColor: 'rgba(6, 132, 245, 0.2)',
-                        border: '2px solid #0684F5'
-                      }}
-                    >
-                      <User size={16} style={{ color: '#0684F5' }} />
-                    </div>
-                  )}
-
-                  {/* Message Bubble */}
-                  <div style={{ maxWidth: '70%' }}>
-                    <div
-                      className="px-4 py-3"
-                      style={{
-                        backgroundColor: message.isSent ? '#0684F5' : 'rgba(255,255,255,0.1)',
-                        color: '#FFFFFF',
-                        fontSize: '14px',
-                        lineHeight: '1.5',
-                        borderRadius: '12px',
-                        borderTopLeftRadius: message.isSent ? '12px' : '4px',
-                        borderTopRightRadius: message.isSent ? '4px' : '12px'
-                      }}
-                    >
-                      {message.text}
-                    </div>
-                    
-                    {/* Timestamp & Read Receipt */}
-                    <div 
-                      className="flex items-center gap-1 mt-1 px-1"
-                      style={{ 
-                        fontSize: '10px', 
-                        color: '#6B7280',
-                        justifyContent: message.isSent ? 'flex-end' : 'flex-start'
-                      }}
-                    >
-                      <span>{message.timestamp}</span>
-                      {message.isSent && (
-                        message.isRead ? (
-                          <CheckCheck size={14} style={{ color: '#0684F5' }} />
-                        ) : (
-                          <Check size={14} style={{ color: '#6B7280' }} />
-                        )
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Composer */}
-          <div 
-            className="messages-center__composer px-6 py-5"
-            style={{ 
-              borderTop: '1px solid rgba(255,255,255,0.1)',
-              backgroundColor: '#0B2641'
-            }}
-          >
-            <div 
-              className="flex items-center gap-3 px-4 py-2"
-              style={{ 
-                backgroundColor: 'rgba(255,255,255,0.05)',
-                borderRadius: '24px'
-              }}
-            >
-              {/* Attachment Icon */}
-              <button
-                className="transition-colors"
-                style={{ color: '#94A3B8' }}
-                onMouseEnter={(e) => e.currentTarget.style.color = '#FFFFFF'}
-                onMouseLeave={(e) => e.currentTarget.style.color = '#94A3B8'}
-              >
-                <Paperclip size={20} />
-              </button>
-
-              {/* Text Input */}
-                <input
-                  type="text"
-                  placeholder={t('messages.composer.placeholder')}
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  className="flex-1 bg-transparent border-none outline-none"
-                  style={{
-                    color: '#FFFFFF',
-                    fontSize: '14px'
-                  }}
-                />
-
-              {/* Emoji Icon */}
-              <button
-                className="transition-colors"
-                style={{ color: '#94A3B8' }}
-                onMouseEnter={(e) => e.currentTarget.style.color = '#FFFFFF'}
-                onMouseLeave={(e) => e.currentTarget.style.color = '#94A3B8'}
-              >
-                <Smile size={20} />
-              </button>
-
-              {/* Send Button */}
-              <button
-                onClick={handleSendMessage}
-                disabled={!messageInput.trim()}
-                className="flex items-center justify-center rounded-full transition-colors"
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  backgroundColor: messageInput.trim() ? '#0684F5' : 'rgba(255,255,255,0.1)',
                   color: '#FFFFFF',
-                  cursor: messageInput.trim() ? 'pointer' : 'not-allowed'
-                }}
-                onMouseEnter={(e) => {
-                  if (messageInput.trim()) {
-                    e.currentTarget.style.backgroundColor = '#0570D6';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (messageInput.trim()) {
-                    e.currentTarget.style.backgroundColor = '#0684F5';
-                  }
+                  marginBottom: '16px'
                 }}
               >
-                <Send size={18} />
+                <List size={24} />
               </button>
+              <div className="hidden md:block">
+                <Edit size={64} style={{ color: '#94A3B8', margin: '0 auto 16px' }} />
+                <p style={{ fontSize: '16px', color: '#94A3B8' }}>
+                  {t('messages.empty.selectConversation')}
+                </p>
+              </div>
+              <div className="md:hidden">
+                <p style={{ fontSize: '18px', fontWeight: 600, color: '#FFFFFF' }}>
+                  {t('messages.title')}
+                </p>
+                <p style={{ fontSize: '14px', color: '#94A3B8', marginTop: '8px' }}>
+                  Select a chat to start messaging
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      ) : (
-        <div className="messages-center__empty flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="messages-center__mobile-toggle p-2 rounded-lg transition-colors"
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                color: '#FFFFFF',
-                marginBottom: '16px'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
-            >
-              <List size={18} />
-            </button>
-            <Edit size={64} style={{ color: '#94A3B8', margin: '0 auto 16px' }} />
-            <p style={{ fontSize: '16px', color: '#94A3B8' }}>
-              {t('messages.empty.selectConversation')}
-            </p>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* New Message Modal */}
       {showNewMessageModal && (
@@ -1197,77 +1155,32 @@ export default function UserMessagesCenter() {
         .messages-center__mobile-toggle {
           display: none;
         }
-        .messages-center__mobile-header {
-          display: none;
-        }
-        @media (max-width: 600px) {
-          .messages-center {
-            flex-direction: column;
-            height: auto;
-          }
-          .messages-center__mobile-toggle {
-            display: inline-flex;
-          }
-          .messages-center__mobile-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 14px 16px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-          }
+        @media (max-width: 768px) {
           .messages-center__sidebar {
-            position: fixed;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            border-right: none;
-            border-bottom: none;
-            background-color: #0B2641;
-            transform: translateX(-100%);
-            transition: transform 0.2s ease;
-            z-index: 20;
-          }
-          .messages-center--sidebar-open .messages-center__sidebar {
-            transform: translateX(0);
-          }
-          .messages-center__thread-list {
-            max-height: none;
-            height: 100%;
-          }
-          .messages-center__content {
-            min-height: 100vh;
-          }
-          .messages-center--sidebar-open .messages-center__content {
+            width: 100% !important;
+            height: 100% !important;
             display: none;
           }
+          .messages-center--sidebar-open .messages-center__sidebar {
+            display: flex !important;
+          }
+          .messages-center__content {
+            width: 100% !important;
+            height: 100% !important;
+            display: flex !important;
+          }
+          .messages-center--sidebar-open .messages-center__content {
+            display: none !important;
+          }
+          .messages-center__mobile-toggle {
+            display: inline-flex !important;
+          }
           .messages-center__chat-header {
-            height: auto;
-            padding: 16px;
-            flex-wrap: wrap;
-            gap: 12px;
-          }
-          .messages-center__stream {
-            padding: 16px;
-          }
-          .messages-center__composer {
-            padding: 12px 16px;
-          }
-          .messages-center__empty {
-            padding: 24px 16px;
+            height: auto !important;
+            padding: 12px 16px !important;
           }
           .messages-center__modal {
-            width: 92vw;
-          }
-        }
-        @media (max-width: 400px) {
-          .messages-center__thread-list {
-            max-height: none;
-          }
-          .messages-center__stream {
-            padding: 12px;
-          }
-          .messages-center__composer {
-            padding: 10px 12px;
+            width: 95vw !important;
           }
         }
       `}</style>

@@ -46,6 +46,7 @@ export default function LandingPageNavbar({ activeSections, brandColor = '#635BF
         {/* Logo / Home */}
         <div 
           onClick={() => onNavigate('landing')}
+          className="logo-container"
           style={{ padding: '0 24px', flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
         >
           {logoUrl ? (
@@ -86,9 +87,10 @@ export default function LandingPageNavbar({ activeSections, brandColor = '#635BF
         </div>
 
         {/* Action */}
-        <div style={{ padding: '0 24px', flexShrink: 0, backgroundColor: '#FFFFFF' }}>
+        <div className="action-container" style={{ padding: '0 24px', flexShrink: 0, backgroundColor: '#FFFFFF' }}>
           {isRegistered ? (
             <div
+              className="action-btn"
               style={{
                 height: isSticky ? '36px' : '40px',
                 padding: '0 20px',
@@ -99,19 +101,20 @@ export default function LandingPageNavbar({ activeSections, brandColor = '#635BF
                 fontWeight: 600,
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: '8px',
                 boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
                 cursor: 'default',
                 transition: 'height 0.3s ease'
               }}
             >
-              <Check size={16} />
-              <span className={isSticky ? 'hidden-text' : ''}>Registered</span>
+              <Check size={18} />
+              <span className={`btn-text-mobile ${isSticky ? 'hidden-text' : ''}`}>Registered</span>
             </div>
           ) : (
             <button
               onClick={onRegister}
-              className="register-btn"
+              className="register-btn action-btn"
               style={{
                 height: isSticky ? '36px' : '40px',
                 padding: '0 20px',
@@ -124,13 +127,14 @@ export default function LandingPageNavbar({ activeSections, brandColor = '#635BF
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: '8px',
                 boxShadow: `0 4px 12px ${brandColor}40`,
                 transition: 'all 0.3s ease'
               }}
             >
-              <span>Register</span>
-              <ArrowRight size={16} />
+              <span className={`btn-text-mobile ${isSticky ? 'hidden-text' : ''}`}>Register</span>
+              <ArrowRight size={18} />
             </button>
           )}
         </div>
@@ -176,13 +180,39 @@ export default function LandingPageNavbar({ activeSections, brandColor = '#635BF
         @media (max-width: 768px) {
           .landing-navbar-inner {
             padding: 0 !important;
+            height: 56px !important;
+          }
+          .logo-container {
+            padding: 0 12px !important;
+          }
+          .logo-container img {
+            height: 24px !important;
+            max-width: 90px !important;
+          }
+          .logo-container div {
+            font-size: 15px !important;
           }
           .landing-navbar-links {
-            padding: 0 16px !important;
-            gap: 4px !important;
+            padding: 0 4px !important;
+            gap: 2px !important;
           }
-          .nav-item span {
-            /* Keep text visible on mobile for clarity, but maybe smaller? */
+          .nav-item {
+            padding: 0 8px !important;
+            gap: 4px !important;
+            font-size: 13px !important;
+          }
+          .action-container {
+            padding: 0 12px !important;
+          }
+          .action-btn {
+            padding: 0 !important;
+            width: 36px !important;
+            height: 36px !important;
+            border-radius: 50% !important;
+            gap: 0 !important;
+          }
+          .btn-text-mobile {
+            display: none !important;
           }
         }
       `}</style>
