@@ -37,6 +37,7 @@ interface Conversation {
   isOnline: boolean;
   lastMessage: string;
   lastMessageTime: string;
+  rawLastMessageTime: string; // ISO string for sorting
   unreadCount: number;
   isActive?: boolean;
 }
@@ -156,12 +157,13 @@ export default function UserMessagesCenter() {
           isOnline: false,
           lastMessage: lastMessage?.body || t('messages.empty.lastMessage'),
           lastMessageTime,
+          rawLastMessageTime: lastMessage?.created_at || '0',
           unreadCount: unreadCountMap.get(threadId) || 0,
           isActive: threadId === activeConversationId
         } as Conversation;
       });
 
-      mapped.sort((a, b) => (a.lastMessageTime < b.lastMessageTime ? 1 : -1));
+      mapped.sort((a, b) => (new Date(b.rawLastMessageTime).getTime() - new Date(a.rawLastMessageTime).getTime()));
       setConversations(mapped);
       if (!activeConversationId && mapped.length > 0) {
         setActiveConversationId(mapped[0].id);
@@ -243,14 +245,33 @@ export default function UserMessagesCenter() {
       isSent: true
     };
     setMessages((prev) => [...prev, newMessage]);
-    setConversations((prev) =>
-      prev.map((conv) =>
+    setConversations((prev) => {
+      const updated = prev.map((conv) =>
         conv.id === activeConversationId
-          ? { ...conv, lastMessage: data.body, lastMessageTime: newMessage.timestamp }
+          ? { ...conv, lastMessage: data.body, lastMessageTime: newMessage.timestamp, rawLastMessageTime: data.created_at }
           : conv
-      )
-    );
+      );
+      return [...updated].sort((a, b) => (new Date(b.rawLastMessageTime).getTime() - new Date(a.rawLastMessageTime).getTime()));
+    });
     await supabase.from(THREADS_TABLE).update({ updated_at: new Date().toISOString() }).eq('id', activeConversationId);
+
+    // Send notification to recipient
+    if (activeConversation?.userId) {
+      try {
+        await supabase.from('notifications').insert([
+          {
+            recipient_id: activeConversation.userId,
+            actor_id: user.id,
+            title: t('messages.notifications.new.title', 'New Message'),
+            body: t('messages.notifications.new.body', { name: currentUserName, message: content.substring(0, 50) + (content.length > 50 ? '...' : '') }),
+            type: 'action',
+            action_url: `/messages`
+          }
+        ]);
+      } catch (notifyError) {
+        console.error('Failed to send message notification:', notifyError);
+      }
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -321,6 +342,7 @@ export default function UserMessagesCenter() {
           isOnline: false,
           lastMessage: t('messages.empty.startConversation'),
           lastMessageTime: '',
+          rawLastMessageTime: new Date().toISOString(),
           unreadCount: 0
         },
         ...prev
@@ -360,6 +382,53 @@ export default function UserMessagesCenter() {
   }, [user?.id, t]);
 
   useEffect(() => {
+    if (!user?.id) return;
+    
+    // Subscribe to all messages in threads I am part of
+    // Since we don't have a direct "my_threads" filter easily in JS client for INSERTs 
+    // across multiple IDs without complex logic, we'll listen to all inserts
+    // and filter in the callback.
+    const globalChannel = supabase
+      .channel('global-messages')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: MESSAGES_TABLE },
+        async (payload) => {
+          const data: any = payload.new;
+          
+          // Check if this thread is one of mine
+          const isMyThread = conversations.some(c => c.id === data.thread_id);
+          if (!isMyThread) {
+            // Might be a brand new thread, refresh list
+            fetchConversations();
+            return;
+          }
+
+          // Update the list and re-sort
+          setConversations((prev) => {
+            const updated = prev.map((conv) =>
+              conv.id === data.thread_id
+                ? { 
+                    ...conv, 
+                    lastMessage: data.body, 
+                    lastMessageTime: new Date(data.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+                    rawLastMessageTime: data.created_at,
+                    unreadCount: conv.id === activeConversationId ? 0 : conv.unreadCount + 1
+                  }
+                : conv
+            );
+            return [...updated].sort((a, b) => (new Date(b.rawLastMessageTime).getTime() - new Date(a.rawLastMessageTime).getTime()));
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(globalChannel);
+    };
+  }, [user?.id, conversations.length, activeConversationId]);
+
+  useEffect(() => {
     if (!activeConversationId) return;
     fetchMessages(activeConversationId);
     const channel = supabase
@@ -384,13 +453,14 @@ export default function UserMessagesCenter() {
           if (data.sender_id !== user?.id) {
             markThreadRead(activeConversationId);
           }
-          setConversations((prev) =>
-            prev.map((conv) =>
+          setConversations((prev) => {
+            const updated = prev.map((conv) =>
               conv.id === activeConversationId
-                ? { ...conv, lastMessage: data.body, lastMessageTime: incoming.timestamp }
+                ? { ...conv, lastMessage: data.body, lastMessageTime: incoming.timestamp, rawLastMessageTime: data.created_at }
                 : conv
-            )
-          );
+            );
+            return [...updated].sort((a, b) => (new Date(b.rawLastMessageTime).getTime() - new Date(a.rawLastMessageTime).getTime()));
+          });
         }
       )
       .subscribe();

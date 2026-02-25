@@ -74,3 +74,13 @@ export async function uploadEventAsset(eventId: string, file: File) {
   const path = `events/${eventId}/assets/${timestamp}_${file.name.replace(/[^a-zA-Z0-9]/g, '_')}.${extension}`;
   return uploadFile('profiles', path, file);
 }
+
+/**
+ * Helper for form submission file uploads
+ */
+export async function uploadFormSubmissionFile(eventId: string, attendeeId: string, file: File) {
+  const extension = file.name.split('.').pop();
+  const timestamp = Date.now();
+  const path = `events/${eventId}/submissions/${attendeeId}/${timestamp}_${file.name.replace(/[^a-zA-Z0-9]/g, '_')}.${extension}`;
+  return uploadFile('submissions', path, file);
+}

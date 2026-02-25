@@ -22,7 +22,8 @@ import {
   Handshake,
   Target,
   Settings,
-  Loader2
+  Loader2,
+  Package
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -1602,23 +1603,23 @@ export default function BusinessProfilePage() {
               </button>
               <button
                 onClick={handleInviteMember}
-                disabled={!searchEmail.trim() || isSaving}
+                disabled={!searchEmail.trim() || isLoading}
                 className="flex-1 py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
                 style={{
                   backgroundColor: searchEmail.trim() ? '#0684F5' : '#334155',
                   color: '#FFFFFF',
                   fontSize: '14px',
                   fontWeight: 600,
-                  cursor: (searchEmail.trim() && !isSaving) ? 'pointer' : 'not-allowed'
+                  cursor: (searchEmail.trim() && !isLoading) ? 'pointer' : 'not-allowed'
                 }}
                 onMouseEnter={(e) => {
-                  if (searchEmail.trim() && !isSaving) e.currentTarget.style.backgroundColor = '#0570D6';
+                  if (searchEmail.trim() && !isLoading) e.currentTarget.style.backgroundColor = '#0570D6';
                 }}
                 onMouseLeave={(e) => {
-                  if (searchEmail.trim() && !isSaving) e.currentTarget.style.backgroundColor = '#0684F5';
+                  if (searchEmail.trim() && !isLoading) e.currentTarget.style.backgroundColor = '#0684F5';
                 }}
               >
-                {isSaving && <Loader2 size={16} className="animate-spin" />}
+                {isLoading && <Loader2 size={16} className="animate-spin" />}
                 {t('businessDashboard.modals.addMember.addToTeam')}
               </button>
             </div>

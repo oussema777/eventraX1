@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useParams } from 'react-router-dom';
 import { toast } from 'sonner@2.0.3';
 import { clearEventWizardState } from '../utils/eventStorage';
+import { DEFAULT_BRANDING_SETTINGS } from '../utils/wizardConstants';
 
 export interface EventDraft {
   id?: string;
@@ -105,6 +106,11 @@ export function useEventWizard(initialEventId?: string) {
         name: safeName,
         ...data,
       };
+
+      // For new events, initialize with default branding (includes default Hero block)
+      if (isNew && !payload.branding_settings && !eventData.branding_settings) {
+        payload.branding_settings = DEFAULT_BRANDING_SETTINGS;
+      }
 
       // Only set owner_id if it's a NEW event
       if (isNew || (!eventData.id && !localStorage.getItem('currentEventId'))) {

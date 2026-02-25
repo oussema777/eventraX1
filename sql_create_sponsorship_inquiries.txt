@@ -1,0 +1,31 @@
+-- Create table for sponsorship inquiries
+CREATE TABLE IF NOT EXISTS public.event_sponsorship_inquiries (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    event_id UUID REFERENCES public.events(id) ON DELETE CASCADE,
+    package_id TEXT, -- Name or ID of the selected package
+    full_name TEXT NOT NULL,
+    company_name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    message TEXT,
+    status TEXT DEFAULT 'new', -- new, contacted, closed
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Enable RLS
+ALTER TABLE public.event_sponsorship_inquiries ENABLE ROW LEVEL SECURITY;
+
+-- Policies
+-- 1. Allow public to insert (anyone can inquire)
+CREATE POLICY "Allow public insert inquiries" ON public.event_sponsorship_inquiries
+FOR INSERT WITH CHECK (true);
+
+-- 2. Allow event owners to read/update their inquiries
+CREATE POLICY "Allow owners to manage inquiries" ON public.event_sponsorship_inquiries
+FOR ALL USING (
+    EXISTS (
+        SELECT 1 FROM public.events
+        WHERE events.id = event_sponsorship_inquiries.event_id
+        AND events.owner_id = auth.uid()
+    )
+);

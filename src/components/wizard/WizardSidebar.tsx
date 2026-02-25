@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  Grid3x3,
   Save,
   Calendar,
   Ticket,
@@ -21,7 +22,7 @@ import {
   X
 } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext';
-type WizardSubStep = '3.1' | '3.2' | '3.3' | '3.4' | '3.5' | '3.6' | '3.7' | '3.8' | '3.9';
+type WizardSubStep = '2.1' | '2.2' | '3.1' | '3.2' | '3.3' | '3.4' | '3.5' | '3.6' | '3.7' | '3.8' | '3.9';
 type WizardStepKey = 1 | 2 | 3 | 4 | WizardSubStep;
 
 interface WizardSidebarProps {
@@ -48,7 +49,8 @@ export default function WizardSidebar({
   const [mobileOverlayOpen, setMobileOverlayOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isUltraMobile, setIsUltraMobile] = useState(window.innerWidth <= 500);
-  const [step3Expanded, setStep3Expanded] = useState(false);
+  const [step2Expanded, setStep2Expanded] = useState(true);
+  const [step3Expanded, setStep3Expanded] = useState(true);
 
   useEffect(() => {
     const handleResize = () => {
@@ -67,10 +69,14 @@ export default function WizardSidebar({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Auto-expand step 3 if on a sub-step
+  // Auto-expand step 2 or 3 if on a sub-step
   useEffect(() => {
-    if (typeof currentStep === 'string' && currentStep.startsWith('3.')) {
-      setStep3Expanded(true);
+    if (typeof currentStep === 'string') {
+      if (currentStep.startsWith('2.')) {
+        setStep2Expanded(true);
+      } else if (currentStep.startsWith('3.')) {
+        setStep3Expanded(true);
+      }
     }
   }, [currentStep]);
 
@@ -84,13 +90,27 @@ export default function WizardSidebar({
 
   const steps = [
     { number: 1, title: t('wizard.sidebar.steps.details.title'), icon: FileText, label: t('wizard.sidebar.steps.details.label'), hasSubSteps: false },
-    { number: 2, title: t('wizard.sidebar.steps.design.title'), icon: Palette, label: t('wizard.sidebar.steps.design.label'), hasSubSteps: false },
+    { 
+      number: 2, 
+      title: t('wizard.sidebar.steps.design.title'), 
+      icon: Palette, 
+      label: t('wizard.sidebar.steps.design.label'), 
+      hasSubSteps: true,
+      expanded: step2Expanded,
+      setExpanded: setStep2Expanded,
+      subSteps: [
+        { key: '2.1' as const, title: t('wizard.designStudio.branding.title'), icon: Palette },
+        { key: '2.2' as const, title: 'Content Blocks', icon: Grid3x3 }
+      ]
+    },
     { 
       number: 3, 
       title: t('wizard.sidebar.steps.registration.title'), 
       icon: ClipboardList, 
       label: t('wizard.sidebar.steps.registration.label'), 
       hasSubSteps: true,
+      expanded: step3Expanded,
+      setExpanded: setStep3Expanded,
       subSteps: [
         { key: '3.8', title: t('wizard.sidebar.subSteps.customForms'), icon: FileText },
         { key: '3.5', title: t('wizard.sidebar.subSteps.schedule'), icon: Calendar },
@@ -106,8 +126,8 @@ export default function WizardSidebar({
   ];
 
   const allSteps: WizardStepKey[] = isFreeEvent
-    ? [1, 2, '3.2', '3.3', '3.4', '3.5', '3.6', '3.7', '3.8', '3.9', 4]
-    : [1, 2, '3.1', '3.2', '3.3', '3.4', '3.5', '3.6', '3.7', '3.8', '3.9', 4];
+    ? [1, '2.1', '2.2', '3.2', '3.3', '3.4', '3.5', '3.6', '3.7', '3.8', '3.9', 4]
+    : [1, '2.1', '2.2', '3.1', '3.2', '3.3', '3.4', '3.5', '3.6', '3.7', '3.8', '3.9', 4];
   const progress = {
     completed: completedSteps.length,
     total: allSteps.length,
@@ -117,12 +137,16 @@ export default function WizardSidebar({
   const getStepState = (stepNumber: number | string) => {
     if (completedSteps.includes(stepNumber as any)) return 'completed';
     if (stepNumber === currentStep) return 'active';
+    if (stepNumber === 2 && typeof currentStep === 'string' && currentStep.startsWith('2.')) return 'active';
     if (stepNumber === 3 && typeof currentStep === 'string' && currentStep.startsWith('3.')) return 'active';
     return 'default';
   };
 
   const handleStepClick = (stepNumber: WizardStepKey) => {
     if (onStepClick) {
+      if (stepNumber === 2) {
+        setStep2Expanded(true);
+      }
       if (stepNumber === 3) {
         setStep3Expanded(true);
       }
@@ -353,7 +377,7 @@ export default function WizardSidebar({
         <div style={{ padding: '16px 12px', flex: 1 }}>
           {steps.map((step) => {
             const stepState = getStepState(step.number);
-            const isActive = step.number === currentStep || (step.number === 3 && typeof currentStep === 'string' && currentStep.startsWith('3.'));
+            const isActive = step.number === currentStep || (step.hasSubSteps && typeof currentStep === 'string' && currentStep.startsWith(`${step.number}.`));
 
             return (
               <div key={step.number} style={{ marginBottom: '8px' }}>
@@ -373,7 +397,7 @@ export default function WizardSidebar({
                     backgroundColor: isActive ? 'rgba(6, 132, 245, 0.15)' : 'transparent',
                     borderLeft: isActive ? '4px solid #0684F5' : 'none',
                     transition: 'all 0.2s ease',
-                    marginBottom: step.hasSubSteps && step3Expanded && (!collapsed || mobileOverlayOpen) ? '8px' : '0',
+                    marginBottom: step.hasSubSteps && step.expanded && (!collapsed || mobileOverlayOpen) ? '8px' : '0',
                     justifyContent: collapsed && !mobileOverlayOpen ? 'center' : 'flex-start',
                     position: 'relative'
                   }}
@@ -445,12 +469,12 @@ export default function WizardSidebar({
                     </div>
                   )}
 
-                  {/* Expand/Collapse Icon for Step 3 */}
+                  {/* Expand/Collapse Icon */}
                   {step.hasSubSteps && (!collapsed || mobileOverlayOpen) && (
                     <div
                       onClick={(e) => {
                         e.stopPropagation();
-                        setStep3Expanded(!step3Expanded);
+                        step.setExpanded(!step.expanded);
                       }}
                       style={{ cursor: 'pointer' }}
                     >
@@ -458,7 +482,7 @@ export default function WizardSidebar({
                         size={18}
                         style={{
                           color: '#9CA3AF',
-                          transform: step3Expanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+                          transform: step.expanded ? 'rotate(0deg)' : 'rotate(-90deg)',
                           transition: 'transform 0.2s ease'
                         }}
                       />
@@ -467,13 +491,13 @@ export default function WizardSidebar({
                 </div>
 
                 {/* Sub-steps */}
-                {step.hasSubSteps && step3Expanded && (!collapsed || mobileOverlayOpen) && (
+                {step.hasSubSteps && step.expanded && (!collapsed || mobileOverlayOpen) && (
                   <div
                     style={{
                       paddingLeft: '32px',
                       borderLeft: '2px solid rgba(255, 255, 255, 0.1)',
                       marginLeft: '32px',
-                      maxHeight: step3Expanded ? '600px' : '0',
+                      maxHeight: step.expanded ? '600px' : '0',
                       overflow: 'hidden',
                       transition: 'max-height 0.3s ease'
                     }}

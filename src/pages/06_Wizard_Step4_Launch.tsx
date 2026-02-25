@@ -72,9 +72,9 @@ export default function WizardStep4Launch() {
   };
 
   const handleStepClick = async (step: any) => {
-    if (typeof step === 'string' && step.startsWith('3.')) {
-      const base = eventData.id ? `/create/registration/${eventData.id}` : '/create-event';
-      navigate(`${base}?substep=${step}`);
+    if (typeof step === 'string' && (step.startsWith('2.') || step.startsWith('3.'))) {
+      const baseUrl = step.startsWith('2.') ? 'design' : 'registration';
+      navigate(`/create/${baseUrl}/${eventData.id}?substep=${step}`);
       return;
     }
     const baseUrl = step === 1 ? 'details' : step === 2 ? 'design' : step === 3 ? 'registration' : 'launch';
@@ -193,12 +193,12 @@ export default function WizardStep4Launch() {
         onSaveDraft={handleSaveDraft}
         onPreview={handlePreview}
         onBack={() => {
-      if (eventData.id) {
-        navigate(`/create/registration/${eventData.id}`);
-        return;
-      }
-      navigate('/create-event');
-    }}
+          if (eventData.id) {
+            navigate(`/create/registration/${eventData.id}`);
+            return;
+          }
+          navigate('/create-event');
+        }}
       />
       </div>
     </div>

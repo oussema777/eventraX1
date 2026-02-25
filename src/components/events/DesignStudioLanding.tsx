@@ -459,7 +459,7 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
       case 'sponsors':
         return <SponsorsBlock key={block.id} {...sharedProps} sponsors={sponsors} packages={sponsorPackages} settings={block.settings} />;
       case 'sponsor-packages':
-        return <SponsorPackagesBlock key={block.id} {...sharedProps} packages={sponsorPackages} settings={block.settings} />;
+        return <SponsorPackagesBlock key={block.id} {...sharedProps} packages={sponsorPackages} settings={block.settings} onSelectPackage={(pkg) => navigate(`/event/${eventId}/sponsor-inquiry/${pkg.id || pkg.name}`)} />;
       case 'networking':
         return <NetworkingBlock key={block.id} {...sharedProps} settings={block.settings} onNavigate={() => navigate(`/event/${eventId}/attendees`)} />;
       case 'exhibitors':
@@ -504,7 +504,10 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
           agenda: sessions.length > 0,
           speakers: speakers.length > 0,
           exhibitors: exhibitors.length > 0,
-          attendees: attendeesCount > 0
+          attendees: attendeesCount > 0,
+          sponsors: sponsors.length > 0,
+          packages: sponsorPackages.length > 0,
+          tickets: tickets.length > 0
         }}
         brandColor={design.brandColor}
         logoUrl={design.logoUrl}
@@ -517,9 +520,10 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
         return (
           <div id={blockType} key={block.id}>
             {renderBlock(block)}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    }
+                    

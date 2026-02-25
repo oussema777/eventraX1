@@ -16,7 +16,8 @@ import {
   Target,
   Building2,
   TrendingUp,
-  Eye
+  Eye,
+  QrCode
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -25,6 +26,8 @@ import { toast } from 'sonner@2.0.3';
 import { createNotification } from '../../lib/notifications';
 import { useI18n } from '../../i18n/I18nContext';
 import { useMessageThread } from '../../hooks/useMessageThread';
+import BookMeetingModal from './BookMeetingModal';
+import { sendEmail, generateMeetingConfirmationEmailHtml } from '../../lib/email';
 
 const MATCHES_TABLE = 'b2b_matches';
 const REQUESTS_TABLE = 'b2b_requests';
@@ -48,6 +51,7 @@ interface Meeting {
   meetingUrl?: string;
   organizerId?: string;
   meetingFormat?: 'video' | 'in-person' | 'hybrid';
+  qrCodeUrl?: string;
 }
 
 interface Match {
@@ -107,38 +111,14 @@ export default function UserB2BCenter() {
   const [eventOptions, setEventOptions] = useState<Array<{ id: string; name: string }>>([]);
   const [currentUserName, setCurrentUserName] = useState(t('networking.defaults.someone'));
   const didGenerateMatchesRef = useRef(false);
+  
+  // Meeting Modal State
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
-  const [meetingTarget, setMeetingTarget] = useState<{ profileId: string; name: string } | null>(null);
-  const [meetingType, setMeetingType] = useState<'video' | 'in-person' | 'hybrid' | ''>('');
-  const [meetingDate, setMeetingDate] = useState('');
-  const [meetingTime, setMeetingTime] = useState('');
-  const [meetingEventId, setMeetingEventId] = useState<string | null>(null);
-  const [meetingSessionId, setMeetingSessionId] = useState<string | null>(null);
-  const [meetingEditId, setMeetingEditId] = useState<string | null>(null);
-  const [eventFilterCountry, setEventFilterCountry] = useState('');
-  const [eventFilterDate, setEventFilterDate] = useState('');
-  const [eventCatalog, setEventCatalog] = useState<Array<{
-    id: string;
-    name: string;
-    startDate?: string | null;
-    endDate?: string | null;
-    format?: string | null;
-    location?: string | null;
-    capacity?: number | null;
-    attendeeSettings?: any;
-  }>>([]);
-  const [eventMeetingCounts, setEventMeetingCounts] = useState<Record<string, number>>({});
-  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
-  const [eventSessions, setEventSessions] = useState<Array<{
-    id: string;
-    eventId: string;
-    title: string;
-    startsAt?: string | null;
-    endsAt?: string | null;
-    location?: string | null;
-    capacity?: number | null;
-    attendees?: number | null;
-  }>>([]);
+  const [meetingTarget, setMeetingTarget] = useState<{ id: string; name: string } | null>(null);
+  const [activeMeeting, setActiveMeeting] = useState<Meeting | null>(null);
+  const [activeMeetingEventId, setActiveMeetingEventId] = useState<string | undefined>(undefined);
+  const [qrModalMeeting, setQrModalMeeting] = useState<Meeting | null>(null);
+
   const { getOrCreateThread, loading: connecting } = useMessageThread();
 
   const formatTime = (value?: string | null) => {
@@ -173,16 +153,11 @@ export default function UserB2BCenter() {
 
   const getOtherProfileId = (aId: string, bId: string) => (aId === user?.id ? bId : aId);
 
-  const extractCountry = (location?: string | null) => {
-    if (!location) return t('networking.defaults.unknownCountry');
-    const parts = location.split(',').map((part) => part.trim()).filter(Boolean);
-    return parts.length > 0 ? parts[parts.length - 1] : t('networking.defaults.unknownCountry');
-  };
-
   const toMeetingStatus = (status?: string | null): Meeting['status'] => {
-    if (status === 'cancelled') return 'cancelled';
-    if (status === 'pending') return 'pending';
-    return 'confirmed';
+    const s = String(status || '').toLowerCase();
+    if (s === 'cancelled') return 'cancelled';
+    if (s === 'confirmed') return 'confirmed';
+    return 'pending';
   };
 
   const getMeetingStatusLabel = (status: Meeting['status']) => {
@@ -200,322 +175,235 @@ export default function UserB2BCenter() {
   const loadNetworkingData = async () => {
     if (!user?.id) return;
     try {
-      // Get user's attendee IDs across all events
+      console.log('[Networking] START LOAD - User:', user.id);
+
+      // 1. Get user's attendee IDs
+      let myAttendeeIds: string[] = [];
       const { data: myAttendees } = await supabase
         .from('event_attendees')
-        .select('id, event_id')
+        .select('id')
         .eq('profile_id', user.id);
       
-      const myAttendeeIds = (myAttendees || []).map(a => a.id);
+      myAttendeeIds = (myAttendees || []).map(a => a.id);
+      console.log('[Networking] Attendee IDs:', myAttendeeIds);
 
+      // 2. Fetch all networking data in parallel
       const [
         profileResult,
         matchesResult,
         receivedResult,
         sentResult,
         connectionsResult,
-        meetingsResult
+        meetingsResult,
+        legacyResult
       ] = await Promise.all([
         supabase.from('profiles').select('id, full_name').eq('id', user.id).single(),
-        supabase
-          .from(MATCHES_TABLE)
-          .select('id, matched_profile_id, event_id, score, reason, tags, status, created_at')
-          .eq('profile_id', user.id)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from(REQUESTS_TABLE)
-          .select('id, sender_id, recipient_id, event_id, message, status, created_at')
-          .eq('recipient_id', user.id)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from(REQUESTS_TABLE)
-          .select('id, sender_id, recipient_id, event_id, message, status, created_at')
-          .eq('sender_id', user.id)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from(CONNECTIONS_TABLE)
-          .select('id, profile_a_id, profile_b_id, event_id, created_at')
-          .or(`profile_a_id.eq.${user.id},profile_b_id.eq.${user.id}`)
-          .order('created_at', { ascending: false }),
-        myAttendeeIds.length > 0 
-          ? supabase
-              .from(MEETINGS_TABLE)
-              .select('*, attendee_a:attendee_a_id(id, profile_id, name), attendee_b:attendee_b_id(id, profile_id, name)')
-              .or(`attendee_a_id.in.(${myAttendeeIds.join(',')}),attendee_b_id.in.(${myAttendeeIds.join(',')})`)
-              .order('start_at', { ascending: true }) 
-          : Promise.resolve({ data: [] })
+        supabase.from(MATCHES_TABLE).select('*').eq('profile_id', user.id),
+        supabase.from(REQUESTS_TABLE).select('*').eq('recipient_id', user.id),
+        supabase.from(REQUESTS_TABLE).select('*').eq('sender_id', user.id),
+        supabase.from(CONNECTIONS_TABLE).select('*').or(`profile_a_id.eq.${user.id},profile_b_id.eq.${user.id}`),
+        supabase.from(MEETINGS_TABLE).select('*'),
+        supabase.from('b2b_meetings').select('*').then(r => r, () => ({ data: [] }))
       ]);
 
-      console.log('User ID:', user.id);
-      console.log('My Attendee IDs:', myAttendeeIds);
-      console.log('Meetings Fetched:', (meetingsResult as any).data);
-      if ((meetingsResult as any).error) console.error('Meetings Fetch Error:', (meetingsResult as any).error);
+      // 3. Process Meetings
+      const allRawMeetings = [
+        ...(meetingsResult.data || []),
+        ...(legacyResult?.data || [])
+      ];
+      
+      console.log('[Networking] Total raw meetings from DB:', allRawMeetings.length);
+
+      const meetingsData = allRawMeetings.filter(m => {
+        const isA = m.profile_a_id === user.id || (m.attendee_a_id && myAttendeeIds.includes(m.attendee_a_id));
+        const isB = m.profile_b_id === user.id || (m.attendee_b_id && myAttendeeIds.includes(m.attendee_b_id));
+        const isOrg = m.organizer_id === user.id;
+        return isA || isB || isOrg;
+      }).filter((m, i, self) => self.findIndex(x => x.id === m.id) === i);
+
+      console.log('[Networking] Meetings after user filter:', meetingsData.length);
 
       if (profileResult.data?.full_name) {
         setCurrentUserName(profileResult.data.full_name);
       }
 
+      // 4. Collect all related IDs
       const profileIds = new Set<string>();
-      const generatedMatches = await maybeGenerateMatches(matchesResult.data || []);
-      const effectiveMatches = (matchesResult.data || []).length > 0 ? matchesResult.data || [] : generatedMatches;
+      const eventIds = new Set<string>();
+      const attendeeIds = new Set<string>();
 
-      effectiveMatches.forEach((row: any) => {
-        if (row.matched_profile_id) profileIds.add(row.matched_profile_id);
+      matchesResult.data?.forEach(m => {
+        if (m.matched_profile_id) profileIds.add(m.matched_profile_id);
+        if (m.event_id) eventIds.add(m.event_id);
       });
-      (receivedResult.data || []).forEach((row: any) => {
-        if (row.sender_id) profileIds.add(row.sender_id);
-      });
-      (sentResult.data || []).forEach((row: any) => {
-        if (row.recipient_id) profileIds.add(row.recipient_id);
-      });
-      (connectionsResult.data || []).forEach((row: any) => {
-        const otherId = getOtherProfileId(row.profile_a_id, row.profile_b_id);
+
+      [...(receivedResult.data || []), ...(sentResult.data || [])].forEach(r => {
+        const otherId = r.sender_id === user.id ? r.recipient_id : r.sender_id;
         if (otherId) profileIds.add(otherId);
-      });
-      (meetingsResult.data || []).forEach((row: any) => {
-        const otherProfileId = row.attendee_a?.profile_id === user.id ? row.attendee_b?.profile_id : row.attendee_a?.profile_id;
-        if (otherProfileId) profileIds.add(otherProfileId);
+        if (r.event_id) eventIds.add(r.event_id);
       });
 
-      const { data: profilesData } =
-        profileIds.size > 0
-          ? await supabase
-              .from('profiles')
-              .select('id, full_name, email, avatar_url, job_title, department, company, b2b_profile, professional_data, industry, location, years_experience, company_size')
-              .in('id', Array.from(profileIds))
-          : { data: [] };
+      connectionsResult.data?.forEach(c => {
+        const otherId = c.profile_a_id === user.id ? c.profile_b_id : c.profile_a_id;
+        if (otherId) profileIds.add(otherId);
+        if (c.event_id) eventIds.add(c.event_id);
+      });
 
-      const profileMap: Record<
-        string,
-        { name: string; title: string; company: string; avatar?: string }
-      > = {};
-      const profileLookup: Record<string, any> = {};
-      (profilesData || []).forEach((profile: any) => {
-        profileLookup[profile.id] = profile;
-        profileMap[profile.id] = {
-          name: profile.full_name || profile.email || t('networking.defaults.unknownUser'),
-          title: profile.job_title || profile.department || profile.company || t('networking.defaults.professional'),
-          company: profile.company || '',
-          avatar: profile.avatar_url || undefined
+      meetingsData.forEach(m => {
+        if (m.profile_a_id) profileIds.add(m.profile_a_id);
+        if (m.profile_b_id) profileIds.add(m.profile_b_id);
+        if (m.organizer_id) profileIds.add(m.organizer_id);
+        if (m.event_id) eventIds.add(m.event_id);
+        if (m.attendee_a_id) attendeeIds.add(m.attendee_a_id);
+        if (m.attendee_b_id) attendeeIds.add(m.attendee_b_id);
+      });
+
+      // 5. Fetch Profile, Event, and Attendee details
+      const cleanProfileIds = Array.from(profileIds).filter(id => !!id && id !== 'null');
+      const cleanEventIds = Array.from(eventIds).filter(id => !!id && id !== 'null');
+      const cleanAttendeeIds = Array.from(attendeeIds).filter(id => !!id && id !== 'null');
+
+      const [profilesData, eventsData, attendeesData] = await Promise.all([
+        cleanProfileIds.length > 0 
+          ? supabase.from('profiles').select('id, full_name, email, avatar_url, job_title, company').in('id', cleanProfileIds)
+          : { data: [] },
+        cleanEventIds.length > 0
+          ? supabase.from('events').select('id, name').in('id', cleanEventIds)
+          : { data: [] },
+        cleanAttendeeIds.length > 0
+          ? supabase.from('event_attendees').select('id, name, profile_id').in('id', cleanAttendeeIds)
+          : { data: [] }
+      ]);
+
+      const profileMap: Record<string, any> = {};
+      (profilesData.data || []).forEach(p => {
+        profileMap[p.id] = {
+          name: p.full_name || p.email || t('networking.defaults.unknownUser'),
+          title: p.job_title || t('networking.defaults.professional'),
+          company: p.company || '',
+          avatar: p.avatar_url
         };
       });
 
-      const tokenWeights: Record<string, number> = {};
-      const { data: weightProfiles } = await supabase
-        .from('profiles')
-        .select('id, b2b_profile, professional_data, industry, job_title, department, company, location, years_experience, company_size')
-        .neq('id', user.id)
-        .limit(80);
-      const tokenCounts: Record<string, number> = {};
-      const totalProfiles = (weightProfiles || []).length || 1;
-      (weightProfiles || []).forEach((profile: any) => {
-        const signals = extractProfileSignals(profile);
-        [
-          ...signals.industries,
-          ...signals.interests,
-          ...signals.topics,
-          ...signals.goals,
-          ...signals.skills,
-          ...signals.role,
-          ...signals.company,
-          ...signals.location
-        ].forEach((token) => {
-          const key = token.toLowerCase();
-          tokenCounts[key] = (tokenCounts[key] || 0) + 1;
-        });
+      const attendeeMap: Record<string, any> = {};
+      (attendeesData.data || []).forEach(a => {
+        attendeeMap[a.id] = a;
       });
-      Object.entries(tokenCounts).forEach(([token, count]) => {
-        const idf = Math.log((totalProfiles + 1) / (count + 1)) + 1;
-        tokenWeights[token] = Number(idf.toFixed(3));
-      });
-
-      if (effectiveMatches.length > 0) {
-        await refreshExistingMatches(profileResult.data, effectiveMatches, tokenWeights, profileLookup);
-      }
-
-      const eventIds = new Set<string>();
-      [
-        ...effectiveMatches,
-        ...(receivedResult.data || []),
-        ...(sentResult.data || []),
-        ...(connectionsResult.data || []),
-        ...(meetingsResult.data || [])
-      ].forEach((row: any) => {
-        if (row.event_id) eventIds.add(row.event_id);
-      });
-
-      const { data: eventsData } =
-        eventIds.size > 0
-          ? await supabase.from('events').select('id, name').in('id', Array.from(eventIds))
-          : { data: [] };
 
       const eventsLookup: Record<string, string> = {};
-      (eventsData || []).forEach((event: any) => {
-        eventsLookup[event.id] = event.name || 'Event';
+      (eventsData.data || []).forEach(e => {
+        eventsLookup[e.id] = e.name || 'Event';
       });
-      setEventOptions((eventsData || []).map((event: any) => ({ id: event.id, name: event.name || 'Event' })));
+      setEventOptions((eventsData.data || []).map(e => ({ id: e.id, name: e.name || 'Event' })));
 
-      const requestStatusMap = new Map<string, Request['status']>();
-      [...(receivedResult.data || []), ...(sentResult.data || [])].forEach((row: any) => {
-        const otherId = row.sender_id === user.id ? row.recipient_id : row.sender_id;
-        const eventKey = row.event_id || 'none';
-        requestStatusMap.set(`${otherId}:${eventKey}`, row.status || 'pending');
-      });
+      // 6. Map State
+      setMatches((matchesResult.data || []).map(row => {
+        const p = profileMap[row.matched_profile_id] || { name: t('networking.defaults.unknownUser'), title: t('networking.defaults.professional'), company: '' };
+        return {
+          id: row.id,
+          profileId: row.matched_profile_id,
+          name: p.name,
+          title: p.title,
+          company: p.company,
+          avatar: p.avatar,
+          score: row.score ?? 0,
+          reason: row.reason || t('networking.matches.reasonFallback'),
+          tags: Array.isArray(row.tags) ? row.tags : [],
+          status: row.status || 'new',
+          eventId: row.event_id || null
+        };
+      }));
 
-      setMatches(
-        effectiveMatches.map((row: any) => {
-          const profile = profileMap[row.matched_profile_id] || {
-            name: t('networking.defaults.unknownUser'),
-            title: t('networking.defaults.professional'),
-            company: ''
-          };
-          const eventKey = row.event_id || 'none';
-          const requestStatus = requestStatusMap.get(`${row.matched_profile_id}:${eventKey}`);
-          const normalizedStatus = requestStatus === 'pending' ? 'pending' : (row.status || 'new');
-          return {
-            id: row.id,
-            profileId: row.matched_profile_id,
-            name: profile.name,
-            title: profile.title,
-            company: profile.company,
-            avatar: profile.avatar,
-            score: row.score ?? 0,
-            reason: row.reason || t('networking.matches.reasonFallback'),
-            tags: Array.isArray(row.tags) ? row.tags : [],
-            status: normalizedStatus,
-            requestStatus,
-            eventId: row.event_id || null
-          };
-        })
-      );
+      setReceivedRequests((receivedResult.data || []).map(row => ({
+        id: row.id,
+        profileId: row.sender_id,
+        name: profileMap[row.sender_id]?.name || t('networking.defaults.unknownUser'),
+        title: profileMap[row.sender_id]?.title || t('networking.defaults.professional'),
+        company: profileMap[row.sender_id]?.company || '',
+        avatar: profileMap[row.sender_id]?.avatar,
+        message: row.message || t('networking.requests.defaultMessage'),
+        date: formatRelative(row.created_at),
+        type: 'received',
+        status: row.status || 'pending',
+        eventId: row.event_id || null
+      })));
 
-      const connectedProfileIds = new Set<string>();
-      (connectionsResult.data || []).forEach((row: any) => {
-        const otherId = getOtherProfileId(row.profile_a_id, row.profile_b_id);
-        if (otherId) connectedProfileIds.add(otherId);
-      });
+      setSentRequests((sentResult.data || []).map(row => ({
+        id: row.id,
+        profileId: row.recipient_id,
+        name: profileMap[row.recipient_id]?.name || t('networking.defaults.unknownUser'),
+        title: profileMap[row.recipient_id]?.title || t('networking.defaults.professional'),
+        company: profileMap[row.recipient_id]?.company || '',
+        avatar: profileMap[row.recipient_id]?.avatar,
+        message: row.message || t('networking.requests.defaultMessage'),
+        date: formatRelative(row.created_at),
+        type: 'sent',
+        status: row.status || 'pending',
+        eventId: row.event_id || null
+      })));
 
-      setReceivedRequests(
-        (receivedResult.data || []).map((row: any) => {
-          const profile = profileMap[row.sender_id] || {
-            name: t('networking.defaults.unknownUser'),
-            title: t('networking.defaults.professional'),
-            company: ''
-          };
-          const status = connectedProfileIds.has(row.sender_id) ? 'accepted' : (row.status || 'pending');
-          return {
-            id: row.id,
-            profileId: row.sender_id,
-            name: profile.name,
-            title: profile.title,
-            company: profile.company,
-            avatar: profile.avatar,
-            message: row.message || t('networking.requests.defaultMessage'),
-            date: formatRelative(row.created_at),
-            type: 'received',
-            status,
-            eventId: row.event_id || null
-          };
-        })
-      );
-
-      setSentRequests(
-        (sentResult.data || []).map((row: any) => {
-          const profile = profileMap[row.recipient_id] || {
-            name: t('networking.defaults.unknownUser'),
-            title: t('networking.defaults.professional'),
-            company: ''
-          };
-          const status = connectedProfileIds.has(row.recipient_id) ? 'accepted' : (row.status || 'pending');
-          return {
-            id: row.id,
-            profileId: row.recipient_id,
-            name: profile.name,
-            title: profile.title,
-            company: profile.company,
-            avatar: profile.avatar,
-            message: row.message || t('networking.requests.defaultMessage'),
-            date: formatRelative(row.created_at),
-            type: 'sent',
-            status,
-            eventId: row.event_id || null
-          };
-        })
-      );
-
-      const acceptedRequests = [...(receivedResult.data || []), ...(sentResult.data || [])].filter(
-        (row: any) => row.status === 'accepted'
-      );
-      const acceptedConnections = acceptedRequests.map((row: any) => {
-        const otherId = row.sender_id === user.id ? row.recipient_id : row.sender_id;
-        const profile = profileMap[otherId] || { name: 'Unknown User', title: 'Professional', company: '' };
+      setConnections((connectionsResult.data || []).map(row => {
+        const otherId = row.profile_a_id === user.id ? row.profile_b_id : row.profile_a_id;
         return {
           id: row.id,
           profileId: otherId,
-          name: profile.name,
-          title: profile.title,
-          company: profile.company,
-          avatar: profile.avatar,
+          name: profileMap[otherId]?.name || t('networking.defaults.unknownUser'),
+          title: profileMap[otherId]?.title || t('networking.defaults.professional'),
+          company: profileMap[otherId]?.company || '',
+          avatar: profileMap[otherId]?.avatar,
           dateConnected: formatDate(row.created_at),
           event: row.event_id ? eventsLookup[row.event_id] || t('networking.defaults.event') : t('networking.defaults.generalNetworking'),
           eventId: row.event_id || null
         };
-      });
+      }));
 
-      setConnections(
-        [
-          ...(connectionsResult.data || []).map((row: any) => {
-            const otherId = getOtherProfileId(row.profile_a_id, row.profile_b_id);
-            const profile = profileMap[otherId] || { name: 'Unknown User', title: 'Professional', company: '' };
-            return {
-              id: row.id,
-              profileId: otherId,
-              name: profile.name,
-              title: profile.title,
-              company: profile.company,
-              avatar: profile.avatar,
-              dateConnected: formatDate(row.created_at),
-              event: row.event_id ? eventsLookup[row.event_id] || t('networking.defaults.event') : t('networking.defaults.generalNetworking'),
-              eventId: row.event_id || null
-            };
-          }),
-          ...acceptedConnections
-        ].filter((connection, index, all) => {
-          return (
-            all.findIndex(
-              (item) =>
-                item.profileId === connection.profileId &&
-                (item.eventId || null) === (connection.eventId || null)
-            ) === index
-          );
-        })
-      );
+      setMeetings(meetingsData.map(row => {
+        const isCurrentUserA = row.profile_a_id === user.id || 
+                               (row.attendee_a_id && myAttendeeIds.includes(row.attendee_a_id));
+        
+        const otherProfileId = isCurrentUserA 
+          ? (row.profile_b_id || attendeeMap[row.attendee_b_id]?.profile_id) 
+          : (row.profile_a_id || attendeeMap[row.attendee_a_id]?.profile_id);
+        
+        const otherAttendee = isCurrentUserA ? attendeeMap[row.attendee_b_id] : attendeeMap[row.attendee_a_id];
+        const p = profileMap[otherProfileId || ''] || { name: otherAttendee?.name || t('networking.defaults.networkingMeeting'), avatar: null };
+        
+        const eventName = eventsLookup[row.event_id] || t('networking.defaults.event');
+        const mDate = formatDate(row.start_at);
+        const mTime = formatTime(row.start_at);
+        
+        const qrData = JSON.stringify({
+          meetingId: row.id,
+          event: eventName,
+          organizer: isCurrentUserA ? currentUserName : p.name,
+          recipient: isCurrentUserA ? p.name : currentUserName,
+          time: `${mDate} ${mTime}`,
+          location: row.location || t('networking.common.tbd')
+        });
+        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}`;
 
-      setMeetings(
-        (meetingsResult.data || []).map((row: any) => {
-          const isA = myAttendeeIds.includes(row.attendee_a_id);
-          const otherAttendee = isA ? row.attendee_b : row.attendee_a;
-          const otherProfileId = otherAttendee?.profile_id;
-          const profile = profileMap[otherProfileId] || { name: otherAttendee?.name || t('networking.defaults.networkingMeeting'), avatar: null };
-          
-          return {
-            id: row.id,
-            profileId: otherProfileId,
-            name: profile.name,
-            avatar: profile.avatar,
-            time: formatTime(row.start_at),
-            status: toMeetingStatus(row.status),
-            location: row.location || (row.meta?.meeting_type === 'video' ? t('networking.meetings.videoCall') : t('networking.common.tbd')),
-            type: row.meta?.meeting_type || 'in-person',
-            event: row.event_id ? eventsLookup[row.event_id] || t('networking.defaults.event') : t('networking.defaults.generalNetworking'),
-            eventId: row.event_id || null,
-            startAt: row.start_at,
-            organizerId: row.attendee_a?.profile_id,
-            meetingFormat: row.meta?.meeting_format || (row.meta?.meeting_type === 'video' ? 'video' : 'in-person')
-          };
-        })
-      );
+        return {
+          id: row.id,
+          profileId: otherProfileId || '',
+          name: p.name,
+          avatar: p.avatar,
+          time: mTime,
+          status: toMeetingStatus(row.status),
+          location: row.location || (row.meta?.meeting_type === 'video' ? t('networking.meetings.videoCall') : t('networking.common.tbd')),
+          type: row.meta?.meeting_type || 'in-person',
+          event: eventName,
+          eventId: row.event_id || null,
+          startAt: row.start_at,
+          organizerId: row.organizer_id || (isCurrentUserA ? user.id : otherProfileId),
+          meetingFormat: row.meta?.meeting_format || (row.meta?.meeting_type === 'video' ? 'video' : 'in-person'),
+          qrCodeUrl: row.status === 'confirmed' ? qrCodeUrl : undefined
+        };
+      }));
+
+      console.log('[Networking] LOAD COMPLETE');
+
     } catch (error: any) {
+      console.error('[Networking] CRITICAL ERROR:', error);
       toast.error(error.message || t('networking.errors.loadData'));
     }
   };
@@ -837,183 +725,14 @@ export default function UserB2BCenter() {
     }
   };
 
-  const loadEventCatalog = async () => {
-    setIsLoadingEvents(true);
-    try {
-      const { data: events } = await supabase
-        .from('events')
-        .select('id, name, start_date, end_date, event_format, location_address, capacity_limit, attendee_settings')
-        .eq('visibility', 'public')
-        .order('start_date', { ascending: true })
-        .limit(100);
-
-      const filtered = (events || []).filter((event: any) => {
-        const settings = event.attendee_settings || {};
-        return settings.b2bAccess !== false;
-      });
-
-      setEventCatalog(
-        filtered.map((event: any) => ({
-          id: event.id,
-          name: event.name,
-          startDate: event.start_date,
-          endDate: event.end_date,
-          format: event.event_format,
-          location: event.location_address,
-          capacity: event.capacity_limit,
-          attendeeSettings: event.attendee_settings || {}
-        }))
-      );
-
-      const eventIds = filtered.map((event: any) => event.id);
-      if (eventIds.length > 0) {
-        const { data: meetingsData } = await supabase
-          .from(MEETINGS_TABLE)
-          .select('event_id')
-          .in('event_id', eventIds);
-        const counts: Record<string, number> = {};
-        (meetingsData || []).forEach((row: any) => {
-          counts[row.event_id] = (counts[row.event_id] || 0) + 1;
-        });
-        setEventMeetingCounts(counts);
-      } else {
-        setEventMeetingCounts({});
-      }
-    } catch (error: any) {
-      toast.error(error.message || t('networking.errors.loadEvents'));
-    } finally {
-      setIsLoadingEvents(false);
-    }
-  };
-
-  const openMeetingModal = (
-    profileId: string,
-    name: string,
-    existingMeeting?: Meeting | null,
-    defaultEventId?: string | null
-  ) => {
-    setMeetingTarget({ profileId, name });
-    setMeetingType(existingMeeting?.meetingFormat || '');
-    if (existingMeeting?.startAt) {
-      const date = new Date(existingMeeting.startAt);
-      setMeetingDate(date.toISOString().slice(0, 10));
-      setMeetingTime(date.toTimeString().slice(0, 5));
-    } else {
-      setMeetingDate('');
-      setMeetingTime('');
-    }
-    setMeetingEventId(existingMeeting?.eventId || defaultEventId || null);
-    setMeetingSessionId(null);
-    setMeetingEditId(existingMeeting?.id || null);
-    setEventFilterCountry('');
-    setEventFilterDate('');
+  const handleScheduleMeeting = (profileId: string, defaultEventId?: string | null) => {
+    const name = profileNameMap.get(profileId) || t('networking.defaults.user');
+    const existing = meetingByProfileId.get(profileId) || null;
+    
+    setMeetingTarget({ id: profileId, name });
+    setActiveMeeting(existing);
+    setActiveMeetingEventId(defaultEventId || existing?.eventId || undefined);
     setIsMeetingModalOpen(true);
-    loadEventCatalog();
-  };
-
-  const closeMeetingModal = () => {
-    setIsMeetingModalOpen(false);
-    setMeetingTarget(null);
-    setMeetingType('');
-    setMeetingDate('');
-    setMeetingTime('');
-    setMeetingEventId(null);
-    setMeetingSessionId(null);
-    setMeetingEditId(null);
-  };
-
-  const handleSubmitMeeting = async () => {
-    if (!user?.id || !meetingTarget) return;
-    if (!meetingType) {
-      toast.error(t('networking.meetings.validation.selectType'));
-      return;
-    }
-
-    const isVirtual = meetingType === 'video';
-    if (isVirtual && (!meetingDate || !meetingTime)) {
-      toast.error(t('networking.meetings.validation.selectDateTime'));
-      return;
-    }
-    if (!isVirtual && !meetingEventId) {
-      toast.error(t('networking.meetings.validation.selectEvent'));
-      return;
-    }
-    if (!isVirtual && !meetingSessionId) {
-      toast.error(t('networking.meetings.validation.selectSlot'));
-      return;
-    }
-
-    let startAt: Date;
-    let endAt: Date;
-    let location = t('networking.meetings.videoCall');
-    if (isVirtual) {
-      startAt = new Date(`${meetingDate}T${meetingTime}:00`);
-      if (Number.isNaN(startAt.getTime())) {
-        toast.error(t('networking.meetings.validation.invalidDateTime'));
-        return;
-      }
-      endAt = new Date(startAt.getTime() + 30 * 60000);
-    } else {
-      const slot = eventSessions.find((session) => session.id === meetingSessionId);
-      if (!slot?.startsAt) {
-        toast.error(t('networking.meetings.validation.slotNoTime'));
-        return;
-      }
-      startAt = new Date(slot.startsAt);
-      endAt = slot.endsAt ? new Date(slot.endsAt) : new Date(startAt.getTime() + 30 * 60000);
-      location =
-        slot.location ||
-        eventCatalog.find((event) => event.id === meetingEventId)?.location ||
-        t('networking.defaults.onSite');
-      if (slot.capacity && slot.attendees && slot.attendees >= slot.capacity) {
-        toast.error(t('networking.meetings.validation.slotFull'));
-        return;
-      }
-    }
-
-    const payload = {
-      organizer_id: user.id,
-      profile_a_id: user.id,
-      profile_b_id: meetingTarget.profileId,
-      event_id: isVirtual ? null : meetingEventId,
-      start_at: startAt.toISOString(),
-      end_at: endAt.toISOString(),
-      meeting_type: isVirtual ? 'video' : 'in-person',
-      location,
-      status: 'pending',
-      meta: {
-        meeting_format: meetingType,
-        session_id: isVirtual ? null : meetingSessionId
-      }
-    };
-
-    if (meetingEditId) {
-      const { error } = await supabase.from(MEETINGS_TABLE).update(payload).eq('id', meetingEditId);
-      if (error) {
-        toast.error(error.message || t('networking.errors.rescheduleMeeting'));
-        return;
-      }
-    } else {
-      const { error } = await supabase.from(MEETINGS_TABLE).insert([payload]);
-      if (error) {
-        toast.error(error.message || t('networking.errors.scheduleMeeting'));
-        return;
-      }
-    }
-
-    await safeNotify({
-      recipient_id: meetingTarget.profileId,
-      type: 'action',
-      title: meetingEditId ? t('networking.notifications.meetingRescheduled.title') : t('networking.notifications.meetingRequested.title'),
-      body: meetingEditId
-        ? t('networking.notifications.meetingRescheduled.body', { name: currentUserName })
-        : t('networking.notifications.meetingRequested.body', { name: currentUserName }),
-      action_url: '/my-networking',
-      actor_id: user.id
-    });
-    toast.success(meetingEditId ? t('networking.toasts.meetingRescheduled') : t('networking.toasts.meetingRequested'));
-    closeMeetingModal();
-    await loadNetworkingData();
   };
 
   const handleCancelMeeting = async (meetingId: string, profileId: string) => {
@@ -1030,18 +749,102 @@ export default function UserB2BCenter() {
     await loadNetworkingData();
   };
 
-  const handleConfirmMeeting = async (meetingId: string, profileId: string) => {
-    await supabase.from(MEETINGS_TABLE).update({ status: 'confirmed' }).eq('id', meetingId);
-    await safeNotify({
-      recipient_id: profileId,
-      type: 'action',
-      title: t('networking.notifications.meetingConfirmed.title'),
-      body: t('networking.notifications.meetingConfirmed.body', { name: currentUserName }),
-      action_url: '/my-networking',
-      actor_id: user?.id || null
-    });
-    toast.success(t('networking.toasts.meetingConfirmed'));
-    await loadNetworkingData();
+  const handleConfirmMeeting = async (meetingId: string, otherProfileId: string) => {
+    try {
+      // 1. Update status in database
+      const { error: updateError } = await supabase
+        .from(MEETINGS_TABLE)
+        .update({ status: 'confirmed' })
+        .eq('id', meetingId);
+
+      if (updateError) throw updateError;
+
+      // 2. Fetch full meeting details for email
+      const { data: meeting, error: fetchError } = await supabase
+        .from(MEETINGS_TABLE)
+        .select(`
+          *,
+          event:event_id(id, name),
+          organizer:organizer_id(id, full_name, email),
+          profile_a:profile_a_id(id, full_name, email),
+          profile_b:profile_b_id(id, full_name, email)
+        `)
+        .eq('id', meetingId)
+        .single();
+
+      if (fetchError || !meeting) {
+        console.error('Could not fetch meeting details for email:', fetchError);
+      } else {
+        // 3. Prepare Email Data
+        const eventName = meeting.event?.name || 'Event';
+        const meetingDate = formatDate(meeting.start_at);
+        const meetingTime = formatTime(meeting.start_at);
+        const location = meeting.location || 'TBD';
+        
+        // Identify participants
+        const organizer = meeting.organizer || meeting.profile_a;
+        const recipient = meeting.profile_b;
+
+        const organizerEmail = organizer?.email;
+        const recipientEmail = recipient?.email;
+        const organizerName = organizer?.full_name || 'Organizer';
+        const recipientName = recipient?.full_name || 'Participant';
+
+        // 4. Generate QR Code
+        const qrData = JSON.stringify({
+          meetingId: meeting.id,
+          event: eventName,
+          organizer: organizerName,
+          recipient: recipientName,
+          time: `${meetingDate} ${meetingTime}`,
+          location: location
+        });
+        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`;
+
+        // 5. Send Emails
+        const emailHtml = generateMeetingConfirmationEmailHtml({
+          eventName,
+          meetingDate,
+          meetingTime,
+          location,
+          organizerName,
+          recipientName,
+          qrCodeUrl
+        });
+
+        if (organizerEmail) {
+          sendEmail({
+            to: organizerEmail,
+            subject: `Meeting Confirmed: ${recipientName} for ${eventName}`,
+            html: emailHtml
+          });
+        }
+
+        if (recipientEmail) {
+          sendEmail({
+            to: recipientEmail,
+            subject: `Meeting Confirmed: ${organizerName} for ${eventName}`,
+            html: emailHtml
+          });
+        }
+      }
+
+      // 6. Send DB Notification
+      await safeNotify({
+        recipient_id: otherProfileId,
+        type: 'action',
+        title: t('networking.notifications.meetingConfirmed.title'),
+        body: t('networking.notifications.meetingConfirmed.body', { name: currentUserName }),
+        action_url: '/my-networking',
+        actor_id: user?.id || null
+      });
+
+      toast.success(t('networking.toasts.meetingConfirmed'));
+      await loadNetworkingData();
+    } catch (error: any) {
+      console.error('Error confirming meeting:', error);
+      toast.error(error.message || 'Failed to confirm meeting');
+    }
   };
 
   const handleDeclineMeeting = async (meetingId: string, profileId: string) => {
@@ -1058,15 +861,18 @@ export default function UserB2BCenter() {
     await loadNetworkingData();
   };
 
-  useEffect(() => {
-    loadNetworkingData();
-  }, [user?.id, t]);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    const interval = window.setInterval(loadNetworkingData, 10000);
-    return () => window.clearInterval(interval);
-  }, [user?.id, t]);
+  const handleRemoveConnection = async (connectionId: string, profileId: string) => {
+    await supabase.from(CONNECTIONS_TABLE).delete().eq('id', connectionId);
+    await safeNotify({
+      recipient_id: profileId,
+      type: 'action',
+      title: t('networking.notifications.connectionRemoved.title'),
+      body: t('networking.notifications.connectionRemoved.body', { name: currentUserName }),
+      action_url: '/my-networking',
+      actor_id: user?.id || null
+    });
+    await loadNetworkingData();
+  };
 
   const handleConnect = async (matchId: string) => {
     if (!user?.id) return;
@@ -1175,25 +981,6 @@ export default function UserB2BCenter() {
     await loadNetworkingData();
   };
 
-  const handleScheduleMeeting = (profileId: string, defaultEventId?: string | null) => {
-    const name = profileNameMap.get(profileId) || t('networking.defaults.user');
-    const existing = meetingByProfileId.get(profileId) || null;
-    openMeetingModal(profileId, name, existing, defaultEventId);
-  };
-
-  const handleRemoveConnection = async (connectionId: string, profileId: string) => {
-    await supabase.from(CONNECTIONS_TABLE).delete().eq('id', connectionId);
-    await safeNotify({
-      recipient_id: profileId,
-      type: 'action',
-      title: t('networking.notifications.connectionRemoved.title'),
-      body: t('networking.notifications.connectionRemoved.body', { name: currentUserName }),
-      action_url: '/my-networking',
-      actor_id: user?.id || null
-    });
-    await loadNetworkingData();
-  };
-
   const handleMessage = async (profileId: string) => {
     if (connecting) return;
     const threadId = await getOrCreateThread(profileId);
@@ -1215,10 +1002,19 @@ export default function UserB2BCenter() {
     }
   };
 
+  useEffect(() => {
+    loadNetworkingData();
+  }, [user?.id, t]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const interval = window.setInterval(loadNetworkingData, 15000);
+    return () => window.clearInterval(interval);
+  }, [user?.id, t]);
+
   const filteredMeetings = useMemo(() => {
     const now = new Date();
     return meetings.filter((meeting) => {
-      if (!meeting.startAt) return false;
       if (selectedEvent !== 'all' && meeting.eventId !== selectedEvent) return false;
       if (!showPastMeetings && meeting.startAt) {
         return new Date(meeting.startAt) >= now;
@@ -1261,63 +1057,6 @@ export default function UserB2BCenter() {
     meetings.forEach((meeting) => map.set(meeting.profileId, meeting.name));
     return map;
   }, [matches, connections, receivedRequests, sentRequests, meetings]);
-
-  const eventCountries = useMemo(() => {
-    const set = new Set<string>();
-    eventCatalog.forEach((event) => {
-      set.add(extractCountry(event.location));
-    });
-    return Array.from(set).filter(Boolean);
-  }, [eventCatalog, t]);
-
-  const filteredEventCatalog = useMemo(() => {
-    if (!meetingType || meetingType === 'video') return [];
-    return eventCatalog.filter((event) => {
-      const format = (event.format || '').toLowerCase();
-      if (format && (format === 'online' || format === 'virtual')) return false;
-      if (eventFilterCountry && extractCountry(event.location) !== eventFilterCountry) return false;
-      if (eventFilterDate && event.startDate) {
-        const eventDate = new Date(event.startDate).toISOString().slice(0, 10);
-        if (eventDate !== eventFilterDate) return false;
-      }
-      return true;
-    });
-  }, [eventCatalog, meetingType, eventFilterCountry, eventFilterDate, t]);
-
-  const filteredEventSessions = useMemo(() => {
-    if (!meetingEventId) return [];
-    return eventSessions
-      .filter((session) => session.eventId === meetingEventId)
-      .sort((a, b) => (a.startsAt || '').localeCompare(b.startsAt || ''));
-  }, [eventSessions, meetingEventId]);
-
-  useEffect(() => {
-    const loadSessions = async () => {
-      if (!meetingEventId || meetingType === 'video') {
-        setEventSessions([]);
-        return;
-      }
-      const { data } = await supabase
-        .from('event_sessions')
-        .select('id, event_id, title, starts_at, ends_at, location, capacity, attendees')
-        .eq('event_id', meetingEventId)
-        .eq('status', 'confirmed')
-        .order('starts_at', { ascending: true });
-      setEventSessions(
-        (data || []).map((session: any) => ({
-          id: session.id,
-          eventId: session.event_id,
-          title: session.title,
-          startsAt: session.starts_at,
-          endsAt: session.ends_at,
-          location: session.location,
-          capacity: session.capacity,
-          attendees: session.attendees
-        }))
-      );
-    };
-    loadSessions();
-  }, [meetingEventId, meetingType]);
 
   const visibleReceivedRequests = useMemo(
     () => receivedRequests.filter((request) => request.status === 'pending'),
@@ -1654,116 +1393,197 @@ export default function UserB2BCenter() {
 
             {/* Timeline */}
             <div className="space-y-6">
-              {filteredMeetings.map((meeting) => (
-                <div key={meeting.id} className="networking-hub__meeting-row flex gap-6">
-                  {/* Time */}
-                  <div className="flex-shrink-0" style={{ width: '100px' }}>
-                    <div className="flex items-center gap-2">
-                      <Clock size={16} style={{ color: '#94A3B8' }} />
-                      <span style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF' }}>
-                        {meeting.time}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Meeting Card */}
-                  <div 
-                    className="flex-1 rounded-xl p-5"
-                    style={{ 
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.1)'
-                    }}
-                  >
-                    <div className="networking-hub__meeting-header flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3 networking-hub__meeting-info">
-                        {/* Avatar */}
-                        <div
-                          className="rounded-full flex items-center justify-center"
-                          style={{
-                            width: '48px',
-                            height: '48px',
-                            backgroundColor: 'rgba(6, 132, 245, 0.2)',
-                            border: '2px solid #0684F5'
-                          }}
-                        >
-                          <Users size={24} style={{ color: '#0684F5' }} />
+              {filteredMeetings.length > 0 ? (
+                filteredMeetings.map((meeting) => (
+                  <div key={meeting.id} className="networking-hub__meeting-row flex gap-6">
+                    {/* Time & Date */}
+                    <div className="flex-shrink-0" style={{ width: '120px' }}>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <Calendar size={14} style={{ color: '#0684F5' }} />
+                          <span style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>
+                            {meeting.startAt ? formatDate(meeting.startAt) : ''}
+                          </span>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <Clock size={14} style={{ color: '#94A3B8' }} />
+                          <span style={{ fontSize: '14px', fontWeight: 600, color: '#94A3B8' }}>
+                            {meeting.time}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
 
-                        <div className="networking-hub__meeting-details">
-                          <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
-                            {meeting.name}
-                          </h3>
-                          <div className="flex items-center gap-3">
-                            <span
-                              className="px-2 py-1 rounded"
-                              style={{
-                                backgroundColor: 
-                                  meeting.status === 'confirmed' ? 'rgba(16, 185, 129, 0.2)' :
-                                  meeting.status === 'pending' ? 'rgba(245, 158, 11, 0.2)' :
-                                  'rgba(239, 68, 68, 0.2)',
-                                color:
-                                  meeting.status === 'confirmed' ? '#10B981' :
-                                  meeting.status === 'pending' ? '#F59E0B' :
-                                  '#EF4444',
-                                fontSize: '12px',
-                                fontWeight: 600,
-                                textTransform: 'capitalize'
-                              }}
-                            >
-                              {getMeetingStatusLabel(meeting.status)}
-                            </span>
-                            <div className="flex items-center gap-1.5" style={{ color: '#94A3B8', fontSize: '13px' }}>
-                              {meeting.type === 'video' ? (
-                                <><Video size={14} /> {t('networking.meetings.videoCall')}</>
-                              ) : (
-                                <><MapPin size={14} /> {meeting.location}</>
-                              )}
+                    {/* Meeting Card */}
+                    <div 
+                      className="flex-1 rounded-xl p-5"
+                      style={{ 
+                        backgroundColor: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.1)'
+                      }}
+                    >
+                      <div className="networking-hub__meeting-header flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3 networking-hub__meeting-info">
+                          {/* Avatar */}
+                          <div
+                            className="rounded-full flex items-center justify-center overflow-hidden"
+                            style={{
+                              width: '48px',
+                              height: '48px',
+                              backgroundColor: 'rgba(6, 132, 245, 0.2)',
+                              border: '2px solid #0684F5'
+                            }}
+                          >
+                            {meeting.avatar ? (
+                              <img src={meeting.avatar} alt={meeting.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              <Users size={24} style={{ color: '#0684F5' }} />
+                            )}
+                          </div>
+
+                          <div className="networking-hub__meeting-details">
+                            <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
+                              {meeting.name}
+                            </h3>
+                            <div className="flex items-center gap-3">
+                              <span
+                                className="px-2 py-1 rounded"
+                                style={{
+                                  backgroundColor: 
+                                    meeting.status === 'confirmed' ? 'rgba(16, 185, 129, 0.2)' :
+                                    meeting.status === 'pending' ? 'rgba(245, 158, 11, 0.2)' :
+                                    'rgba(239, 68, 68, 0.2)',
+                                  color:
+                                    meeting.status === 'confirmed' ? '#10B981' :
+                                    meeting.status === 'pending' ? '#F59E0B' :
+                                    '#EF4444',
+                                  fontSize: '12px',
+                                  fontWeight: 600,
+                                  textTransform: 'capitalize'
+                                }}
+                              >
+                                {getMeetingStatusLabel(meeting.status)}
+                              </span>
+                              <div className="flex items-center gap-1.5" style={{ color: '#94A3B8', fontSize: '13px' }}>
+                                {meeting.type === 'video' ? (
+                                  <><Video size={14} /> {t('networking.meetings.videoCall')}</>
+                                ) : (
+                                  <><MapPin size={14} /> {meeting.location}</>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
 
-                      {/* Actions */}
-                      <div className="flex items-center gap-2">
-                        {meeting.type === 'video' && (
+                        {/* Actions */}
+                        <div className="flex items-center gap-2">
+                          {/* QR Code Button - Only for confirmed meetings */}
+                        {meeting.status === 'confirmed' && meeting.qrCodeUrl && (
                           <button
-                            onClick={() => handleJoinCall(meeting)}
+                            onClick={() => setQrModalMeeting(meeting)}
                             className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
                             style={{
-                              backgroundColor: '#0684F5',
+                              backgroundColor: 'rgba(255, 255, 255, 0.1)',
                               color: '#FFFFFF',
                               fontSize: '13px',
-                              fontWeight: 600
+                              fontWeight: 600,
+                              border: '1px solid rgba(255, 255, 255, 0.2)'
                             }}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0570D6'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0684F5'}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
                           >
-                            <Video size={14} />
-                            {t('networking.actions.joinCall')}
+                            <QrCode size={14} />
+                            QR Code
                           </button>
                         )}
-                        {meeting.status === 'pending' && meeting.organizerId !== user?.id && (
-                          <>
+
+                        {meeting.type === 'video' && meeting.status === 'confirmed' && (
                             <button
-                              onClick={() => handleConfirmMeeting(meeting.id, meeting.profileId)}
-                              className="px-4 py-2 rounded-lg transition-colors"
+                              onClick={() => handleJoinCall(meeting)}
+                              className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
                               style={{
                                 backgroundColor: '#0684F5',
                                 color: '#FFFFFF',
                                 fontSize: '13px',
                                 fontWeight: 600
                               }}
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0570D6'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0684F5'}
+                            >
+                              <Video size={14} />
+                              {t('networking.actions.joinCall')}
+                            </button>
+                          )}
+                          {meeting.status === 'pending' && meeting.organizerId !== user?.id && (
+                            <>
+                              <button
+                                onClick={() => handleConfirmMeeting(meeting.id, meeting.profileId)}
+                                className="px-4 py-2 rounded-lg transition-colors"
+                                style={{
+                                  backgroundColor: '#0684F5',
+                                  color: '#FFFFFF',
+                                  fontSize: '13px',
+                                  fontWeight: 600
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#0570D6';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#0684F5';
+                                }}
+                              >
+                                {t('networking.actions.confirm')}
+                              </button>
+                              <button
+                                onClick={() => handleDeclineMeeting(meeting.id, meeting.profileId)}
+                                className="px-4 py-2 rounded-lg transition-colors"
+                                style={{
+                                  backgroundColor: 'transparent',
+                                  color: '#94A3B8',
+                                  fontSize: '13px',
+                                  fontWeight: 500,
+                                  border: '1px solid rgba(255,255,255,0.2)'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                                  e.currentTarget.style.color = '#EF4444';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = 'transparent';
+                                  e.currentTarget.style.color = '#94A3B8';
+                                }}
+                              >
+                                {t('networking.actions.decline')}
+                              </button>
+                            </>
+                          )}
+                          
+                          {meeting.status !== 'cancelled' && meeting.organizerId === user?.id && (
+                            <button
+                              onClick={() => handleScheduleMeeting(meeting.profileId, meeting.eventId)}
+                              className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+                              style={{
+                                backgroundColor: 'rgba(6, 132, 245, 0.1)',
+                                color: '#0684F5',
+                                fontSize: '13px',
+                                fontWeight: 600,
+                                border: '1px solid rgba(6, 132, 245, 0.2)'
+                              }}
                               onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = '#0570D6';
+                                e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.2)';
                               }}
                               onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = '#0684F5';
+                                e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.1)';
                               }}
                             >
-                              {t('networking.actions.confirm')}
+                              <Calendar size={14} />
+                              {t('networking.actions.reschedule', 'Reschedule')}
                             </button>
+                          )}
+
+                          {meeting.status === 'pending' && meeting.organizerId === user?.id && (
                             <button
-                              onClick={() => handleDeclineMeeting(meeting.id, meeting.profileId)}
+                              onClick={() => handleCancelMeeting(meeting.id, meeting.profileId)}
                               className="px-4 py-2 rounded-lg transition-colors"
                               style={{
                                 backgroundColor: 'transparent',
@@ -1781,529 +1601,11 @@ export default function UserB2BCenter() {
                                 e.currentTarget.style.color = '#94A3B8';
                               }}
                             >
-                              {t('networking.actions.decline')}
+                              {t('networking.actions.cancel')}
                             </button>
-                          </>
-                        )}
-                        {meeting.status === 'pending' && meeting.organizerId === user?.id && (
+                          )}
                           <button
-                            onClick={() => handleCancelMeeting(meeting.id, meeting.profileId)}
-                            className="px-4 py-2 rounded-lg transition-colors"
-                            style={{
-                              backgroundColor: 'transparent',
-                              color: '#94A3B8',
-                              fontSize: '13px',
-                              fontWeight: 500,
-                              border: '1px solid rgba(255,255,255,0.2)'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
-                              e.currentTarget.style.color = '#EF4444';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                              e.currentTarget.style.color = '#94A3B8';
-                            }}
-                          >
-                            {t('networking.actions.cancel')}
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleViewProfile(meeting.profileId)}
-                          className="px-4 py-2 rounded-lg transition-colors"
-                          style={{
-                            backgroundColor: 'transparent',
-                            color: '#94A3B8',
-                            fontSize: '13px',
-                            fontWeight: 500,
-                            border: '1px solid rgba(255,255,255,0.2)'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
-                            e.currentTarget.style.color = '#FFFFFF';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = 'transparent';
-                            e.currentTarget.style.color = '#94A3B8';
-                          }}
-                        >
-                          {t('networking.actions.viewProfile')}
-                        </button>
-                      </div>
-                    </div>
-
-                    <p style={{ fontSize: '13px', color: '#94A3B8' }}>
-                      {t('networking.labels.event', { event: meeting.event })}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'matches' && (
-          <div>
-            <p style={{ fontSize: '14px', color: '#94A3B8', marginBottom: '24px' }}>
-              {t('networking.matches.subtitle')}
-            </p>
-
-            <div className="networking-hub__matches-grid grid grid-cols-3 gap-6">
-              {matches.filter(m => m.status !== 'dismissed').map((match) => {
-                const existingMeeting = meetingByProfileId.get(match.profileId);
-                const requestedByThem =
-                  existingMeeting && existingMeeting.organizerId && existingMeeting.organizerId !== user?.id;
-                const requestStatus = match.requestStatus;
-                const showConnect = !requestStatus || requestStatus === 'withdrawn';
-                const showPending = requestStatus === 'pending';
-                const showConnected = requestStatus === 'accepted';
-                const showClosed = requestStatus === 'declined' || requestStatus === 'cancelled';
-                return (
-                  <div
-                    key={match.id}
-                    className="rounded-xl p-5 transition-all"
-                    style={{ 
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.1)'
-                    }}
-                  >
-                  {/* Match Score */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div
-                      className="flex items-center justify-center rounded-full"
-                      style={{
-                        width: '56px',
-                        height: '56px',
-                        backgroundColor: `${getMatchColor(match.score)}20`,
-                        border: `2px solid ${getMatchColor(match.score)}`
-                      }}
-                    >
-                      <span style={{ fontSize: '16px', fontWeight: 700, color: getMatchColor(match.score) }}>
-                        {match.score}%
-                      </span>
-                    </div>
-
-                    {showPending && (
-                      <span
-                        className="px-2 py-1 rounded"
-                        style={{
-                          backgroundColor: 'rgba(245, 158, 11, 0.2)',
-                          color: '#F59E0B',
-                          fontSize: '11px',
-                          fontWeight: 600
-                        }}
-                      >
-                        {t('networking.status.pending')}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Profile */}
-                  <div className="mb-4">
-                    <div
-                      className="mx-auto mb-3 rounded-full flex items-center justify-center"
-                      style={{
-                        width: '64px',
-                        height: '64px',
-                        backgroundColor: 'rgba(6, 132, 245, 0.2)',
-                        border: '2px solid #0684F5'
-                      }}
-                    >
-                      <Users size={28} style={{ color: '#0684F5' }} />
-                    </div>
-
-                    <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px', textAlign: 'center' }}>
-                      {match.name}
-                    </h3>
-                    <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '2px', textAlign: 'center' }}>
-                      {match.title}
-                    </p>
-                    <p style={{ fontSize: '13px', color: '#94A3B8', textAlign: 'center' }}>
-                      {match.company}
-                    </p>
-                  </div>
-
-                  {/* Match Reason */}
-                  <div 
-                    className="mb-4 p-3 rounded-lg flex items-start gap-2"
-                    style={{ backgroundColor: 'rgba(168, 85, 247, 0.1)' }}
-                  >
-                    <Sparkles size={14} style={{ color: '#A855F7', marginTop: '2px', flexShrink: 0 }} />
-                    <p style={{ fontSize: '12px', color: '#94A3B8', lineHeight: '1.4' }}>
-                      {match.reason}
-                    </p>
-                  </div>
-
-                  {/* Tags */}
-                  <div className="flex flex-wrap gap-1.5 mb-4">
-                    {match.tags.map((tag, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2 py-1 rounded"
-                        style={{
-                          backgroundColor: 'rgba(6, 132, 245, 0.15)',
-                          color: '#0684F5',
-                          fontSize: '11px',
-                          fontWeight: 500
-                        }}
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* Actions */}
-                  {existingMeeting ? (
-                    <div className="space-y-2">
-                      {showConnect && (
-                        <button
-                          onClick={() => handleConnect(match.id)}
-                          className="w-full py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
-                          style={{
-                            backgroundColor: '#0684F5',
-                            color: '#FFFFFF',
-                            fontSize: '13px',
-                            fontWeight: 600
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0570D6'}
-                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0684F5'}
-                        >
-                          <UserPlus size={14} />
-                          {t('networking.actions.connect')}
-                        </button>
-                      )}
-                      {showConnected && (
-                        <div
-                          className="px-2 py-1 rounded"
-                          style={{
-                            backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                            color: '#10B981',
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            textAlign: 'center'
-                          }}
-                        >
-                          {t('networking.status.connected')}
-                        </div>
-                      )}
-                      {showClosed && (
-                        <div
-                          className="px-2 py-1 rounded"
-                          style={{
-                            backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                            color: '#EF4444',
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            textAlign: 'center'
-                          }}
-                        >
-                          {t('networking.status.requestClosed')}
-                        </div>
-                      )}
-                      {requestedByThem && (
-                        <div
-                          className="px-2 py-1 rounded"
-                          style={{
-                            backgroundColor: 'rgba(168, 85, 247, 0.15)',
-                            color: '#C4B5FD',
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            textAlign: 'center'
-                          }}
-                        >
-                          {t('networking.matches.requestedByThem')}
-                        </div>
-                      )}
-                      <div className="flex items-center gap-2 networking-hub__meeting-actions">
-                        {requestedByThem ? (
-                          <>
-                            <button
-                              className="flex-1 py-2 rounded-lg transition-colors"
-                              style={{
-                                backgroundColor: '#0684F5',
-                                color: '#FFFFFF',
-                                fontSize: '12px',
-                                fontWeight: 600
-                              }}
-                              onClick={() => handleConfirmMeeting(existingMeeting.id, match.profileId)}
-                            >
-                              {t('networking.actions.confirm')}
-                            </button>
-                            <button
-                              onClick={() => handleDeclineMeeting(existingMeeting.id, match.profileId)}
-                              className="flex-1 py-2 rounded-lg transition-colors"
-                              style={{
-                                backgroundColor: 'transparent',
-                                color: '#94A3B8',
-                                fontSize: '12px',
-                                fontWeight: 500,
-                                border: '1px solid rgba(255,255,255,0.2)'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
-                                e.currentTarget.style.color = '#EF4444';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'transparent';
-                                e.currentTarget.style.color = '#94A3B8';
-                              }}
-                            >
-                              {t('networking.actions.decline')}
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              className="flex-1 py-2 rounded-lg transition-colors"
-                              style={{
-                                backgroundColor: '#0684F5',
-                                color: '#FFFFFF',
-                                fontSize: '12px',
-                                fontWeight: 600
-                              }}
-                              onClick={() => handleScheduleMeeting(match.profileId, match.eventId)}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = '#0570D6';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = '#888888ff';
-                              }}
-                            >
-                              {t('networking.actions.reschedule')}
-                            </button>
-                            <button
-                              onClick={() => handleCancelMeeting(existingMeeting.id, match.profileId)}
-                              className="p-2 rounded-lg transition-colors"
-                              style={{
-                                backgroundColor: 'transparent',
-                                color: '#94A3B8',
-                                border: '1px solid rgba(255,255,255,0.2)'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
-                                e.currentTarget.style.color = '#EF4444';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'transparent';
-                                e.currentTarget.style.color = '#94A3B8';
-                              }}
-                            >
-                              <X size={14} />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ) : showConnect ? (
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => handleConnect(match.id)}
-                        className="w-full py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
-                        style={{
-                          backgroundColor: '#0684F5',
-                          color: '#FFFFFF',
-                          fontSize: '13px',
-                          fontWeight: 600
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0570D6'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0684F5'}
-                      >
-                        <UserPlus size={14} />
-                        {t('networking.actions.connect')}
-                      </button>
-                      <div className="flex items-center gap-2">
-                        <button
-                          className="flex-1 py-2 rounded-lg transition-colors"
-                          style={{
-                            backgroundColor: 'transparent',
-                            color: '#94A3B8',
-                            fontSize: '12px',
-                            fontWeight: 500,
-                            border: '1px solid rgba(255,255,255,0.2)'
-                          }}
-                          onClick={() => handleScheduleMeeting(match.profileId, match.eventId)}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
-                            e.currentTarget.style.color = '#FFFFFF';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = 'transparent';
-                            e.currentTarget.style.color = '#94A3B8';
-                          }}
-                        >
-                          {t('networking.actions.scheduleMeeting')}
-                        </button>
-                        <button
-                          onClick={() => handleDismiss(match.id)}
-                          className="p-2 rounded-lg transition-colors"
-                          style={{
-                            backgroundColor: 'transparent',
-                            color: '#94A3B8',
-                            border: '1px solid rgba(255,255,255,0.2)'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
-                            e.currentTarget.style.color = '#EF4444';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = 'transparent';
-                            e.currentTarget.style.color = '#94A3B8';
-                          }}
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ) : showPending ? (
-                    <button
-                      className="w-full py-2.5 rounded-lg"
-                      disabled
-                      style={{
-                        backgroundColor: 'rgba(245, 158, 11, 0.2)',
-                        color: '#F59E0B',
-                        fontSize: '13px',
-                        fontWeight: 600,
-                        cursor: 'not-allowed'
-                      }}
-                    >
-                      {t('networking.status.requestSent')}
-                    </button>
-                  ) : showConnected ? (
-                    <button
-                      className="w-full py-2.5 rounded-lg"
-                      disabled
-                      style={{
-                        backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                        color: '#10B981',
-                        fontSize: '13px',
-                        fontWeight: 600,
-                        cursor: 'not-allowed'
-                      }}
-                    >
-                      {t('networking.status.connected')}
-                    </button>
-                  ) : (
-                    <button
-                      className="w-full py-2.5 rounded-lg"
-                      disabled
-                      style={{
-                        backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                        color: '#EF4444',
-                        fontSize: '13px',
-                        fontWeight: 600,
-                        cursor: 'not-allowed'
-                      }}
-                    >
-                      {t('networking.status.requestClosed')}
-                    </button>
-                  )}
-                </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'requests' && (
-          <div className="space-y-8">
-            {/* Received Requests */}
-            <div>
-              <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#FFFFFF', marginBottom: '16px' }}>
-                {t('networking.requests.receivedTitle', { count: visibleReceivedRequests.length })}
-              </h2>
-
-              <div className="space-y-3">
-                {visibleReceivedRequests.map((request) => (
-                  <div
-                    key={request.id}
-                    className="rounded-xl p-5"
-                    style={{ 
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.1)'
-                    }}
-                  >
-                    <div className="flex items-start gap-4">
-                      {/* Avatar */}
-                      <div
-                        className="rounded-full flex items-center justify-center flex-shrink-0"
-                        style={{
-                          width: '56px',
-                          height: '56px',
-                          backgroundColor: 'rgba(6, 132, 245, 0.2)',
-                          border: '2px solid #0684F5'
-                        }}
-                      >
-                        <Users size={24} style={{ color: '#0684F5' }} />
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
-                            <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
-                              {request.name}
-                            </h3>
-                            <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '2px' }}>
-                              {request.title} at {request.company}
-                            </p>
-                            <p style={{ fontSize: '12px', color: '#6B7280' }}>
-                              {request.date}
-                            </p>
-                          </div>
-                        </div>
-
-                        <p 
-                          className="mb-4 p-3 rounded-lg"
-                          style={{ 
-                            fontSize: '13px', 
-                            color: '#94A3B8',
-                            backgroundColor: 'rgba(255,255,255,0.05)',
-                            lineHeight: '1.5'
-                          }}
-                        >
-                          "{request.message}"
-                        </p>
-
-                        <div className="networking-hub__request-actions flex items-center gap-3">
-                          <button
-                            onClick={() => handleAcceptRequest(request.id)}
-                            className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-                            style={{
-                              backgroundColor: '#0684F5',
-                              color: '#FFFFFF',
-                              fontSize: '13px',
-                              fontWeight: 600
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0570D6'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0684F5'}
-                          >
-                            <Check size={14} />
-                            {t('networking.actions.accept')}
-                          </button>
-                          <button
-                            onClick={() => handleDeclineRequest(request.id)}
-                            className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-                            style={{
-                              backgroundColor: 'transparent',
-                              color: '#94A3B8',
-                              fontSize: '13px',
-                              fontWeight: 500,
-                              border: '1px solid rgba(255,255,255,0.2)'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
-                              e.currentTarget.style.color = '#EF4444';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                              e.currentTarget.style.color = '#94A3B8';
-                            }}
-                          >
-                            <X size={14} />
-                            {t('networking.actions.decline')}
-                          </button>
-                          <button
-                            onClick={() => handleViewProfile(request.profileId)}
+                            onClick={() => handleViewProfile(meeting.profileId)}
                             className="px-4 py-2 rounded-lg transition-colors"
                             style={{
                               backgroundColor: 'transparent',
@@ -2321,695 +1623,405 @@ export default function UserB2BCenter() {
                               e.currentTarget.style.color = '#94A3B8';
                             }}
                           >
-                            <Eye size={14} style={{ display: 'inline', marginRight: '4px' }} />
                             {t('networking.actions.viewProfile')}
                           </button>
                         </div>
                       </div>
+
+                      <p style={{ fontSize: '13px', color: '#94A3B8' }}>
+                        {t('networking.labels.event', { event: meeting.event })}
+                      </p>
                     </div>
                   </div>
-                ))}
-
-                {visibleReceivedRequests.length === 0 && (
-                  <div 
-                    className="text-center py-12 rounded-lg"
-                    style={{ backgroundColor: 'rgba(255,255,255,0.02)' }}
-                  >
-                    <UserPlus size={48} style={{ color: '#94A3B8', margin: '0 auto 16px' }} />
-                    <p style={{ fontSize: '14px', color: '#94A3B8' }}>
-                      {t('networking.requests.noPending')}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Sent Requests */}
-            <div>
-              <button
-                onClick={() => setShowSentRequests(!showSentRequests)}
-                className="flex items-center gap-2 mb-4 transition-colors"
-                style={{
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#FFFFFF' }}>
-                  {t('networking.requests.sentTitle', { count: visibleSentRequests.length })}
-                </h2>
-                <ChevronDown 
-                  size={20} 
-                  style={{ 
-                    color: '#94A3B8',
-                    transform: showSentRequests ? 'rotate(180deg)' : 'rotate(0deg)',
-                    transition: 'transform 0.2s'
-                  }} 
-                />
-              </button>
-
-              {showSentRequests && (
-                <div className="space-y-3">
-                  {visibleSentRequests.map((request) => (
-                    <div
-                      key={request.id}
-                      className="networking-hub__sent-card rounded-xl p-4 flex items-center justify-between"
-                      style={{ 
-                        backgroundColor: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.1)'
-                      }}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="rounded-full flex items-center justify-center"
-                          style={{
-                            width: '48px',
-                            height: '48px',
-                            backgroundColor: 'rgba(6, 132, 245, 0.2)',
-                            border: '2px solid #0684F5'
-                          }}
-                        >
-                          <Users size={20} style={{ color: '#0684F5' }} />
-                        </div>
-
-                        <div>
-                          <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
-                            {request.name}
-                          </h3>
-                          <p style={{ fontSize: '12px', color: '#94A3B8' }}>
-                            {request.title} at {request.company}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <span
-                          className="px-3 py-1 rounded"
-                          style={{
-                            backgroundColor: 'rgba(245, 158, 11, 0.2)',
-                            color: '#F59E0B',
-                            fontSize: '12px',
-                            fontWeight: 600
-                          }}
-                        >
-                          {t('networking.status.pending')}
-                        </span>
-                        <button
-                          onClick={() => handleWithdrawRequest(request.id)}
-                          className="px-3 py-1.5 rounded-lg transition-colors"
-                          style={{
-                            backgroundColor: 'transparent',
-                            color: '#94A3B8',
-                            fontSize: '12px',
-                            fontWeight: 500,
-                            border: '1px solid rgba(255,255,255,0.2)'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
-                            e.currentTarget.style.color = '#EF4444';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = 'transparent';
-                            e.currentTarget.style.color = '#94A3B8';
-                          }}
-                        >
-                          {t('networking.actions.withdraw')}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                ))
+              ) : (
+                <div 
+                  className="text-center py-16 rounded-xl"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)' }}
+                >
+                  <Calendar size={48} style={{ color: '#94A3B8', margin: '0 auto 16px', opacity: 0.5 }} />
+                  <p style={{ fontSize: '16px', color: '#FFFFFF', fontWeight: 600 }}>
+                    {t('networking.meetings.noMeetings')}
+                  </p>
+                  <p style={{ fontSize: '14px', color: '#94A3B8', marginTop: '4px' }}>
+                    {t('networking.meetings.noMeetingsSubtitle')}
+                  </p>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {activeTab === 'connections' && (
+        {activeTab === 'matches' && (
           <div>
-            <div className="flex items-center justify-between mb-6">
-              <p style={{ fontSize: '14px', color: '#94A3B8' }}>
-                {t('networking.connections.total', { count: connections.length })}
-              </p>
-            </div>
+            <p style={{ fontSize: '14px', color: '#94A3B8', marginBottom: '24px' }}>
+              {t('networking.matches.subtitle')}
+            </p>
 
-            <div className="space-y-3">
-              {connections.map((connection) => {
-                const existingMeeting = meetingByProfileId.get(connection.profileId);
-                return (
-                  <div
-                    key={connection.id}
-                    className="networking-hub__connection-card rounded-xl p-5 transition-all"
-                    style={{ 
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.1)'
-                    }}
-                  >
-                  <div className="networking-hub__connection-row flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      {/* Avatar */}
-                      <div
-                        className="rounded-full flex items-center justify-center"
-                        style={{
-                          width: '56px',
-                          height: '56px',
-                          backgroundColor: 'rgba(6, 132, 245, 0.2)',
-                          border: '2px solid #0684F5'
-                        }}
-                      >
-                        <Users size={24} style={{ color: '#0684F5' }} />
-                      </div>
-
-                      <div>
-                        <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
-                          {connection.name}
-                        </h3>
-                        <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '2px' }}>
-                          {connection.title} at {connection.company}
-                        </p>
-                        <div className="flex items-center gap-3">
-                          <p style={{ fontSize: '12px', color: '#6B7280' }}>
-                            {t('networking.connections.connectedOn', { date: connection.dateConnected })}
-                          </p>
-                          <span style={{ color: '#6B7280' }}>•</span>
-                          <p style={{ fontSize: '12px', color: '#6B7280' }}>
-                            {connection.event}
-                          </p>
+            <div className="networking-hub__matches-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {matches.filter(m => m.status !== 'dismissed').length > 0 ? (
+                matches.filter(m => m.status !== 'dismissed').map((match) => {
+                  const existingMeeting = meetingByProfileId.get(match.profileId);
+                  const requestedByThem =
+                    existingMeeting && existingMeeting.organizerId && existingMeeting.organizerId !== user?.id;
+                  const requestStatus = match.requestStatus;
+                  const showConnect = !requestStatus || requestStatus === 'withdrawn';
+                  const showPending = requestStatus === 'pending';
+                  const showConnected = requestStatus === 'accepted';
+                  const showClosed = requestStatus === 'declined' || requestStatus === 'cancelled';
+                  return (
+                    <div
+                      key={match.id}
+                      className="rounded-xl p-5 transition-all"
+                      style={{ 
+                        backgroundColor: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.1)'
+                      }}
+                    >
+                      {/* Match Score */}
+                      <div className="flex items-start justify-between mb-4">
+                        <div
+                          className="flex items-center justify-center rounded-full"
+                          style={{
+                            width: '56px',
+                            height: '56px',
+                            backgroundColor: `${getMatchColor(match.score)}20`,
+                            border: `2px solid ${getMatchColor(match.score)}`
+                          }}
+                        >
+                          <span style={{ fontSize: '16px', fontWeight: 700, color: getMatchColor(match.score) }}>
+                            {match.score}%
+                          </span>
                         </div>
-                      </div>
-                    </div>
 
-                    {/* Actions */}
-                    <div className="networking-hub__connection-actions flex items-center gap-2">
-                      <button
-                        onClick={() => handleMessage(connection.profileId)}
-                        className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-                        style={{
-                          backgroundColor: '#0684F5',
-                          color: '#FFFFFF',
-                          fontSize: '13px',
-                          fontWeight: 600
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0570D6'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0684F5'}
+                        {showPending && (
+                          <span
+                            className="px-2 py-1 rounded"
+                            style={{
+                              backgroundColor: 'rgba(245, 158, 11, 0.2)',
+                              color: '#F59E0B',
+                              fontSize: '11px',
+                              fontWeight: 600
+                            }}
+                          >
+                            {t('networking.status.pending')}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Profile */}
+                      <div className="mb-4">
+                        <div
+                          className="mx-auto mb-3 rounded-full flex items-center justify-center overflow-hidden"
+                          style={{
+                            width: '64px',
+                            height: '64px',
+                            backgroundColor: 'rgba(6, 132, 245, 0.2)',
+                            border: '2px solid #0684F5'
+                          }}
+                        >
+                          {match.avatar ? (
+                            <img src={match.avatar} alt={match.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <Users size={28} style={{ color: '#0684F5' }} />
+                          )}
+                        </div>
+
+                        <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px', textAlign: 'center' }}>
+                          {match.name}
+                        </h3>
+                        <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '2px', textAlign: 'center' }}>
+                          {match.title}
+                        </p>
+                        <p style={{ fontSize: '13px', color: '#94A3B8', textAlign: 'center' }}>
+                          {match.company}
+                        </p>
+                      </div>
+
+                      {/* Match Reason */}
+                      <div 
+                        className="mb-4 p-3 rounded-lg flex items-start gap-2"
+                        style={{ backgroundColor: 'rgba(168, 85, 247, 0.1)' }}
                       >
-                        <MessageSquare size={14} />
-                        {t('networking.actions.message')}
-                      </button>
+                        <Sparkles size={14} style={{ color: '#A855F7', marginTop: '2px', flexShrink: 0 }} />
+                        <p style={{ fontSize: '12px', color: '#94A3B8', lineHeight: '1.4' }}>
+                          {match.reason}
+                        </p>
+                      </div>
+
+                      {/* Tags */}
+                      <div className="flex flex-wrap gap-1.5 mb-4">
+                        {match.tags.map((tag, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-1 rounded"
+                            style={{
+                              backgroundColor: 'rgba(6, 132, 245, 0.15)',
+                              color: '#0684F5',
+                              fontSize: '11px',
+                              fontWeight: 500
+                            }}
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* Actions */}
                       {existingMeeting ? (
-                        <>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 networking-hub__meeting-actions">
+                            {requestedByThem ? (
+                              <>
+                                <button
+                                  className="flex-1 py-2 rounded-lg transition-colors"
+                                  style={{
+                                    backgroundColor: '#0684F5',
+                                    color: '#FFFFFF',
+                                    fontSize: '12px',
+                                    fontWeight: 600
+                                  }}
+                                  onClick={() => handleConfirmMeeting(existingMeeting.id, match.profileId)}
+                                >
+                                  {t('networking.actions.confirm')}
+                                </button>
+                                <button
+                                  onClick={() => handleDeclineMeeting(existingMeeting.id, match.profileId)}
+                                  className="flex-1 py-2 rounded-lg transition-colors"
+                                  style={{
+                                    backgroundColor: 'transparent',
+                                    color: '#94A3B8',
+                                    fontSize: '12px',
+                                    fontWeight: 500,
+                                    border: '1px solid rgba(255,255,255,0.2)'
+                                  }}
+                                >
+                                  {t('networking.actions.decline')}
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  className="flex-1 py-2 rounded-lg transition-colors"
+                                  style={{
+                                    backgroundColor: '#0684F5',
+                                    color: '#FFFFFF',
+                                    fontSize: '12px',
+                                    fontWeight: 600
+                                  }}
+                                  onClick={() => handleScheduleMeeting(match.profileId, match.eventId)}
+                                >
+                                  {t('networking.actions.reschedule')}
+                                </button>
+                                <button
+                                  onClick={() => handleCancelMeeting(existingMeeting.id, match.profileId)}
+                                  className="p-2 rounded-lg transition-colors"
+                                  style={{
+                                    backgroundColor: 'transparent',
+                                    color: '#94A3B8',
+                                    border: '1px solid rgba(255,255,255,0.2)'
+                                  }}
+                                >
+                                  <X size={14} />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
                           <button
-                            onClick={() => handleScheduleMeeting(connection.profileId, connection.eventId)}
-                            className="px-4 py-2 rounded-lg transition-colors"
+                            onClick={() => handleConnect(match.id)}
+                            className="w-full py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
                             style={{
                               backgroundColor: '#0684F5',
                               color: '#FFFFFF',
                               fontSize: '13px',
                               fontWeight: 600
                             }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = '#0570D6';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = '#0684F5';
-                            }}
                           >
-                            {t('networking.actions.reschedule')}
+                            <UserPlus size={14} />
+                            {t('networking.actions.connect')}
                           </button>
                           <button
-                            onClick={() => handleCancelMeeting(existingMeeting.id, connection.profileId)}
-                            className="p-2 rounded-lg transition-colors"
+                            className="w-full py-2 rounded-lg transition-colors"
                             style={{
                               backgroundColor: 'transparent',
                               color: '#94A3B8',
+                              fontSize: '12px',
+                              fontWeight: 500,
                               border: '1px solid rgba(255,255,255,0.2)'
                             }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
-                              e.currentTarget.style.color = '#EF4444';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                              e.currentTarget.style.color = '#94A3B8';
-                            }}
+                            onClick={() => handleScheduleMeeting(match.profileId, match.eventId)}
                           >
-                            <X size={14} />
+                            {t('networking.actions.scheduleMeeting')}
                           </button>
-                        </>
-                      ) : (
-                        <button
-                          onClick={() => handleScheduleMeeting(connection.profileId, connection.eventId)}
-                          className="px-4 py-2 rounded-lg transition-colors"
-                          style={{
-                            backgroundColor: 'transparent',
-                            color: '#94A3B8',
-                            fontSize: '13px',
-                            fontWeight: 500,
-                            border: '1px solid rgba(255,255,255,0.2)'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
-                            e.currentTarget.style.color = '#FFFFFF';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = 'transparent';
-                            e.currentTarget.style.color = '#94A3B8';
-                          }}
-                        >
-                          {t('networking.actions.scheduleMeeting')}
-                        </button>
+                        </div>
                       )}
-                      <button
-                        onClick={() => handleRemoveConnection(connection.id, connection.profileId)}
-                        className="p-2 rounded-lg transition-colors"
-                        style={{
-                          backgroundColor: 'transparent',
-                          color: '#94A3B8',
-                          border: '1px solid rgba(255,255,255,0.2)'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
-                          e.currentTarget.style.color = '#EF4444';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                          e.currentTarget.style.color = '#94A3B8';
-                        }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="col-span-full text-center py-12">
+                  <Sparkles size={48} style={{ color: '#94A3B8', margin: '0 auto 16px', opacity: 0.5 }} />
+                  <p style={{ color: '#FFFFFF' }}>{t('networking.matches.noMatches')}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'requests' && (
+          <div className="space-y-8">
+            <div>
+              <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#FFFFFF', marginBottom: '16px' }}>
+                {t('networking.requests.receivedTitle', { count: visibleReceivedRequests.length })}
+              </h2>
+              <div className="space-y-3">
+                {visibleReceivedRequests.map((request) => (
+                  <div key={request.id} className="rounded-xl p-5" style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div className="flex items-start gap-4">
+                      <div className="rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ width: '56px', height: '56px', backgroundColor: 'rgba(6, 132, 245, 0.2)', border: '2px solid #0684F5' }}>
+                        {request.avatar ? <img src={request.avatar} alt={request.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Users size={24} style={{ color: '#0684F5' }} />}
+                      </div>
+                      <div className="flex-1">
+                        <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF' }}>{request.name}</h3>
+                        <p style={{ fontSize: '13px', color: '#94A3B8' }}>{request.title} at {request.company}</p>
+                        <p style={{ fontSize: '13px', color: '#94A3B8', marginTop: '8px', fontStyle: 'italic' }}>"{request.message}"</p>
+                        <div className="mt-4 flex gap-3">
+                          <button onClick={() => handleAcceptRequest(request.id)} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">{t('networking.actions.accept')}</button>
+                          <button onClick={() => handleDeclineRequest(request.id)} className="px-4 py-2 rounded-lg border border-white/20 text-gray-400 text-sm">{t('networking.actions.decline')}</button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-              })}
+                ))}
+                {visibleReceivedRequests.length === 0 && <p style={{ color: '#94A3B8', textAlign: 'center' }}>{t('networking.requests.noPending')}</p>}
+              </div>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'connections' && (
+          <div className="space-y-4">
+            {connections.map(c => (
+              <div key={c.id} className="rounded-xl p-5 flex items-center justify-between" style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <div className="flex items-center gap-4">
+                  <div className="rounded-full overflow-hidden" style={{ width: '48px', height: '48px' }}>
+                    {c.avatar ? <img src={c.avatar} alt={c.name} /> : <div className="w-full h-full bg-blue-900 flex items-center justify-center"><Users size={20} /></div>}
+                  </div>
+                  <div>
+                    <h3 style={{ color: '#FFF', fontWeight: 600 }}>{c.name}</h3>
+                    <p style={{ color: '#94A3B8', fontSize: '13px' }}>{c.title}</p>
+                  </div>
+                </div>
+                <button onClick={() => handleMessage(c.profileId)} className="p-2 rounded-lg bg-blue-600 text-white"><MessageSquare size={18} /></button>
+              </div>
+            ))}
+            {connections.length === 0 && <p style={{ color: '#94A3B8', textAlign: 'center' }}>No connections yet.</p>}
           </div>
         )}
       </div>
 
-      {isMeetingModalOpen && (
+      {isMeetingModalOpen && meetingTarget && (
+        <BookMeetingModal
+          isOpen={isMeetingModalOpen}
+          onClose={() => {
+            setIsMeetingModalOpen(false);
+            loadNetworkingData();
+          }}
+          currentUser={{
+            id: user?.id || '',
+            full_name: currentUserName,
+            email: user?.email || ''
+          }}
+          recipient={{
+            id: meetingTarget.id,
+            name: meetingTarget.name
+          }}
+          existingMeeting={activeMeeting}
+          eventId={activeMeetingEventId}
+        />
+      )}
+
+      {qrModalMeeting && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(4px)' }}
-          onClick={closeMeetingModal}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.8)', backdropFilter: 'blur(8px)' }}
+          onClick={() => setQrModalMeeting(null)}
         >
-        <div
-          className="networking-hub__modal relative rounded-xl"
-            style={{
-              width: '720px',
+          <div
+            className="rounded-2xl p-8 max-w-sm w-full text-center"
+            style={{ 
               backgroundColor: '#1E3A5F',
-              border: '1px solid rgba(255,255,255,0.15)',
-              boxShadow: '0px 10px 40px rgba(0,0,0,0.5)',
-              maxHeight: '90vh',
-              overflow: 'hidden'
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
             }}
-            onClick={(event) => event.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div
-              className="flex items-center justify-between px-6 py-4"
-              style={{ borderBottom: '1px solid rgba(255,255,255,0.15)' }}
+            <div className="flex justify-between items-center mb-6">
+              <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#FFFFFF' }}>Meeting Ticket</h3>
+              <button 
+                onClick={() => setQrModalMeeting(null)}
+                style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }}
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div 
+              style={{ 
+                backgroundColor: 'white', 
+                padding: '20px', 
+                borderRadius: '16px', 
+                display: 'inline-block',
+                marginBottom: '24px'
+              }}
             >
+              <img 
+                src={qrModalMeeting.qrCodeUrl} 
+                alt="Meeting QR Code" 
+                style={{ width: '200px', height: '200px', display: 'block' }} 
+              />
+            </div>
+
+            <div className="text-left space-y-3">
               <div>
-                <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF' }}>
-                  {meetingEditId ? t('networking.modals.rescheduleTitle') : t('networking.modals.scheduleTitle')}
-                </h3>
-                {meetingTarget && (
-                  <p style={{ fontSize: '13px', color: '#94A3B8', marginTop: '4px' }}>
-                    {t('networking.modals.with', { name: meetingTarget.name })}
-                  </p>
-                )}
+                <p style={{ fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Event</p>
+                <p style={{ fontSize: '15px', color: '#FFFFFF', fontWeight: 600 }}>{qrModalMeeting.event}</p>
               </div>
-              <button
-                onClick={closeMeetingModal}
-                className="transition-colors"
-                style={{ color: '#94A3B8' }}
-                onMouseEnter={(event) => {
-                  event.currentTarget.style.color = '#FFFFFF';
-                }}
-                onMouseLeave={(event) => {
-                  event.currentTarget.style.color = '#94A3B8';
-                }}
-              >
-                <X size={22} />
-              </button>
-            </div>
-
-            <div className="px-6 py-5" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-              <div className="mb-5">
-                <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '10px' }}>
-                  {t('networking.modals.meetingType')}
-                </p>
-                <div className="flex items-center gap-3">
-                  {[
-                    { id: 'video', label: t('networking.meetings.types.online') },
-                    { id: 'in-person', label: t('networking.meetings.types.inPerson') },
-                    { id: 'hybrid', label: t('networking.meetings.types.hybrid') }
-                  ].map((option) => (
-                    <button
-                      key={option.id}
-                      onClick={() => setMeetingType(option.id as any)}
-                      className="px-4 py-2 rounded-lg transition-colors"
-                      style={{
-                        backgroundColor: meetingType === option.id ? '#0684F5' : 'rgba(255,255,255,0.05)',
-                        color: meetingType === option.id ? '#FFFFFF' : '#94A3B8',
-                        fontSize: '13px',
-                        fontWeight: 600,
-                        border: '1px solid rgba(255,255,255,0.15)'
-                      }}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p style={{ fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Time</p>
+                  <p style={{ fontSize: '14px', color: '#FFFFFF', fontWeight: 600 }}>{qrModalMeeting.time}</p>
+                </div>
+                <div>
+                  <p style={{ fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Location</p>
+                  <p style={{ fontSize: '14px', color: '#FFFFFF', fontWeight: 600 }}>{qrModalMeeting.location}</p>
                 </div>
               </div>
-
-              {meetingType && meetingType !== 'video' && (
-                <div className="mb-5">
-                  <div className="networking-hub__modal-filters flex items-center gap-3 mb-3">
-                    <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('networking.modals.filterCountry')}</label>
-                      <select
-                        value={eventFilterCountry}
-                        onChange={(event) => setEventFilterCountry(event.target.value)}
-                        className="w-full px-3 py-2 rounded-lg border outline-none mt-1"
-                        style={{
-                          backgroundColor: 'rgba(255,255,255,0.05)',
-                          borderColor: 'rgba(255,255,255,0.15)',
-                          color: '#FFFFFF',
-                          fontSize: '13px'
-                        }}
-                      >
-                        <option value="">{t('networking.modals.allCountries')}</option>
-                        {eventCountries.map((country) => (
-                          <option key={country} value={country}>
-                            {country}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('networking.modals.filterDate')}</label>
-                      <input
-                        type="date"
-                        value={eventFilterDate}
-                        onChange={(event) => setEventFilterDate(event.target.value)}
-                        className="w-full px-3 py-2 rounded-lg border outline-none mt-1"
-                        style={{
-                          backgroundColor: 'rgba(255,255,255,0.05)',
-                          borderColor: 'rgba(255,255,255,0.15)',
-                          color: '#FFFFFF',
-                          fontSize: '13px'
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    {isLoadingEvents && (
-                      <div style={{ color: '#94A3B8', fontSize: '13px' }}>
-                        {t('networking.modals.loadingEvents')}
-                      </div>
-                    )}
-                    {!isLoadingEvents && filteredEventCatalog.length === 0 && (
-                      <div style={{ color: '#94A3B8', fontSize: '13px' }}>
-                        {t('networking.modals.noEvents')}
-                      </div>
-                    )}
-                    {!isLoadingEvents &&
-                      filteredEventCatalog.map((event) => {
-                        const capacity = event.capacity || null;
-                        const used = eventMeetingCounts[event.id] || 0;
-                        const remaining = capacity ? Math.max(capacity - used, 0) : null;
-                        const isFull = remaining !== null && remaining <= 0;
-                        return (
-                          <button
-                            key={event.id}
-                            onClick={() => {
-                              if (isFull) return;
-                              setMeetingEventId(event.id);
-                              setMeetingSessionId(null);
-                              if (!meetingDate && event.startDate) {
-                                setMeetingDate(new Date(event.startDate).toISOString().slice(0, 10));
-                              }
-                              if (!meetingTime && event.startDate) {
-                                setMeetingTime(new Date(event.startDate).toTimeString().slice(0, 5));
-                              }
-                            }}
-                            className="w-full text-left rounded-lg p-3 transition-colors"
-                            style={{
-                              backgroundColor:
-                                meetingEventId === event.id ? 'rgba(6, 132, 245, 0.15)' : 'rgba(255,255,255,0.04)',
-                              border: '1px solid rgba(255,255,255,0.12)',
-                              opacity: isFull ? 0.5 : 1
-                            }}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF' }}>{event.name}</p>
-                                <p style={{ fontSize: '12px', color: '#94A3B8' }}>
-                                  {event.location || t('networking.defaults.onSite')} • {event.format || t('networking.defaults.inPerson')}
-                                </p>
-                              </div>
-                              <div style={{ textAlign: 'right' }}>
-                                {remaining !== null ? (
-                                  <p style={{ fontSize: '12px', color: remaining > 0 ? '#10B981' : '#EF4444' }}>
-                                    {t('networking.modals.slotsLeft', { count: remaining })}
-                                  </p>
-                                ) : (
-                                  <p style={{ fontSize: '12px', color: '#94A3B8' }}>{t('networking.modals.noCapacityLimit')}</p>
-                                )}
-                                {isFull && (
-                                  <p style={{ fontSize: '11px', color: '#EF4444' }}>{t('networking.modals.full')}</p>
-                                )}
-                              </div>
-                            </div>
-                          </button>
-                        );
-                      })}
-                  </div>
-
-                  {meetingEventId && (
-                    <div className="mt-4">
-                      <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('networking.modals.meetingSlot')}</label>
-                      <select
-                        value={meetingSessionId || ''}
-                        onChange={(event) => setMeetingSessionId(event.target.value)}
-                        className="w-full px-3 py-2 rounded-lg border outline-none mt-1"
-                        style={{
-                          backgroundColor: 'rgba(255,255,255,0.05)',
-                          borderColor: 'rgba(255,255,255,0.15)',
-                          color: '#FFFFFF',
-                          fontSize: '13px'
-                        }}
-                      >
-                        <option value="">{t('networking.modals.selectSlot')}</option>
-                        {filteredEventSessions.map((session) => {
-                          const start = session.startsAt ? new Date(session.startsAt) : null;
-                          const end = session.endsAt ? new Date(session.endsAt) : null;
-                          const slotLabel = start
-                            ? `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • ${start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}${end ? ` - ${end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : ''}`
-                            : t('networking.common.tbd');
-                          const remaining =
-                            session.capacity && session.attendees !== null && session.attendees !== undefined
-                              ? Math.max(session.capacity - session.attendees, 0)
-                              : null;
-                          return (
-                            <option key={session.id} value={session.id} disabled={remaining !== null && remaining <= 0}>
-                              {slotLabel} • {session.title}
-                              {remaining !== null ? t('networking.modals.remainingShort', { count: remaining }) : ''}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {meetingType === 'video' && (
-                <div className="networking-hub__modal-time grid grid-cols-2 gap-3 mb-4">
-                  <div>
-                    <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('networking.modals.meetingDate')}</label>
-                    <input
-                      type="date"
-                      value={meetingDate}
-                      onChange={(event) => setMeetingDate(event.target.value)}
-                      className="w-full px-3 py-2 rounded-lg border outline-none mt-1"
-                      style={{
-                        backgroundColor: 'rgba(255,255,255,0.05)',
-                        borderColor: 'rgba(255,255,255,0.15)',
-                        color: '#FFFFFF',
-                        fontSize: '13px'
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', color: '#94A3B8' }}>{t('networking.modals.meetingTime')}</label>
-                    <input
-                      type="time"
-                      value={meetingTime}
-                      onChange={(event) => setMeetingTime(event.target.value)}
-                      className="w-full px-3 py-2 rounded-lg border outline-none mt-1"
-                      style={{
-                        backgroundColor: 'rgba(255,255,255,0.05)',
-                        borderColor: 'rgba(255,255,255,0.15)',
-                        color: '#FFFFFF',
-                        fontSize: '13px'
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
+              <div>
+                <p style={{ fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>With</p>
+                <p style={{ fontSize: '15px', color: '#FFFFFF', fontWeight: 600 }}>{qrModalMeeting.name}</p>
+              </div>
             </div>
 
-            <div
-              className="flex items-center justify-between px-6 py-4"
-              style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}
+            <button
+              onClick={() => window.print()}
+              className="mt-8 w-full py-3 rounded-xl transition-all font-bold text-white"
+              style={{ backgroundColor: '#0684F5' }}
             >
-              <button
-                onClick={closeMeetingModal}
-                className="px-4 py-2 rounded-lg transition-colors"
-                style={{
-                  backgroundColor: 'transparent',
-                  color: '#94A3B8',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  border: '1px solid rgba(255,255,255,0.2)'
-                }}
-                onMouseEnter={(event) => {
-                  event.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
-                  event.currentTarget.style.color = '#FFFFFF';
-                }}
-                onMouseLeave={(event) => {
-                  event.currentTarget.style.backgroundColor = 'transparent';
-                  event.currentTarget.style.color = '#94A3B8';
-                }}
-              >
-                {t('networking.actions.cancel')}
-              </button>
-              <button
-                onClick={handleSubmitMeeting}
-                className="px-4 py-2 rounded-lg transition-colors"
-                style={{
-                  backgroundColor: '#0684F5',
-                  color: '#FFFFFF',
-                  fontSize: '13px',
-                  fontWeight: 600
-                }}
-                onMouseEnter={(event) => {
-                  event.currentTarget.style.backgroundColor = '#0570D6';
-                }}
-                onMouseLeave={(event) => {
-                  event.currentTarget.style.backgroundColor = '#0684F5';
-                }}
-              >
-                {meetingEditId ? t('networking.modals.rescheduleTitle') : t('networking.modals.scheduleTitle')}
-              </button>
-            </div>
+              Print / Save Ticket
+            </button>
           </div>
         </div>
       )}
 
       <style>{`
+        .networking-hub { font-family: 'Inter', sans-serif; }
+        .tab-label { transition: all 0.2s; }
         @media (max-width: 768px) {
-          .tab-label {
-            display: none;
-          }
-          .networking-hub__tabs button {
-            padding-bottom: 12px !important;
-          }
-        }
-        @media (max-width: 600px) {
-          .networking-hub__hero {
-            padding: 24px 16px 16px;
-          }
-          .networking-hub__main {
-            padding: 16px 16px 64px;
-          }
-          .networking-hub__stats {
-            grid-template-columns: 1fr;
-            gap: 12px;
-          }
-          .networking-hub__tabs {
-            flex-wrap: wrap;
-            gap: 12px;
-          }
-          .networking-hub__filters {
-            flex-direction: column;
-            align-items: stretch;
-          }
-          .networking-hub__meeting-row {
-            flex-direction: column;
-            gap: 12px;
-          }
-          .networking-hub__meeting-row > div:first-child {
-            width: 100%;
-          }
-          .networking-hub__meeting-info {
-            flex-direction: column;
-            align-items: center;
-          }
-          .networking-hub__meeting-header {
-            flex-direction: column;
-            align-items: center;
-            gap: 12px;
-          }
-          .networking-hub__meeting-details {
-            text-align: center;
-          }
-          .networking-hub__meeting-details > div {
-            justify-content: center;
-          }
-          .networking-hub__meeting-actions {
-            flex-wrap: wrap;
-            justify-content: center;
-            width: 100%;
-          }
-          .networking-hub__meeting-actions button {
-            width: 100%;
-            justify-content: center;
-          }
-          .networking-hub__matches-grid {
-            grid-template-columns: 1fr;
-            gap: 12px;
-          }
-          .networking-hub__request-actions {
-            flex-wrap: wrap;
-          }
-          .networking-hub__sent-card {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 12px;
-          }
-          .networking-hub__connection-row {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 16px;
-          }
-          .networking-hub__connection-actions {
-            flex-wrap: wrap;
-            width: 100%;
-          }
-          .networking-hub__modal {
-            width: 92vw;
-          }
-          .networking-hub__modal-filters {
-            flex-direction: column;
-          }
-          .networking-hub__modal-time {
-            grid-template-columns: 1fr;
-          }
-        }
-        @media (max-width: 400px) {
-          .networking-hub__tabs {
-            gap: 8px;
-          }
-          .networking-hub__meeting-row {
-            gap: 10px;
-          }
-          .networking-hub__matches-grid {
-            gap: 10px;
-          }
+          .tab-label { display: none; }
         }
       `}</style>
     </div>

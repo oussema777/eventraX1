@@ -123,6 +123,12 @@ export default function WizardStep3Registration() {
       setCurrentSubStep(step as SubStep);
       return;
     }
+    if (typeof step === 'string' && step.startsWith('2.')) {
+      if (eventData.id) {
+        navigate(`/create/design/${eventData.id}?substep=${step}`);
+        return;
+      }
+    }
     const baseUrl = step === 1 ? 'details' : step === 2 ? 'design' : step === 3 ? 'registration' : 'launch';
     if (eventData.id) {
       navigate(`/create/${baseUrl}/${eventData.id}`);
@@ -156,9 +162,9 @@ export default function WizardStep3Registration() {
     if (currentIndex > 0) {
       setCurrentSubStep(subSteps[currentIndex - 1].key);
     } else {
-      // First sub-step, go back to previous main step
+      // First sub-step, go back to previous main step (last substep of design)
       if (eventData.id) {
-        navigate(`/create/design/${eventData.id}`);
+        navigate(`/create/design/${eventData.id}?substep=2.2`);
         return;
       }
       navigate('/create-event');

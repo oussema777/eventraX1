@@ -1095,6 +1095,25 @@ function AddSessionModal({
   const [enableCheckIn, setEnableCheckIn] = useState(initialData?.enableCheckIn ?? false);
   const [selectedCustomForm, setSelectedCustomForm] = useState<string>(initialData?.customFormId || '');
   const [capacityError, setCapacityError] = useState('');
+
+  // Generate 15-minute interval time options for better UX
+  const timeOptions = useMemo(() => {
+    const opts = new Set<string>();
+    for (let h = 0; h < 24; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        opts.add(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+      }
+    }
+    // Include existing times if they are non-standard
+    if (initialData?.startTime) {
+      const t = initialData.startTime.match(/\d{1,2}:\d{2}/)?.[0];
+      if (t) {
+        const [h, m] = t.split(':').map(val => val.padStart(2, '0'));
+        opts.add(`${h}:${m}`);
+      }
+    }
+    return Array.from(opts).sort();
+  }, [initialData]);
   
   // Simulate PRO status
   const hasPro = false;
@@ -1450,264 +1469,257 @@ function AddSessionModal({
                 />
               </div>
 
-              {/* Date & Time */} 
-              <div className="grid grid-cols-3 gap-4">
+                            {/* Date & Time Selection - ENHANCED */}
+                            <div>
+                              <label style={{ fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '16px', display: 'block' }}>
+                                {t('wizard.step3.sessions.modal.scheduleTitle', 'Session Schedule')}
+                              </label>
+                              
+                              {/* Date Selection Cards */}
+                              <div style={{ marginBottom: '24px' }}>
+                                <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                  Select Event Day
+                                </p>
+                                <div className="flex flex-wrap gap-3">
+                                  {availableDates.map((d, index) => {
+                                    const dateObj = new Date(d);
+                                    const isSelected = date === d;
+                                    return (
+                                      <button
+                                        key={d}
+                                        onClick={() => setDate(d)}
+                                        className="flex flex-col items-center justify-center p-3 rounded-xl transition-all border-2"
+                                        style={{
+                                          minWidth: '80px',
+                                          backgroundColor: isSelected ? 'rgba(6, 132, 245, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                                          borderColor: isSelected ? '#0684F5' : 'rgba(255, 255, 255, 0.1)',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        <span style={{ fontSize: '11px', fontWeight: 700, color: isSelected ? '#0684F5' : '#94A3B8', textTransform: 'uppercase', marginBottom: '4px' }}>
+                                          {dateObj.toLocaleDateString(undefined, { weekday: 'short' })}
+                                        </span>
+                                        <span style={{ fontSize: '18px', fontWeight: 800, color: '#FFFFFF' }}>
+                                          {dateObj.getUTCDate()}
+                                        </span>
+                                        <span style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
+                                          {dateObj.toLocaleDateString(undefined, { month: 'short' })}
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+              
+                                                              {/* Time Selection */}
+                                                              <div className="p-5 rounded-xl" style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                                                                <div className="grid grid-cols-2 gap-6 mb-4">
+                                                                  <div>
+                                                                    <label htmlFor="start-time" style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255, 255, 255, 0.7)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                      <Clock size={14} /> {t('wizard.step3.sessions.modal.startTime')}
+                                                                    </label>
+                                                                    <div className="relative">
+                                                                      <select
+                                                                        id="start-time"
+                                                                        value={startTime}
+                                                                        onChange={(e) => setStartTime(e.target.value)}
+                                                                        className="w-full h-12 px-4 rounded-lg outline-none transition-all appearance-none cursor-pointer"
+                                                                        style={{
+                                                                          fontSize: '16px',
+                                                                          fontWeight: 600,
+                                                                          color: '#FFFFFF',
+                                                                          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                                                                          border: '1.5px solid rgba(255, 255, 255, 0.1)',
+                                                                          backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'rgb(148,163,184)\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3e%3cpolyline points=\'6 9 12 15 18 9\'%3e%3c/polyline%3e%3c/svg%3e")',
+                                                                          backgroundRepeat: 'no-repeat',
+                                                                          backgroundPosition: 'right 12px center',
+                                                                          backgroundSize: '16px'
+                                                                        }}
+                                                                      >
+                                                                        <option value="" style={{ backgroundColor: '#0B2641' }}>--:--</option>
+                                                                        {timeOptions.map(t => (
+                                                                          <option key={t} value={t} style={{ backgroundColor: '#0B2641' }}>{t}</option>
+                                                                        ))}
+                                                                      </select>
+                                                                    </div>
+                                                                  </div>
+                                                                  <div>
+                                                                    <label htmlFor="end-time" style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255, 255, 255, 0.7)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                      <Clock size={14} /> {t('wizard.step3.sessions.modal.endTime')}
+                                                                    </label>
+                                                                    <div className="relative">
+                                                                      <select
+                                                                        id="end-time"
+                                                                        value={endTime}
+                                                                        onChange={(e) => setEndTime(e.target.value)}
+                                                                        className="w-full h-12 px-4 rounded-lg outline-none transition-all appearance-none cursor-pointer"
+                                                                        style={{
+                                                                          fontSize: '16px',
+                                                                          fontWeight: 600,
+                                                                          color: '#FFFFFF',
+                                                                          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                                                                          border: '1.5px solid rgba(255, 255, 255, 0.1)',
+                                                                          backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'rgb(148,163,184)\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3e%3cpolyline points=\'6 9 12 15 18 9\'%3e%3c/polyline%3e%3c/svg%3e")',
+                                                                          backgroundRepeat: 'no-repeat',
+                                                                          backgroundPosition: 'right 12px center',
+                                                                          backgroundSize: '16px'
+                                                                        }}
+                                                                      >
+                                                                        <option value="" style={{ backgroundColor: '#0B2641' }}>--:--</option>
+                                                                        {timeOptions.map(t => (
+                                                                          <option key={t} value={t} style={{ backgroundColor: '#0B2641' }}>{t}</option>
+                                                                        ))}
+                                                                      </select>
+                                                                    </div>
+                                                                  </div>
+                                                                </div>
+                                                                                              {/* Duration Indicator */}
+                                                {startTime && endTime && (
+                                                  <div className="flex items-center gap-2 justify-center py-2 px-4 rounded-full mx-auto w-fit" style={{ backgroundColor: 'rgba(6, 132, 245, 0.1)', border: '1px solid rgba(6, 132, 245, 0.2)' }}>
+                                                    <TrendingUp size={14} style={{ color: '#0684F5' }} />
+                                                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>
+                                                      Duration: {(() => {
+                                                        try {
+                                                          const [sH, sM] = startTime.split(':').map(Number);
+                                                          const [eH, eM] = endTime.split(':').map(Number);
+                                                          const diff = (eH * 60 + eM) - (sH * 60 + sM);
+                                                          if (diff <= 0) return 'Invalid range';
+                                                          const h = Math.floor(diff / 60);
+                                                          const m = diff % 60;
+                                                          return `${h > 0 ? `${h}h ` : ''}${m} min`;
+                                                        } catch (e) {
+                                                          return '...';
+                                                        }
+                                                      })()}
+                                                    </span>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </div>
+                              
+              {/* Venue & Capacity */}
+              <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <label htmlFor="date" style={{ fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px', display: 'block' }}>
-                    {t('wizard.step3.sessions.modal.date', 'Session Date')}
+                  <label htmlFor="venue" style={{ fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <MapPin size={14} style={{ color: '#0684F5' }} /> {t('wizard.step3.sessions.modal.venue')}
                   </label>
-                  {availableDates.length > 0 ? (
+                  <div className="relative">
                     <select
-                      id="date"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
+                      id="venue"
+                      value={selectedVenue}
+                      onChange={handleVenueChange}
+                      className="w-full h-11 px-4 rounded-lg outline-none transition-all appearance-none cursor-pointer"
                       style={{
-                        width: '100%',
-                        height: '44px',
-                        padding: '0 16px',
                         fontSize: '14px',
                         color: '#FFFFFF',
-                        backgroundColor: 'rgba(255,255,255,0.05)',
-                        border: '1.5px solid rgba(255,255,255,0.2)',
-                        borderRadius: '8px',
-                        outline: 'none',
-                        cursor: 'pointer',
-                        appearance: 'none',
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        border: '1.5px solid rgba(255, 255, 255, 0.1)',
                         backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'rgb(148,163,184)\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3e%3cpolyline points=\'6 9 12 15 18 9\'%3e%3c/polyline%3e%3c/svg%3e")',
                         backgroundRepeat: 'no-repeat',
                         backgroundPosition: 'right 12px center',
                         backgroundSize: '16px'
                       }}
                     >
-                      <option value="" disabled>{t('wizard.step3.sessions.modal.selectDate', 'Select Date')}</option>
-                      {availableDates.map(d => (
-                        <option key={d} value={d} style={{ backgroundColor: '#0B2641' }}>
-                          {new Date(d).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
-                        </option>
+                      <option value="" style={{ backgroundColor: '#0B2641' }}>{t('wizard.step3.sessions.modal.venuePlaceholder')}</option>
+                      {availableVenues.map(v => (
+                          <option key={v} value={v} style={{ backgroundColor: '#0B2641' }}>{v}</option>
                       ))}
+                      <option value="add_new" style={{ backgroundColor: '#0B2641', color: '#0684F5', fontWeight: 600 }}>+ {t('wizard.step3.sessions.modal.addNewVenue')}</option>
                     </select>
-                  ) : (
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="capacity" style={{ fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Users size={14} style={{ color: '#0684F5' }} /> {t('wizard.step3.sessions.modal.capacity')}
+                  </label>
+                  <div className="relative">
                     <input
-                      id="date"
-                      type="date"
-                      value={date}
-                      min={minDate}
-                      max={maxDate}
-                      onChange={(e) => setDate(e.target.value)}
+                      id="capacity"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="0 (Unlimited)"
+                      value={capacity}
+                      onChange={handleCapacityChange}
+                      className="w-full h-11 px-4 rounded-lg outline-none transition-all"
                       style={{
-                        width: '100%',
-                        height: '44px',
-                        padding: '0 16px',
                         fontSize: '14px',
                         color: '#FFFFFF',
-                        backgroundColor: 'rgba(255,255,255,0.05)',
-                        border: '1.5px solid rgba(255,255,255,0.2)',
-                        borderRadius: '8px',
-                        outline: 'none',
-                        cursor: 'pointer'
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        border: `1.5px solid ${capacityError ? '#EF4444' : 'rgba(255, 255, 255, 0.1)'}`
                       }}
                     />
-                  )}
-                </div>
-                <div>
-                  <label htmlFor="start-time" style={{ fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px', display: 'block' }}>
-                    {t('wizard.step3.sessions.modal.startTime')}
-                  </label>
-                  <input
-                    id="start-time"
-                    type="time"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    style={{
-                      width: '100%',
-                      height: '44px',
-                      padding: '0 16px',
-                      fontSize: '14px',
-                      color: '#FFFFFF',
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      border: '1.5px solid rgba(255,255,255,0.2)',
-                      borderRadius: '8px',
-                      outline: 'none',
-                      cursor: 'pointer'
-                    }}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="end-time" style={{ fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px', display: 'block' }}>
-                    {t('wizard.step3.sessions.modal.endTime')}
-                  </label>
-                  <input
-                    id="end-time"
-                    type="time"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    style={{
-                      width: '100%',
-                      height: '44px',
-                      padding: '0 16px',
-                      fontSize: '14px',
-                      color: '#FFFFFF',
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      border: '1.5px solid rgba(255,255,255,0.2)',
-                      borderRadius: '8px',
-                      outline: 'none',
-                      cursor: 'pointer'
-                    }}
-                  />
+                    {capacityError && (
+                      <p style={{ fontSize: '11px', color: '#EF4444', marginTop: '4px', position: 'absolute', top: '100%', left: 0 }}>
+                        {capacityError}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* Venue - WITH INLINE ADD NEW FUNCTIONALITY */} 
-              <div>
-                <label htmlFor="venue" style={{ fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px', display: 'block' }}>
-                  {t('wizard.step3.sessions.modal.venue')}
-                </label>
-                <select
-                  id="venue"
-                  value={selectedVenue}
-                  onChange={handleVenueChange}
+              {/* Inline New Venue Input - REFINED */} 
+              {showNewVenueInput && (
+                <div 
+                  className="p-5 rounded-xl border-2 animate-in fade-in zoom-in-95 duration-200"
                   style={{
-                    width: '100%',
-                    height: '44px',
-                    padding: '0 16px',
-                    fontSize: '14px',
-                    color: '#FFFFFF',
-                    backgroundColor: 'rgba(255,255,255,0.05)',
-                    border: '1.5px solid rgba(255,255,255,0.2)',
-                    borderRadius: '8px',
-                    outline: 'none',
-                    cursor: 'pointer'
+                    backgroundColor: 'rgba(6, 132, 245, 0.08)',
+                    borderColor: 'rgba(6, 132, 245, 0.3)',
+                    borderStyle: 'dashed'
                   }}
                 >
-                  <option value="">{t('wizard.step3.sessions.modal.venuePlaceholder')}</option>
-                  {availableVenues.map(v => (
-                      <option key={v} value={v}>{v}</option>
-                  ))}
-                  <option value="add_new">{t('wizard.step3.sessions.modal.addNewVenue')}</option>
-                </select>
-
-                {/* Inline New Venue Input */} 
-                {showNewVenueInput && (
-                  <div 
-                    className="mt-3 p-4 rounded-lg border-2"
-                    style={{
-                      backgroundColor: 'rgba(6, 132, 245, 0.1)',
-                      borderColor: '#0684F5'
-                    }}
-                  >
-                    <p style={{ fontSize: '13px', fontWeight: 600, color: '#0684F5', marginBottom: '12px' }}>
-                      {t('wizard.step3.sessions.modal.addNewVenueTitle')}
+                  <div className="flex items-center justify-between mb-4">
+                    <p style={{ fontSize: '14px', fontWeight: 700, color: '#0684F5', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Plus size={16} /> {t('wizard.step3.sessions.modal.addNewVenueTitle')}
                     </p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', display: 'block' }}>
-                          {t('wizard.step3.sessions.modal.newVenueName')}
-                        </label>
-                        <input
-                          type="text"
-                          placeholder={t('wizard.step3.sessions.modal.newVenueNamePlaceholder')}
-                          value={newVenueName}
-                          onChange={(e) => setNewVenueName(e.target.value)}
-                          style={{
-                            width: '100%',
-                            height: '40px',
-                            padding: '0 12px',
-                            fontSize: '13px',
-                            color: '#FFFFFF',
-                            backgroundColor: 'rgba(255,255,255,0.05)',
-                            border: '1px solid rgba(255,255,255,0.2)',
-                            borderRadius: '6px',
-                            outline: 'none'
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', display: 'block' }}>
-                          {t('wizard.step3.sessions.modal.newVenueCapacity')}
-                        </label>
-                        <input
-                          type="number"
-                          placeholder={t('wizard.step3.sessions.modal.newVenueCapacityPlaceholder')}
-                          value={newVenueCapacity}
-                          onChange={(e) => setNewVenueCapacity(e.target.value)}
-                          style={{
-                            width: '100%',
-                            height: '40px',
-                            padding: '0 12px',
-                            fontSize: '13px',
-                            color: '#FFFFFF',
-                            backgroundColor: 'rgba(255,255,255,0.05)',
-                            border: '1px solid rgba(255,255,255,0.2)',
-                            borderRadius: '6px',
-                            outline: 'none'
-                          }}
-                        />
-                      </div>
+                    <button 
+                      onClick={handleCancelNewVenue}
+                      className="text-[11px] font-bold text-gray-400 hover:text-white uppercase tracking-wider"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px', display: 'block' }}>
+                        {t('wizard.step3.sessions.modal.newVenueName')}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder={t('wizard.step3.sessions.modal.newVenueNamePlaceholder')}
+                        value={newVenueName}
+                        onChange={(e) => setNewVenueName(e.target.value)}
+                        className="w-full h-10 px-3 rounded-lg outline-none bg-[#0B2641] border border-white/10 text-white text-sm focus:border-[#0684F5] transition-all"
+                      />
                     </div>
-                    <div className="flex items-center gap-2 mt-3">
-                      <button
-                        onClick={handleSaveNewVenue}
-                        className="flex-1 px-3 py-2 rounded transition-colors"
-                        style={{
-                          backgroundColor: '#0684F5',
-                          border: 'none',
-                          color: '#FFFFFF',
-                          fontSize: '13px',
-                          fontWeight: 600,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {t('wizard.step3.sessions.modal.saveVenue')}
-                      </button>
-                      <button
-                        onClick={handleCancelNewVenue}
-                        className="flex-1 px-3 py-2 rounded transition-colors"
-                        style={{
-                          backgroundColor: 'transparent',
-                          border: '1px solid rgba(255,255,255,0.2)',
-                          color: '#FFFFFF',
-                          fontSize: '13px',
-                          fontWeight: 600,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {t('wizard.step3.sessions.modal.cancel')}
-                      </button>
+                    <div>
+                      <label style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px', display: 'block' }}>
+                        {t('wizard.step3.sessions.modal.newVenueCapacity')}
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 50"
+                        value={newVenueCapacity}
+                        onChange={(e) => setNewVenueCapacity(e.target.value)}
+                        className="w-full h-10 px-3 rounded-lg outline-none bg-[#0B2641] border border-white/10 text-white text-sm focus:border-[#0684F5] transition-all"
+                      />
                     </div>
                   </div>
-                )}
-              </div>
-
-              {/* Capacity */} 
-              <div>
-                <label htmlFor="capacity" style={{ fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px', display: 'block' }}>
-                  {t('wizard.step3.sessions.modal.capacity')}
-                </label>
-                <input
-                  id="capacity"
-                  type="text"
-                  inputMode="numeric"
-                  placeholder={t('wizard.step3.sessions.modal.capacityPlaceholder')}
-                  value={capacity}
-                  onChange={handleCapacityChange}
-                  style={{
-                    width: '100%',
-                    height: '44px',
-                    padding: '0 16px',
-                    fontSize: '14px',
-                    color: '#FFFFFF',
-                    backgroundColor: 'rgba(255,255,255,0.05)',
-                    border: `1.5px solid ${capacityError ? '#EF4444' : 'rgba(255,255,255,0.2)'}`,
-                    borderRadius: '8px',
-                    outline: 'none'
-                  }}
-                />
-                {capacityError && (
-                  <p className="text-xs mt-1" style={{ color: '#EF4444' }}>
-                    {capacityError}
-                  </p>
-                )}
-              </div>
+                  <button
+                    onClick={handleSaveNewVenue}
+                    disabled={!newVenueName}
+                    className="mt-4 w-full h-10 rounded-lg font-bold text-sm transition-all shadow-lg active:scale-95"
+                    style={{
+                      backgroundColor: newVenueName ? '#0684F5' : 'rgba(255,255,255,0.1)',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      cursor: newVenueName ? 'pointer' : 'not-allowed'
+                    }}
+                  >
+                    Confirm & Use Venue
+                  </button>
+                </div>
+              )}
 
               {/* Tags */} 
               <div>

@@ -1,0 +1,125 @@
+-- SQL SCRIPT: Final Fix for B2B Meetings RLS (v3)
+-- This script fixes the "new row violates row-level security policy" error.
+-- It also adds support for both Attendee-based and Profile-based meetings.
+
+-- 1. Ensure columns exist for both modes (Event-specific and Global)
+DO $$ 
+BEGIN 
+    -- These columns are used by UserB2BCenter.tsx
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'event_b2b_meetings' AND column_name = 'profile_a_id') THEN
+        ALTER TABLE public.event_b2b_meetings ADD COLUMN profile_a_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'event_b2b_meetings' AND column_name = 'profile_b_id') THEN
+        ALTER TABLE public.event_b2b_meetings ADD COLUMN profile_b_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'event_b2b_meetings' AND column_name = 'organizer_id') THEN
+        ALTER TABLE public.event_b2b_meetings ADD COLUMN organizer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+
+-- 2. Enable RLS
+ALTER TABLE public.event_b2b_meetings ENABLE ROW LEVEL SECURITY;
+
+-- 3. Fresh Policies
+DROP POLICY IF EXISTS "Users can see own event meetings" ON public.event_b2b_meetings;
+DROP POLICY IF EXISTS "Users can update own event meetings" ON public.event_b2b_meetings;
+DROP POLICY IF EXISTS "Users can insert own event meetings" ON public.event_b2b_meetings;
+DROP POLICY IF EXISTS "Users can delete own event meetings" ON public.event_b2b_meetings;
+DROP POLICY IF EXISTS "Admins can manage all event meetings" ON public.event_b2b_meetings;
+DROP POLICY IF EXISTS "Event owners can manage meetings" ON public.event_b2b_meetings;
+
+-- SELECT Policy
+CREATE POLICY "Users can see own event meetings"
+ON public.event_b2b_meetings
+FOR SELECT
+TO authenticated
+USING (
+  -- Either direct profile match
+  auth.uid() = profile_a_id OR auth.uid() = profile_b_id OR auth.uid() = organizer_id
+  OR 
+  -- Or attendee record match
+  EXISTS (
+    SELECT 1 FROM public.event_attendees
+    WHERE (event_attendees.id = event_b2b_meetings.attendee_a_id OR event_attendees.id = event_b2b_meetings.attendee_b_id)
+    AND event_attendees.profile_id = auth.uid()
+  )
+);
+
+-- INSERT Policy (The Fix)
+CREATE POLICY "Users can insert own event meetings"
+ON public.event_b2b_meetings
+FOR INSERT
+TO authenticated
+WITH CHECK (
+  -- Either direct profile match
+  auth.uid() = profile_a_id OR auth.uid() = profile_b_id OR auth.uid() = organizer_id
+  OR 
+  -- Or attendee record match
+  EXISTS (
+    SELECT 1 FROM public.event_attendees
+    WHERE (event_attendees.id = event_b2b_meetings.attendee_a_id OR event_attendees.id = event_b2b_meetings.attendee_b_id)
+    AND event_attendees.profile_id = auth.uid()
+  )
+);
+
+-- UPDATE Policy
+CREATE POLICY "Users can update own event meetings"
+ON public.event_b2b_meetings
+FOR UPDATE
+TO authenticated
+USING (
+  auth.uid() = profile_a_id OR auth.uid() = profile_b_id OR auth.uid() = organizer_id
+  OR EXISTS (
+    SELECT 1 FROM public.event_attendees
+    WHERE (event_attendees.id = event_b2b_meetings.attendee_a_id OR event_attendees.id = event_b2b_meetings.attendee_b_id)
+    AND event_attendees.profile_id = auth.uid()
+  )
+)
+WITH CHECK (
+  auth.uid() = profile_a_id OR auth.uid() = profile_b_id OR auth.uid() = organizer_id
+  OR EXISTS (
+    SELECT 1 FROM public.event_attendees
+    WHERE (event_attendees.id = event_b2b_meetings.attendee_a_id OR event_attendees.id = event_b2b_meetings.attendee_b_id)
+    AND event_attendees.profile_id = auth.uid()
+  )
+);
+
+-- DELETE Policy
+CREATE POLICY "Users can delete own event meetings"
+ON public.event_b2b_meetings
+FOR DELETE
+TO authenticated
+USING (
+  auth.uid() = profile_a_id OR auth.uid() = profile_b_id OR auth.uid() = organizer_id
+  OR EXISTS (
+    SELECT 1 FROM public.event_attendees
+    WHERE (event_attendees.id = event_b2b_meetings.attendee_a_id OR event_attendees.id = event_b2b_meetings.attendee_b_id)
+    AND event_attendees.profile_id = auth.uid()
+  )
+);
+
+-- ADMIN Policy
+CREATE POLICY "Admins can manage all event meetings"
+ON public.event_b2b_meetings
+FOR ALL
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.role = 'admin'
+  )
+);
+
+-- Event Owner Policy
+CREATE POLICY "Event owners can manage meetings"
+ON public.event_b2b_meetings
+FOR ALL
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.events
+    WHERE events.id = event_b2b_meetings.event_id
+    AND events.owner_id = auth.uid()
+  )
+);

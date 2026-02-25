@@ -37,6 +37,7 @@ interface ActiveBlock extends Block {
 }
 
 interface BlockLibraryPanelProps {
+  substep?: string;
   activeBlocks: ActiveBlock[];
   onAddBlock: (block: Block) => void;
   onRemoveBlock: (blockId: string) => void;
@@ -47,6 +48,8 @@ interface BlockLibraryPanelProps {
   isPro: boolean;
   brandColor?: string;
   onBrandColorChange?: (color: string) => void;
+  brandColorSecondary?: string;
+  onBrandColorSecondaryChange?: (color: string) => void;
   fontFamily?: string;
   onFontFamilyChange?: (font: string) => void;
   buttonRadius?: number;
@@ -59,6 +62,7 @@ interface BlockLibraryPanelProps {
 }
 
 export default function BlockLibraryPanel({
+  substep = '2.1',
   activeBlocks,
   onAddBlock,
   onRemoveBlock,
@@ -69,6 +73,8 @@ export default function BlockLibraryPanel({
   isPro,
   brandColor = '#635BFF',
   onBrandColorChange,
+  brandColorSecondary = '#7C75FF',
+  onBrandColorSecondaryChange,
   fontFamily = 'inter',
   onFontFamilyChange,
   buttonRadius = 12,
@@ -86,6 +92,9 @@ export default function BlockLibraryPanel({
   const [showBrandingSettings, setShowBrandingSettings] = useState(true);
   const [showHint, setShowHint] = useState(activeBlocks.length === 0);
   const logoInputRef = useRef<HTMLInputElement | null>(null);
+
+  const isBrandingStep = substep === '2.1';
+  const isBlocksStep = substep === '2.2';
 
   const availableBlocks: Block[] = [
     {
@@ -296,61 +305,63 @@ export default function BlockLibraryPanel({
           zIndex: 10
         }}
       >
-        <div style={{ marginBottom: '16px' }}>
+        <div style={{ marginBottom: isBlocksStep ? '16px' : '0' }}>
           <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>
-            {t('wizard.designStudio.title')}
+            {isBrandingStep ? t('wizard.designStudio.branding.title') : t('wizard.designStudio.title')}
           </h2>
           <p style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.6)' }}>
-            {t('wizard.designStudio.subtitle')}
+            {isBrandingStep ? 'Set up your event branding and identity.' : t('wizard.designStudio.subtitle')}
           </p>
         </div>
 
-        {/* Filter Tabs */}
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {[
-            { key: 'all', label: t('wizard.designStudio.filters.all') },
-            { key: 'added', label: addedLabel },
-            { key: 'free', label: t('wizard.designStudio.filters.free') },
-            { key: 'pro', label: t('wizard.designStudio.filters.pro'), icon: true }
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveFilter(tab.key as any)}
-              style={{
-                height: '32px',
-                padding: '0 14px',
-                borderRadius: '16px',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                border: activeFilter === tab.key ? 'none' : '1px solid #E9EAEB',
-                backgroundColor: activeFilter === tab.key ? '#635BFF' : '#F4F5F6',
-                color: activeFilter === tab.key ? '#FFFFFF' : '#6F767E',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                if (activeFilter !== tab.key) {
-                  e.currentTarget.style.backgroundColor = '#E9EAEB';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeFilter !== tab.key) {
-                  e.currentTarget.style.backgroundColor = '#F4F5F6';
-                }
-              }}
-            >
-              {tab.icon && <Crown size={12} />}
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        {/* Filter Tabs - Only show on Blocks Step */}
+        {isBlocksStep && (
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {[
+              { key: 'all', label: t('wizard.designStudio.filters.all') },
+              { key: 'added', label: addedLabel },
+              { key: 'free', label: t('wizard.designStudio.filters.free') },
+              { key: 'pro', label: t('wizard.designStudio.filters.pro'), icon: true }
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveFilter(tab.key as any)}
+                style={{
+                  height: '32px',
+                  padding: '0 14px',
+                  borderRadius: '16px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  border: activeFilter === tab.key ? 'none' : '1px solid #E9EAEB',
+                  backgroundColor: activeFilter === tab.key ? '#635BFF' : '#F4F5F6',
+                  color: activeFilter === tab.key ? '#FFFFFF' : '#6F767E',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (activeFilter !== tab.key) {
+                    e.currentTarget.style.backgroundColor = '#E9EAEB';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activeFilter !== tab.key) {
+                    e.currentTarget.style.backgroundColor = '#F4F5F6';
+                  }
+                }}
+              >
+                {tab.icon && <Crown size={12} />}
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* UX Hint Banner */}
-      {showHint && (
+      {/* UX Hint Banner - Only on Blocks Step */}
+      {showHint && isBlocksStep && (
         <div
           style={{
             backgroundColor: '#E0E7FF',
@@ -405,42 +416,15 @@ export default function BlockLibraryPanel({
       )}
 
       {/* Branding Settings Section */}
-      <div
-        style={{
-          padding: '20px 24px',
-          backgroundColor: 'rgba(255, 255, 255, 0.05)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
-        }}
-      >
-        <button
-          onClick={() => setShowBrandingSettings(!showBrandingSettings)}
+      {isBrandingStep && (
+        <div
           style={{
-            width: '100%',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: 0,
-            marginBottom: showBrandingSettings ? '16px' : '0'
+            padding: '20px 24px',
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Palette size={18} style={{ color: '#0684F5' }} />
-            <span style={{ fontSize: '15px', fontWeight: 700, color: '#FFFFFF' }}>
-              {t('wizard.designStudio.branding.title')}
-            </span>
-          </div>
-          {showBrandingSettings ? (
-            <ChevronUp size={18} style={{ color: 'rgba(255, 255, 255, 0.6)' }} />
-          ) : (
-            <ChevronDown size={18} style={{ color: 'rgba(255, 255, 255, 0.6)' }} />
-          )}
-        </button>
-
-        {showBrandingSettings && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* Brand Color */}
             <div>
               <label style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255, 255, 255, 0.9)', display: 'block', marginBottom: '8px' }}>
@@ -530,7 +514,7 @@ export default function BlockLibraryPanel({
               </button>
 
               {/* Logo Size Slider */}
-              <div className="mt-4 pt-4 border-t border-white/10">
+              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
                 <label style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255, 255, 255, 0.9)', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <span>Logo Size</span>
                   <span style={{ color: 'rgba(255, 255, 255, 0.6)' }}>{logoSize}px</span>
@@ -608,43 +592,19 @@ export default function BlockLibraryPanel({
                 <span>{t('wizard.designStudio.branding.rounded')}</span>
               </div>
             </div>
-
-            {/* Apply Button */}
-            <button
-              onClick={() => setShowBrandingSettings(false)}
-              style={{
-                width: '100%',
-                height: '40px',
-                backgroundColor: '#0684F5',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: 600,
-                color: '#FFFFFF',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#0573D9';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#0684F5';
-              }}
-            >
-              {t('wizard.designStudio.branding.apply')}
-            </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Active Blocks Section */}
-      <div
-        style={{
-          padding: '20px 24px',
-          backgroundColor: 'rgba(255, 255, 255, 0.05)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
-        }}
-      >
+      {isBlocksStep && (
+        <div
+          style={{
+            padding: '20px 24px',
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+          }}
+        >
         {/* Section Header */}
         <div
           style={{
@@ -916,284 +876,287 @@ export default function BlockLibraryPanel({
           </div>
         )}
       </div>
+      )}
 
       {/* Available Blocks Library */}
-      <div style={{ padding: '24px', backgroundColor: 'rgba(255, 255, 255, 0.05)' }}>
-        {/* Section Header */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '20px'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Grid3x3 size={18} style={{ color: '#0684F5' }} />
-            <span style={{ fontSize: '15px', fontWeight: 700, color: '#FFFFFF' }}>
-              {t('wizard.designStudio.availableBlocks.title')}
-            </span>
+      {isBlocksStep && (
+        <div style={{ padding: '24px', backgroundColor: 'rgba(255, 255, 255, 0.05)' }}>
+          {/* Section Header */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Grid3x3 size={18} style={{ color: '#0684F5' }} />
+              <span style={{ fontSize: '15px', fontWeight: 700, color: '#FFFFFF' }}>
+                {t('wizard.designStudio.availableBlocks.title')}
+              </span>
+            </div>
           </div>
-        </div>
 
-        {/* Blocks Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-          {filteredBlocks.map((block) => {
-            const added = isBlockAdded(block.id);
-            const locked = block.tier === 'PRO' && !isPro;
+          {/* Blocks Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            {filteredBlocks.map((block) => {
+              const added = isBlockAdded(block.id);
+              const locked = block.tier === 'PRO' && !isPro;
 
-            return (
+              return (
+                <div
+                  key={block.id}
+                  onClick={() => {
+                    if (locked) {
+                      onUpgrade();
+                    } else if (!added) {
+                      onAddBlock(block);
+                    }
+                  }}
+                  style={{
+                    backgroundColor: '#FAFBFC',
+                    border: added ? '2px dashed #E9EAEB' : '2px solid #E9EAEB',
+                    borderRadius: '12px',
+                    padding: '12px',
+                    cursor: locked ? 'pointer' : (added ? 'not-allowed' : 'pointer'),
+                    opacity: added ? 0.6 : 1,
+                    position: 'relative',
+                    overflow: 'hidden',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!added) {
+                      e.currentTarget.style.borderColor = '#635BFF';
+                      e.currentTarget.style.boxShadow = '0px 4px 12px rgba(0, 0, 0, 0.08)';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!added) {
+                      e.currentTarget.style.borderColor = '#E9EAEB';
+                      e.currentTarget.style.boxShadow = 'none';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }
+                  }}
+                >
+                  {/* Block Preview */}
+                  <div
+                    style={{
+                      width: '100%',
+                      aspectRatio: '16/9',
+                      borderRadius: '8px',
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid #E9EAEB',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '32px',
+                      marginBottom: '12px',
+                      position: 'relative'
+                    }}
+                  >
+                    {block.icon}
+
+                    {/* PRO Lock Overlay */}
+                    {locked && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          background: 'linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.95))',
+                          backdropFilter: 'blur(4px)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '56px',
+                            height: '56px',
+                            borderRadius: '50%',
+                            backgroundColor: 'rgba(254, 243, 199, 0.9)',
+                            border: '2px solid #F59E0B',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxShadow: '0px 4px 12px rgba(245, 158, 11, 0.3)'
+                          }}
+                        >
+                          <Lock size={28} style={{ color: '#F59E0B' }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Block Info */}
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#1A1D1F', marginBottom: '6px' }}>
+                    {block.name}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '12px',
+                      color: '#6F767E',
+                      lineHeight: 1.4,
+                      marginBottom: '8px',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {block.description}
+                  </div>
+
+                  {/* Footer */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        height: '20px',
+                        padding: '0 8px',
+                        borderRadius: '10px',
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        backgroundColor: block.tier === 'FREE' ? '#E6F4EA' : '#FEF3C7',
+                        color: block.tier === 'FREE' ? '#1F7A3E' : '#F59E0B'
+                      }}
+                    >
+                      {block.tier === 'PRO' && <Crown size={10} />}
+                      {getTierLabel(block.tier)}
+                    </div>
+
+                    {!added && !locked && (
+                      <div
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '50%',
+                          backgroundColor: '#E0E7FF',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        <Plus size={16} style={{ color: '#635BFF' }} />
+                      </div>
+                    )}
+
+                    {added && (
+                      <div
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '50%',
+                          backgroundColor: '#E6F4EA',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        <Check size={16} style={{ color: '#1F7A3E' }} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* PRO Upgrade CTA */}
+          {!isPro && (
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #635BFF 0%, #7C75FF 100%)',
+                padding: '24px',
+                borderRadius: '12px',
+                textAlign: 'center',
+                marginTop: '24px'
+              }}
+            >
               <div
-                key={block.id}
-                onClick={() => {
-                  if (locked) {
-                    onUpgrade();
-                  } else if (!added) {
-                    onAddBlock(block);
-                  }
-                }}
                 style={{
-                  backgroundColor: '#FAFBFC',
-                  border: added ? '2px dashed #E9EAEB' : '2px solid #E9EAEB',
-                  borderRadius: '12px',
-                  padding: '12px',
-                  cursor: locked ? 'pointer' : (added ? 'not-allowed' : 'pointer'),
-                  opacity: added ? 0.6 : 1,
-                  position: 'relative',
-                  overflow: 'hidden',
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 16px'
+                }}
+              >
+                <Crown size={32} style={{ color: '#FFFFFF' }} />
+              </div>
+
+              <div style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF', marginBottom: '8px' }}>
+                {t('wizard.designStudio.pro.title')}
+              </div>
+              <div
+                style={{
+                  fontSize: '14px',
+                  color: 'rgba(255, 255, 255, 0.9)',
+                  marginBottom: '20px'
+                }}
+              >
+                {t('wizard.designStudio.pro.subtitle')}
+              </div>
+
+              <button
+                onClick={onUpgrade}
+                style={{
+                  height: '44px',
+                  padding: '0 32px',
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '8px',
+                  border: 'none',
+                  fontSize: '15px',
+                  fontWeight: 700,
+                  color: '#635BFF',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
                   transition: 'all 0.2s ease'
                 }}
                 onMouseEnter={(e) => {
-                  if (!added) {
-                    e.currentTarget.style.borderColor = '#635BFF';
-                    e.currentTarget.style.boxShadow = '0px 4px 12px rgba(0, 0, 0, 0.08)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }
+                  e.currentTarget.style.backgroundColor = '#F8F7FF';
+                  e.currentTarget.style.boxShadow = '0px 4px 16px rgba(255, 255, 255, 0.4)';
                 }}
                 onMouseLeave={(e) => {
-                  if (!added) {
-                    e.currentTarget.style.borderColor = '#E9EAEB';
-                    e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }
+                  e.currentTarget.style.backgroundColor = '#FFFFFF';
+                  e.currentTarget.style.boxShadow = 'none';
                 }}
               >
-                {/* Block Preview */}
-                <div
-                  style={{
-                    width: '100%',
-                    aspectRatio: '16/9',
-                    borderRadius: '8px',
-                    backgroundColor: '#FFFFFF',
-                    border: '1px solid #E9EAEB',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '32px',
-                    marginBottom: '12px',
-                    position: 'relative'
-                  }}
-                >
-                  {block.icon}
+                <Sparkles size={18} />
+                {t('wizard.designStudio.pro.cta')}
+              </button>
 
-                  {/* PRO Lock Overlay */}
-                  {locked && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        inset: 0,
-                        background: 'linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.95))',
-                        backdropFilter: 'blur(4px)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: '56px',
-                          height: '56px',
-                          borderRadius: '50%',
-                          backgroundColor: 'rgba(254, 243, 199, 0.9)',
-                          border: '2px solid #F59E0B',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          boxShadow: '0px 4px 12px rgba(245, 158, 11, 0.3)'
-                        }}
-                      >
-                        <Lock size={28} style={{ color: '#F59E0B' }} />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Block Info */}
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#1A1D1F', marginBottom: '6px' }}>
-                  {block.name}
-                </div>
-                <div
-                  style={{
-                    fontSize: '12px',
-                    color: '#6F767E',
-                    lineHeight: 1.4,
-                    marginBottom: '8px',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden'
-                  }}
-                >
-                  {block.description}
-                </div>
-
-                {/* Footer */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ marginTop: '16px', textAlign: 'left' }}>
+                {proFeatures.map((feature, idx) => (
                   <div
+                    key={idx}
                     style={{
-                      display: 'inline-flex',
+                      display: 'flex',
                       alignItems: 'center',
-                      gap: '4px',
-                      height: '20px',
-                      padding: '0 8px',
-                      borderRadius: '10px',
-                      fontSize: '10px',
-                      fontWeight: 600,
-                      backgroundColor: block.tier === 'FREE' ? '#E6F4EA' : '#FEF3C7',
-                      color: block.tier === 'FREE' ? '#1F7A3E' : '#F59E0B'
+                      gap: '8px',
+                      fontSize: '13px',
+                      color: 'rgba(255, 255, 255, 0.9)',
+                      marginBottom: '8px'
                     }}
                   >
-                    {block.tier === 'PRO' && <Crown size={10} />}
-                    {getTierLabel(block.tier)}
+                    <Check size={16} />
+                    {feature}
                   </div>
-
-                  {!added && !locked && (
-                    <div
-                      style={{
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '50%',
-                        backgroundColor: '#E0E7FF',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      <Plus size={16} style={{ color: '#635BFF' }} />
-                    </div>
-                  )}
-
-                  {added && (
-                    <div
-                      style={{
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '50%',
-                        backgroundColor: '#E6F4EA',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      <Check size={16} style={{ color: '#1F7A3E' }} />
-                    </div>
-                  )}
-                </div>
+                ))}
               </div>
-            );
-          })}
+            </div>
+          )}
         </div>
-
-        {/* PRO Upgrade CTA */}
-        {!isPro && (
-          <div
-            style={{
-              background: 'linear-gradient(135deg, #635BFF 0%, #7C75FF 100%)',
-              padding: '24px',
-              borderRadius: '12px',
-              textAlign: 'center',
-              marginTop: '24px'
-            }}
-          >
-            <div
-              style={{
-                width: '64px',
-                height: '64px',
-                borderRadius: '50%',
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 16px'
-              }}
-            >
-              <Crown size={32} style={{ color: '#FFFFFF' }} />
-            </div>
-
-            <div style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF', marginBottom: '8px' }}>
-              {t('wizard.designStudio.pro.title')}
-            </div>
-            <div
-              style={{
-                fontSize: '14px',
-                color: 'rgba(255, 255, 255, 0.9)',
-                marginBottom: '20px'
-              }}
-            >
-              {t('wizard.designStudio.pro.subtitle')}
-            </div>
-
-            <button
-              onClick={onUpgrade}
-              style={{
-                height: '44px',
-                padding: '0 32px',
-                backgroundColor: '#FFFFFF',
-                borderRadius: '8px',
-                border: 'none',
-                fontSize: '15px',
-                fontWeight: 700,
-                color: '#635BFF',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#F8F7FF';
-                e.currentTarget.style.boxShadow = '0px 4px 16px rgba(255, 255, 255, 0.4)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#FFFFFF';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              <Sparkles size={18} />
-              {t('wizard.designStudio.pro.cta')}
-            </button>
-
-            <div style={{ marginTop: '16px', textAlign: 'left' }}>
-              {proFeatures.map((feature, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    fontSize: '13px',
-                    color: 'rgba(255, 255, 255, 0.9)',
-                    marginBottom: '8px'
-                  }}
-                >
-                  <Check size={16} />
-                  {feature}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

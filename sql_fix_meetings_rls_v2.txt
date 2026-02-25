@@ -1,0 +1,100 @@
+-- SQL SCRIPT: Fix RLS for B2B Meetings (INSERT and ADMIN access)
+-- This script enables full lifecycle management for B2B meetings by attendees and admins.
+
+-- 1. Ensure RLS is enabled
+ALTER TABLE public.event_b2b_meetings ENABLE ROW LEVEL SECURITY;
+
+-- 2. Drop existing policies to prevent conflicts
+DROP POLICY IF EXISTS "Users can see own event meetings" ON public.event_b2b_meetings;
+DROP POLICY IF EXISTS "Users can update own event meetings" ON public.event_b2b_meetings;
+DROP POLICY IF EXISTS "Users can insert own event meetings" ON public.event_b2b_meetings;
+DROP POLICY IF EXISTS "Admins can manage all event meetings" ON public.event_b2b_meetings;
+DROP POLICY IF EXISTS "Users can delete own event meetings" ON public.event_b2b_meetings;
+
+-- 3. SELECT: Users can see meetings where they are either attendee A or attendee B
+-- We join with event_attendees to check the profile_id
+CREATE POLICY "Users can see own event meetings"
+ON public.event_b2b_meetings
+FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.event_attendees
+    WHERE (event_attendees.id = event_b2b_meetings.attendee_a_id OR event_attendees.id = event_b2b_meetings.attendee_b_id)
+    AND event_attendees.profile_id = auth.uid()
+  )
+);
+
+-- 4. INSERT: Users can create meetings where they are one of the attendees
+-- This is the CRITICAL fix for the reported "new row violates row-level security policy" error.
+CREATE POLICY "Users can insert own event meetings"
+ON public.event_b2b_meetings
+FOR INSERT
+TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.event_attendees
+    WHERE (event_attendees.id = event_b2b_meetings.attendee_a_id OR event_attendees.id = event_b2b_meetings.attendee_b_id)
+    AND event_attendees.profile_id = auth.uid()
+  )
+);
+
+-- 5. UPDATE: Users can update meetings they are part of (e.g., to confirm or reschedule)
+CREATE POLICY "Users can update own event meetings"
+ON public.event_b2b_meetings
+FOR UPDATE
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.event_attendees
+    WHERE (event_attendees.id = event_b2b_meetings.attendee_a_id OR event_attendees.id = event_b2b_meetings.attendee_b_id)
+    AND event_attendees.profile_id = auth.uid()
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.event_attendees
+    WHERE (event_attendees.id = event_b2b_meetings.attendee_a_id OR event_attendees.id = event_b2b_meetings.attendee_b_id)
+    AND event_attendees.profile_id = auth.uid()
+  )
+);
+
+-- 6. DELETE: Users can delete meetings they are part of
+CREATE POLICY "Users can delete own event meetings"
+ON public.event_b2b_meetings
+FOR DELETE
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.event_attendees
+    WHERE (event_attendees.id = event_b2b_meetings.attendee_a_id OR event_attendees.id = event_b2b_meetings.attendee_b_id)
+    AND event_attendees.profile_id = auth.uid()
+  )
+);
+
+-- 7. ADMIN: Admins can manage all meetings platform-wide
+CREATE POLICY "Admins can manage all event meetings"
+ON public.event_b2b_meetings
+FOR ALL
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.role = 'admin'
+  )
+);
+
+-- 8. Enable Event Owners to see/manage meetings for their events
+DROP POLICY IF EXISTS "Event owners can manage meetings" ON public.event_b2b_meetings;
+CREATE POLICY "Event owners can manage meetings"
+ON public.event_b2b_meetings
+FOR ALL
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.events
+    WHERE events.id = event_b2b_meetings.event_id
+    AND events.owner_id = auth.uid()
+  )
+);

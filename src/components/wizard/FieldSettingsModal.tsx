@@ -11,6 +11,7 @@ interface CustomField {
   options?: string[];
   isPro: boolean;
   isSystem?: boolean;
+  isEditable?: boolean;
   isKpi?: boolean;
 }
 
@@ -79,7 +80,7 @@ export default function FieldSettingsModal({ isOpen, field, onSave, onDelete, on
   };
 
   const needsOptions = ['dropdown', 'radio', 'multichoice', 'checkbox'].includes(formData.type);
-  const supportsPlaceholder = ['text', 'textarea', 'number', 'email', 'phone', 'url'].includes(formData.type);
+  const supportsPlaceholder = ['text', 'textarea', 'number', 'email', 'phone', 'url', 'address'].includes(formData.type);
 
   const getFieldTypeName = () => {
     const names: Record<string, string> = {

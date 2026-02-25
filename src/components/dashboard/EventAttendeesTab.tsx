@@ -897,6 +897,151 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
             </button>
           </div>
         </div>
+
+        {/* ATTENDEE DETAIL MODAL */}
+        {showDetailModal && selectedAttendee && (
+          <div 
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300"
+            onClick={() => setShowDetailModal(false)}
+          >
+            <div 
+              className="bg-[#0B2641] border border-white/10 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-direction-column"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="p-6 border-b border-white/10 flex items-center justify-between bg-white/5">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-[#0684F5]/20 flex items-center justify-center text-[#0684F5]">
+                    <User size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">{selectedAttendee.name}</h3>
+                    <p className="text-sm text-gray-400">{selectedAttendee.ticketType}</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowDetailModal(false)} className="p-2 text-gray-400 hover:text-white transition-colors">
+                  <X size={24} />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Basic Info Section */}
+                  <div className="space-y-6">
+                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest border-b border-white/5 pb-2">Core Information</h4>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Email Address</label>
+                        <div className="text-white text-sm font-medium flex items-center gap-2">
+                          <Mail size={14} className="text-[#0684F5]" />
+                          {selectedAttendee.email}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Company / Organization</label>
+                        <div className="text-white text-sm font-medium">{selectedAttendee.company || 'Not provided'}</div>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Phone Number</label>
+                        <div className="text-white text-sm font-medium flex items-center gap-2">
+                          <Phone size={14} className="text-[#0684F5]" />
+                          {selectedAttendee.phone || 'Not provided'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Meta / Custom Fields Section */}
+                  <div className="space-y-6">
+                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest border-b border-white/5 pb-2">Additional Data</h4>
+                    <div className="space-y-4">
+                      {Object.entries(selectedAttendee.meta || {}).map(([key, value]) => {
+                        if (['name', 'email', 'company', 'phone', 'confirmationCode', 'ticketType', 'ticketColor', 'price'].includes(key)) return null;
+                        
+                        // Check if value is a URL (possibly a file upload)
+                        const isUrl = typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'));
+                        const isFile = isUrl && (value.includes('/submissions/') || value.match(/\.(pdf|jpg|jpeg|png|doc|docx)$/i));
+
+                        return (
+                          <div key={key}>
+                            <label className="block text-xs text-gray-500 mb-1">{key}</label>
+                            {isFile ? (
+                              <a 
+                                href={value as string} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 text-[#0684F5] text-sm font-bold hover:underline"
+                              >
+                                <Download size={14} />
+                                View Attachment
+                              </a>
+                            ) : isUrl ? (
+                              <a 
+                                href={value as string} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 text-[#0684F5] text-sm font-bold hover:underline"
+                              >
+                                <Globe size={14} />
+                                Visit Website
+                              </a>
+                            ) : (
+                              <div className="text-white text-sm font-medium whitespace-pre-wrap">
+                                {String(value)}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status and Log */}
+                <div className="mt-10 pt-8 border-t border-white/10 grid grid-cols-3 gap-4">
+                  <div className="bg-white/5 p-4 rounded-xl text-center">
+                    <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Status</p>
+                    <p className={`text-sm font-bold ${selectedAttendee.status === 'approved' ? 'text-emerald-500' : 'text-amber-500'}`}>
+                      {selectedAttendee.status.toUpperCase()}
+                    </p>
+                  </div>
+                  <div className="bg-white/5 p-4 rounded-xl text-center">
+                    <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Checked In</p>
+                    <p className={`text-sm font-bold ${selectedAttendee.checkedIn ? 'text-emerald-500' : 'text-gray-500'}`}>
+                      {selectedAttendee.checkedIn ? 'YES' : 'NO'}
+                    </p>
+                  </div>
+                  <div className="bg-white/5 p-4 rounded-xl text-center">
+                    <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Registration</p>
+                    <p className="text-white text-[11px] font-bold">
+                      {selectedAttendee.regDate}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer Actions */}
+              <div className="p-6 border-t border-white/10 flex justify-end gap-3 bg-white/5">
+                <button 
+                  onClick={() => {
+                    updateAttendee(selectedAttendee.id, { checkedIn: !selectedAttendee.checkedIn });
+                    setShowDetailModal(false);
+                  }}
+                  className="px-6 py-2 rounded-xl border border-white/10 text-white text-sm font-bold hover:bg-white/10 transition-all"
+                >
+                  {selectedAttendee.checkedIn ? 'Uncheck Attendee' : 'Manual Check-in'}
+                </button>
+                <button 
+                  className="px-8 py-2 bg-[#0684F5] text-white rounded-xl text-sm font-bold hover:bg-[#0da06f] transition-all"
+                  onClick={() => setShowDetailModal(false)}
+                >
+                  Close Detail
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

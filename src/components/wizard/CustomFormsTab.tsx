@@ -1166,11 +1166,11 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                         </h4>
                         <div className="space-y-2">
                           {[
-                            { icon: Phone, label: 'Phone Number', type: 'phone', isEditable: false, isSystem: false },
-                            { icon: MapPin, label: 'Country', type: 'country', isEditable: false, isSystem: false },
-                            { icon: Calendar, label: 'Date of Birth', type: 'date', isEditable: false },
-                            { icon: Users, label: 'Gender', type: 'dropdown', options: ['Male', 'Female'], isEditable: false },
-                            { icon: Hash, label: 'Age', type: 'number', isEditable: false }
+                            { icon: Phone, label: 'Phone Number', type: 'phone', isEditable: true, isSystem: false },
+                            { icon: MapPin, label: 'Country', type: 'country', isEditable: true, isSystem: false },
+                            { icon: Calendar, label: 'Date of Birth', type: 'date', isEditable: true },
+                            { icon: Users, label: 'Gender', type: 'dropdown', options: ['Male', 'Female'], isEditable: true },
+                            { icon: Hash, label: 'Age', type: 'number', isEditable: true }
                           ].map((field, idx) => {
                             const FieldIcon = field.icon;
                             return (
@@ -1819,6 +1819,42 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                                   </span>
                                 </label>
                               ))}
+                            </div>
+                          )}
+
+                          {field.type === 'file' && (
+                            <div 
+                              className="w-full p-6 rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-2"
+                              style={{ borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(255,255,255,0.03)' }}
+                            >
+                              <Upload size={24} style={{ color: '#94A3B8' }} />
+                              <p className="text-sm" style={{ color: '#94A3B8' }}>{t('wizard.step3.customForms.builder.placeholders.fileUpload') || 'Click or drag file to upload'}</p>
+                            </div>
+                          )}
+
+                          {field.type === 'url' && (
+                            <div className="relative">
+                              <Globe size={16} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: '#94A3B8' }} />
+                              <input
+                                type="url"
+                                placeholder={field.placeholder || t('wizard.step3.customForms.builder.placeholders.websiteUrl') || 'https://example.com'}
+                                disabled
+                                className="w-full h-11 pl-11 pr-4 rounded-lg border"
+                                style={{ borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(255,255,255,0.05)', color: '#94A3B8' }}
+                              />
+                            </div>
+                          )}
+
+                          {field.type === 'address' && (
+                            <div className="relative">
+                              <MapPin size={16} className="absolute left-4 top-4" style={{ color: '#94A3B8' }} />
+                              <textarea
+                                placeholder={field.placeholder || t('wizard.step3.customForms.builder.placeholders.address') || 'Enter full address'}
+                                disabled
+                                rows={3}
+                                className="w-full pl-11 pr-4 pt-3.5 rounded-lg border resize-none"
+                                style={{ borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(255,255,255,0.05)', color: '#94A3B8' }}
+                              />
                             </div>
                           )}
                           </div>

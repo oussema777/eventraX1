@@ -3,7 +3,7 @@
 
 import { NavigateFunction } from 'react-router-dom';
 import { getEventStatus } from './eventStorage';
-export type WizardStep = 1 | 2 | 3 | 4 | '3.1' | '3.2' | '3.3' | '3.4' | '3.5' | '3.6' | '3.7' | '3.8' | '3.9';
+export type WizardStep = 1 | 2 | 3 | 4 | '2.1' | '2.2' | '3.1' | '3.2' | '3.3' | '3.4' | '3.5' | '3.6' | '3.7' | '3.8' | '3.9';
 
 /**
  * Get the first substep for Step 3 based on event type

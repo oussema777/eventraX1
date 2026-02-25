@@ -321,7 +321,7 @@ export default function NavbarLoggedOut({ onSignUpClick, onLoginClick }: NavbarL
           <div className="hidden md:flex items-center">
             <select
               value={locale}
-              onChange={(e) => setLocale(e.target.value as 'en' | 'fr')}
+              onChange={(e) => setLocale(e.target.value as any)}
               aria-label={t('nav.language.label')}
               style={{
                 height: '32px',
@@ -337,6 +337,7 @@ export default function NavbarLoggedOut({ onSignUpClick, onLoginClick }: NavbarL
             >
               <option value="en">{t('nav.language.en')}</option>
               <option value="fr">{t('nav.language.fr')}</option>
+              <option value="ar">{t('nav.language.ar')}</option>
             </select>
           </div>
 
@@ -550,7 +551,7 @@ export default function NavbarLoggedOut({ onSignUpClick, onLoginClick }: NavbarL
                 </label>
                 <select
                   value={locale}
-                  onChange={(e) => setLocale(e.target.value as 'en' | 'fr')}
+                  onChange={(e) => setLocale(e.target.value as any)}
                   style={{
                     width: '100%',
                     height: '40px',
@@ -565,6 +566,7 @@ export default function NavbarLoggedOut({ onSignUpClick, onLoginClick }: NavbarL
                 >
                   <option value="en">{t('nav.language.en')}</option>
                   <option value="fr">{t('nav.language.fr')}</option>
+                  <option value="ar">{t('nav.language.ar')}</option>
                 </select>
               </div>
               <button 

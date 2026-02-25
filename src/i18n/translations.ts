@@ -1,3 +1,5 @@
+export type Locale = 'en' | 'fr' | 'ar';
+
 export const translations = {
   en: {
     brand: {
@@ -759,6 +761,7 @@ export const translations = {
         'Marketing & Advertising',
         'Non-Profit & NGO',
         'Government & Public Sector',
+        'Business enabling organisation',
         'Other'
       ],
       yearsOfExperience: [
@@ -2843,6 +2846,7 @@ export const translations = {
           { value: 'Coaches & Trainers', label: 'Coaches & Trainers' },
           { value: 'Non-Profit & Civil Society', label: 'Non-Profit & Civil Society' },
           { value: 'Government & Public Sector', label: 'Government & Public Sector' },
+          { value: 'Business enabling organisation', label: 'Business enabling organisation' },
           { value: 'Entrepreneurs & Startups', label: 'Entrepreneurs & Startups' }
         ],
         companySizes: [
@@ -3717,6 +3721,7 @@ export const translations = {
             moreBenefits: '+{count} more benefits',
             filterActive: 'Showing {count} sponsor(s) in {tier} tier',
             clearFilter: 'Clear Filter',
+            editPackage: 'Customize Sponsorship Tier',
             manageTitle: 'Manage Sponsorship Packages',
             manageSubtitle: 'Edit or add new sponsorship packages',
             manageSubtitleFree: 'Free plan: {current}/{max} packages. Upgrade to Pro for unlimited packages.',
@@ -6510,6 +6515,7 @@ export const translations = {
         'Marketing & Publicite',
         'Non-Lucratif & ONG',
         'Gouvernement & Secteur Public',
+        'Organisation de soutien aux entreprises',
         'Autre'
       ],
       yearsOfExperience: [
@@ -6836,6 +6842,7 @@ export const translations = {
           { value: 'Marketing & Advertising', label: 'Marketing & Publicite' },
           { value: 'Non-Profit & NGO', label: 'Non-Lucratif & ONG' },
           { value: 'Government & Public Sector', label: 'Gouvernement & Secteur Public' },
+          { value: 'Business enabling organisation', label: 'Organisation de soutien aux entreprises' },
           { value: 'Other', label: 'Autre' }
         ],
         companySizes: [
@@ -9462,6 +9469,7 @@ export const translations = {
             moreBenefits: '+{count} avantages supplementaires',
             filterActive: 'Affichage de {count} sponsor(s) dans le niveau {tier}',
             clearFilter: 'Effacer le filtre',
+            editPackage: 'Personnaliser le niveau de parrainage',
             manageTitle: 'Gerer les packages de sponsoring',
             manageSubtitle: 'Modifier ou ajouter des packages de sponsoring',
             manageSubtitleFree: 'Plan gratuit : {current}/{max} packages. Passez a Pro pour des packages illimites.',
@@ -11509,6 +11517,703 @@ export const translations = {
           copyFailed: 'Echec de la copie du lien.'
         }
       },
+  },
+  ar: {
+    brand: {
+      name: 'إيفينترا'
+    },
+    nav: {
+      communities: {
+        label: 'المجتمعات',
+        items: [
+          'التكنولوجيا والبرمجيات',
+          'الذكاء الاصطناعي وإنترنت الأشياء',
+          'المطورين والمهندسين',
+          'الخدمات المالية والبنوك',
+          'الاستثمار والخدمات المصرفية',
+          'التدقيق والمحاسبة والتمويل',
+          'التأمين والتمويل الأصغر',
+          'الرعاية الصحية والأدوية',
+          'التعليم والتدريب',
+          'الجامعات والأكاديميات',
+          'الطلاب والباحثين',
+          'الإعلام والترفيه',
+          'الصناعات السمعية والبصرية والإبداعية',
+          'التسويق والإعلان',
+          'التجزئة والتجارة الإلكترونية',
+          'التصنيع والإنتاج',
+          'العقارات والإنشاءات',
+          'النقل والخدمات اللوجستية',
+          'الطاقة والمرافق',
+          'الضيافة والسياحة',
+          'الاتصالات',
+          'الزراعة وإنتاج الغذاء',
+          'الخدمات القانونية',
+          'الاستشارات والخدمات المهنية',
+          'المدربين والموجهين',
+          'المنظمات غير الربحية والمجتمع المدني',
+          'الحكومة والقطاع العام',
+          'رواد الأعمال والشركات الناشئة'
+        ]
+      },
+      marketplace: 'السوق',
+      browseEvents: 'تصفح الفعاليات',
+      logistics: {
+        label: 'الحلول اللوجستية',
+        items: [
+          'حاسبة الشحن: الشرق الأوسط وأفريقيا',
+          'حاسبة الحمولة: الشرق الأوسط وأفريقيا',
+          'تكاليف شحن الحاويات: معلومات'
+        ]
+      },
+      auth: {
+        login: 'تسجيل الدخول',
+        signUp: 'إنشاء حساب'
+      },
+      language: {
+        label: 'اللغة',
+        en: 'English',
+        fr: 'French',
+        ar: 'العربية'
+      },
+      userMenu: {
+        myProfile: 'ملفي الشخصي',
+        businessProfile: 'ملف الشركة',
+        myEvents: 'فعالياتي',
+        myB2bArea: 'منطقة B2B الخاصة بي',
+        myNetworking: 'شبكة علاقاتي',
+        messages: 'الرسائل',
+        viewMessages: 'عرض الرسائل',
+        logout: 'تسجيل الخروج'
+      },
+      placeholders: {
+        userName: 'مستخدم',
+        userEmail: 'user@example.com'
+      }
+    },
+    networking: {
+      common: {
+        tbd: 'يحدد لاحقاً'
+      },
+      relative: {
+        justNow: 'الآن',
+        minute: 'منذ دقيقة',
+        minutes: 'منذ {count} دقائق',
+        hour: 'منذ ساعة',
+        hours: 'منذ {count} ساعات',
+        day: 'منذ يوم',
+        days: 'منذ {count} أيام'
+      }
+    },
+    landing: {
+      digest: {
+        tagline: 'مخصص لك',
+        title: 'ملخصك الأسبوعي',
+        subtitle: 'مجموعة من الفعاليات المختارة بناءً على اهتماماتك.',
+        viewAll: 'عرض جميع الفعاليات'
+      },
+      hero: {
+        title: 'أنشئ فعاليات لا تُنسى',
+        subtitle: 'منصة إدارة فعاليات احترافية موثوقة من الشركات في جميع أنحاء العالم',
+        primaryCta: 'إنشاء فعالية',
+        secondaryCta: 'شاهد العرض التجريبي',
+        trustLine: 'موثوق به من قبل أكثر من 10,000 منظم فعاليات',
+        logos: ['ACME Corp', 'TechStart', 'Innovate Co', 'GlobalEvents']
+      },
+      features: {
+        title: 'كل ما تحتاجه للنجاح',
+        subtitle: 'أدوات قوية لإدارة الفعاليات الاحترافية',
+        cta: 'تعلم المزيد',
+        items: [
+          {
+            title: 'استوديو التصميم',
+            description:
+              'أنشئ صفحات فعاليات جميلة بهويتك البصرية من خلال محرر السحب والإفلات البديهي. خصص كل التفاصيل لتناسب هوية علامتك التجارية.'
+          },
+          {
+            title: 'مركز التسجيل',
+            description:
+              'بسط عملية تسجيل الحضور من خلال نماذج ذكية، وتأكيدات تلقائية، ومعالجة دفع متكاملة لتسهيل عملية تسجيل الدخول.'
+          },
+          {
+            title: 'مجموعة التحليلات',
+            description:
+              'تتبع أداء الفعالية من خلال تحليلات الوقت الفعلي. راقب التسجيلات والتفاعل والعائد على الاستثمار باستخدام أدوات إعداد تقارير شاملة.'
+          }
+        ]
+      },
+      howItWorks: {
+        title: 'أنشئ فعالياتك في 4 خطوات بسيطة',
+        steps: [
+          {
+            title: 'إضافة التفاصيل',
+            description:
+              'أدخل معلومات فعاليتك، والتاريخ، والموقع، والتفاصيل الرئيسية للبدء بسرعة.'
+          },
+          {
+            title: 'تصميم الصفحة',
+            description:
+              'خصص صفحة فعاليتك باستخدام أداة بناء الصفحات والقوالب الجاهزة.'
+          },
+          {
+            title: 'إعداد التسجيل',
+            description:
+              'قم بتهيئة التذاكر والأسعار ونماذج التسجيل لجمع معلومات الحضور.'
+          },
+          {
+            title: 'إطلاق الفعالية',
+            description:
+              'انشر فعاليتك وشاركها مع جمهورك. تتبع التسجيلات في الوقت الفعلي.'
+          }
+        ]
+      },
+      testimonials: {
+        title: 'محل ثقة المتخصصين في الفعاليات',
+        items: [
+          {
+            quote:
+              'حولت هذه المنصة طريقة إدارتنا للفعاليات. ساعدتنا الواجهة البديهية والميزات القوية في زيادة الحضور بنسبة 40% مع تقليل الوقت الإداري بشكل كبير.',
+            authorName: 'سارة جونسون',
+            authorTitle: 'رئيسة الفعاليات',
+            authorCompany: 'TechStart Inc.',
+            authorInitials: 'SJ'
+          },
+          {
+            quote:
+              'جعلت إيفينترا مؤتمرنا السنوي سلساً للغاية. من التسجيل إلى التحليلات، كل شيء سار بشكل مثالي. أحب حضورنا صفحات الفعاليات الاحترافية التي أنشأناها.',
+            authorName: 'مايكل تشن',
+            authorTitle: 'مدير التسويق',
+            authorCompany: 'Innovate Co.',
+            authorInitials: 'MC'
+          },
+          {
+            quote:
+              "أفضل منصة لإدارة الفعاليات استخدمناها على الإطلاق. خيارات التخصيص مذهلة، وفريق الدعم موجود دائماً عندما نحتاج إليه. نوصي بها بشدة!",
+            authorName: 'إميلي رودريغيز',
+            authorTitle: 'منسقة فعاليات',
+            authorCompany: 'Global Events Ltd.',
+            authorInitials: 'ER'
+          }
+        ]
+      },
+      finalCta: {
+        title: 'هل أنت مستعد لإنشاء فعاليتك الأولى؟',
+        subtitle: 'انضم إلى آلاف منظمي الفعاليات الذين يستخدمون إيفينترا',
+        button: 'ابدأ مجاناً'
+      },
+      footer: {
+        description: 'منصة احترافية لإدارة الفعاليات للشركات في جميع أنحاء العالم',
+        product: {
+          title: 'المنتج',
+          items: ['الميزات', 'الأسعار', 'القوالب', 'التكاملات']
+        },
+        company: {
+          title: 'الشركة',
+          items: ['عن الشركة', 'المدونة', 'الوظائف', 'اتصل بنا']
+        },
+        newsletter: {
+          title: 'ابقَ على اطلاع',
+          subtitle: 'احصل على آخر الأخبار والتحديثات',
+          placeholder: 'بريدك الإلكتروني'
+        },
+        legal: {
+          copyright: '© 2024 إيفينترا. جميع الحقوق محفوظة.',
+          privacyPolicy: 'سياسة الخصوصية',
+          terms: 'شروط الخدمة'
+        }
+      }
+    },
+    auth: {
+      registrationEntry: {
+        title: 'أنشئ حسابك',
+        subtitle: 'انضم إلى إيفينترا للتسجيل في الفعاليات والتواصل مع المحترفين',
+        continueWithGoogle: 'المتابعة باستخدام جوجل',
+        continueWithEmail: 'المتابعة باستخدام البريد الإلكتروني',
+        divider: 'أو',
+        alreadyAccount: 'لديك حساب بالفعل؟',
+        login: 'تسجيل الدخول',
+        errors: {
+          googleSignupFailed: 'فشل بدء التسجيل باستخدام جوجل',
+          accountExists: 'الحساب موجود بالفعل. يرجى تسجيل الدخول.',
+          accountExistsReset: 'الحساب موجود بالفعل. يرجى تسجيل الدخول أو إعادة تعيين كلمة المرور.',
+          resendFailed: 'تعذر إعادة إرسال بريد التأكيد الإلكتروني.',
+          registrationIncomplete: 'التسجيل غير مكتمل. يرجى المحاولة مرة أخرى.',
+          registrationFailed: 'فشل التسجيل',
+          signInToComplete: 'يرجى تسجيل الدخول لإكمال ملفك الشخصي.',
+          saveProfileFailed: 'فشل حفظ الملف الشخصي',
+          signInToContinue: 'يرجى تسجيل الدخول للمتابعة.'
+        }
+      },
+      login: {
+        title: 'مرحباً بعودتك',
+        subtitle: 'تسجيل الدخول إلى حساب إيفينترا الخاص بك',
+        continueWithGoogle: 'المتابعة باستخدام جوجل',
+        divider: 'أو',
+        emailLabel: 'البريد الإلكتروني',
+        emailPlaceholder: 'you@example.com',
+        passwordLabel: 'كلمة المرور',
+        passwordPlaceholder: 'أدخل كلمة المرور الخاصة بك',
+        rememberMe: 'تذكرني',
+        forgotPassword: 'هل نسيت كلمة المرور؟',
+        submit: 'تسجيل الدخول',
+        loggingIn: 'جاري تسجيل الدخول...', 
+        newToEventra: 'جديد على إيفينترا؟',
+        signUp: 'أنشئ حساباً',
+        errors: {
+          invalidCredentials: 'البريد الإلكتروني أو كلمة المرور غير صالحة. يرجى المحاولة مرة أخرى.',
+          googleInitFailed: 'فشل تهيئة تسجيل الدخول باستخدام جوجل'
+        }
+      }
+    },
+    dashboard: {
+      breadcrumb: {
+        home: 'الرئيسية',
+        current: 'فعالياتي'
+      },
+      header: {
+        title: 'فعالياتي',
+        subtitle: 'إدارة وتتبع محفظة فعالياتك',
+        initializing: 'جاري التهيئة...', 
+        create: 'إنشاء فعالية'
+      },
+      stats: {
+        totalEvents: 'إجمالي الفعاليات',
+        totalAttendees: 'إجمالي الحضور',
+        activeEvents: 'الفعاليات النشطة',
+        revenue: 'الإيرادات',
+        trendSuffix: 'من الشهر الماضي'
+      },
+      filters: {
+        tabs: {
+          all: 'جميع الفعاليات',
+          live: 'مباشر',
+          draft: 'مسودة',
+          archived: 'مؤرشف'
+        },
+        searchPlaceholder: 'البحث في الفعاليات...', 
+        sortLabel: 'ترتيب حسب: {option}',
+        sortOptions: {
+          recent: 'الأحدث',
+          oldest: 'الأقدم'
+        }
+      },
+      event: {
+        typeFallback: 'فعالية',
+        noDate: 'لم يتم تحديد تاريخ',
+        locationTbd: 'يحدد لاحقاً',
+        copyName: '{name} (نسخة)'
+      },
+      status: {
+        live: 'مباشر',
+        draft: 'مسودة',
+        upcoming: 'قادم',
+        archived: 'مؤرشف'
+      },
+      card: {
+        registered: 'تم تسجيل {count}',
+        views: '{count} مشاهدة',
+        sold: 'تم بيع {percent}%',
+        pro: 'برو',
+        edit: 'تعديل',
+        duplicate: 'تكرار',
+        more: 'المزيد من الإجراءات'
+      },
+      empty: {
+        create: 'إنشاء فعالية جديدة',
+        waiting: 'يرجى الانتظار لحظة',
+        subtitle: 'ابدأ في بناء فعاليتك القادمة'
+      }
+    },
+    manageEvent: {
+      loading: 'جاري تحميل الفعالية...', 
+      notFound: {
+        title: 'الفعالية غير موجودة',
+        return: 'العودة إلى لوحة التحكم'
+      },
+      header: {
+        viewLive: 'عرض الموقع المباشر',
+        editDetails: 'تعديل التفاصيل',
+        tbd: 'يحدد لاحقاً',
+        noDate: 'لم يتم تحديد تاريخ'
+      },
+      nav: {
+        overview: { label: 'نظرة عامة', desc: 'ملخص الفعالية' },
+        agenda: { label: 'الأجندة', desc: 'إدارة الجلسات' },
+        speakers: { label: 'المتحدثون', desc: 'إدارة الملفات الشخصية' },
+        attendees: { label: 'الحضور', desc: 'إدارة التسجيلات' },
+        exhibitors: { label: 'العارضون', desc: 'إدارة الأجنحة' },
+        ticketing: { label: 'التذاكر', desc: 'إدارة الأسعار' },
+        b2b: { label: 'B2B', desc: 'التواصل' },
+        marketing: { label: 'التسويق', desc: 'أدوات ترويجية' },
+        dayof: { label: 'يوم الفعالية', desc: 'QR والدخول' },
+        reporting: { label: 'التقارير', desc: 'التحليلات' }
+      },
+      overview: {
+        header: {
+          title: 'نظرة عامة على الفعالية',
+          subtitle: 'راقب أداء فعاليتك والمقاييس الرئيسية'
+        },
+        metrics: {
+          registrations: {
+            label: 'إجمالي التسجيلات',
+            active: 'نشط',
+            none: 'لا توجد تسجيلات بعد'
+          },
+          revenue: {
+            label: 'الإيرادات',
+            fromSales: 'من مبيعات التذاكر',
+            none: 'لا توجد إيرادات بعد'
+          },
+          ticketsSold: {
+            label: 'التذاكر المباعة',
+            capacity: '{percent}% من السعة',
+            noCapacity: 'لا يوجد حد للسعة'
+          },
+          avgPrice: {
+            label: 'متوسط سعر التذكرة',
+            acrossTypes: 'عبر أنواع التذاكر',
+            setPrice: 'تحديد أسعار التذاكر'
+          }
+        }
+      }
+    },
+    networking: {
+      title: 'مركز التواصل',
+      subtitle: 'إدارة اجتماعاتك واتصالاتك.',
+      stats: {
+        meetingsToday: 'اجتماعات اليوم',
+        newRequests: 'طلبات جديدة',
+        newMatches: 'مطابقات ذكاء اصطناعي جديدة'
+      },
+      tabs: {
+        schedule: 'جدولي',
+        matches: 'مطابقات ذكية',
+        requests: 'الطلبات',
+        connections: 'اتصالاتي'
+      },
+      filters: {
+        allEvents: 'جميع الفعاليات',
+        showPastMeetings: 'عرض الاجتماعات السابقة'
+      },
+      common: {
+        tbd: 'يحدد لاحقاً'
+      },
+      relative: {
+        justNow: 'الآن',
+        minute: 'منذ دقيقة',
+        minutes: 'منذ {count} دقائق',
+        hour: 'منذ ساعة',
+        hours: 'منذ {count} ساعات',
+        day: 'منذ يوم',
+        days: 'منذ {count} أيام'
+      },
+      defaults: {
+        unknownUser: 'مستخدم غير معروف',
+        professional: 'محترف',
+        event: 'فعالية',
+        generalNetworking: 'تواصل عام',
+        networkingMeeting: 'اجتماع تواصل',
+        onSite: 'في الموقع',
+        inPerson: 'حضورياً',
+        unknownCountry: 'غير معروف',
+        user: 'مستخدم',
+        someone: 'شخص ما'
+      },
+      matches: {
+        reasonFallback: 'بناءً على ملفك الشخصي واهتماماتك',
+        subtitle: 'توصيات مدعومة بالذكاء الاصطناعي بناءً على ملفك الشخصي واهتماماتك وأهداف التواصل الخاصة بك.',
+        requestedByThem: 'مطلوب من قبلهم'
+      },
+      requests: {
+        defaultMessage: "لنبدأ التواصل ونستكشف الفرص المتاحة.",
+        receivedTitle: 'الطلبات الواردة ({count})',
+        sentTitle: 'الطلبات المرسلة ({count})',
+        noPending: 'لا توجد طلبات معلقة'
+      },
+      actions: {
+        joinCall: 'انضم للمكالمة',
+        confirm: 'تأكيد',
+        decline: 'رفض',
+        cancel: 'إلغاء',
+        viewProfile: 'عرض الملف الشخصي',
+        connect: 'تواصل',
+        reschedule: 'إعادة جدولة',
+        scheduleMeeting: 'جدولة اجتماع',
+        accept: 'قبول',
+        withdraw: 'سحب الطلب',
+        message: 'رسالة'
+      },
+      status: {
+        confirmed: 'مؤكد',
+        pending: 'قيد الانتظار',
+        cancelled: 'ملغي',
+        connected: 'متصل',
+        requestClosed: 'الطلب مغلق',
+        requestSent: 'تم إرسال الطلب'
+      },
+      labels: {
+        event: 'الفعالية: {event}'
+      },
+      connections: {
+        total: '{count} إجمالي الاتصالات',
+        connectedOn: 'تاريخ الاتصال: {date}'
+      },
+      meetings: {
+        videoCall: 'مكالمة فيديو',
+        types: {
+          online: 'أونلاين',
+          inPerson: 'حضورياً',
+          hybrid: 'هجين'
+        }
+      },
+      toasts: {
+        meetingRescheduled: 'تمت إعادة جدولة الاجتماع',
+        meetingRequested: 'تم طلب الاجتماع',
+        meetingCancelled: 'تم إلغاء الاجتماع',
+        meetingConfirmed: 'تم تأكيد الاجتماع',
+        meetingDeclined: 'تم رفض الاجتماع',
+        requestSent: 'تم إرسال الطلب'
+      }
+    },
+    messages: {
+      title: 'الرسائل',
+      tabs: {
+        chats: 'سجل المحادثات',
+        suggestions: 'اقتراحات'
+      },
+      search: {
+        conversations: 'البحث في المحادثات...'
+      },
+      loading: {
+        conversations: 'جاري تحميل المحادثات...',
+        suggestions: 'جاري تحميل الاقتراحات...',
+        messages: 'جاري تحميل الرسائل...'
+      },
+      empty: {
+        conversations: 'لا توجد محادثات بعد.',
+        suggestions: 'لا توجد اقتراحات بعد.',
+        selectConversation: 'اختر محادثة لبدء المراسلة',
+        lastMessage: 'لا توجد رسائل بعد.',
+        startConversation: 'بدء محادثة'
+      },
+      actions: {
+        start: 'ابدأ',
+        viewProfile: 'عرض الملف الشخصي'
+      },
+      composer: {
+        placeholder: 'اكتب رسالة...'
+      },
+      dateDivider: 'اليوم، {date}',
+      newMessage: {
+        title: 'رسالة جديدة',
+        searchPlaceholder: 'إلى: ابحث عن الاسم أو الشركة...',
+        startTyping: 'ابدأ الكتابة للبحث عن الأشخاص'
+      }
+    },
+    profile: {
+      header: {
+        title: 'ملفي الشخصي',
+        subtitle: 'إدارة معلوماتك الشخصية وملف التواصل الخاص بك',
+        preview: 'معاينة الملف الشخصي العام',
+        save: 'حفظ التغييرات'
+      },
+      card: {
+        changePhoto: 'تغيير الصورة',
+        memberSince: 'عضو منذ {date}',
+        profileCompletion: 'إكمال الملف الشخصي',
+        completion: 'تم إكمال {percent}%',
+        addLinkedInHint: 'أضف لينكد إن للوصول إلى {percent}%',
+        social: {
+          linkedin: 'لينكد إن',
+          twitter: 'تويتر',
+          website: 'الموقع الإلكتروني'
+        },
+        connected: 'متصل',
+        connect: 'اتصال',
+        edit: 'تعديل',
+        add: 'إضافة'
+      },
+      stats: {
+        title: 'إحصائيات النشاط',
+        eventsAttended: 'الفعاليات التي حضرتها',
+        b2bMeetings: 'اجتماعات B2B',
+        connectionsMade: 'الاتصالات التي تمت',
+        profileViews: 'مشاهدات الملف الشخصي'
+      },
+      tabs: {
+        basic: 'المعلومات الأساسية',
+        professional: 'التفاصيل المهنية',
+        b2b: 'تواصل B2B',
+        preferences: 'التفضيلات'
+      },
+      sections: {
+        personal: {
+          title: 'المعلومات الشخصية',
+          firstName: 'الاسم الأول',
+          lastName: 'اسم العائلة',
+          email: 'البريد الإلكتروني',
+          phone: 'رقم الهاتف',
+          location: 'الموقع',
+          timezone: 'المنطقة الزمنية'
+        },
+        professional: {
+          title: 'المعلومات المهنية',
+          jobTitle: 'المسمى الوظيفي الحالي',
+          company: 'الشركة / المؤسسة',
+          industry: 'الصناعة',
+          department: 'القسم',
+          yearsExperience: 'سنوات الخبرة',
+          companySize: 'حجم الشركة'
+        }
+      },
+      options: {
+        industryOtherValue: 'آخر',
+        gender: [
+          { value: 'male', label: 'ذكر' },
+          { value: 'female', label: 'أنثى' },
+          { value: 'non-binary', label: 'غير ثنائي' },
+          { value: 'prefer-not-to-say', label: 'أفضل عدم الذكر' },
+          { value: 'custom', label: 'مخصص' }
+        ],
+        industries: [
+          { value: 'Technology & Software', label: 'التكنولوجيا والبرمجيات' },
+          { value: 'Financial Services & Banking', label: 'الخدمات المالية والبنوك' },
+          { value: 'Healthcare & Pharmaceuticals', label: 'الرعاية الصحية والأدوية' },
+          { value: 'Manufacturing & Production', label: 'التصنيع والإنتاج' },
+          { value: 'Retail & E-commerce', label: 'التجزئة والتجارة الإلكترونية' },
+          { value: 'Consulting & Professional Services', label: 'الاستشارات والخدمات المهنية' },
+          { value: 'Education & Training', label: 'التعليم والتدريب' },
+          { value: 'Media & Entertainment', label: 'الإعلام والترفيه' },
+          { value: 'Transportation & Logistics', label: 'النقل والخدمات اللوجستية' },
+          { value: 'Energy & Utilities', label: 'الطاقة والمرافق' },
+          { value: 'Real Estate & Construction', label: 'العقارات والإنشاءات' },
+          { value: 'Hospitality & Tourism', label: 'الضيافة والسياحة' },
+          { value: 'Telecommunications', label: 'الاتصالات' },
+          { value: 'Agriculture & Food Production', label: 'الزراعة وإنتاج الغذاء' },
+          { value: 'Automotive', label: 'السيارات' },
+          { value: 'Aerospace & Defense', label: 'الفضاء والدفاع' },
+          { value: 'Legal Services', label: 'الخدمات القانونية' },
+          { value: 'Marketing & Advertising', label: 'التسويق والإعلان' },
+          { value: 'Non-Profit & NGO', label: 'المنظمات غير الربحية' },
+          { value: 'Government & Public Sector', label: 'الحكومة والقطاع العام' },
+          { value: 'Business enabling organisation', label: 'منظمة تمكين الأعمال' },
+          { value: 'Other', label: 'آخر' }
+        ],
+        companySizes: [
+          { value: '1-10', label: '1-10 موظفين' },
+          { value: '11-50', label: '11-50 موظفاً' },
+          { value: '51-200', label: '51-200 موظفاً' },
+          { value: '201-500', label: '201-500 موظفاً' },
+          { value: '501-1000', label: '501-1000 موظفاً' },
+          { value: '1000+', label: '+1000 موظف' }
+        ],
+        meetingGoals: [
+          { value: 'Find potential clients/customers', label: 'البحث عن عملاء محتملين', checked: true },
+          { value: 'Explore partnership opportunities', label: 'استكشاف فرص الشراكة', checked: true },
+          { value: 'Investment/Funding', label: 'الاستثمار / التمويل', checked: false },
+          { value: 'Learn from industry experts', label: 'التعلم من خبراء الصناعة', checked: true },
+          { value: 'Hire talent', label: 'توظيف المواهب', checked: false },
+          { value: 'Share knowledge/expertise', label: 'مشاركة المعرفة / الخبرة', checked: true },
+          { value: 'Other (specify)', label: 'آخر (حدد)', checked: false }
+        ],
+        companyStages: [
+          { value: 'Startup (Seed stage)', label: 'شركة ناشئة (مرحلة التأسيس)', checked: true },
+          { value: 'Early stage (Series A/B)', label: 'مرحلة مبكرة (الفئة أ/ب)', checked: true },
+          { value: 'Growth stage (Series C+)', label: 'مرحلة النمو (الفئة ج+)', checked: false },
+          { value: 'Enterprise', label: 'مؤسسة كبيرة', checked: true }
+        ],
+        availability: [
+          { value: 'Always open to meeting requests', label: 'متاح دائماً لطلبات الاجتماعات', checked: true },
+          { value: "Only at events I'm attending", label: 'فقط في الفعاليات التي أحضرها' },
+          { value: 'Not currently accepting meetings', label: 'لا أقبل الاجتماعات حالياً' }
+        ],
+        meetingFormats: [
+          { value: 'In-person', label: 'حضورياً', checked: true },
+          { value: 'Virtual (video call)', label: 'افتراضياً (مكالمة فيديو)', checked: true },
+          { value: 'Phone call', label: 'مكالمة هاتفية', checked: false }
+        ],
+        meetingDurations: [
+          { value: '15 minutes', label: '15 دقيقة' },
+          { value: '30 minutes', label: '30 دقيقة', checked: true },
+          { value: '45 minutes', label: '45 دقيقة' },
+          { value: '60 minutes', label: '60 دقيقة' }
+        ]
+      }
+    },
+    profileSetup: {
+      step1: {
+        title: 'أكمل ملفك الشخصي',
+        subtitle: 'فقط بعض التفاصيل لتخصيص تجربتك'
+      },
+      labels: {
+        firstName: 'الاسم الأول',
+        lastName: 'اسم العائلة',
+        phoneNumber: 'رقم الهاتف',
+        country: 'البلد',
+        jobTitle: 'المسمى الوظيفي',
+        company: 'الشركة / المؤسسة',
+        industry: 'الصناعة'
+      },
+      buttons: {
+        back: 'رجوع',
+        continue: 'متابعة',
+        completeProfile: 'إكمال الملف الشخصي',
+        skip: 'تخطي الآن'
+      },
+      industries: [
+        'التكنولوجيا والبرمجيات',
+        'الخدمات المالية والبنوك',
+        'الرعاية الصحية والأدوية',
+        'التصنيع والإنتاج',
+        'التجزئة والتجارة الإلكترونية',
+        'الاستشارات والخدمات المهنية',
+        'التعليم والتدريب',
+        'الإعلام والترفيه',
+        'النقل والخدمات اللوجستية',
+        'الطاقة والمرافق',
+        'العقارات والإنشاءات',
+        'الضيافة والسياحة',
+        'الاتصالات',
+        'الزراعة وإنتاج الغذاء',
+        'السيارات',
+        'الفضاء والدفاع',
+        'الخدمات القانونية',
+        'التسويق والإعلان',
+        'المنظمات غير الربحية',
+        'الحكومة والقطاع العام',
+        'منظمة تمكين الأعمال',
+        'آخر'
+      ],
+      yearsOfExperience: [
+        '0-1 سنة',
+        '1-3 سنوات',
+        '3-5 سنوات',
+        '5-10 سنوات',
+        '10-15 سنة',
+        '+15 سنة'
+      ],
+      companySizes: [
+        '1-10 موظفين',
+        '11-50 موظفاً',
+        '51-200 موظفاً',
+        '201-500 موظفاً',
+        '501-1000 موظفاً',
+        '+1000 موظف'
+      ]
+    },
+    businessProfilePage: {
+      manageButton: 'إدارة العمل',
+      verified: 'عمل موثق',
+      about: 'عن الشركة',
+      stats: {
+        memberSince: 'عضو منذ {year}'
+      },
+      offerings: {
+        title: 'عروضنا'
+      },
+      contact: {
+        title: 'معلومات الاتصال'
+      }
+    }
   }
 }as any; 
-

@@ -40,6 +40,7 @@ import PricingPage from './pages/33_Pricing';
 import FreightCalculatorPage from './pages/35_Freight_Calculator';
 import LoadCalculatorPage from './pages/36_Load_Calculator';
 import ContainerShippingCostsPage from './pages/37_Container_Shipping_Costs';
+import SponsorshipInquiryPage from './pages/38_Sponsorship_Inquiry_Page';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminRoute from './components/auth/AdminRoute';
 import { useEventWizard } from './hooks/useEventWizard';
@@ -93,6 +94,10 @@ export default function App() {
             <Route path="/event/:eventId/landing" element={<SingleEventLandingPage />} />
             <Route path="/event/:eventId/agenda" element={<EventSectionPage type="agenda" />} />
             <Route path="/event/:eventId/speakers" element={<EventSectionPage type="speakers" />} />
+            <Route path="/event/:eventId/sponsors" element={<EventSectionPage type="sponsors" />} />
+            <Route path="/event/:eventId/packages" element={<EventSectionPage type="packages" />} />
+            <Route path="/event/:eventId/tickets" element={<EventSectionPage type="tickets" />} />
+            <Route path="/event/:eventId/sponsor-inquiry/:packageId" element={<SponsorshipInquiryPage />} />
             <Route path="/event/:eventId/exhibitors" element={<EventSectionPage type="exhibitors" />} />
             <Route path="/event/:eventId/attendees" element={<EventSectionPage type="attendees" />} />
             <Route path="/event/:eventId/register" element={<EventRegistrationFlow />} />

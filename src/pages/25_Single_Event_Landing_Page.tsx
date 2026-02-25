@@ -35,23 +35,6 @@ export default function SingleEventLandingPage() {
 
   return (
     <>
-      {/* Dynamic Navigation */}
-      {user ? (
-        <NavbarLoggedIn 
-          userName={profile?.full_name || user.user_metadata?.full_name || t('nav.placeholders.userName')}
-          userEmail={user.email}
-          hasUnreadNotifications={true}
-          onLogout={handleLogout}
-        />
-      ) : (
-        <NavbarLoggedOut 
-          onSignUpClick={() => setShowRegistrationModal(true)}
-          onLoginClick={() => setShowLoginModal(true)}
-        />
-      )}
-      
-      <div style={{ height: '72px' }} /> {/* Space for fixed navbar */}
-      
       <DesignStudioLanding onRegisterRequest={() => setShowLoginModal(true)} />
 
       {/* Auth Modals */}

@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner@2.0.3';
 import { createNotification } from '../../lib/notifications';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface BookMeetingModalProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ interface BookMeetingModalProps {
 const MEETINGS_TABLE = 'event_b2b_meetings';
 
 export default function BookMeetingModal({ isOpen, onClose, currentUser, recipient, existingMeeting, eventId }: BookMeetingModalProps) {
+  const { t } = useI18n();
   const [meetingType, setMeetingType] = useState<'video' | 'in-person' | 'hybrid' | ''>('');
   const [meetingDate, setMeetingDate] = useState('');
   const [meetingTime, setMeetingTime] = useState('');
@@ -134,23 +136,38 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
       
       const { data: existing } = await supabase
         .from('event_b2b_meetings')
-        .select('start_at, location')
+        .select('id, start_at, location, profile_a_id, profile_b_id, status')
         .eq('event_id', eventId)
-        .eq('status', 'confirmed') 
+        .in('status', ['confirmed', 'pending']) 
         .gte('start_at', `${dateStr}T00:00:00`)
         .lt('start_at', nextDay.toISOString().split('T')[0] + 'T00:00:00');
 
       const counts: Record<string, number> = {};
       const occupiedTables: Record<string, Set<number>> = {}; 
+      const participantConflicts: Record<string, boolean> = {};
 
       (existing || []).forEach((m: any) => {
         const key = new Date(m.start_at).toISOString();
+        
+        // 1. Table availability tracking
         counts[key] = (counts[key] || 0) + 1;
         if (m.location) {
           const match = m.location.match(/(\d+)$/);
           if (match) {
             if (!occupiedTables[key]) occupiedTables[key] = new Set();
             occupiedTables[key].add(parseInt(match[1]));
+          }
+        }
+
+        // 2. Participant conflict tracking
+        // If either the current user or the recipient is in this meeting
+        const isMe = m.profile_a_id === currentUser.id || m.profile_b_id === currentUser.id;
+        const isThem = m.profile_a_id === recipient.id || m.profile_b_id === recipient.id;
+        
+        if (isMe || isThem) {
+          // Exception: If we are editing/rescheduling the SAME meeting, it shouldn't block itself
+          if (!meetingEditId || m.id !== meetingEditId) {
+            participantConflicts[key] = true;
           }
         }
       });
@@ -165,6 +182,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
         while (current < end) {
           const slotIso = current.toISOString();
           const booked = counts[slotIso] || 0;
+          const isConflicted = participantConflicts[slotIso] || false;
           const availableCount = tables - booked;
           
           const occupied = occupiedTables[slotIso] || new Set();
@@ -184,7 +202,8 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
           allSlots.push({
             time: current.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             iso: slotIso,
-            available: availableCount,
+            available: isConflicted ? 0 : availableCount, // Force 0 if user is busy
+            isConflicted,
             total: tables,
             nextTable: availableTables[0]
           });
@@ -241,6 +260,36 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
         return;
     }
 
+    // Final conflict check before submission
+    try {
+        const { data: conflicts } = await supabase
+            .from(MEETINGS_TABLE)
+            .select('id, status, profile_a_id, profile_b_id')
+            .eq('event_id', targetEventId)
+            .in('status', ['confirmed', 'pending'])
+            .eq('start_at', startAt.toISOString())
+            .or(`profile_a_id.eq.${currentUser.id},profile_b_id.eq.${currentUser.id},profile_a_id.eq.${recipient.id},profile_b_id.eq.${recipient.id}`);
+
+        // Filter out the current meeting if we are editing
+        const realConflicts = (conflicts || []).filter(c => c.id !== meetingEditId);
+
+        if (realConflicts.length > 0) {
+            const isSamePair = realConflicts.some(c => 
+                (c.profile_a_id === currentUser.id && c.profile_b_id === recipient.id) ||
+                (c.profile_a_id === recipient.id && c.profile_b_id === currentUser.id)
+            );
+
+            if (isSamePair) {
+                toast.error('You already have a pending or confirmed meeting request with this person at this time.');
+            } else {
+                toast.error('One or both participants already have a scheduled meeting at this time.');
+            }
+            return;
+        }
+    } catch (e) {
+        console.warn('Conflict check failed, proceeding anyway:', e);
+    }
+
     try {
         const [resA, resB] = await Promise.all([
             supabase.from('event_attendees').select('id').eq('event_id', targetEventId).eq('profile_id', currentUser.id).single(),
@@ -256,11 +305,14 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
         const payload = {
           attendee_a_id: resA.data.id,
           attendee_b_id: resB.data.id,
+          profile_a_id: currentUser.id,
+          profile_b_id: recipient.id,
+          organizer_id: currentUser.id,
           event_id: targetEventId,
           start_at: startAt.toISOString(),
           end_at: endAt.toISOString(),
           location,
-          status: 'confirmed',
+          status: 'pending',
           meta: {
             meeting_type: meetingType === 'video' ? 'video' : 'in-person',
             meeting_format: meetingType,
@@ -281,8 +333,12 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
             await createNotification({
             recipient_id: recipient.id,
             type: 'action',
-            title: meetingEditId ? 'Meeting rescheduled' : 'Meeting requested',
-            body: `${currentUser.full_name || currentUser.email} ${meetingEditId ? 'rescheduled' : 'scheduled'} a meeting with you.`,
+            title: meetingEditId 
+              ? t('networking.notifications.meetingRescheduled.title', 'Meeting rescheduled') 
+              : t('networking.notifications.meetingRequested.title', 'Meeting requested'),
+            body: meetingEditId
+              ? t('networking.notifications.meetingRescheduled.body', { name: currentUser.full_name || currentUser.email })
+              : t('networking.notifications.meetingRequested.body', { name: currentUser.full_name || currentUser.email }),
             action_url: '/my-networking',
             actor_id: currentUser.id
             });
@@ -360,7 +416,9 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
 
         <div className="px-6 py-5 overflow-y-auto custom-scrollbar" style={{ flex: 1 }}>
           <div className="mb-5">
-            <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '10px' }}>Meeting Type</p>
+            <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '10px' }}>
+              Meeting Type {meetingEditId && <span style={{ fontSize: '11px', fontStyle: 'italic', color: '#F59E0B', marginLeft: '8px' }}>(Format locked for reschedule)</span>}
+            </p>
             <div className="flex flex-wrap items-center gap-2">
               {[
                 { id: 'video', label: 'Online' },
@@ -369,6 +427,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
               ].map((option) => (
                 <button
                   key={option.id}
+                  disabled={meetingEditId ? true : false}
                   onClick={() => setMeetingType(option.id as any)}
                   className="px-4 py-2 rounded-lg transition-colors flex-1 min-w-[100px]"
                   style={{
@@ -376,7 +435,9 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
                     color: meetingType === option.id ? '#FFFFFF' : '#94A3B8',
                     fontSize: '13px',
                     fontWeight: 600,
-                    border: '1px solid rgba(255,255,255,0.15)'
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    cursor: meetingEditId ? 'not-allowed' : 'pointer',
+                    opacity: meetingEditId && meetingType !== option.id ? 0.5 : 1
                   }}
                 >
                   {option.label}
@@ -435,22 +496,29 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
                       {generatedSlots.map((slot, idx) => (
                         <button
                           key={idx}
-                          disabled={slot.available <= 0}
+                          disabled={slot.available <= 0 || slot.isConflicted}
                           onClick={() => setSelectedSlot(slot)}
                           style={{
                             padding: '10px 4px',
                             borderRadius: '8px',
-                            backgroundColor: selectedSlot?.iso === slot.iso ? '#0684F5' : slot.available > 0 ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)',
+                            backgroundColor: selectedSlot?.iso === slot.iso ? '#0684F5' : (slot.available > 0 && !slot.isConflicted) ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)',
                             border: selectedSlot?.iso === slot.iso ? 'none' : '1px solid rgba(255,255,255,0.1)',
-                            color: selectedSlot?.iso === slot.iso ? '#FFFFFF' : slot.available > 0 ? '#FFFFFF' : 'rgba(255,255,255,0.2)',
+                            color: selectedSlot?.iso === slot.iso ? '#FFFFFF' : (slot.available > 0 && !slot.isConflicted) ? '#FFFFFF' : 'rgba(255,255,255,0.2)',
                             fontSize: '12px',
                             fontWeight: 500,
-                            cursor: slot.available > 0 ? 'pointer' : 'not-allowed',
+                            cursor: (slot.available > 0 && !slot.isConflicted) ? 'pointer' : 'not-allowed',
                             position: 'relative'
                           }}
                         >
-                          {slot.time}
-                          {slot.available <= 3 && slot.available > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <span>{slot.time}</span>
+                            {slot.isConflicted && (
+                              <span style={{ fontSize: '9px', color: '#F59E0B', fontWeight: 700, marginTop: '2px' }}>
+                                BUSY
+                              </span>
+                            )}
+                          </div>
+                          {slot.available <= 3 && slot.available > 0 && !slot.isConflicted && (
                             <span style={{ position: 'absolute', top: -4, right: -4, fontSize: '8px', backgroundColor: '#F59E0B', color: '#000', padding: '1px 3px', borderRadius: '4px', fontWeight: 700 }}>
                               {slot.available}
                             </span>

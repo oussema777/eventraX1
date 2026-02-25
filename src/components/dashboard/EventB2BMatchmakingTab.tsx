@@ -850,7 +850,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
         start_at: startIso,
         end_at: endIso,
         location: createMeetingLocation || null,
-        status: 'confirmed',
+        status: 'pending',
         is_ai: !!selectedPair?.score,
         match_score: selectedPair?.score || null,
         meta: selectedPair?.breakdown ? { breakdown: selectedPair.breakdown, insights: selectedPair.insights, topics: selectedPair.topics, tags: selectedPair.tags || [] } : undefined
@@ -1168,7 +1168,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
         event_id: eventId,
         attendee_a_id: s.aId,
         attendee_b_id: s.bId,
-        status: 'confirmed',
+        status: 'pending',
         is_ai: true,
         match_score: s.score,
         meta: { 

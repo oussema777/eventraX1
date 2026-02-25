@@ -45,6 +45,7 @@ export default function SponsorsTab() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showFormPreviewModal, setShowFormPreviewModal] = useState(false);
   const [showPackagesModal, setShowPackagesModal] = useState(false);
+  const [editingPackage, setEditingPackage] = useState<SponsorPackage | null>(null);
   const [selectedSponsor, setSelectedSponsor] = useState<Sponsor | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
   const statusLabels: Record<string, string> = {
@@ -117,6 +118,12 @@ export default function SponsorsTab() {
           await deleteSponsor(id);
       }
   }
+
+  const handleSaveSinglePackage = async (updatedPkg: SponsorPackage) => {
+    const nextPackages = packages.map(p => p.id === updatedPkg.id ? updatedPkg : p);
+    await updatePackages(nextPackages);
+    setEditingPackage(null);
+  };
 
   if (isLoading) {
       return <div className="flex items-center justify-center h-64"><Loader2 className="animate-spin text-white" size={32} /></div>;
@@ -283,11 +290,42 @@ export default function SponsorsTab() {
                       backgroundColor: '#0684F5',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center'
+                      justifyContent: 'center',
+                      zIndex: 2
                     }}>
                       <Check size={14} style={{ color: '#FFFFFF' }} />
                     </div>
                   )}
+
+                  {/* Individual Edit Button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingPackage(pkg);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: isSelected ? '44px' : '12px',
+                      right: '12px',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '8px',
+                      backgroundColor: 'rgba(255,255,255,0.1)',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#FFFFFF',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      zIndex: 2
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
+                    title="Edit Package"
+                  >
+                    <Edit size={14} />
+                  </button>
                   
                   <div style={{ marginBottom: '12px' }}>
                     <div
@@ -645,6 +683,14 @@ export default function SponsorsTab() {
               updatePackages(updatedPackages);
               setShowPackagesModal(false);
             }}
+          />
+        )}
+
+        {editingPackage && (
+          <EditPackageModal
+            pkg={editingPackage}
+            onClose={() => setEditingPackage(null)}
+            onSave={handleSaveSinglePackage}
           />
         )}
       </div>
@@ -1144,6 +1190,270 @@ function SponsorFormPreviewModal({ onClose, onSend }: any) {
             >
             {t('wizard.step3.sponsors.formPreview.send')}
             </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Modal for editing a single package
+function EditPackageModal({ 
+  pkg, 
+  onClose, 
+  onSave 
+}: { 
+  pkg: SponsorPackage;
+  onClose: () => void;
+  onSave: (updatedPackage: SponsorPackage) => void;
+}) {
+  const { t } = useI18n();
+  const [formData, setFormData] = useState<SponsorPackage>({ ...pkg });
+  const [benefitInput, setBenefitInput] = useState('');
+
+  const handleAddBenefit = () => {
+    if (!benefitInput.trim()) return;
+    const existing = formData.benefits || [];
+    if (!existing.includes(benefitInput.trim())) {
+      setFormData({ ...formData, benefits: [...existing, benefitInput.trim()] });
+    }
+    setBenefitInput('');
+  };
+
+  const handleRemoveBenefit = (index: number) => {
+    setFormData({
+      ...formData,
+      benefits: formData.benefits.filter((_, i) => i !== index)
+    });
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+        padding: '20px'
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          width: 'min(600px, 92vw)',
+          backgroundColor: '#0B2641',
+          borderRadius: '12px',
+          padding: '24px',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          border: '1px solid rgba(255,255,255,0.1)',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.3)'
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '24px', color: '#FFFFFF', fontWeight: 600 }}>
+            {t('wizard.step3.sponsors.packages.editPackage', 'Customize Sponsorship Tier')}
+          </h2>
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }}
+          >
+            <X size={24} />
+          </button>
+        </div>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Name */}
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px' }}>
+              {t('wizard.step3.sponsors.packages.fields.name')}
+            </label>
+            <input 
+              type="text" 
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              style={{
+                width: '100%',
+                height: '44px',
+                padding: '0 16px',
+                backgroundColor: 'rgba(255,255,255,0.05)',
+                border: '1.5px solid rgba(255,255,255,0.2)',
+                borderRadius: '8px',
+                fontSize: '14px',
+                color: '#FFFFFF',
+                outline: 'none'
+              }}
+            />
+          </div>
+
+          {/* Value */}
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px' }}>
+              {t('wizard.step3.sponsors.packages.fields.value')}
+            </label>
+            <input 
+              type="number" 
+              value={formData.value}
+              onChange={(e) => setFormData({ ...formData, value: parseInt(e.target.value) || 0 })}
+              style={{
+                width: '100%',
+                height: '44px',
+                padding: '0 16px',
+                backgroundColor: 'rgba(255,255,255,0.05)',
+                border: '1.5px solid rgba(255,255,255,0.2)',
+                borderRadius: '8px',
+                fontSize: '14px',
+                color: '#FFFFFF',
+                outline: 'none'
+              }}
+            />
+          </div>
+
+          {/* Color */}
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px' }}>
+              {t('wizard.step3.sponsors.packages.fields.color')}
+            </label>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <input 
+                type="color" 
+                value={formData.color}
+                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                style={{
+                  width: '48px',
+                  height: '40px',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  backgroundColor: 'transparent'
+                }}
+              />
+              <input 
+                type="text" 
+                value={formData.color}
+                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                style={{
+                  flex: 1,
+                  height: '40px',
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  border: '1.5px solid rgba(255,255,255,0.2)',
+                  borderRadius: '8px',
+                  padding: '0 12px',
+                  fontSize: '14px',
+                  color: '#FFFFFF'
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Benefits */}
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px' }}>
+              {t('wizard.step3.sponsors.packages.fields.benefits')}
+            </label>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+              <input 
+                type="text" 
+                value={benefitInput}
+                onChange={(e) => setBenefitInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddBenefit()}
+                placeholder={t('wizard.step3.sponsors.packages.fields.benefitsPlaceholder')}
+                style={{
+                  flex: 1,
+                  height: '44px',
+                  padding: '0 16px',
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  border: '1.5px solid rgba(255,255,255,0.2)',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  color: '#FFFFFF',
+                  outline: 'none'
+                }}
+              />
+              <button 
+                onClick={handleAddBenefit}
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  backgroundColor: '#0684F5',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <Plus size={20} />
+              </button>
+            </div>
+            
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {formData.benefits.map((benefit, idx) => (
+                <div 
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    backgroundColor: 'rgba(255,255,255,0.1)',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    borderRadius: '20px',
+                    fontSize: '12px',
+                    color: '#FFFFFF'
+                  }}
+                >
+                  <span>{benefit}</span>
+                  <button 
+                    onClick={() => handleRemoveBenefit(idx)}
+                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', padding: 0 }}
+                  >
+                    <XCircle size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px' }}>
+          <button
+            onClick={onClose}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: 'transparent',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '8px',
+              color: '#FFFFFF',
+              fontSize: '14px',
+              cursor: 'pointer'
+            }}
+          >
+            {t('wizard.step3.sponsors.form.cancel')}
+          </button>
+          <button
+            onClick={() => onSave(formData)}
+            style={{
+              padding: '10px 24px',
+              backgroundColor: '#0684F5',
+              border: 'none',
+              borderRadius: '8px',
+              color: '#FFFFFF',
+              fontSize: '14px',
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+          >
+            {t('wizard.step3.sponsors.packages.savePackages', 'Save Changes')}
+          </button>
         </div>
       </div>
     </div>

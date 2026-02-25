@@ -47,15 +47,27 @@ import {
   ZoomOut,
   RotateCcw,
   ArrowUpDown,
+  TrendingUp,
   HelpCircle
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
-type TabMode = 'exhibitors' | 'sponsors';
+type TabMode = 'exhibitors' | 'sponsors' | 'inquiries';
 type ManagementMode = 'manual' | 'self-fill';
 type ViewMode = 'cards' | 'list' | 'booth-map';
 type ProfileStatus = 'complete' | 'incomplete' | 'pending';
 type SponsorTier = 'platinum' | 'gold' | 'silver' | 'bronze';
+
+interface SponsorshipInquiry {
+  id: string;
+  fullName: string;
+  companyName: string;
+  email: string;
+  message: string;
+  packageId: string;
+  status: 'new' | 'contacted' | 'closed';
+  createdAt: string;
+}
 
 interface Exhibitor {
   id: string;
@@ -120,6 +132,7 @@ export default function EventExhibitorsTab({ eventId }: { eventId: string }) {
 
   const [exhibitors, setExhibitors] = useState<Exhibitor[]>([]);
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
+  const [inquiries, setInquiries] = useState<SponsorshipInquiry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const fallbackLogo = 'https://upload.wikimedia.org/wikipedia/commons/6/65/No-Image-Placeholder.svg';
 
@@ -173,9 +186,14 @@ export default function EventExhibitorsTab({ eventId }: { eventId: string }) {
     if (!eventId) return;
     setIsLoading(true);
     try {
-      const [{ data: exData, error: exErr }, { data: spData, error: spErr }] = await Promise.all([
+      const [
+        { data: exData, error: exErr }, 
+        { data: spData, error: spErr },
+        { data: inqData, error: inqErr }
+      ] = await Promise.all([
         supabase.from('event_exhibitors').select('*').eq('event_id', eventId),
-        supabase.from('event_sponsors').select('*').eq('event_id', eventId)
+        supabase.from('event_sponsors').select('*').eq('event_id', eventId),
+        supabase.from('event_sponsorship_inquiries').select('*').eq('event_id', eventId).order('created_at', { ascending: false })
       ]);
       
       if (exErr) {
@@ -190,6 +208,23 @@ export default function EventExhibitorsTab({ eventId }: { eventId: string }) {
         toast.error('Failed to load sponsors: ' + spErr.message);
       } else {
         setSponsors((spData || []).map(mapSponsorRow));
+      }
+
+      if (inqErr) {
+        if (inqErr.code !== '42P01') { // Ignore missing table error for now
+          console.error('Error fetching inquiries:', inqErr);
+        }
+      } else {
+        setInquiries((inqData || []).map((row: any) => ({
+          id: row.id,
+          fullName: row.full_name,
+          companyName: row.company_name,
+          email: row.email,
+          message: row.message,
+          packageId: row.package_id,
+          status: row.status,
+          createdAt: row.created_at
+        })));
       }
     } catch (error: any) {
       console.error('Error refreshing data:', error);
@@ -342,6 +377,14 @@ export default function EventExhibitorsTab({ eventId }: { eventId: string }) {
         { label: t('manageEvent.exhibitors.stats.boothsAssigned'), value: stats.exhibitors.boothsAssigned, icon: MapPin, color: '#10B981', bg: 'rgba(16, 185, 129, 0.15)' },
         { label: t('manageEvent.exhibitors.stats.pendingSetup'), value: stats.exhibitors.pendingSetup, icon: Clock, color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.15)' },
         { label: t('manageEvent.exhibitors.stats.profilesComplete'), value: stats.exhibitors.profileComplete, icon: CheckCircle, color: '#A855F7', bg: 'rgba(168, 85, 247, 0.15)' }
+      ];
+    }
+    if (activeTab === 'inquiries') {
+      return [
+        { label: 'Total Inquiries', value: inquiries.length, icon: FileText, color: '#0684F5', bg: 'rgba(6, 132, 245, 0.15)' },
+        { label: 'New Leads', value: inquiries.filter(i => i.status === 'new').length, icon: Sparkles, color: '#10B981', bg: 'rgba(16, 185, 129, 0.15)' },
+        { label: 'Contacted', value: inquiries.filter(i => i.status === 'contacted').length, icon: MessageCircle, color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.15)' },
+        { label: 'Conversion Rate', value: inquiries.length > 0 ? `${Math.round((sponsors.length / (inquiries.length + sponsors.length)) * 100)}%` : '0%', icon: TrendingUp, color: '#A855F7', bg: 'rgba(168, 85, 247, 0.15)' }
       ];
     }
     return [
@@ -611,7 +654,8 @@ export default function EventExhibitorsTab({ eventId }: { eventId: string }) {
           >
             {[
               { id: 'exhibitors', label: t('manageEvent.exhibitors.tabs.exhibitors') },
-              { id: 'sponsors', label: t('manageEvent.exhibitors.tabs.sponsors') }
+              { id: 'sponsors', label: t('manageEvent.exhibitors.tabs.sponsors') },
+              { id: 'inquiries', label: 'Inquiries' }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -1046,6 +1090,9 @@ export default function EventExhibitorsTab({ eventId }: { eventId: string }) {
             ...(activeTab === 'exhibitors' ? [{ id: 'booth-map', icon: Map, label: t('manageEvent.exhibitors.viewModes.map') }] : [])
           ].map(view => {
             const Icon = view.icon;
+            // Inquiries only support list view for now
+            if (activeTab === 'inquiries' && view.id !== 'list') return null;
+            
             return (
               <button
                 key={view.id}
@@ -1054,7 +1101,7 @@ export default function EventExhibitorsTab({ eventId }: { eventId: string }) {
                 style={{
                   width: '36px',
                   height: '36px',
-                  backgroundColor: viewMode === view.id ? '#0684F5' : 'transparent',
+                  backgroundColor: viewMode === view.id || (activeTab === 'inquiries' && view.id === 'list') ? '#0684F5' : 'transparent',
                   border: 'none',
                   borderRadius: '6px',
                   display: 'flex',
@@ -1062,10 +1109,10 @@ export default function EventExhibitorsTab({ eventId }: { eventId: string }) {
                   justifyContent: 'center',
                   cursor: 'pointer',
                   transition: 'all 0.2s',
-                  ...(viewMode === view.id && { boxShadow: '0px 2px 4px rgba(6, 132, 245, 0.3)' })
+                  ...((viewMode === view.id || (activeTab === 'inquiries' && view.id === 'list')) && { boxShadow: '0px 2px 4px rgba(6, 132, 245, 0.3)' })
                 }}
               >
-                <Icon size={18} style={{ color: viewMode === view.id ? '#FFFFFF' : '#94A3B8' }} />
+                <Icon size={18} style={{ color: viewMode === view.id || (activeTab === 'inquiries' && view.id === 'list') ? '#FFFFFF' : '#94A3B8' }} />
               </button>
             );
           })}
@@ -1073,6 +1120,22 @@ export default function EventExhibitorsTab({ eventId }: { eventId: string }) {
       </div>
 
       {/* MAIN CONTENT */}
+      {activeTab === 'inquiries' && (
+        <InquiriesListView 
+          inquiries={inquiries} 
+          onUpdateStatus={async (id, status) => {
+            await supabase.from('event_sponsorship_inquiries').update({ status }).eq('id', id);
+            await refreshData();
+          }}
+          onDelete={async (id) => {
+            if (window.confirm('Delete this inquiry?')) {
+              await supabase.from('event_sponsorship_inquiries').delete().eq('id', id);
+              await refreshData();
+            }
+          }}
+        />
+      )}
+
       {viewMode === 'cards' && activeTab === 'exhibitors' && (
         <ExhibitorsCardsView
           exhibitors={filteredExhibitors}
@@ -4093,6 +4156,132 @@ function ShareLinkModal({ activeTab, onClose, getSelfFillLink, onCopyLink }: {
             {t('manageEvent.exhibitors.modals.share.actions.done')}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// --- NEW COMPONENT: INQUIRIES LIST VIEW ---
+function InquiriesListView({ inquiries, onUpdateStatus, onDelete }: {
+  inquiries: SponsorshipInquiry[];
+  onUpdateStatus: (id: string, status: 'new' | 'contacted' | 'closed') => void;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <div className="event-inquiries-list" style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden', animation: 'fadeIn 0.3s ease-out' }}>
+      <div className="overflow-x-auto">
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <th style={{ padding: '16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '1px' }}>Inquirer</th>
+              <th style={{ padding: '16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '1px' }}>Package</th>
+              <th style={{ padding: '16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '1px' }}>Date</th>
+              <th style={{ padding: '16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '1px' }}>Status</th>
+              <th style={{ padding: '16px', textAlign: 'center', fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '1px' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {inquiries.map((inq) => (
+              <tr key={inq.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background-color 0.2s' }}>
+                <td style={{ padding: '16px' }}>
+                  <div style={{ fontWeight: 600, color: '#FFFFFF', fontSize: '15px' }}>{inq.companyName}</div>
+                  <div style={{ fontSize: '13px', color: '#94A3B8', marginTop: '2px' }}>{inq.fullName} • {inq.email}</div>
+                  {inq.message && (
+                    <div style={{ 
+                      marginTop: '8px', 
+                      padding: '8px 12px', 
+                      backgroundColor: 'rgba(255,255,255,0.03)', 
+                      borderRadius: '8px', 
+                      fontSize: '12px', 
+                      color: '#64748B', 
+                      fontStyle: 'italic',
+                      borderLeft: '2px solid rgba(255,255,255,0.1)'
+                    }}>
+                      "{inq.message}"
+                    </div>
+                  )}
+                </td>
+                <td style={{ padding: '16px' }}>
+                  <span style={{ 
+                    padding: '4px 12px', 
+                    borderRadius: '100px', 
+                    backgroundColor: 'rgba(6, 132, 245, 0.15)', 
+                    color: '#0684F5', 
+                    fontSize: '11px', 
+                    fontWeight: 800, 
+                    textTransform: 'uppercase',
+                    border: '1px solid rgba(6, 132, 245, 0.3)'
+                  }}>
+                    {inq.packageId}
+                  </span>
+                </td>
+                <td style={{ padding: '16px', fontSize: '13px', color: '#94A3B8' }}>
+                  {new Date(inq.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                </td>
+                <td style={{ padding: '16px' }}>
+                  <select 
+                    value={inq.status}
+                    onChange={(e) => onUpdateStatus(inq.id, e.target.value as any)}
+                    style={{
+                      backgroundColor: 
+                        inq.status === 'new' ? 'rgba(16, 185, 129, 0.15)' : 
+                        inq.status === 'contacted' ? 'rgba(245, 158, 11, 0.15)' : 
+                        'rgba(255,255,255,0.08)',
+                      color: 
+                        inq.status === 'new' ? '#10B981' : 
+                        inq.status === 'contacted' ? '#F59E0B' : 
+                        '#94A3B8',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '8px',
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      outline: 'none'
+                    }}
+                  >
+                    <option value="new">New Lead</option>
+                    <option value="contacted">Contacted</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                </td>
+                <td style={{ padding: '16px', textAlign: 'center' }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+                    <button 
+                      onClick={() => window.location.href = `mailto:${inq.email}?subject=Sponsorship Inquiry - Eventra`}
+                      title="Send Email"
+                      style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: 'rgba(6, 132, 245, 0.1)', color: '#0684F5', border: '1px solid rgba(6, 132, 245, 0.2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.2)'}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.1)'}
+                    >
+                      <Mail size={18} />
+                    </button>
+                    <button 
+                      onClick={() => onDelete(inq.id)}
+                      title="Delete Inquiry"
+                      style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)'}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'}
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {inquiries.length === 0 && (
+              <tr>
+                <td colSpan={5} style={{ padding: '80px 40px', textAlign: 'center', color: '#94A3B8' }}>
+                  <div style={{ opacity: 0.3, marginBottom: '16px' }}>
+                    <FileText size={64} style={{ margin: '0 auto' }} />
+                  </div>
+                  <p style={{ fontSize: '16px', fontWeight: 500 }}>No sponsorship inquiries yet.</p>
+                  <p style={{ fontSize: '14px', marginTop: '4px' }}>When potential partners inquire about your packages, they will appear here.</p>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

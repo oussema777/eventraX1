@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import WizardSidebar from '../components/wizard/WizardSidebar';
 import BlockLibraryPanel from '../components/design-studio/BlockLibraryPanel';
@@ -61,6 +61,7 @@ interface ActiveBlock extends Block {
 export default function WizardStep2DesignStudio() {
   const navigate = useNavigate();
   const { eventId } = useParams();
+  const [searchParams] = useSearchParams();
   const { user, signOut } = useAuth();
   const { eventData, saveDraft, isSaving: isEventSaving } = useEventWizard(eventId);
   const { speakers } = useSpeakers();
@@ -71,7 +72,7 @@ export default function WizardStep2DesignStudio() {
   const { isPro } = usePlan();
   const { t } = useI18n();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [completedSteps, setCompletedSteps] = useState<(1 | 2 | 3 | 4)[]>([]);
+  const [completedSteps, setCompletedSteps] = useState<(1 | 2 | 3 | 4 | string)[]>([]);
   const [activeBlocks, setActiveBlocks] = useState<ActiveBlock[]>([]);
   const [brandColor, setBrandColor] = useState('#635BFF');
   const [brandColorSecondary, setBrandColorSecondary] = useState('#7C75FF');
@@ -82,6 +83,10 @@ export default function WizardStep2DesignStudio() {
   const [isLogoUploading, setIsLogoUploading] = useState(false);
   const [isNarrow, setIsNarrow] = useState(window.innerWidth < 1024);
   const [settingsBlockId, setSettingsBlockId] = useState<string | null>(null);
+
+  // Sub-step handling
+  const substep = searchParams.get('substep') || '2.1';
+
   const storageKey = useMemo(() => {
     const id = eventData.id || eventId;
     return id ? `eventra_design_studio_${id}` : 'eventra_design_studio';
@@ -160,13 +165,20 @@ export default function WizardStep2DesignStudio() {
   };
 
   const handleStepClick = async (step: WizardStep) => {
+    await persistAndSave();
+
     if (typeof step === 'string' && step.startsWith('3.')) {
-      await persistAndSave();
       const base = eventData.id ? `/create/registration/${eventData.id}` : '/create-event';
       navigate(`${base}?substep=${step}`);
       return;
     }
-    await persistAndSave();
+
+    if (typeof step === 'string' && step.startsWith('2.')) {
+      const base = eventData.id ? `/create/design/${eventData.id}` : '/create-event';
+      navigate(`${base}?substep=${step}`);
+      return;
+    }
+
     const target =
       step === 1 ? 'details' : step === 2 ? 'design' : step === 3 ? 'registration' : 'launch';
     if (eventData.id) {
@@ -269,6 +281,13 @@ export default function WizardStep2DesignStudio() {
   };
 
   const handleBack = async () => {
+    await persistAndSave();
+    
+    if (substep === '2.2') {
+      navigate(`/create/design/${eventData.id || eventId}?substep=2.1`);
+      return;
+    }
+
     if (eventData.id) {
       navigate(`/create/details/${eventData.id}`);
       return;
@@ -277,12 +296,21 @@ export default function WizardStep2DesignStudio() {
   };
 
   const handleSaveAndContinue = async () => {
+    await persistAndSave();
+
+    if (substep === '2.1') {
+      if (!completedSteps.includes('2.1')) {
+        setCompletedSteps([...completedSteps, '2.1']);
+      }
+      navigate(`/create/design/${eventData.id || eventId}?substep=2.2`);
+      return;
+    }
+
     // Mark step 2 as completed
     if (!completedSteps.includes(2)) {
       setCompletedSteps([...completedSteps, 2]);
     }
 
-    await persistAndSave();
     if (eventData.id) {
       navigate(`/create/registration/${eventData.id}`);
       return;
@@ -528,7 +556,7 @@ export default function WizardStep2DesignStudio() {
       <div style={{ display: 'flex' }}>
         {/* Wizard Sidebar */}
         <WizardSidebar
-          currentStep={2}
+          currentStep={substep as any}
           completedSteps={completedSteps as any}
           eventName={eventData.name || untitledEvent}
           onStepClick={handleStepClick as any}
@@ -549,6 +577,7 @@ export default function WizardStep2DesignStudio() {
         >
           {/* Left: Block Library Panel */}
           <BlockLibraryPanel
+            substep={substep}
             activeBlocks={activeBlocks}
             onAddBlock={handleAddBlock}
             onRemoveBlock={handleRemoveBlock}

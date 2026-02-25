@@ -33,6 +33,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { useProfile } from '../hooks/useProfile';
+import { useMessageThread } from '../hooks/useMessageThread';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';
 import ModalLogin from '../components/modals/ModalLogin';
@@ -47,6 +48,7 @@ export default function PublicProfilePage() {
   const { user: currentUser, signOut } = useAuth();
   const { t } = useI18n();
   const { profile, isLoading, error } = useProfile(userId);
+  const { getOrCreateThread, loading: connecting } = useMessageThread();
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [selectedDuration, setSelectedDuration] = useState('30 min');
@@ -54,6 +56,20 @@ export default function PublicProfilePage() {
   // Auth Modals
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+
+  const handleMessage = async () => {
+    if (!currentUser) {
+      toast.info(t('networking.auth.messagePrompt') || 'Please sign in to send messages.');
+      setShowLoginModal(true);
+      return;
+    }
+    if (!userId || connecting) return;
+    
+    const threadId = await getOrCreateThread(userId);
+    if (threadId) {
+      navigate('/messages', { state: { threadId } });
+    }
+  };
 
   const handleLogout = async () => {
     await signOut();
@@ -444,6 +460,8 @@ export default function PublicProfilePage() {
                     {t('publicProfilePage.actions.requestMeeting')}
                   </button>
                   <button
+                    onClick={handleMessage}
+                    disabled={connecting}
                     style={{
                       padding: '12px 24px',
                       borderRadius: '8px',
@@ -452,14 +470,15 @@ export default function PublicProfilePage() {
                       fontSize: '15px',
                       fontWeight: 500,
                       color: '#FFFFFF',
-                      cursor: 'pointer',
+                      cursor: connecting ? 'not-allowed' : 'pointer',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '8px'
+                      gap: '8px',
+                      opacity: connecting ? 0.7 : 1
                     }}
                   >
                     <MessageCircle size={18} />
-                    {t('publicProfilePage.actions.sendMessage')}
+                    {connecting ? 'Loading...' : t('publicProfilePage.actions.sendMessage')}
                   </button>
                 </>
               )}

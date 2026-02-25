@@ -23,6 +23,7 @@ interface SponsorPackagesBlockProps {
     highlightedPackage?: string;
   };
   onEdit?: () => void;
+  onSelectPackage?: (pkg: SponsorPackage) => void;
   showEditControls?: boolean;
   isLocked?: boolean;
 }
@@ -33,6 +34,7 @@ export default function SponsorPackagesBlock({
   buttonRadius = 12,
   settings,
   onEdit,
+  onSelectPackage,
   showEditControls = true,
   isLocked = false
 }: SponsorPackagesBlockProps) {
@@ -237,7 +239,13 @@ export default function SponsorPackagesBlock({
                 </div>
 
                 <button
-                  onClick={() => settings?.ctaUrl && window.open(settings.ctaUrl, '_blank')}
+                  onClick={() => {
+                    if (onSelectPackage) {
+                      onSelectPackage(pkg);
+                    } else if (settings?.ctaUrl) {
+                      window.open(settings.ctaUrl, '_blank');
+                    }
+                  }}
                   style={{
                     width: '100%',
                     height: '52px',

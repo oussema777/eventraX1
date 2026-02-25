@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Calendar, Mic, Store, ArrowRight, Check } from 'lucide-react';
+import { Users, Calendar, Mic, Store, ArrowRight, Check, Heart, Sparkles, Ticket } from 'lucide-react';
 
 interface LandingPageNavbarProps {
   activeSections: {
@@ -7,6 +7,9 @@ interface LandingPageNavbarProps {
     exhibitors?: boolean;
     speakers?: boolean;
     agenda?: boolean;
+    sponsors?: boolean;
+    packages?: boolean;
+    tickets?: boolean;
   };
   brandColor?: string;
   logoUrl?: string;
@@ -31,7 +34,7 @@ export default function LandingPageNavbar({ activeSections, brandColor = '#635BF
     <div
       style={{
         position: 'sticky',
-        top: '72px', // Always stick below the 72px main navbar
+        top: 0, 
         left: 0,
         right: 0,
         zIndex: 40,
@@ -61,26 +64,44 @@ export default function LandingPageNavbar({ activeSections, brandColor = '#635BF
           <div className="landing-navbar-links" style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '0 12px' }}>
             {activeSections.agenda && (
               <button onClick={() => onNavigate('agenda')} className="nav-item">
-                <Calendar size={16} />
-                <span className={isSticky ? 'hidden-text' : ''}>Agenda</span>
+                <Calendar size={18} className="nav-icon" />
+                <span className="nav-label">Agenda</span>
               </button>
             )}
             {activeSections.speakers && (
               <button onClick={() => onNavigate('speakers')} className="nav-item">
-                <Mic size={16} />
-                <span className={isSticky ? 'hidden-text' : ''}>Speakers</span>
+                <Mic size={18} className="nav-icon" />
+                <span className="nav-label">Speakers</span>
               </button>
             )}
             {activeSections.exhibitors && (
               <button onClick={() => onNavigate('exhibitors')} className="nav-item">
-                <Store size={16} />
-                <span className={isSticky ? 'hidden-text' : ''}>Exhibitors</span>
+                <Store size={18} className="nav-icon" />
+                <span className="nav-label">Exhibitors</span>
+              </button>
+            )}
+            {activeSections.sponsors && (
+              <button onClick={() => onNavigate('sponsors')} className="nav-item">
+                <Heart size={18} className="nav-icon" />
+                <span className="nav-label">Sponsors</span>
+              </button>
+            )}
+            {activeSections.packages && (
+              <button onClick={() => onNavigate('packages')} className="nav-item">
+                <Sparkles size={18} className="nav-icon" />
+                <span className="nav-label">Packages</span>
+              </button>
+            )}
+            {activeSections.tickets && (
+              <button onClick={() => onNavigate('tickets')} className="nav-item">
+                <Ticket size={18} className="nav-icon" />
+                <span className="nav-label">Tickets</span>
               </button>
             )}
             {activeSections.attendees && (
               <button onClick={() => onNavigate('attendees')} className="nav-item">
-                <Users size={16} />
-                <span className={isSticky ? 'hidden-text' : ''}>Attendees</span>
+                <Sparkles size={18} className="nav-icon" />
+                <span className="nav-label">B2B Networking</span>
               </button>
             )}
           </div>
@@ -109,7 +130,7 @@ export default function LandingPageNavbar({ activeSections, brandColor = '#635BF
               }}
             >
               <Check size={18} />
-              <span className={`btn-text-mobile ${isSticky ? 'hidden-text' : ''}`}>Registered</span>
+              <span className="btn-text-mobile">Registered</span>
             </div>
           ) : (
             <button
@@ -133,16 +154,17 @@ export default function LandingPageNavbar({ activeSections, brandColor = '#635BF
                 transition: 'all 0.3s ease'
               }}
             >
-              <span className={`btn-text-mobile ${isSticky ? 'hidden-text' : ''}`}>Register</span>
+              <span className="btn-text-mobile">Register</span>
               <ArrowRight size={18} />
             </button>
           )}
         </div>
       </div>
       <style>{`
-        .hidden-text {
+        .nav-icon {
           display: none;
         }
+        
         .landing-navbar-scroll-area::-webkit-scrollbar {
           display: none;
         }
@@ -197,9 +219,15 @@ export default function LandingPageNavbar({ activeSections, brandColor = '#635BF
             gap: 2px !important;
           }
           .nav-item {
-            padding: 0 8px !important;
-            gap: 4px !important;
+            padding: 0 12px !important;
+            gap: 0 !important;
             font-size: 13px !important;
+          }
+          .nav-label {
+            display: none !important;
+          }
+          .nav-icon {
+            display: block !important;
           }
           .action-container {
             padding: 0 12px !important;

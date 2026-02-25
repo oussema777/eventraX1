@@ -10,7 +10,10 @@ import {
   Loader2,
   Lock,
   ChevronDown,
-  Download
+  Download,
+  CreditCard,
+  Upload,
+  Globe
 } from 'lucide-react';
 import Logo from '../components/ui/Logo';
 import { supabase } from '../lib/supabase';
@@ -19,6 +22,7 @@ import { createNotification } from '../lib/notifications';
 import { useAuth } from '../contexts/AuthContext';
 import { sendEmail, generateRegistrationEmailHtml } from '../lib/email';
 import { countries } from '../data/countries';
+import { uploadFormSubmissionFile } from '../utils/storage';
 
 const toFlagEmoji = (code: string) => {
   if (!code) return '';
@@ -69,9 +73,11 @@ export default function EventRegistrationFlow() {
   const [freeTicketId, setFreeTicketId] = useState<string | null>(null);
   const [registeredAttendeeId, setRegisteredAttendeeId] = useState<string | null>(null);
   const [confirmationCode, setConfirmationCode] = useState<string | null>(null);
+  const [isPaidEvent, setIsPaidEvent] = useState(false);
   
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fileUploading, setFileUploading] = useState<Record<string, boolean>>({});
 
   const generateConfirmationCode = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -118,16 +124,17 @@ export default function EventRegistrationFlow() {
         setSessions(sessionData);
       }
 
-      // 3. Fetch Free Ticket (Internal Logic)
+      // 3. Fetch Tickets and detect if it's a paid event
       const { data: ticketData } = await supabase
         .from('event_tickets')
-        .select('id')
+        .select('id, price')
         .eq('event_id', eventId)
-        .eq('status', 'active')
-        .limit(1);
+        .eq('status', 'active');
       
       if (ticketData && ticketData.length > 0) {
         setFreeTicketId(ticketData[0].id);
+        const hasPaid = ticketData.some((t: any) => t.price > 0);
+        setIsPaidEvent(hasPaid);
       }
 
       // 4. Fetch Form Schema
@@ -200,9 +207,24 @@ export default function EventRegistrationFlow() {
           } else if (profile) {
             // Auto-fill custom fields from profile if possible
             const labelLower = (f.label || '').toLowerCase();
-            if (labelLower.includes('job') || labelLower.includes('title')) defaultValue = profile.job_title || '';
-            else if (labelLower.includes('company') || labelLower.includes('organization')) defaultValue = profile.company || '';
-            else if (labelLower.includes('phone')) defaultValue = profile.phone_number || '';
+            const typeLower = (f.type || '').toLowerCase();
+
+            if (labelLower.includes('job') || labelLower.includes('title')) {
+              defaultValue = profile.job_title || '';
+            } else if (labelLower.includes('company') || labelLower.includes('organization')) {
+              defaultValue = profile.company || '';
+            } else if (typeLower === 'phone' || labelLower.includes('phone')) {
+              defaultValue = profile.phone_number || '';
+            } else if (typeLower === 'country' || labelLower.includes('pays') || labelLower.includes('country')) {
+              const loc = profile.location || '';
+              // Try to find code if loc is a name
+              const found = countries.find(c => c.name.toLowerCase() === loc.toLowerCase() || c.code === loc);
+              defaultValue = found ? found.code : loc;
+            } else if (typeLower === 'date' || labelLower.includes('birth') || labelLower.includes('naissance')) {
+              defaultValue = profile.date_of_birth || '';
+            } else if (labelLower === 'gender' || labelLower === 'genre' || labelLower === 'sexe') {
+              defaultValue = profile.gender || '';
+            }
           }
 
           const isPhoneField = f.type === 'phone' || (f.label && f.label.toLowerCase().includes('phone'));
@@ -210,13 +232,19 @@ export default function EventRegistrationFlow() {
           let initialPhoneNumber = '';
 
           if (isPhoneField && defaultValue) {
-            const parts = defaultValue.split(' ');
-            if (parts[0] && parts[0].startsWith('+')) {
-              // Simple check for phone code
-              initialPhoneCountryCode = countries.find(c => c.phoneCode === parts[0])?.code || 'US';
-              initialPhoneNumber = parts.slice(1).join(' ');
+            // Attempt to parse phone number
+            const cleaned = defaultValue.trim();
+            if (cleaned.startsWith('+')) {
+              // Look for matching country code
+              const matchingCountry = countries.find(c => cleaned.startsWith(c.phoneCode));
+              if (matchingCountry) {
+                initialPhoneCountryCode = matchingCountry.code;
+                initialPhoneNumber = cleaned.replace(matchingCountry.phoneCode, '').trim();
+              } else {
+                initialPhoneNumber = cleaned;
+              }
             } else {
-              initialPhoneNumber = defaultValue;
+              initialPhoneNumber = cleaned;
             }
           }
           
@@ -227,7 +255,7 @@ export default function EventRegistrationFlow() {
             required: f.required,
             options: f.options,
             value: isPhoneField ? '' : defaultValue, 
-            readonly: isReadonly, // Allow editing unless strictly system-locked logic requires otherwise
+            readonly: isReadonly, 
             isSystem: f.isSystem,
             isDropdownOpen: false, 
             phoneCountryCode: isPhoneField ? initialPhoneCountryCode : undefined,
@@ -494,6 +522,29 @@ export default function EventRegistrationFlow() {
     }
   };
 
+  const handleFileUpload = async (fieldId: string, file: File) => {
+    if (!eventId) return;
+    
+    setFileUploading(prev => ({ ...prev, [fieldId]: true }));
+    try {
+      // We use a temporary attendee ID or just event ID + timestamp if attendee not yet created
+      // But actually, we usually create attendee FIRST.
+      // For this flow, let's use eventId + timestamp as path
+      const url = await uploadFormSubmissionFile(eventId, user?.id || 'guest', file);
+      if (url) {
+        updateFormField(fieldId, url);
+        toast.success('File uploaded successfully');
+      } else {
+        toast.error('Failed to upload file');
+      }
+    } catch (error) {
+      console.error('File upload error:', error);
+      toast.error('Error uploading file');
+    } finally {
+      setFileUploading(prev => ({ ...prev, [fieldId]: false }));
+    }
+  };
+
   const handleBack = () => {
     if (currentStep > 1) {
       setCurrentStep((currentStep - 1) as RegistrationStep);
@@ -505,7 +556,9 @@ export default function EventRegistrationFlow() {
 
   const canProceed = () => {
     if (currentStep === 1) {
-      return formFields.filter(f => f.required).every(f => f.value.trim() !== '');
+      const allRequiredFilled = formFields.filter(f => f.required).every(f => f.value && f.value.trim() !== '');
+      const noActiveUploads = !Object.values(fileUploading).some(val => val === true);
+      return allRequiredFilled && noActiveUploads;
     }
     return true; // Step 2 is optional
   };
@@ -744,12 +797,12 @@ export default function EventRegistrationFlow() {
                               textAlign: 'left'
                             }}
                           >
-                            {field.fieldValue ? (
+                            {field.value ? (
                               <span className="flex items-center gap-2">
                                 <span style={{ fontSize: '20px' }}>
-                                  {toFlagEmoji(field.fieldValue)}
+                                  {toFlagEmoji(field.value)}
                                 </span>
-                                {countries.find(c => c.code === field.fieldValue)?.name}
+                                {countries.find(c => c.code === field.value)?.name}
                               </span>
                             ) : (
                               "Select Country"
@@ -789,6 +842,77 @@ export default function EventRegistrationFlow() {
                               ))}
                             </div>
                           )}
+                        </div>
+                      ) : field.type === 'phone' ? (
+                        <div className="flex gap-2">
+                          <div className="relative" style={{ width: '120px' }}>
+                            <button
+                              type="button"
+                              onClick={() => togglePhoneCountryDropdown(field.id)}
+                              className="w-full flex items-center justify-between transition-all"
+                              style={{
+                                height: '48px',
+                                padding: '0 12px',
+                                fontSize: '15px',
+                                color: '#FFFFFF',
+                                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                                border: '1.5px solid rgba(255, 255, 255, 0.15)',
+                                borderRadius: '8px',
+                                outline: 'none'
+                              }}
+                            >
+                              <span className="flex items-center gap-2">
+                                <span>{toFlagEmoji(field.phoneCountryCode || 'US')}</span>
+                                <span>{countries.find(c => c.code === (field.phoneCountryCode || 'US'))?.phoneCode}</span>
+                              </span>
+                              <ChevronDown size={16} style={{ color: '#6B7280' }} />
+                            </button>
+
+                            {field.isPhoneDropdownOpen && (
+                              <div
+                                className="absolute top-full left-0 mt-1 w-[280px] rounded-lg shadow-lg z-10"
+                                style={{
+                                  backgroundColor: '#FFFFFF',
+                                  border: '1px solid #E5E7EB',
+                                  maxHeight: '200px',
+                                  overflowY: 'auto'
+                                }}
+                              >
+                                {countries.map((country) => (
+                                  <button
+                                    key={country.code}
+                                    type="button"
+                                    onClick={() => updatePhoneField(field.id, 'countryCode', country.code)}
+                                    className="w-full flex items-center gap-3 px-4 py-2.5 transition-colors"
+                                    style={{
+                                      border: 'none',
+                                      backgroundColor: field.phoneCountryCode === country.code ? '#F3F4F6' : 'transparent',
+                                      cursor: 'pointer',
+                                      textAlign: 'left'
+                                    }}
+                                  >
+                                    <span style={{ fontSize: '20px' }}>{toFlagEmoji(country.code)}</span>
+                                    <span style={{ fontSize: '14px', color: '#374151' }}>
+                                      {country.name} ({country.phoneCode})
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <input
+                            type="tel"
+                            value={field.phoneNumber || ''}
+                            onChange={(e) => updatePhoneField(field.id, 'number', e.target.value)}
+                            placeholder="Phone number"
+                            className="flex-1 h-[48px] px-4 rounded-lg border outline-none transition-all"
+                            style={{
+                              fontSize: '16px',
+                              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                              borderColor: 'rgba(255, 255, 255, 0.15)',
+                              color: '#FFFFFF'
+                            }}
+                          />
                         </div>
                       ) : field.type === 'textarea' ? (
                         <textarea
@@ -866,6 +990,74 @@ export default function EventRegistrationFlow() {
                               </label>
                              );
                           })}
+                        </div>
+                      ) : field.type === 'file' ? (
+                        <div className="space-y-2">
+                          <input
+                            type="file"
+                            id={`file-${field.id}`}
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleFileUpload(field.id, file);
+                            }}
+                          />
+                          <label
+                            htmlFor={`file-${field.id}`}
+                            className="flex flex-col items-center justify-center w-full p-6 rounded-lg border-2 border-dashed transition-all cursor-pointer hover:border-blue-400 hover:bg-blue-500/5"
+                            style={{ borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(255,255,255,0.05)' }}
+                          >
+                            {fileUploading[field.id] ? (
+                              <Loader2 size={24} className="animate-spin text-blue-500" />
+                            ) : field.value ? (
+                              <div className="flex flex-col items-center gap-2">
+                                <Check size={24} className="text-green-500" />
+                                <span className="text-sm text-green-500 font-medium">File Uploaded</span>
+                                <span className="text-xs text-slate-400 truncate max-w-[200px]">
+                                  {field.value.split('/').pop()}
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center gap-2">
+                                <Upload size={24} style={{ color: '#94A3B8' }} />
+                                <span className="text-sm" style={{ color: '#94A3B8' }}>
+                                  Click to upload document
+                                </span>
+                              </div>
+                            )}
+                          </label>
+                        </div>
+                      ) : field.type === 'url' ? (
+                        <div className="relative">
+                          <Globe size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="url"
+                            value={field.value}
+                            onChange={(e) => updateFormField(field.id, e.target.value)}
+                            placeholder={field.placeholder || "https://example.com"}
+                            className="w-full h-12 pl-11 pr-4 rounded-lg border outline-none transition-all"
+                            style={{ 
+                              backgroundColor: 'rgba(255,255,255,0.05)', 
+                              borderColor: 'rgba(255,255,255,0.15)',
+                              color: '#FFFFFF'
+                            }}
+                          />
+                        </div>
+                      ) : field.type === 'address' ? (
+                        <div className="relative">
+                          <MapPin size={18} className="absolute left-4 top-4 text-slate-400" />
+                          <textarea
+                            value={field.value}
+                            onChange={(e) => updateFormField(field.id, e.target.value)}
+                            placeholder={field.placeholder || "Enter full address..."}
+                            rows={3}
+                            className="w-full pl-11 pr-4 pt-3.5 rounded-lg border outline-none transition-all resize-none"
+                            style={{ 
+                              backgroundColor: 'rgba(255,255,255,0.05)', 
+                              borderColor: 'rgba(255,255,255,0.15)',
+                              color: '#FFFFFF'
+                            }}
+                          />
                         </div>
                       ) : (
                         <input
@@ -999,7 +1191,7 @@ export default function EventRegistrationFlow() {
 
           {/* Step 3: Confirmation */}
           {currentStep === 3 && (
-            <div className="text-center py-12">
+            <div className="text-center py-6">
               <div 
                 className="mx-auto mb-6 rounded-full w-20 h-20 flex items-center justify-center no-print"
                 style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)' }}
@@ -1008,45 +1200,97 @@ export default function EventRegistrationFlow() {
               </div>
 
               <h1 className="text-3xl font-bold mb-4 no-print" style={{ color: '#FFFFFF' }}>
-                You're All Set!
+                {isPaidEvent ? 'Pre-Registration Complete!' : "You're All Set!"}
               </h1>
 
-              <p className="mb-8 max-w-md mx-auto no-print" style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '16px' }}>
-                Thank you for registering for <strong style={{ color: '#FFFFFF' }}>{event?.name}</strong>. 
-                A confirmation email has been sent to <strong style={{ color: '#FFFFFF' }}>{user?.email}</strong>.
+              <p className="mb-10 max-w-md mx-auto no-print" style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '16px' }}>
+                {isPaidEvent 
+                  ? `Your details for ${event?.name} have been saved. Follow the final step below to secure your place.`
+                  : `Thank you for registering for ${event?.name}. A confirmation email has been sent to ${user?.email}.`
+                }
               </p>
 
-              {/* Action Buttons - Moved Above */}
-              <div className="flex flex-col gap-3 max-w-xs mx-auto mb-12 no-print">
-                <button
-                  onClick={handleDownloadTicket}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '10px',
-                    padding: '14px 24px',
-                    borderRadius: '12px',
-                    backgroundColor: '#0684F5',
-                    color: '#FFFFFF',
-                    fontWeight: 700,
-                    border: 'none',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    boxShadow: '0 4px 12px rgba(6, 132, 245, 0.25)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#0571D0';
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#0684F5';
-                    e.currentTarget.style.transform = 'translateY(0)';
+              {/* Final Step Card for Paid Events */}
+              {isPaidEvent && (
+                <div 
+                  className="mb-12 p-8 rounded-2xl text-left border border-dashed animate-in fade-in slide-in-from-bottom-4 duration-700"
+                  style={{ 
+                    backgroundColor: 'rgba(6, 132, 245, 0.05)', 
+                    borderColor: 'rgba(6, 132, 245, 0.3)' 
                   }}
                 >
-                  <Download size={18} />
-                  Download Ticket Voucher
-                </button>
+                  <div className="flex items-start gap-4">
+                    <div 
+                      className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: 'rgba(6, 132, 245, 0.2)', color: '#0684F5' }}
+                    >
+                      <CreditCard size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold mb-2" style={{ color: '#FFFFFF' }}>Final Step: Secure Your Ticket</h3>
+                      <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '14px', lineHeight: '1.6', marginBottom: '20px' }}>
+                        To finalize your subscription and receive your official entry pass, please choose and purchase a ticket from the event marketplace.
+                      </p>
+                      <button
+                        onClick={() => navigate(`/event/${eventId}/tickets`)}
+                        className="group flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all"
+                        style={{
+                          backgroundColor: '#0684F5',
+                          color: '#FFFFFF',
+                          border: 'none',
+                          cursor: 'pointer',
+                          boxShadow: '0 4px 15px rgba(6, 132, 245, 0.3)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#0571D0';
+                          e.currentTarget.style.transform = 'scale(1.02)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#0684F5';
+                          e.currentTarget.style.transform = 'scale(1)';
+                        }}
+                      >
+                        Browse & Secure Ticket
+                        <Check size={18} className="transition-transform group-hover:translate-x-1" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-3 max-w-xs mx-auto mb-12 no-print">
+                {!isPaidEvent && (
+                  <button
+                    onClick={handleDownloadTicket}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '10px',
+                      padding: '14px 24px',
+                      borderRadius: '12px',
+                      backgroundColor: '#0684F5',
+                      color: '#FFFFFF',
+                      fontWeight: 700,
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      boxShadow: '0 4px 12px rgba(6, 132, 245, 0.25)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#0571D0';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#0684F5';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    <Download size={18} />
+                    Download Ticket Voucher
+                  </button>
+                )}
 
                 <button
                   onClick={() => navigate(`/event/${eventId}/landing`)}
@@ -1079,8 +1323,8 @@ export default function EventRegistrationFlow() {
 
               {/* Printable Content Wrapper */}
               <div className="print-container">
-                {/* Voucher Display */}
-                {registeredAttendeeId && (
+                {/* Voucher Display - Hidden for paid events until ticket purchased */}
+                {registeredAttendeeId && !isPaidEvent && (
                   <div 
                     className="mb-8 max-w-sm mx-auto overflow-hidden rounded-2xl shadow-2xl print-voucher"
                     style={{ backgroundColor: '#FFFFFF', color: '#0B2641' }}
@@ -1182,8 +1426,10 @@ export default function EventRegistrationFlow() {
                       className="mt-8 pt-6 flex justify-between items-center"
                       style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}
                     >
-                      <span className="text-sm font-light text-white/40">Registration Fee</span>
-                      <span className="text-sm font-light text-white">Free</span>
+                      <span className="text-sm font-light text-white/40">Registration Status</span>
+                      <span className="text-sm font-light text-white">
+                        {isPaidEvent ? 'Ticket Purchase Required' : 'Free'}
+                      </span>
                     </div>
                   </div>
                 )}

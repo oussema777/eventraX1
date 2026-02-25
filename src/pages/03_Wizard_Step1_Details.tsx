@@ -127,8 +127,9 @@ export default function WizardStep1Details() {
   const handleStepClick = async (step: any) => {
     // If we already have an ID, just navigate
     if (eventData.id) {
-      if (typeof step === 'string' && step.startsWith('3.')) {
-        navigate(`/create/registration/${eventData.id}?substep=${step}`);
+      if (typeof step === 'string' && (step.startsWith('2.') || step.startsWith('3.'))) {
+        const baseUrl = step.startsWith('2.') ? 'design' : 'registration';
+        navigate(`/create/${baseUrl}/${eventData.id}?substep=${step}`);
         return;
       }
       const baseUrl = step === 1 ? 'details' : step === 2 ? 'design' : step === 3 ? 'registration' : 'launch';
@@ -170,8 +171,9 @@ export default function WizardStep1Details() {
       }, true); // force insert
 
       if (nextEvent?.id) {
-        if (typeof step === 'string' && step.startsWith('3.')) {
-          navigate(`/create/registration/${nextEvent.id}?substep=${step}`);
+        if (typeof step === 'string' && (step.startsWith('2.') || step.startsWith('3.'))) {
+          const baseUrl = step.startsWith('2.') ? 'design' : 'registration';
+          navigate(`/create/${baseUrl}/${nextEvent.id}?substep=${step}`);
           return;
         }
         const baseUrl = step === 1 ? 'details' : step === 2 ? 'design' : step === 3 ? 'registration' : 'launch';

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, useEffect } from 'react';
 import { translations, type Locale } from './translations';
 
 type I18nContextValue = {
@@ -6,6 +6,7 @@ type I18nContextValue = {
   setLocale: (locale: Locale) => void;
   t: (path: string, vars?: Record<string, string | number>) => string;
   tList: <T = string>(path: string, fallback?: T[]) => T[];
+  isRTL: boolean;
 };
 
 const I18nContext = createContext<I18nContextValue | undefined>(undefined);
@@ -19,6 +20,7 @@ const getInitialLocale = (): Locale => {
   if (stored && isLocale(stored)) return stored;
   const browserLocale = window.navigator.language?.toLowerCase() || '';
   if (browserLocale.startsWith('fr')) return 'fr';
+  if (browserLocale.startsWith('ar')) return 'ar';
   return 'en';
 };
 
@@ -44,6 +46,15 @@ const formatTranslation = (value: string, vars?: Record<string, string | number>
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(getInitialLocale);
+
+  const isRTL = useMemo(() => locale === 'ar', [locale]);
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+      document.documentElement.lang = locale;
+    }
+  }, [locale, isRTL]);
 
   const setLocale = useCallback((nextLocale: Locale) => {
     setLocaleState(nextLocale);
@@ -74,7 +85,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     [locale]
   );
 
-  const value = useMemo(() => ({ locale, setLocale, t, tList }), [locale, setLocale, t, tList]);
+  const value = useMemo(() => ({ locale, setLocale, t, tList, isRTL }), [locale, setLocale, t, tList, isRTL]);
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
