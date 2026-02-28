@@ -502,8 +502,6 @@ export default function WizardStep2DesignStudio() {
         return wrapWithLock(<FooterBlock settings={block.settings} brandColor={brandColor} event={eventData} onEdit={() => handleOpenSettings(block.id)} />);
       case 'video-hero':
         return wrapWithLock(<VideoHeroBlock brandColor={brandColor} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
-      case 'custom-html':
-        return wrapWithLock(<CustomHTMLBlock isLocked={isLocked} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
       case 'sponsors':
         return wrapWithLock(<SponsorsBlock sponsors={previewContent.sponsors} packages={previewContent.sponsorPackages} brandColor={brandColor} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
       case 'sponsor-packages':

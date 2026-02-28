@@ -9,10 +9,9 @@ interface SendEmailParams {
 
 export async function sendEmail({ to, subject, html }: SendEmailParams): Promise<boolean> {
   try {
-    console.log(`[PROXY_DEBUG] Sending request to standalone proxy (Port 5001) for: ${to}`);
+    console.log(`[EMAIL_DEBUG] Sending request to: /api/send-email for: ${to}`);
     
-    // We use the dedicated proxy to avoid Vite config issues and CORS
-    const res = await fetch('http://localhost:5001/send-email', {
+    const res = await fetch('/api/send-email', {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json'

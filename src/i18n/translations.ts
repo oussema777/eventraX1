@@ -11877,9 +11877,10 @@ export const translations = {
         }
       }
     },
-    networking: {
-      title: 'مركز التواصل',
-      subtitle: 'إدارة اجتماعاتك واتصالاتك.',
+          userB2B: {
+            title: 'مركز التواصل',
+            subtitle: 'إدارة اجتماعاتك واتصالاتك.',
+    
       stats: {
         meetingsToday: 'اجتماعات اليوم',
         newRequests: 'طلبات جديدة',
