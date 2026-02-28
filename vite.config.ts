@@ -166,6 +166,52 @@
             });
             return;
           }
+
+          if (req.url === '/api/send-email' || req.url?.startsWith('/api/send-email')) {
+            if (req.method !== 'POST') { next(); return; }
+            let body = '';
+            req.on('data', chunk => { body += chunk; });
+            req.on('end', async () => {
+              try {
+                const { to, subject, html } = JSON.parse(body);
+                console.log(`[VITE_EMAIL_PROXY] Sending to: ${to} | Subject: ${subject}`);
+                
+                // We call the Resend API directly from the dev server middleware
+                // to avoid CORS and ensure emails actually arrive during dev.
+                const response = await fetch('https://api.resend.com/emails', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer re_ZMze45ed_7J5Jut3C5REzRxzPmy64t2Ez'
+                  },
+                  body: JSON.stringify({
+                    from: 'Eventra <contact@eventra.cloud>',
+                    to: [to],
+                    subject: subject,
+                    html: html
+                  })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                  console.log(`[VITE_EMAIL_PROXY] Success: ${data.id}`);
+                  res.statusCode = 200;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify(data));
+                } else {
+                  console.error(`[VITE_EMAIL_PROXY] Error:`, data);
+                  res.statusCode = response.status;
+                  res.end(JSON.stringify(data));
+                }
+              } catch (e) {
+                console.error(`[VITE_EMAIL_PROXY] System Error:`, e.message);
+                res.statusCode = 500;
+                res.end(JSON.stringify({ error: e.message }));
+              }
+            });
+            return;
+          }
           next();
         });
       }

@@ -21,23 +21,28 @@ export default async function handler(req, res) {
 
   const { to, subject, html } = req.body;
   
+  console.log(`[EMAIL_DEBUG] Sending email to: ${to} | Subject: ${subject}`);
+
   // Using the provided test key directly for verification
-  const resend = new Resend('re_7o32JXYU_4M3NHf6bJyeFyiaKdPWYhacf');
+  const resend = new Resend('re_ZMze45ed_7J5Jut3C5REzRxzPmy64t2Ez');
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'Eventra <onboarding@ilab.tn>',
+      from: 'Eventra <contact@eventra.cloud>',
       to: [to],
       subject: subject,
       html: html,
     });
 
     if (error) {
+      console.error('[EMAIL_DEBUG] Resend Error:', JSON.stringify(error, null, 2));
       return res.status(400).json(error);
     }
 
+    console.log('[EMAIL_DEBUG] Success:', data.id);
     return res.status(200).json(data);
   } catch (error) {
+    console.error('[EMAIL_DEBUG] System Error:', error.message);
     return res.status(500).json({ error: error.message });
   }
 }

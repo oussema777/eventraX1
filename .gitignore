@@ -1,5 +1,36 @@
-/node_modules
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+/test-results/
+/playwright-report/
+/blob-report/
+/test-results/
+
+# Production
+/dist/
+/build/
+
+# Environment and Secrets
 .env
-.env.e2e
-.env.local
-./node_modules
+.env.*
+!.env.example
+.eventra/google_credentials.txt
+
+# Development Tools & Logs
+acli.exe
+src.zip
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Project Specific
+.eventra/logs/
+.tmp/
+temp/
+drafts/

@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner@2.0.3';
 import { useAuth } from '../../contexts/AuthContext';
 import { useI18n } from '../../i18n/I18nContext';
+import { sendWelcomeEmail } from '../../lib/email';
 
 interface ModalRegistrationEntryProps {
   isOpen: boolean;
@@ -224,6 +225,14 @@ export default function ModalRegistrationEntry({
 
     await supabase.auth.updateUser({ data: { full_name: fullName } });
     await refreshProfile();
+    
+    // Send Welcome Email
+    if (activeUser.email) {
+      sendWelcomeEmail(activeUser.email, fullName, activeUser.id).catch(err => {
+        console.error('Failed to send welcome email:', err);
+      });
+    }
+
     localStorage.removeItem('pendingProfileSetup');
     localStorage.removeItem('profileSetupDismissed');
 
@@ -259,6 +268,14 @@ export default function ModalRegistrationEntry({
       );
 
     await refreshProfile();
+
+    // Send Welcome Email even if skipped
+    if (activeUser.email) {
+      sendWelcomeEmail(activeUser.email, fallbackName, activeUser.id).catch(err => {
+        console.error('Failed to send welcome email:', err);
+      });
+    }
+
     localStorage.removeItem('pendingProfileSetup');
     localStorage.setItem('profileSetupDismissed', 'true');
 

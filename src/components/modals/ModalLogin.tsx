@@ -84,7 +84,16 @@ export default function ModalLogin({
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes('Email not confirmed')) {
+          setErrorMessage('Your email is not confirmed yet. Please check your inbox for the confirmation link.');
+        } else if (error.message.includes('Invalid login credentials')) {
+          setErrorMessage('The email or password you entered is incorrect. Please try again.');
+        } else {
+          setErrorMessage(error.message);
+        }
+        throw error;
+      }
 
       if (onLoginSuccess) {
         onLoginSuccess();
@@ -95,7 +104,7 @@ export default function ModalLogin({
       console.error('Login error:', error);
       setIsLoggingIn(false);
       setShowError(true);
-      setErrorMessage(error.message || t('auth.login.errors.invalidCredentials'));
+      // errorMessage is already set above
     } finally {
       setIsLoggingIn(false);
     }

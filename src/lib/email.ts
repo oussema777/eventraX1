@@ -9,29 +9,29 @@ interface SendEmailParams {
 
 export async function sendEmail({ to, subject, html }: SendEmailParams): Promise<boolean> {
   try {
-    // Attempt to send via Serverless Function (Vercel /api)
-    const res = await fetch('/api/send-email', {
+    console.log(`[PROXY_DEBUG] Sending request to standalone proxy (Port 5001) for: ${to}`);
+    
+    // We use the dedicated proxy to avoid Vite config issues and CORS
+    const res = await fetch('http://localhost:5001/send-email', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({ to, subject, html })
     });
 
     if (!res.ok) {
       const err = await res.json();
-      console.warn('Failed to send email via API:', err);
-      throw new Error('Email API failed');
+      console.error('[PROXY_DEBUG] Proxy Error:', err);
+      return false;
     }
 
+    const data = await res.json();
+    console.log('[PROXY_DEBUG] Proxy Success:', data);
     return true;
   } catch (error) {
-    // Fallback for local dev without API running
-    console.group('⚠️ [FALLBACK EMAIL] API Unavailable - Logging content');
-    console.log(`To: ${to}`);
-    console.log(`Subject: ${subject}`);
-    console.log('--- HTML ---');
-    console.log(html);
-    console.groupEnd();
-    return true; // Return true to not block the UI flow
+    console.error('[PROXY_DEBUG] Proxy Connection Failed (Is email-proxy.js running?):', error);
+    return false;
   }
 }
 
@@ -67,6 +67,80 @@ export function generateRegistrationEmailHtml(eventName: string, attendeeName: s
       </p>
     </div>
   `;
+}
+
+export function generateWelcomeEmailHtml(params: {
+  userName: string;
+  profileUrl: string;
+  qrCodeUrl: string;
+}) {
+  return `
+    <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; color: #1F2937; padding: 40px 20px; background-color: #F9FAFB;">
+      <div style="background-color: #FFFFFF; padding: 40px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); border: 1px solid #E5E7EB;">
+        <!-- Logo placeholder if any -->
+        <div style="text-align: center; margin-bottom: 32px;">
+          <h2 style="color: #0684F5; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.025em;">Eventra</h2>
+        </div>
+
+        <h1 style="color: #111827; font-size: 24px; font-weight: 700; text-align: center; margin-bottom: 16px;">Welcome to the community, ${params.userName}!</h1>
+        
+        <p style="font-size: 16px; line-height: 1.6; color: #4B5563; text-align: center; margin-bottom: 32px;">
+          We're excited to have you on board. Your professional profile is now live and ready for networking.
+        </p>
+        
+        <div style="background-color: #F3F4F6; padding: 32px; border-radius: 12px; text-align: center; margin-bottom: 32px; border: 1px dashed #D1D5DB;">
+          <p style="margin-top: 0; margin-bottom: 16px; font-weight: 600; color: #374151; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;">Your Digital Business Card</p>
+          <div style="display: inline-block; padding: 12px; background: white; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
+            <img src="${params.qrCodeUrl}" alt="Profile QR Code" style="width: 180px; height: 180px; display: block;" />
+          </div>
+          <p style="font-size: 13px; color: #6B7280; margin-top: 20px; line-height: 1.5;">
+            Others can scan this code to view your public profile and schedule meetings with you.
+          </p>
+          <div style="margin-top: 24px;">
+            <a href="${params.profileUrl}" style="display: inline-block; padding: 12px 24px; background-color: #0684F5; color: #FFFFFF; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; transition: background-color 0.2s;">View Your Profile</a>
+          </div>
+        </div>
+
+        <div style="border-top: 1px solid #E5E7EB; pt: 32px; margin-top: 32px;">
+          <h3 style="font-size: 16px; font-weight: 600; color: #111827; margin-bottom: 12px;">What's next?</h3>
+          <ul style="padding: 0; margin: 0; list-style: none; font-size: 14px; color: #4B5563;">
+            <li style="margin-bottom: 8px; display: flex; align-items: center;">
+              <span style="color: #0684F5; margin-right: 8px;">•</span> Explore upcoming events in your sector
+            </li>
+            <li style="margin-bottom: 8px; display: flex; align-items: center;">
+              <span style="color: #0684F5; margin-right: 8px;">•</span> Connect with industry peers
+            </li>
+            <li style="margin-bottom: 8px; display: flex; align-items: center;">
+              <span style="color: #0684F5; margin-right: 8px;">•</span> Manage your B2B meetings
+            </li>
+          </ul>
+        </div>
+      </div>
+      
+      <p style="margin-top: 32px; font-size: 12px; color: #9CA3AF; text-align: center; line-height: 1.5;">
+        © 2026 Eventra.cloud. All rights reserved.<br/>
+        This email was sent to you as part of your registration on Eventra.
+      </p>
+    </div>
+  `;
+}
+
+export async function sendWelcomeEmail(to: string, userName: string, userId: string): Promise<boolean> {
+  const baseUrl = window.location.origin;
+  const profileUrl = `${baseUrl}/profile/${userId}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(profileUrl)}&size=250x250&bgcolor=ffffff&color=0684F5&margin=10`;
+  
+  const html = generateWelcomeEmailHtml({
+    userName,
+    profileUrl,
+    qrCodeUrl
+  });
+
+  return sendEmail({
+    to,
+    subject: `Welcome to Eventra, ${userName}!`,
+    html
+  });
 }
 
 export function generateMeetingConfirmationEmailHtml(params: {
