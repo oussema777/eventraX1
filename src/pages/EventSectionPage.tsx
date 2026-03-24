@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader2, User, MapPin, Check, Heart, Sparkles, Users, CreditCard, Building, Share2, Ticket } from 'lucide-react';
+import { Loader2, User, MapPin, Check, Heart, Sparkles, Users, CreditCard, Building, Share2, Ticket, Calendar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';
@@ -33,7 +33,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
   const [selectedAttendee, setSelectedAttendee] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSector, setSelectedSector] = useState<string>('All');
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(1);
   const ITEMS_PER_PAGE = 50;
 
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -44,7 +44,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
     if (!eventId) return;
     const loadPublic = async () => {
       setIsLoadingData(true);
-      setPage(0);
+      setPage(1);
       try {
         const { data: eventData } = await supabase.from('events').select('*').eq('id', eventId).single();
         setEvent(eventData);
@@ -71,7 +71,17 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
         });
 
         if (type === 'agenda') {
-          // ... (keep existing agenda logic)
+          const [{ data: agendaData }, { data: speakersData }] = await Promise.all([
+            supabase.from('event_sessions').select('*').eq('event_id', eventId).order('starts_at', { ascending: true }),
+            supabase.from('event_speakers').select('*').eq('event_id', eventId)
+          ]);
+          
+          const mapped = (agendaData || []).map((s: any) => ({
+            ...s,
+            speaker_details: (speakersData || []).filter((spk: any) => (s.speaker_ids || []).includes(spk.id))
+          }));
+          
+          setData(mapped);
         } else if (type === 'tickets') {
           const { data: ticketsData } = await supabase.from('event_tickets').select('*').eq('event_id', eventId).order('price', { ascending: true });
           setData(ticketsData || []);
@@ -86,64 +96,11 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
           
           setData(sponsorRows);
         } else if (type === 'speakers') {
-          await fetchSpeakerBatch(0, true);
+          await fetchSpeakerBatch(1, true);
         } else if (type === 'exhibitors') {
-          await fetchExhibitorBatch(0, true);
+          await fetchExhibitorBatch(1, true);
         } else if (type === 'attendees') {
-          // Special fetch for attendees to get profile-linked industries
-          setIsLoadingData(true);
-          try {
-            const { data: attendees, error: attError } = await supabase
-              .from('event_attendees')
-              .select('id, profile_id, name, company, avatar_url, photo_url, meta')
-              .eq('event_id', eventId)
-              .order('name', { ascending: true });
-            
-            if (attError) throw attError;
-
-            const profileIds = (attendees || []).map((a: any) => a.profile_id).filter(Boolean);
-            let profileMap: Record<string, any> = {};
-            
-            if (profileIds.length > 0) {
-              const { data: profiles } = await supabase
-                .from('profiles')
-                .select('id, avatar_url, b2b_profile, professional_data, industry')
-                .in('id', profileIds);
-              
-              if (profiles) {
-                profiles.forEach((p: any) => {
-                  profileMap[p.id] = p;
-                });
-              }
-            }
-            
-            const mapped = (attendees || []).map((a: any) => {
-              const prof = profileMap[a.profile_id] || {};
-              // Extract industries from various possible locations in profile
-              const profileIndustries = [
-                ...(prof.b2b_profile?.industries_of_interest || []),
-                ...(prof.professional_data?.sectors || []),
-                prof.industry
-              ].filter(Boolean);
-
-              return {
-                id: a.id,
-                profile_id: a.profile_id,
-                name: a.name,
-                company: a.company || prof.company,
-                final_avatar: prof.avatar_url || a.avatar_url || a.photo_url,
-                meta: a.meta || {},
-                profile_industries: Array.from(new Set(profileIndustries)),
-                b2b_enabled: a.profile_id && prof.b2b_profile?.enabled !== false
-              };
-            });
-            setData(mapped);
-          } catch (e) {
-            console.error('Error fetching attendees:', e);
-            setData([]);
-          } finally {
-            setIsLoadingData(false);
-          }
+          await fetchAttendeeBatch(1, true);
         }
       } catch (e) {
         console.error(e);
@@ -156,7 +113,8 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
 
   const fetchSpeakerBatch = async (pageNumber: number, isInitial: boolean = false) => {
     if (!eventId) return;
-    const start = pageNumber * ITEMS_PER_PAGE;
+    if (!isInitial) setIsLoadingMore(true);
+    const start = (pageNumber - 1) * ITEMS_PER_PAGE;
     const end = start + ITEMS_PER_PAGE - 1;
 
     const { data: speakers, error } = await supabase
@@ -169,19 +127,19 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
     if (error) {
       console.error('Error fetching speakers:', error);
       if (isInitial) setData([]);
+      setIsLoadingMore(false);
       return;
     }
 
-    if (isInitial) {
-      setData(speakers);
-    } else {
-      setData((prev: any) => [...(prev || []), ...speakers]);
-    }
+    setData(speakers);
+    setIsLoadingMore(false);
+    if (!isInitial) window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const fetchExhibitorBatch = async (pageNumber: number, isInitial: boolean = false) => {
     if (!eventId) return;
-    const start = pageNumber * ITEMS_PER_PAGE;
+    if (!isInitial) setIsLoadingMore(true);
+    const start = (pageNumber - 1) * ITEMS_PER_PAGE;
     const end = start + ITEMS_PER_PAGE - 1;
 
     const { data: exhibitors, error } = await supabase
@@ -194,19 +152,19 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
     if (error) {
       console.error('Error fetching exhibitors:', error);
       if (isInitial) setData([]);
+      setIsLoadingMore(false);
       return;
     }
 
-    if (isInitial) {
-      setData(exhibitors);
-    } else {
-      setData((prev: any) => [...(prev || []), ...exhibitors]);
-    }
+    setData(exhibitors);
+    setIsLoadingMore(false);
+    if (!isInitial) window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const fetchAttendeeBatch = async (pageNumber: number, isInitial: boolean = false) => {
     if (!eventId) return;
-    const start = pageNumber * ITEMS_PER_PAGE;
+    if (!isInitial) setIsLoadingMore(true);
+    const start = (pageNumber - 1) * ITEMS_PER_PAGE;
     const end = start + ITEMS_PER_PAGE - 1;
 
     const { data: attendees, error } = await supabase
@@ -219,6 +177,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
     if (error) {
       console.error('Error fetching attendees:', error);
       if (isInitial) setData([]);
+      setIsLoadingMore(false);
       return;
     }
 
@@ -228,7 +187,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
     if (profileIds.length > 0) {
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, avatar_url, b2b_profile, company, job_title')
+        .select('id, avatar_url, b2b_profile, professional_data, industry, company, job_title')
         .in('id', profileIds);
       
       if (profiles) {
@@ -240,6 +199,14 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
     
     const mapped = attendees.map((a: any) => {
       const prof = profileMap[a.profile_id] || {};
+      
+      // Extract industries from various possible locations in profile
+      const profileIndustries = [
+        ...(prof.b2b_profile?.industries_of_interest || []),
+        ...(prof.professional_data?.sectors || []),
+        prof.industry
+      ].filter(Boolean);
+
       // Security: Extract ONLY public fields from meta to avoid exposing private registration data
       const publicMeta: Record<string, any> = {};
       if (a.meta) {
@@ -256,29 +223,107 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
         company: a.company || prof.company,
         final_avatar: prof.avatar_url || a.avatar_url || a.photo_url,
         meta: publicMeta, // Sanitized meta
+        profile_industries: Array.from(new Set(profileIndustries)),
         b2b_enabled: a.profile_id && prof.b2b_profile?.enabled !== false
       };
     });
     
-    if (isInitial) {
-      setData(mapped);
-    } else {
-      setData((prev: any) => [...(prev || []), ...mapped]);
+    setData(mapped);
+    setIsLoadingMore(false);
+    if (!isInitial) window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handlePageChange = async (newPage: number) => {
+    setPage(newPage);
+    if (type === 'speakers') {
+      await fetchSpeakerBatch(newPage);
+    } else if (type === 'exhibitors') {
+      await fetchExhibitorBatch(newPage);
+    } else if (type === 'attendees') {
+      await fetchAttendeeBatch(newPage);
     }
   };
 
-  const loadMore = async () => {
-    setIsLoadingMore(true);
-    const nextPage = page + 1;
-    if (type === 'speakers') {
-      await fetchSpeakerBatch(nextPage);
-    } else if (type === 'exhibitors') {
-      await fetchExhibitorBatch(nextPage);
-    } else if (type === 'attendees') {
-      await fetchAttendeeBatch(nextPage);
-    }
-    setPage(nextPage);
-    setIsLoadingMore(false);
+  const PaginationControls = ({ totalItems }: { totalItems: number }) => {
+    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+    if (totalPages <= 1) return null;
+
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '60px', opacity: isLoadingMore ? 0.7 : 1, pointerEvents: isLoadingMore ? 'none' : 'auto' }}>
+        <button
+          onClick={() => handlePageChange(Math.max(1, page - 1))}
+          disabled={page === 1 || isLoadingMore}
+          style={{
+            padding: '10px 16px',
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '10px',
+            color: '#FFFFFF',
+            fontSize: '14px',
+            fontWeight: 600,
+            cursor: (page === 1 || isLoadingMore) ? 'not-allowed' : 'pointer',
+            opacity: page === 1 ? 0.5 : 1,
+            transition: 'all 0.2s'
+          }}
+        >
+          Previous
+        </button>
+        
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            // Logic to show pages around current page
+            let pageNum = page;
+            if (page <= 3) pageNum = i + 1;
+            else if (page >= totalPages - 2) pageNum = totalPages - 4 + i;
+            else pageNum = page - 2 + i;
+
+            if (pageNum <= 0 || pageNum > totalPages) return null;
+
+            return (
+              <button
+                key={pageNum}
+                onClick={() => handlePageChange(pageNum)}
+                disabled={isLoadingMore}
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  backgroundColor: page === pageNum ? brandColor : 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid',
+                  borderColor: page === pageNum ? brandColor : 'rgba(255, 255, 255, 0.1)',
+                  borderRadius: '10px',
+                  color: '#FFFFFF',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: isLoadingMore ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {pageNum}
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
+          disabled={page === totalPages || isLoadingMore}
+          style={{
+            padding: '10px 16px',
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '10px',
+            color: '#FFFFFF',
+            fontSize: '14px',
+            fontWeight: 600,
+            cursor: (page === totalPages || isLoadingMore) ? 'not-allowed' : 'pointer',
+            opacity: page === totalPages ? 0.5 : 1,
+            transition: 'all 0.2s'
+          }}
+        >
+          Next
+        </button>
+      </div>
+    );
   };
 
   // 2. Fetch Private Data
@@ -554,6 +599,16 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
         {type === 'agenda' && (
           <div className="space-y-8">
              {(() => {
+               if (!data || data.length === 0) {
+                 return (
+                   <div className="text-center py-20 rounded-3xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                     <Calendar size={48} style={{ color: 'rgba(255,255,255,0.1)', marginBottom: '16px' }} />
+                     <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#FFFFFF' }}>No sessions scheduled</h3>
+                     <p style={{ fontSize: '14px', color: '#94A3B8' }}>The event schedule is being finalized. Please check back soon.</p>
+                   </div>
+                 );
+               }
+
                const grouped: Record<string, any[]> = {};
                (data || []).forEach((s: any) => {
                  const date = s.starts_at ? new Date(s.starts_at).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) : 'TBD';
@@ -1043,7 +1098,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
         )}
 
         {type === 'speakers' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '32px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '32px', opacity: isLoadingMore ? 0.5 : 1, transition: 'opacity 0.2s' }}>
             {(data || []).map((s: any) => (
               <div key={s.id} style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.1)', padding: '32px', textAlign: 'center', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', overflow: 'hidden' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-8px)'; e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2)'; e.currentTarget.style.borderColor = brandColor; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.2)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'; }}>
                 {s.speaker_type && <div style={{ position: 'absolute', top: '16px', right: '16px', padding: '4px 12px', borderRadius: '12px', backgroundColor: `${brandColor}20`, color: brandColor, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.025em' }}>{s.speaker_type.replace('_', ' ')}</div>}
@@ -1064,7 +1119,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
         )}
 
         {type === 'exhibitors' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px', opacity: isLoadingMore ? 0.5 : 1, transition: 'opacity 0.2s' }}>
             {(data || []).map((e: any) => (
               <div key={e.id} style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column' }} onMouseEnter={(evt) => { evt.currentTarget.style.transform = 'translateY(-4px)'; evt.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.2)'; evt.currentTarget.style.borderColor = brandColor; evt.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'; }} onMouseLeave={(evt) => { evt.currentTarget.style.transform = 'translateY(0)'; evt.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)'; evt.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; evt.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'; }}>
                 <div style={{ height: '120px', background: `linear-gradient(135deg, ${brandColor} 0%, #0B2641 100%)`, position: 'relative' }}>
@@ -1168,7 +1223,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
               <span style={{ fontSize: '13px', color: '#94A3B8', fontWeight: 500 }}>({counts.attendees})</span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '24px', opacity: isLoadingMore ? 0.5 : 1, transition: 'opacity 0.2s' }}>
               {(data || [])
                 .filter((a: any) => {
                   const matchesSearch = !searchQuery || a.name?.toLowerCase().includes(searchQuery.toLowerCase()) || a.company?.toLowerCase().includes(searchQuery.toLowerCase()) || a.meta?.['Job Title']?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -1329,38 +1384,8 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
           </div>
         )}
 
-        {(type === 'speakers' || type === 'exhibitors' || type === 'attendees') && (data || []).length < counts[type] && (
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '40px' }}>
-            <button
-              onClick={loadMore}
-              disabled={isLoadingMore}
-              style={{
-                padding: '12px 32px',
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '12px',
-                color: '#FFFFFF',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: isLoadingMore ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => !isLoadingMore && (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)')}
-              onMouseLeave={(e) => !isLoadingMore && (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)')}
-            >
-              {isLoadingMore ? (
-                <>
-                  <Loader2 className="animate-spin" size={18} />
-                  Loading...
-                </>
-              ) : (
-                `Load More (${counts[type] - (data?.length || 0)} remaining)`
-              )}
-            </button>
-          </div>
+        {(type === 'speakers' || type === 'exhibitors' || type === 'attendees') && (
+          <PaginationControls totalItems={counts[type]} />
         )}
       </div>
 

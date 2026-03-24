@@ -249,6 +249,13 @@ export default function BusinessProfileWizard() {
   ];
 
   const currencies = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY'];
+  const companySizeOptions = [
+    { value: '1-10', label: t('businessProfileWizard.essentials.sizes.s1') },
+    { value: '11-50', label: t('businessProfileWizard.essentials.sizes.s2') },
+    { value: '51-200', label: t('businessProfileWizard.essentials.sizes.s3') },
+    { value: '201-500', label: t('businessProfileWizard.essentials.sizes.s4') },
+    { value: '500+', label: t('businessProfileWizard.essentials.sizes.s5') }
+  ];
 
   const handleBack = () => {
     if (currentStep > 1) {
@@ -491,11 +498,9 @@ export default function BusinessProfileWizard() {
                     onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'}
                   >
                     <option value="">{t('businessProfileWizard.essentials.companySizePlaceholder')}</option>
-                    <option value="1-10">1-10 employees</option>
-                    <option value="11-50">11-50 employees</option>
-                    <option value="51-200">51-200 employees</option>
-                    <option value="201-500">201-500 employees</option>
-                    <option value="500+">500+ employees</option>
+                    {companySizeOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
                   </select>
                   <ChevronDown 
                     size={20} 

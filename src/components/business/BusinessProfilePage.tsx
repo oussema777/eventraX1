@@ -56,6 +56,130 @@ export default function BusinessProfilePage() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   
+  // Pagination for offerings
+  const [offeringPage, setOfferingPage] = useState(1);
+  const [totalOfferings, setTotalOfferings] = useState(0);
+  const OFFERINGS_PER_PAGE = 6;
+  const [isLoadingOfferings, setIsLoadingOfferings] = useState(false);
+
+  const fetchOfferingsBatch = async (bId: string, pageNum: number) => {
+    if (!bId) return;
+    setIsLoadingOfferings(true);
+    try {
+      const start = (pageNum - 1) * OFFERINGS_PER_PAGE;
+      const end = start + OFFERINGS_PER_PAGE - 1;
+
+      const { data, count, error } = await supabase
+        .from('business_offerings')
+        .select('*', { count: 'exact' })
+        .eq('business_id', bId)
+        .order('created_at', { ascending: false })
+        .range(start, end);
+
+      if (error) throw error;
+
+      setOfferings(data || []);
+      setTotalOfferings(count || 0);
+    } catch (error) {
+      console.error('Error fetching offerings:', error);
+    } finally {
+      setIsLoadingOfferings(false);
+    }
+  };
+
+  const handleOfferingPageChange = (newPage: number) => {
+    setOfferingPage(newPage);
+    fetchOfferingsBatch(business.id, newPage);
+    // Scroll to offerings section
+    const element = document.getElementById('offerings-section');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const OfferingPaginationControls = () => {
+    const totalPages = Math.ceil(totalOfferings / OFFERINGS_PER_PAGE);
+    if (totalPages <= 1) return null;
+
+    const brandColor = '#0684F5';
+
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '32px', opacity: isLoadingOfferings ? 0.7 : 1, pointerEvents: isLoadingOfferings ? 'none' : 'auto' }}>
+        <button
+          onClick={() => handleOfferingPageChange(Math.max(1, offeringPage - 1))}
+          disabled={offeringPage === 1 || isLoadingOfferings}
+          style={{
+            padding: '8px 14px',
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '8px',
+            color: '#FFFFFF',
+            fontSize: '13px',
+            fontWeight: 600,
+            cursor: (offeringPage === 1 || isLoadingOfferings) ? 'not-allowed' : 'pointer',
+            opacity: offeringPage === 1 ? 0.5 : 1,
+            transition: 'all 0.2s'
+          }}
+        >
+          {t('common.pagination.previous', { defaultValue: 'Previous' })}
+        </button>
+        
+        <div style={{ display: 'flex', gap: '6px' }}>
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            let pageNum = offeringPage;
+            if (offeringPage <= 3) pageNum = i + 1;
+            else if (offeringPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+            else pageNum = offeringPage - 2 + i;
+
+            if (pageNum <= 0 || pageNum > totalPages) return null;
+
+            return (
+              <button
+                key={pageNum}
+                onClick={() => handleOfferingPageChange(pageNum)}
+                disabled={isLoadingOfferings}
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  backgroundColor: offeringPage === pageNum ? brandColor : 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid',
+                  borderColor: offeringPage === pageNum ? brandColor : 'rgba(255, 255, 255, 0.1)',
+                  borderRadius: '8px',
+                  color: '#FFFFFF',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: isLoadingOfferings ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {pageNum}
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          onClick={() => handleOfferingPageChange(Math.min(totalPages, offeringPage + 1))}
+          disabled={offeringPage === totalPages || isLoadingOfferings}
+          style={{
+            padding: '8px 14px',
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '8px',
+            color: '#FFFFFF',
+            fontSize: '13px',
+            fontWeight: 600,
+            cursor: (offeringPage === totalPages || isLoadingOfferings) ? 'not-allowed' : 'pointer',
+            opacity: offeringPage === totalPages ? 0.5 : 1,
+            transition: 'all 0.2s'
+          }}
+        >
+          {t('common.pagination.next', { defaultValue: 'Next' })}
+        </button>
+      </div>
+    );
+  };
+
   // Editable fields
   const [about, setAbout] = useState('');
   const [companyName, setCompanyName] = useState('');
@@ -177,7 +301,7 @@ export default function BusinessProfilePage() {
     try {
       setIsLoading(true);
       
-      let query = supabase.from('business_profiles').select('*, business_offerings(*)');
+      let query = supabase.from('business_profiles').select('*');
       
       if (urlBusinessId) {
         query = query.eq('id', urlBusinessId);
@@ -204,8 +328,10 @@ export default function BusinessProfilePage() {
         setCompanyName(data.company_name);
         setAbout(data.description || '');
         setSectorTags(data.sectors || []);
-        setOfferings(data.business_offerings || []);
         setIsOwner(user?.id === data.owner_profile_id);
+        
+        // Fetch paginated offerings
+        await fetchOfferingsBatch(data.id, 1);
         
         // Handle social links and tags from branding/settings if implemented, or placeholders
         // For now, let's assume we use JSONB branding for these extra fields
@@ -862,12 +988,18 @@ export default function BusinessProfilePage() {
             </div>
 
             {/* Offerings Section */}
-            <div>
+            <div id="offerings-section">
               <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF', marginBottom: '16px' }}>
                 {t('businessProfilePage.offerings.title')}
               </h2>
               
-              <div className="grid grid-cols-2 gap-4 business-profile-offerings-grid">
+              <div 
+                className="grid grid-cols-2 gap-4 business-profile-offerings-grid"
+                style={{
+                  opacity: isLoadingOfferings ? 0.6 : 1,
+                  transition: 'opacity 0.2s'
+                }}
+              >
                 {offerings.map((offering) => (
                   <div
                     key={offering.id}
@@ -998,9 +1130,13 @@ export default function BusinessProfilePage() {
                   </div>
                 ))}
                 {offerings.length === 0 && (
-                   <div className="col-span-2 text-center py-10 text-gray-500">{t('businessProfilePage.offerings.empty')}</div>
+                   <div className="col-span-2 text-center py-10 text-gray-500">
+                     {offeringPage === 1 ? t('businessProfilePage.offerings.empty') : 'No more offerings found on this page.'}
+                   </div>
                 )}
               </div>
+
+              <OfferingPaginationControls />
             </div>
           </div>
 

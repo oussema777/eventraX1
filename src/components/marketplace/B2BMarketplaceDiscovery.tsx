@@ -92,70 +92,174 @@ export default function B2BMarketplaceDiscovery() {
   const [businesses, setBusinesses] = useState<BusinessCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const ITEMS_PER_PAGE = 12;
+
+  const fetchBusinesses = async (pageNum: number) => {
+    try {
+      setIsLoading(true);
+      setLoadError(null);
+      
+      let query = supabase
+        .from('business_profiles')
+        .select('id, company_name, description, sectors, company_size, address, logo_url, cover_url, verification_status, branding, business_offerings(images)', { count: 'exact' })
+        .eq('verification_status', 'verified')
+        .eq('is_public', true);
+
+      // Apply Filters Server-side where possible
+      if (searchQuery) {
+        query = query.or(`company_name.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
+      }
+
+      if (selectedSectors.length > 0) {
+        query = query.contains('sectors', selectedSectors);
+      }
+
+      if (selectedSizes.length > 0) {
+        query = query.in('company_size', selectedSizes);
+      }
+
+      const start = (pageNum - 1) * ITEMS_PER_PAGE;
+      const end = start + ITEMS_PER_PAGE - 1;
+
+      const { data, error, count } = await query
+        .order('created_at', { ascending: false })
+        .range(start, end);
+
+      if (error) throw error;
+
+      setTotalCount(count || 0);
+
+      const mapped: BusinessCard[] = (data || []).map((profile: any) => {
+        const branding = profile.branding || {};
+        const sectorTags = profile.sectors || [];
+        const images = [
+          profile.cover_url,
+          profile.logo_url,
+          ...(profile.business_offerings || []).flatMap((offering: any) => offering.images || [])
+        ];
+
+        return {
+          id: profile.id,
+          name: profile.company_name || 'Business',
+          location: profile.address || 'Location TBD',
+          rating: Number(branding.rating) || 0,
+          reviewCount: Number(branding.review_count) || 0,
+          verified: profile.verification_status === 'verified',
+          sustainable: Boolean(branding.sustainable),
+          logo: profile.logo_url || profile.cover_url || '',
+          gallery: normalizeGallery(images),
+          description: profile.description || 'No description provided.',
+          tags: sectorTags.length > 0 ? sectorTags : ['Business'],
+          sector: sectorTags[0] || 'Business',
+          companySize: toCompanySize(profile.company_size),
+          pending: profile.verification_status === 'pending'
+        };
+      });
+
+      setBusinesses(mapped);
+    } catch (error: any) {
+      console.error('Fetch error:', error);
+      setLoadError(error.message || 'Failed to load businesses');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchBusinesses = async () => {
-      try {
-        setIsLoading(true);
-        setLoadError(null);
-        console.log('Fetching businesses from Supabase...');
-        const { data, error } = await supabase
-          .from('business_profiles')
-          .select('id, company_name, description, sectors, company_size, address, logo_url, cover_url, verification_status, branding, business_offerings(images)')
-          .eq('verification_status', 'verified')
-          .eq('is_public', true);
+    setPage(1);
+    fetchBusinesses(1);
+  }, [searchQuery, selectedSectors, verifiedOnly, sustainableOnly, selectedSizes, minRating]);
 
-        if (error) {
-          console.error('Supabase error:', error);
-          throw error;
-        }
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    fetchBusinesses(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
-        console.log('Raw data received:', data);
+  const PaginationControls = () => {
+    const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+    if (totalPages <= 1) return null;
 
-        if (!data || data.length === 0) {
-          console.warn('No public business profiles found in database.');
-        }
+    const brandColor = '#0684F5';
 
-        const mapped: BusinessCard[] = (data || []).map((profile: any) => {
-          console.log(`Mapping profile: ${profile.company_name} (Status: ${profile.verification_status})`);
-          const branding = profile.branding || {};
-          const sectorTags = profile.sectors || [];
-          const images = [
-            profile.cover_url,
-            profile.logo_url,
-            ...(profile.business_offerings || []).flatMap((offering: any) => offering.images || [])
-          ];
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '60px', opacity: isLoading ? 0.7 : 1, pointerEvents: isLoading ? 'none' : 'auto' }}>
+        <button
+          onClick={() => handlePageChange(Math.max(1, page - 1))}
+          disabled={page === 1 || isLoading}
+          style={{
+            padding: '10px 16px',
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '10px',
+            color: '#FFFFFF',
+            fontSize: '14px',
+            fontWeight: 600,
+            cursor: (page === 1 || isLoading) ? 'not-allowed' : 'pointer',
+            opacity: page === 1 ? 0.5 : 1,
+            transition: 'all 0.2s'
+          }}
+        >
+          {t('common.pagination.previous', { defaultValue: 'Previous' })}
+        </button>
+        
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            let pageNum = page;
+            if (page <= 3) pageNum = i + 1;
+            else if (page >= totalPages - 2) pageNum = totalPages - 4 + i;
+            else pageNum = page - 2 + i;
 
-          return {
-            id: profile.id,
-            name: profile.company_name || 'Business',
-            location: profile.address || 'Location TBD',
-            rating: Number(branding.rating) || 0,
-            reviewCount: Number(branding.review_count) || 0,
-            verified: profile.verification_status === 'verified',
-            sustainable: Boolean(branding.sustainable),
-            logo: profile.logo_url || profile.cover_url || '',
-            gallery: normalizeGallery(images),
-            description: profile.description || 'No description provided.',
-            tags: sectorTags.length > 0 ? sectorTags : ['Business'],
-            sector: sectorTags[0] || 'Business',
-            companySize: toCompanySize(profile.company_size),
-            pending: profile.verification_status === 'pending'
-          };
-        });
+            if (pageNum <= 0 || pageNum > totalPages) return null;
 
-        console.log('Mapped businesses:', mapped);
-        setBusinesses(mapped);
-      } catch (error: any) {
-        console.error('Fetch error:', error);
-        setLoadError(error.message || 'Failed to load businesses');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+            return (
+              <button
+                key={pageNum}
+                onClick={() => handlePageChange(pageNum)}
+                disabled={isLoading}
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  backgroundColor: page === pageNum ? brandColor : 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid',
+                  borderColor: page === pageNum ? brandColor : 'rgba(255, 255, 255, 0.1)',
+                  borderRadius: '10px',
+                  color: '#FFFFFF',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {pageNum}
+              </button>
+            );
+          })}
+        </div>
 
-    fetchBusinesses();
-  }, []);
+        <button
+          onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
+          disabled={page === totalPages || isLoading}
+          style={{
+            padding: '10px 16px',
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '10px',
+            color: '#FFFFFF',
+            fontSize: '14px',
+            fontWeight: 600,
+            cursor: (page === totalPages || isLoading) ? 'not-allowed' : 'pointer',
+            opacity: page === totalPages ? 0.5 : 1,
+            transition: 'all 0.2s'
+          }}
+        >
+          {t('common.pagination.next', { defaultValue: 'Next' })}
+        </button>
+      </div>
+    );
+  };
 
   const handleCategoryClick = (category: string) => {
     setSelectedCategory(category);
@@ -690,7 +794,7 @@ export default function B2BMarketplaceDiscovery() {
           {/* Results Header */}
           <div className="flex items-center justify-between mb-4">
             <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#E2E8F0' }}>
-              {isLoading ? t('marketplace.results.loading') : t('marketplace.results.found', { count: filteredBusinesses.length, label: filteredBusinesses.length === 1 ? t('marketplace.results.business') : t('marketplace.results.businesses') })}
+              {isLoading ? t('marketplace.results.loading') : t('marketplace.results.found', { count: totalCount, label: totalCount === 1 ? t('marketplace.results.business') : t('marketplace.results.businesses') })}
             </h3>
             {loadError && (
               <span style={{ fontSize: '13px', color: '#F59E0B' }}>
@@ -704,7 +808,9 @@ export default function B2BMarketplaceDiscovery() {
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-              gap: '24px'
+              gap: '24px',
+              opacity: isLoading ? 0.6 : 1,
+              transition: 'opacity 0.2s'
             }}
           >
             {filteredBusinesses.map(business => (
@@ -905,6 +1011,8 @@ export default function B2BMarketplaceDiscovery() {
               </div>
             ))}
           </div>
+
+          <PaginationControls />
 
           {/* Zero State */}
           {!isLoading && filteredBusinesses.length === 0 && (

@@ -1770,7 +1770,7 @@ export default function BusinessManagementDashboard() {
                         {profileStrength}%
                       </span>
                       <span className="business-dashboard__health-label" style={{ fontSize: '11px', color: '#94A3B8' }}>
-                        Complete
+                        {t('businessDashboard.strength.complete')}
                       </span>
                     </div>
                   </div>
@@ -1989,10 +1989,10 @@ export default function BusinessManagementDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF', marginBottom: '8px' }}>
-                        Ready to Go Live?
+                        {t('businessDashboard.dashboard.readyToGoLive.title')}
                       </h3>
                       <p style={{ fontSize: '14px', color: '#94A3B8' }}>
-                        Submit your profile for admin validation to appear in the marketplace
+                        {t('businessDashboard.dashboard.readyToGoLive.subtitle')}
                       </p>
                     </div>
                     <button

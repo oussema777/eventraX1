@@ -11522,6 +11522,13 @@ export const translations = {
     brand: {
       name: 'إيفينترا'
     },
+    common: {
+      pagination: {
+        previous: 'السابق',
+        next: 'التالي',
+        noMore: 'لم يتم العثور على المزيد من العناصر'
+      }
+    },
     nav: {
       communities: {
         label: 'المجتمعات',
@@ -12202,18 +12209,286 @@ export const translations = {
         '+1000 موظف'
       ]
     },
-    businessProfilePage: {
-      manageButton: 'إدارة العمل',
-      verified: 'عمل موثق',
-      about: 'عن الشركة',
+    businessDashboard: {
+      dashboard: {
+        readyToGoLive: {
+          title: 'هل أنت مستعد للانطلاق؟',
+          subtitle: 'أرسل ملفك الشخصي للتحقق من قبل المسؤول للظهور في السوق'
+        }
+      },
+      modals: {
+        addMember: {
+          title: 'إضافة عضو فريق',
+          searchLabel: 'البحث عن طريق البريد الإلكتروني أو الاسم',
+          searchPlaceholder: 'أدخل البريد الإلكتروني أو الاسم الكامل...',
+          sendInvite: 'إرسال دعوة',
+          addToTeam: 'إضافة إلى الفريق',
+          cancel: 'إلغاء',
+          info: 'يمكن لأعضاء الفريق المساعدة في إدارة المنتجات والخدمات وتفاصيل الملف الشخصي.',
+          noResults: 'لم يتم العثور على مستخدمين لـ "{query}"'
+        }
+      },
+      tabs: {
+        dashboard: 'لوحة القيادة',
+        profile: 'تفاصيل الملف الشخصي',
+        team: 'أعضاء الفريق',
+        products: 'المنتجات والخدمات',
+        ai: 'مستشار إيفينترا بالذكاء اصطناعي',
+        visibility: 'الظهور والوصول',
+        appearance: 'المظهر',
+        analytics: 'التحليلات'
+      },
+      status: {
+        draft: 'مسودة - غير مرئي',
+        pending: 'قيد التحقق',
+        live: 'مباشر في السوق'
+      },
+      actions: {
+        editWizard: 'تعديل عبر المعالج',
+        viewProfile: 'عرض ملف العمل',
+        viewPublic: 'عرض الملف العام',
+        createProfile: 'إنشاء ملف عمل',
+        requestValidation: 'طلب التحقق'
+      },
+      loading: 'جاري التحميل...',
+      notFound: 'لم يتم العثور على ملف عمل',
+      strength: {
+        title: 'قوة الملف الشخصي',
+        complete: 'مكتمل',
+        basicInfo: 'المعلومات الأساسية مكتملة',
+        basicInfoIncomplete: 'أكمل معلومات الشركة الأساسية',
+        offeringsNeeded: 'أضف {count} عرضاً إضافياً',
+        offeringsComplete: 'العروض مكتملة',
+        docsUploaded: 'الوثائق القانونية مرفوعة',
+        uploadDocs: 'رفع الوثائق القانونية',
+        improve: 'تحسين النقاط'
+      },
       stats: {
-        memberSince: 'عضو منذ {year}'
+        views: 'مشاهدات الملف الشخصي',
+        leads: 'الفرص المؤهلة',
+        shortlisted: 'القوائم المحفوظة',
+        savedUsers: 'المستخدمون الذين حفظوا',
+        contactClicks: 'نقرات التواصل',
+        last30days: 'آخر 30 يوماً'
+      }
+    },
+    businessProfileWizard: {
+      title: 'سوق إيفينترا',
+      saving: 'جاري الحفظ...',
+      steps: {
+        essentials: 'الأساسيات',
+        sectors: 'القطاعات',
+        offerings: 'العروض',
+        identity: 'الهوية'
+      },
+      actions: {
+        saveExit: 'حفظ وخروج',
+        back: 'السابق',
+        next: 'الخطوة التالية',
+        createProfile: 'إنشاء الملف الشخصي',
+        addOffering: 'إضافة عرض',
+        cancel: 'إلغاء',
+        save: 'حفظ'
+      },
+      essentials: {
+        title: 'أساسيات الشركة',
+        companyName: 'اسم الشركة *',
+        companyNamePlaceholder: 'أدخل اسم شركتك القانوني',
+        companySize: 'حجم الشركة *',
+        companySizePlaceholder: 'اختر حجم الشركة',
+        companyDescription: 'وصف الشركة *',
+        companyDescriptionPlaceholder: 'أخبرنا عن عملك التجاري...',
+        legalDocs: 'التسجيل القانوني / الوثائق الضريبية',
+        uploadHint: 'انقر لـ',
+        uploadBrowse: 'تصفح',
+        uploadSupport: 'يدعم: PDF, JPG, PNG (بحد أقصى 5 ميجابايت)',
+        charCount: '{count}/500 حرف',
+        errors: {
+          nameRequired: 'اسم الشركة مطلوب.',
+          sizeRequired: 'حجم الشركة مطلوب.',
+          descRequired: 'الوصف مطلوب.',
+          completeEssentials: 'يرجى إكمال أساسيات الشركة قبل تحميل الملفات.'
+        },
+        sizes: {
+          s1: '1-10 موظفين',
+          s2: '11-50 موظفاً',
+          s3: '51-200 موظف',
+          s4: '201-500 موظف',
+          s5: '+500 موظف'
+        }
+      },
+      sectors: {
+        title: 'اختر قطاعات عملك',
+        subtitle: 'أضف وسوماً لوصف صناعتك. اكتب واضغط Enter.',
+        placeholder: 'إضافة قطاع (مثلاً: SaaS، مطاعم، ذكاء اصطناعي)...',
+        hint: '💡 ابدأ الكتابة لإضافة الوسوم. Enter للتأكيد.',
+        errors: {
+          atLeastOne: 'أضف قطاعاً واحداً على الأقل للمتابعة.'
+        }
       },
       offerings: {
-        title: 'عروضنا'
+        title: 'ماذا تقدم؟',
+        subtitle: 'أضف المنتجات والخدمات التي تقدمها لعملائك.',
+        emptyTitle: 'لم يتم إضافة عروض بعد',
+        emptySubtitle: 'الملفات الشخصية التي تحتوي على 3 عروض على الأقل تحصل على ظهور أكبر.',
+        modal: {
+          title: 'إضافة منتج أو خدمة',
+          type: 'النوع',
+          product: 'منتج',
+          service: 'خدمة',
+          basicInfo: 'المعلومات الأساسية',
+          name: 'الاسم',
+          namePlaceholder: 'اسم المنتج أو الخدمة',
+          description: 'الوصف',
+          descPlaceholder: 'صف ما تقدمه...',
+          pricing: 'التسعير والمخزون',
+          currency: 'العملة',
+          price: 'السعر',
+          currencyPlaceholder: 'USD',
+          quantity: 'الكمية الإجمالية (اختياري)',
+          unlimited: 'غير محدود',
+          tags: 'العلامات / المواصفات',
+          tagsPlaceholder: 'أضف علامة واضغط Enter',
+          images: 'معرض الصور',
+          imagesHint: 'انقر للرفع أو اسحب وأفلت',
+          coverHint: 'الصورة الأولى ستكون هي الغلاف',
+          coverBadge: 'الغلاف',
+          addBtn: 'إضافة إلى الملف الشخصي'
+        }
+      },
+      identity: {
+        title: 'هوية العمل والاتصال',
+        branding: 'العلامة التجارية',
+        logo: 'الشعار',
+        uploadLogo: 'رفع الشعار',
+        cover: 'صورة الغلاف',
+        uploadCover: 'رفع صورة الغلاف',
+        contact: 'تفاصيل الاتصال',
+        email: 'البريد الإلكتروني للعمل',
+        phone: 'رقم الهاتف',
+        website: 'الموقع الإلكتروني',
+        address: 'عنوان العمل'
+      }
+    },
+    businessProfilePage: {
+      notFound: 'لم يتم العثور على الملف الشخصي للعمل',
+      manageButton: 'إدارة العمل',
+      verified: 'عمل موثق',
+      noSectors: 'لم يتم تحديد قطاعات',
+      employees: '{count} موظف',
+      locationTbd: 'الموقع غير محدد',
+      about: 'عن الشركة',
+      noDescription: 'لا يوجد وصف متاح.',
+      legalVerified: 'الوثائق القانونية موثقة',
+      actions: {
+        cancel: 'إلغاء',
+        saveChanges: 'حفظ التغييرات',
+        edit: 'تعديل الملف',
+        contact: 'تواصل مع العمل',
+        save: 'حفظ'
+      },
+      toasts: {
+        linkCopied: 'تم نسخ الرابط إلى الحافظة',
+        copyFailed: 'فشل نسخ الرابط',
+        profileUpdated: 'تم تحديث الملف الشخصي بنجاح',
+        memberAdded: 'تم إضافة العضو بنجاح'
+      },
+      errors: {
+        userNotFound: 'المستخدم غير موجود على المنصة.',
+        alreadyMember: 'المستخدم عضو بالفعل في الفريق.',
+        addMemberFailed: 'فشل في إضافة العضو.',
+        noOwner: 'لم يتم العثور على مالك لهذا العمل.',
+        contactSelf: 'لا يمكنك مراسلة عملك الخاص.'
+      },
+      stats: {
+        reviews: '{count} مراجعة',
+        eventsManaged: '{count} فعالية مدارة',
+        memberSince: 'عضو منذ {year}'
+      },
+      team: {
+        title: 'فريق العمل',
+        addMember: 'إضافة عضو'
+      },
+      offerings: {
+        title: 'عروضنا',
+        free: 'مجاني',
+        empty: 'لا توجد عروض متاحة حالياً.'
       },
       contact: {
         title: 'معلومات الاتصال'
+      },
+      follow: 'تابعنا على',
+      b2b: {
+        title: 'مركز التواصل B2B',
+        seeking: 'نبحث عن',
+        offering: 'نقدم',
+        placeholder: 'أضف وسماً...'
+      },
+      specializations: 'التخصصات',
+      cta: {
+        title: 'هل أنت مهتم بخدماتنا؟',
+        subtitle: 'تواصل معنا لمناقشة مشروعك القادم والحصول على عرض سعر مخصص.',
+        button: 'ابدأ محادثة الآن'
+      }
+    },
+    marketplace: {
+      hero: {
+        title: 'استكشف سوق الخدمات والمنتجات',
+        searchPlaceholder: 'ابحث عن شركات، خدمات أو منتجات...',
+        searchButton: 'بحث',
+        categories: {
+          av: 'الإنتاج السمعي والبصري',
+          catering: 'تموين الطعام',
+          tech: 'تقنيات الفعاليات',
+          venues: 'القاعات والمواقع',
+          logistics: 'الخدمات اللوجستية',
+          photography: 'التصوير الفوتوغرافي',
+          design: 'التصميم والديكور',
+          marketing: 'التسويق',
+          entertainment: 'الترفيه',
+          swag: 'الهدايا والمستلزمات',
+          translation: 'الترجمة',
+          staffing: 'التوظيف والتنظيم'
+        }
+      },
+      filters: {
+        active: 'الفلاتر النشطة',
+        clearAll: 'مسح الكل',
+        sectors: 'القطاعات',
+        location: 'الموقع',
+        locationPlaceholder: 'المدينة أو الدولة',
+        trustBadges: 'شارات الثقة',
+        verified: 'موثق',
+        sustainable: 'مستدام',
+        size: 'حجم الشركة',
+        sizes: {
+          freelancer: 'مستقل',
+          sme: 'شركة متوسطة/صغيرة',
+          enterprise: 'مؤسسة كبيرة'
+        },
+        rating: 'التقييم',
+        up: 'فما فوق'
+      },
+      recommended: {
+        badge: 'ترشيح ذكي',
+        title: 'مقترح لك',
+        refresh: 'تحديث',
+        aiMatch: 'تطابق ذكاء اصطناعي',
+        match: 'تطابق عالي'
+      },
+      results: {
+        loading: 'جاري تحميل النتائج...',
+        found: 'تم العثور على {count} {label}',
+        business: 'عمل تجاري',
+        businesses: 'أعمال تجارية',
+        locationTbd: 'الموقع يحدد لاحقاً',
+        noDescription: 'لا يوجد وصف متاح.',
+        requestQuote: 'اطلب عرض سعر'
+      },
+      empty: {
+        title: 'لم يتم العثور على نتائج',
+        subtitle: 'حاول تغيير معايير البحث أو مسح الفلاتر.',
+        action: 'مسح جميع الفلاتر'
       }
     }
   }

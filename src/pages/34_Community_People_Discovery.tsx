@@ -2,22 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Search,
-  UserPlus,
   MessageCircle,
-  Calendar,
   Filter,
-  X,
   Sparkles,
-  MapPin,
-  Briefcase,
   Building,
-  Check,
-  Clock,
-  Video,
-  ChevronRight,
-  Star,
-  Users,
-  TrendingUp,
   Loader2
 } from 'lucide-react';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
@@ -55,11 +43,6 @@ export default function CommunityPeopleDiscovery() {
   const { t } = useI18n();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showMeetingModal, setShowMeetingModal] = useState(false);
-  const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
-  const [selectedDate, setSelectedDate] = useState('2026-01-15');
-  const [selectedTime, setSelectedTime] = useState('');
-  const [meetingMessage, setMeetingMessage] = useState('');
 
   // Auth Modals
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -68,29 +51,53 @@ export default function CommunityPeopleDiscovery() {
   // Data State
   const [people, setPeople] = useState<Person[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalMembers, setTotalMembers] = useState(0);
+  const ITEMS_PER_PAGE = 20;
 
   // Filters
-  const [minMatchScore, setMinMatchScore] = useState(0);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
-  const [selectedIndustries, setSelectedIndustries] = useState<string[]>([]);
-  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [onlineOnly, setOnlineOnly] = useState(false);
   const [openToMeetingsOnly, setOpenToMeetingsOnly] = useState(false);
 
   useEffect(() => {
-    fetchPeople();
-  }, [currentUser?.id]);
+    setPage(1);
+    fetchPeople(1);
+  }, [currentUser?.id, searchQuery, selectedRoles, selectedSector]);
 
-  const fetchPeople = async () => {
+  const fetchPeople = async (pageNum: number) => {
     try {
       setIsLoading(true);
-      const query = supabase.from('profiles').select('*').limit(20);
+      
+      let query = supabase.from('profiles').select('*', { count: 'exact' });
+      
       if (currentUser?.id) {
-        query.neq('id', currentUser.id); // Don't show self
+        query = query.neq('id', currentUser.id);
       }
-      const { data, error } = await query;
+
+      // Server-side filtering
+      if (searchQuery) {
+        query = query.or(`full_name.ilike.%${searchQuery}%,job_title.ilike.%${searchQuery}%,company.ilike.%${searchQuery}%`);
+      }
+
+      if (selectedRoles.length > 0) {
+        query = query.in('industry', selectedRoles);
+      }
+
+      if (selectedSector) {
+        query = query.or(`industry.eq.${selectedSector}`);
+      }
+
+      const start = (pageNum - 1) * ITEMS_PER_PAGE;
+      const end = start + ITEMS_PER_PAGE - 1;
+
+      const { data, error, count } = await query
+        .order('created_at', { ascending: false })
+        .range(start, end);
 
       if (error) throw error;
+
+      setTotalMembers(count || 0);
 
       const mapped: Person[] = (data || []).map(profile => {
         const profData = profile.professional_data || {};
@@ -103,7 +110,7 @@ export default function CommunityPeopleDiscovery() {
           company: profile.company || t('communityPage.defaults.company'),
           location: profile.location || t('communityPage.defaults.location'),
           profileImage: profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.full_name || 'U')}&background=0684F5&color=fff`,
-          matchScore: Math.floor(Math.random() * (100 - 70 + 1)) + 70, // Simulated match for demo
+          matchScore: Math.floor(Math.random() * (100 - 70 + 1)) + 70, 
           bio: profile.bio || t('communityPage.defaults.bio'),
           tags: Array.isArray(profData.skills) ? profData.skills.slice(0, 3) : [t('communityPage.defaults.tag')],
           isOnline: Math.random() > 0.5,
@@ -123,15 +130,101 @@ export default function CommunityPeopleDiscovery() {
     }
   };
 
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    fetchPeople(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const PaginationControls = () => {
+    const totalPages = Math.ceil(totalMembers / ITEMS_PER_PAGE);
+    if (totalPages <= 1) return null;
+
+    const brandColor = '#0684F5';
+
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginTop: '60px', opacity: isLoading ? 0.7 : 1, pointerEvents: isLoading ? 'none' : 'auto' }}>
+        <button
+          onClick={() => handlePageChange(Math.max(1, page - 1))}
+          disabled={page === 1 || isLoading}
+          style={{
+            padding: '10px 16px',
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '10px',
+            color: '#FFFFFF',
+            fontSize: '14px',
+            fontWeight: 600,
+            cursor: (page === 1 || isLoading) ? 'not-allowed' : 'pointer',
+            opacity: page === 1 ? 0.5 : 1,
+            transition: 'all 0.2s'
+          }}
+        >
+          {t('common.pagination.previous', { defaultValue: 'Previous' })}
+        </button>
+        
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            let pageNum = page;
+            if (page <= 3) pageNum = i + 1;
+            else if (page >= totalPages - 2) pageNum = totalPages - 4 + i;
+            else pageNum = page - 2 + i;
+
+            if (pageNum <= 0 || pageNum > totalPages) return null;
+
+            return (
+              <button
+                key={pageNum}
+                onClick={() => handlePageChange(pageNum)}
+                disabled={isLoading}
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  backgroundColor: page === pageNum ? brandColor : 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid',
+                  borderColor: page === pageNum ? brandColor : 'rgba(255, 255, 255, 0.1)',
+                  borderRadius: '10px',
+                  color: '#FFFFFF',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {pageNum}
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
+          disabled={page === totalPages || isLoading}
+          style={{
+            padding: '10px 16px',
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '10px',
+            color: '#FFFFFF',
+            fontSize: '14px',
+            fontWeight: 600,
+            cursor: (page === totalPages || isLoading) ? 'not-allowed' : 'pointer',
+            opacity: page === totalPages ? 0.5 : 1,
+            transition: 'all 0.2s'
+          }}
+        >
+          {t('common.pagination.next', { defaultValue: 'Next' })}
+        </button>
+      </div>
+    );
+  };
+
   const handleLogout = async () => {
     await signOut();
   };
 
   // Auth Handlers
-  const handleGoogleSignup = async () => setShowRegistrationModal(false);
-  const handleEmailSignup = async () => setShowRegistrationModal(false);
   const handleLoginSuccess = () => setShowLoginModal(false);
-  const handleGoogleLogin = async () => setShowLoginModal(false);
   
   const handleSwitchToSignup = () => {
     setShowLoginModal(false);
@@ -150,52 +243,11 @@ export default function CommunityPeopleDiscovery() {
     t('communityPage.roles.finance'),
     t('communityPage.roles.education')
   ];
-  // ... rest of the constants (industries, interests, availableDates, timeSlots)
-
-  // Filter logic (same as before)
-  const filteredPeople = people.filter(person => {
-    if (selectedSector) {
-      const matchesSector = person.industry === selectedSector || (Array.isArray(person.sectors) && person.sectors.includes(selectedSector));
-      if (!matchesSector) return false;
-    }
-    if (searchQuery && !person.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !person.position.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !person.company.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
-    }
-    if (person.matchScore < minMatchScore) return false;
-    if (selectedRoles.length > 0 && !selectedRoles.includes(person.role)) return false;
-    if (selectedIndustries.length > 0 && !selectedIndustries.includes(person.industry)) return false;
-    if (selectedInterests.length > 0 && !selectedInterests.some(interest => person.tags.includes(interest))) return false;
-    if (onlineOnly && !person.isOnline) return false;
-    if (openToMeetingsOnly && !person.openToMeetings) return false;
-    return true;
-  });
 
   const toggleRole = (role: string) => {
     setSelectedRoles(prev =>
       prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
     );
-  };
-
-  const toggleIndustry = (industry: string) => {
-    setSelectedIndustries(prev =>
-      prev.includes(industry) ? prev.filter(i => i !== industry) : [...prev, industry]
-    );
-  };
-
-  const toggleInterest = (interest: string) => {
-    setSelectedInterests(prev =>
-      prev.includes(interest) ? prev.filter(i => i !== interest) : [...prev, interest]
-    );
-  };
-
-  const handleConnect = (person: Person) => {
-    if (!currentUser) {
-      setShowLoginModal(true);
-      return;
-    }
-    toast.success(t('communityPage.toasts.requestSent', { name: person.name }));
   };
 
   const handleMessage = (person: Person) => {
@@ -206,38 +258,11 @@ export default function CommunityPeopleDiscovery() {
     navigate('/messages');
   };
 
-  const handleBookMeeting = (person: Person) => {
-    if (!currentUser) {
-      setShowLoginModal(true);
-      return;
-    }
-    navigate(`/profile/${person.id}`);
-  };
-
-  const handleSendMeetingRequest = () => {
-    if (!selectedTime) {
-      toast.error(t('communityPage.errors.selectTime'));
-      return;
-    }
-    toast.success(t('communityPage.toasts.meetingSent', { name: selectedPerson?.name || '' }));
-    setShowMeetingModal(false);
-    setSelectedTime('');
-    setMeetingMessage('');
-  };
-
   const getMatchColor = (score: number) => {
     if (score >= 90) return 'linear-gradient(135deg, #00D4D4 0%, #0684F5 100%)';
     if (score >= 80) return 'linear-gradient(135deg, #0684F5 0%, #667EEA 100%)';
     return 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)';
   };
-
-  useEffect(() => {
-    if (selectedSector) {
-      if (!selectedIndustries.includes(selectedSector)) {
-        // setSelectedIndustries([selectedSector]);
-      }
-    }
-  }, [selectedSector]);
 
   return (
     <div className="community-page" style={{ backgroundColor: '#0B2641', minHeight: '100vh' }}>
@@ -255,7 +280,6 @@ export default function CommunityPeopleDiscovery() {
         />
       )}
 
-      {/* Page Header */}
       <div
         className="community-header"
         style={{
@@ -308,11 +332,9 @@ export default function CommunityPeopleDiscovery() {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="community-content" style={{ maxWidth: '1400px', margin: '0 auto', padding: '40px' }}>
         <div className="community-layout" style={{ display: 'flex', gap: '32px' }}>
           
-          {/* Sidebar Filters */}
           <div
             className="community-sidebar"
             style={{
@@ -365,22 +387,21 @@ export default function CommunityPeopleDiscovery() {
             </div>
           </div>
 
-          {/* People Grid */}
           <div style={{ flex: 1 }}>
             {isLoading ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 size={40} className="animate-spin text-[#0684F5]" />
               </div>
             ) : (
-            <>
+              <>
                 <div className="community-results" style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <p style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.6)' }}>
-                    {t('communityPage.results.count', { count: filteredPeople.length })}
+                    {t('communityPage.results.count', { count: totalMembers })}
                   </p>
                 </div>
 
-                <div className="community-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '24px' }}>
-                  {filteredPeople.map(person => (
+                <div className="community-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '24px', opacity: isLoading ? 0.6 : 1, transition: 'opacity 0.2s' }}>
+                  {people.map(person => (
                     <div
                       key={person.id}
                       onClick={() => navigate(`/profile/${person.id}`)}
@@ -471,25 +492,26 @@ export default function CommunityPeopleDiscovery() {
                     </div>
                   ))}
                 </div>
+
+                <PaginationControls />
               </>
             )}
           </div>
         </div>
       </div>
 
-      {/* Auth Modals */}
       <ModalRegistrationEntry
         isOpen={showRegistrationModal}
         onClose={() => setShowRegistrationModal(false)}
-        onGoogleSignup={handleGoogleSignup}
-        onEmailSignup={handleEmailSignup}
+        onGoogleSignup={() => {}}
+        onEmailSignup={() => {}}
         onLoginClick={handleSwitchToLogin}
       />
 
       <ModalLogin
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
-        onGoogleLogin={handleGoogleLogin}
+        onGoogleLogin={() => {}}
         onLoginSuccess={handleLoginSuccess}
         onSignUpClick={handleSwitchToSignup}
       />
