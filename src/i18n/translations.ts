@@ -2678,6 +2678,62 @@ export const translations = {
         }
       },
     },
+    registrationFlow: {
+      help: 'Need help? Contact the event organizer.',
+      welcomeBack: 'Welcome back',
+      guest: 'Guest',
+      confirmDetails: 'Confirm your details',
+      locked: 'Locked',
+      selectOption: 'Select an option...',
+      selectCountry: 'Select country',
+      phoneNumber: 'Phone Number',
+      fileUploaded: 'File uploaded',
+      clickToUpload: 'Click to upload',
+      customizeAgenda: 'Customize Your Agenda',
+      selectSessionsOptional: 'Select the sessions you would like to attend (optional)',
+      noSessionsAvailable: 'No sessions available for this event.',
+      preRegistrationComplete: 'Pre-Registration Complete!',
+      allSet: "You're all set!",
+      paidConfirmationDesc: 'Your registration is confirmed. Please complete payment to secure your spot.',
+      freeConfirmationDesc: 'Your registration is confirmed. Show your QR code at the entrance.',
+      finalStepTitle: 'One Last Step',
+      finalStepDesc: 'Browse and secure your ticket to complete registration.',
+      browseSecureTicket: 'Browse & Secure Your Ticket',
+      downloadTicketVoucher: 'Download Ticket Voucher',
+      backToEventPage: 'Back to Event Page',
+      back: 'Back',
+      completeRegistration: 'Complete Registration',
+      continue: 'Continue',
+      selectedSessions: 'Selected Sessions',
+      itemsCount: '{count} items',
+      mainHall: 'Main Hall',
+      registrationStatus: 'Registration Status',
+      ticketPurchaseRequired: 'Ticket purchase required',
+      free: 'Free',
+      steps: {
+        details: 'Details',
+        sessions: 'Sessions',
+        done: 'Done'
+      },
+      voucher: {
+        officialEntryTicket: 'Official Entry Ticket',
+        date: 'Date',
+        tbd: 'TBD',
+        time: 'Time',
+        attendee: 'Attendee',
+        confCode: 'Confirmation Code',
+        presentQR: 'Present this QR code at the entrance'
+      },
+      toasts: {
+        loadFailed: 'Failed to load event details',
+        nameEmailRequired: 'Name and email are required',
+        alreadyRegistered: 'You are already registered for this event',
+        registrationFailed: 'Registration failed. Please try again.',
+        fileUploaded: 'File uploaded successfully',
+        fileUploadFailed: 'File upload failed',
+        fileUploadError: 'Error uploading file'
+      }
+    },
     profile: {
       header: {
         title: 'My Profile',
@@ -7159,7 +7215,62 @@ export const translations = {
         '5000+ employes'
       ]
     },
-
+    registrationFlow: {
+      help: 'Besoin d\'aide ? Contactez l\'organisateur de l\'événement.',
+      welcomeBack: 'Bon retour',
+      guest: 'Invité',
+      confirmDetails: 'Confirmez vos informations',
+      locked: 'Verrouillé',
+      selectOption: 'Sélectionner une option...',
+      selectCountry: 'Sélectionner un pays',
+      phoneNumber: 'Numéro de téléphone',
+      fileUploaded: 'Fichier téléchargé',
+      clickToUpload: 'Cliquer pour télécharger',
+      customizeAgenda: 'Personnalisez votre agenda',
+      selectSessionsOptional: 'Sélectionnez les sessions auxquelles vous souhaitez assister (optionnel)',
+      noSessionsAvailable: 'Aucune session disponible pour cet événement.',
+      preRegistrationComplete: 'Pré-inscription terminée !',
+      allSet: 'Vous êtes prêt !',
+      paidConfirmationDesc: 'Votre inscription est confirmée. Veuillez compléter le paiement pour garantir votre place.',
+      freeConfirmationDesc: 'Votre inscription est confirmée. Présentez votre QR code à l\'entrée.',
+      finalStepTitle: 'Dernière étape',
+      finalStepDesc: 'Parcourez et réservez votre billet pour finaliser l\'inscription.',
+      browseSecureTicket: 'Parcourir et réserver votre billet',
+      downloadTicketVoucher: 'Télécharger le bon de billet',
+      backToEventPage: 'Retour à la page de l\'événement',
+      back: 'Retour',
+      completeRegistration: 'Finaliser l\'inscription',
+      continue: 'Continuer',
+      selectedSessions: 'Sessions sélectionnées',
+      itemsCount: '{count} éléments',
+      mainHall: 'Salle principale',
+      registrationStatus: 'Statut d\'inscription',
+      ticketPurchaseRequired: 'Achat de billet requis',
+      free: 'Gratuit',
+      steps: {
+        details: 'Détails',
+        sessions: 'Sessions',
+        done: 'Terminé'
+      },
+      voucher: {
+        officialEntryTicket: 'Billet d\'entrée officiel',
+        date: 'Date',
+        tbd: 'À définir',
+        time: 'Heure',
+        attendee: 'Participant',
+        confCode: 'Code de confirmation',
+        presentQR: 'Présentez ce QR code à l\'entrée'
+      },
+      toasts: {
+        loadFailed: 'Échec du chargement des détails de l\'événement',
+        nameEmailRequired: 'Le nom et l\'email sont requis',
+        alreadyRegistered: 'Vous êtes déjà inscrit à cet événement',
+        registrationFailed: 'L\'inscription a échoué. Veuillez réessayer.',
+        fileUploaded: 'Fichier téléchargé avec succès',
+        fileUploadFailed: 'Échec du téléchargement du fichier',
+        fileUploadError: 'Erreur lors du téléchargement du fichier'
+      }
+    },
     profile: {
       header: {
         title: 'Mon Profil',
@@ -14302,6 +14413,62 @@ export const translations = {
         title: 'رسالة جديدة',
         searchPlaceholder: 'إلى: ابحث عن الاسم أو الشركة...',
         startTyping: 'ابدأ الكتابة للبحث عن الأشخاص'
+      }
+    },
+    registrationFlow: {
+      help: 'تحتاج مساعدة؟ تواصل مع منظم الفعالية.',
+      welcomeBack: 'مرحبًا بعودتك',
+      guest: 'ضيف',
+      confirmDetails: 'أكّد بياناتك',
+      locked: 'مقفل',
+      selectOption: 'اختر خيارًا...',
+      selectCountry: 'اختر البلد',
+      phoneNumber: 'رقم الهاتف',
+      fileUploaded: 'تم رفع الملف',
+      clickToUpload: 'انقر للرفع',
+      customizeAgenda: 'خصّص جدول أعمالك',
+      selectSessionsOptional: 'اختر الجلسات التي ترغب بحضورها (اختياري)',
+      noSessionsAvailable: 'لا توجد جلسات متاحة لهذه الفعالية.',
+      preRegistrationComplete: 'اكتمل التسجيل المسبق!',
+      allSet: 'أنت جاهز!',
+      paidConfirmationDesc: 'تم تأكيد تسجيلك. يرجى إكمال الدفع لتأمين مكانك.',
+      freeConfirmationDesc: 'تم تأكيد تسجيلك. أظهر رمز QR عند المدخل.',
+      finalStepTitle: 'خطوة أخيرة',
+      finalStepDesc: 'تصفّح واحجز تذكرتك لإكمال التسجيل.',
+      browseSecureTicket: 'تصفّح واحجز تذكرتك',
+      downloadTicketVoucher: 'تحميل قسيمة التذكرة',
+      backToEventPage: 'العودة إلى صفحة الفعالية',
+      back: 'رجوع',
+      completeRegistration: 'إكمال التسجيل',
+      continue: 'متابعة',
+      selectedSessions: 'الجلسات المختارة',
+      itemsCount: '{count} عناصر',
+      mainHall: 'القاعة الرئيسية',
+      registrationStatus: 'حالة التسجيل',
+      ticketPurchaseRequired: 'يتطلب شراء تذكرة',
+      free: 'مجاني',
+      steps: {
+        details: 'التفاصيل',
+        sessions: 'الجلسات',
+        done: 'تم'
+      },
+      voucher: {
+        officialEntryTicket: 'تذكرة الدخول الرسمية',
+        date: 'التاريخ',
+        tbd: 'يُحدد لاحقًا',
+        time: 'الوقت',
+        attendee: 'الحاضر',
+        confCode: 'رمز التأكيد',
+        presentQR: 'أظهر رمز QR هذا عند المدخل'
+      },
+      toasts: {
+        loadFailed: 'فشل تحميل تفاصيل الفعالية',
+        nameEmailRequired: 'الاسم والبريد الإلكتروني مطلوبان',
+        alreadyRegistered: 'أنت مسجل بالفعل في هذه الفعالية',
+        registrationFailed: 'فشل التسجيل. يرجى المحاولة مجدداً.',
+        fileUploaded: 'تم رفع الملف بنجاح',
+        fileUploadFailed: 'فشل رفع الملف',
+        fileUploadError: 'خطأ في رفع الملف'
       }
     },
     profile: {
