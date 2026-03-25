@@ -57,7 +57,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
   const scanLockRef = useRef(false);
   const lastScanRef = useRef<{ value: string; at: number } | null>(null);
   const autoAdvanceRef = useRef<number | null>(null);
-  const scannerUnsupportedRef = useRef(false);
+
   const flushLockRef = useRef(false);
   const [showScanner, setShowScanner] = useState<ScannerType>(null);
   const [scanResult, setScanResult] = useState<ScanResult>(null);
@@ -746,7 +746,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
       const attendee = await resolveAttendee(code);
       if (!attendee?.id) {
         setScanResult('error');
-        toast.error(`Not found: "${code.slice(0, 60)}"`);
+        toast.error(t('manageEvent.dayOf.toasts.invalidCode'));
         return;
       }
 
