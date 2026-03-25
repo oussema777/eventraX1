@@ -1623,19 +1623,22 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 200,
-            padding: '40px'
+            padding: window.innerWidth <= 768 ? '0' : '40px',
+            overflow: 'auto'
           }}
           onClick={handleCloseScanner}
         >
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              width: '900px',
+              width: window.innerWidth <= 768 ? '100%' : '900px',
+              maxWidth: '100%',
+              maxHeight: window.innerWidth <= 768 ? '100vh' : 'calc(100vh - 80px)',
               backgroundColor: '#1E3A5F',
-              borderRadius: '16px',
-              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: window.innerWidth <= 768 ? '0' : '16px',
+              border: window.innerWidth <= 768 ? 'none' : '1px solid rgba(255,255,255,0.2)',
               boxShadow: '0px 8px 32px rgba(0,0,0,0.5)',
-              overflow: 'hidden'
+              overflow: 'auto'
             }}
           >
             {/* Modal Header */}
@@ -1644,11 +1647,13 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
                 backgroundColor: showScanner === 'event' ? 'rgba(6,132,245,0.15)' : 
                                showScanner === 'session' ? 'rgba(139,92,246,0.15)' : 
                                'rgba(245,158,11,0.15)',
-                padding: '24px 32px',
+                padding: window.innerWidth <= 768 ? '16px' : '24px 32px',
                 borderBottom: '1px solid rgba(255,255,255,0.15)',
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center'
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '8px'
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -1763,14 +1768,14 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
             </div>
 
             {/* Modal Content */}
-            <div className="event-dayof__modal-grid" style={{ padding: '32px', display: 'grid', gridTemplateColumns: '60% 40%', gap: '32px' }}>
+            <div className="event-dayof__modal-grid" style={{ padding: window.innerWidth <= 768 ? '16px' : '32px', display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '60% 40%', gap: window.innerWidth <= 768 ? '16px' : '32px' }}>
               
               {/* Left: Scanner Area */}
               <div>
                 <div
                   style={{
                     width: '100%',
-                    height: '400px',
+                    height: window.innerWidth <= 768 ? '280px' : '400px',
                     backgroundColor: '#000000',
                     borderRadius: '12px',
                     border: '2px solid rgba(255,255,255,0.2)',
@@ -1930,7 +1935,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
                 {!scanResult && (
                   <div
                     style={{
-                      height: '400px',
+                      height: window.innerWidth <= 768 ? '200px' : '400px',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
