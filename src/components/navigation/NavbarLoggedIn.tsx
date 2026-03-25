@@ -9,6 +9,7 @@ import { useNotifications } from '../../hooks/useNotifications';
 import { usePlan } from '../../hooks/usePlan';
 import NotificationsDropdown from './NotificationsDropdown';
 import { useI18n } from '../../i18n/I18nContext';
+import { useCommunitySectors } from '../../hooks/useCommunitySectors';
 
 interface NavbarLoggedInProps {
   userName?: string;
@@ -108,7 +109,8 @@ export default function NavbarLoggedIn({
     fetchBusinessProfile();
   }, [user?.id]);
 
-  const communities = tList<string>('nav.communities.items');
+  const fallbackCommunities = tList<string>('nav.communities.items');
+  const { sectors: communities } = useCommunitySectors(fallbackCommunities);
   const logisticSolutions = tList<string>('nav.logistics.items');
   const logisticsRoutes = [
     '/logistics/freight-calculator',

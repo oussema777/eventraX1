@@ -3,6 +3,7 @@ import { ChevronDown, Menu, X, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Logo from '../ui/Logo';
 import { useI18n } from '../../i18n/I18nContext';
+import { useCommunitySectors } from '../../hooks/useCommunitySectors';
 
 interface NavbarLoggedOutProps {
   onSignUpClick?: () => void;
@@ -36,7 +37,8 @@ export default function NavbarLoggedOut({ onSignUpClick, onLoginClick }: NavbarL
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const communities = tList<string>('nav.communities.items');
+  const fallbackCommunities = tList<string>('nav.communities.items');
+  const { sectors: communities } = useCommunitySectors(fallbackCommunities);
   const logisticSolutions = tList<string>('nav.logistics.items');
   const logisticsRoutes = [
     '/logistics/freight-calculator',

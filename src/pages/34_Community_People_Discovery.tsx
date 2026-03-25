@@ -16,6 +16,7 @@ import { toast } from 'sonner@2.0.3';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
+import { extractProfileSectors, useCommunitySectors } from '../hooks/useCommunitySectors';
 
 interface Person {
   id: string;
@@ -40,7 +41,7 @@ export default function CommunityPeopleDiscovery() {
   const searchParams = new URLSearchParams(location.search);
   const selectedSector = searchParams.get('sector');
   const { user: currentUser, signOut } = useAuth();
-  const { t } = useI18n();
+  const { t, tList } = useI18n();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -52,56 +53,44 @@ export default function CommunityPeopleDiscovery() {
   const [people, setPeople] = useState<Person[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [totalMembers, setTotalMembers] = useState(0);
   const ITEMS_PER_PAGE = 20;
 
   // Filters
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [selectedIndustries, setSelectedIndustries] = useState<string[]>([]);
   const [onlineOnly, setOnlineOnly] = useState(false);
   const [openToMeetingsOnly, setOpenToMeetingsOnly] = useState(false);
+  const fallbackCommunities = tList<string>('nav.communities.items');
+  const { sectors: sectorOptions } = useCommunitySectors(fallbackCommunities);
 
   useEffect(() => {
     setPage(1);
-    fetchPeople(1);
-  }, [currentUser?.id, searchQuery, selectedRoles, selectedSector]);
+    fetchPeople();
+  }, [currentUser?.id]);
 
-  const fetchPeople = async (pageNum: number) => {
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, selectedIndustries, selectedSector, onlineOnly, openToMeetingsOnly]);
+
+  const fetchPeople = async () => {
     try {
       setIsLoading(true);
       
-      let query = supabase.from('profiles').select('*', { count: 'exact' });
+      let query = supabase
+        .from('profiles')
+        .select('id, full_name, job_title, company, location, avatar_url, bio, professional_data, b2b_profile, industry')
+        .limit(1000);
       
       if (currentUser?.id) {
         query = query.neq('id', currentUser.id);
       }
-
-      // Server-side filtering
-      if (searchQuery) {
-        query = query.or(`full_name.ilike.%${searchQuery}%,job_title.ilike.%${searchQuery}%,company.ilike.%${searchQuery}%`);
-      }
-
-      if (selectedRoles.length > 0) {
-        query = query.in('industry', selectedRoles);
-      }
-
-      if (selectedSector) {
-        query = query.or(`industry.eq.${selectedSector}`);
-      }
-
-      const start = (pageNum - 1) * ITEMS_PER_PAGE;
-      const end = start + ITEMS_PER_PAGE - 1;
-
-      const { data, error, count } = await query
-        .order('created_at', { ascending: false })
-        .range(start, end);
+      const { data, error } = await query.order('full_name', { ascending: true });
 
       if (error) throw error;
-
-      setTotalMembers(count || 0);
 
       const mapped: Person[] = (data || []).map(profile => {
         const profData = profile.professional_data || {};
         const b2b = profile.b2b_profile || {};
+        const sectors = extractProfileSectors(profile);
         
         return {
           id: profile.id,
@@ -115,9 +104,9 @@ export default function CommunityPeopleDiscovery() {
           tags: Array.isArray(profData.skills) ? profData.skills.slice(0, 3) : [t('communityPage.defaults.tag')],
           isOnline: Math.random() > 0.5,
           openToMeetings: b2b.enabled !== false,
-          role: profile.industry || t('communityPage.defaults.role'),
-          industry: profile.industry || t('communityPage.defaults.industry'),
-          sectors: Array.isArray(b2b.industries_of_interest) ? b2b.industries_of_interest : []
+          role: profile.industry || sectors[0] || t('communityPage.defaults.role'),
+          industry: profile.industry || sectors[0] || t('communityPage.defaults.industry'),
+          sectors
         };
       });
 
@@ -132,12 +121,11 @@ export default function CommunityPeopleDiscovery() {
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
-    fetchPeople(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const PaginationControls = () => {
-    const totalPages = Math.ceil(totalMembers / ITEMS_PER_PAGE);
+    const totalPages = Math.ceil(filteredPeople.length / ITEMS_PER_PAGE);
     if (totalPages <= 1) return null;
 
     const brandColor = '#0684F5';
@@ -236,17 +224,45 @@ export default function CommunityPeopleDiscovery() {
     setShowLoginModal(true);
   };
 
-  const roles = [
-    t('communityPage.roles.technology'),
-    t('communityPage.roles.marketing'),
-    t('communityPage.roles.consulting'),
-    t('communityPage.roles.finance'),
-    t('communityPage.roles.education')
-  ];
+  const filteredPeople = people.filter(person => {
+    const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+    const normalizedPersonSectors = person.sectors.map(sector => sector.trim().toLowerCase());
 
-  const toggleRole = (role: string) => {
-    setSelectedRoles(prev =>
-      prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
+    if (selectedSector) {
+      const normalizedSelectedSector = selectedSector.trim().toLowerCase();
+      if (!normalizedPersonSectors.includes(normalizedSelectedSector)) {
+        return false;
+      }
+    }
+
+    if (
+      normalizedSearchQuery &&
+      !person.name.toLowerCase().includes(normalizedSearchQuery) &&
+      !person.position.toLowerCase().includes(normalizedSearchQuery) &&
+      !person.company.toLowerCase().includes(normalizedSearchQuery)
+    ) {
+      return false;
+    }
+
+    if (
+      selectedIndustries.length > 0 &&
+      !selectedIndustries.some(industry =>
+        normalizedPersonSectors.includes(industry.trim().toLowerCase())
+      )
+    ) {
+      return false;
+    }
+
+    if (onlineOnly && !person.isOnline) return false;
+    if (openToMeetingsOnly && !person.openToMeetings) return false;
+    return true;
+  });
+
+  const paginatedPeople = filteredPeople.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
+  const toggleIndustry = (industry: string) => {
+    setSelectedIndustries(prev =>
+      prev.includes(industry) ? prev.filter(i => i !== industry) : [...prev, industry]
     );
   };
 
@@ -377,10 +393,10 @@ export default function CommunityPeopleDiscovery() {
                 {t('communityPage.filters.industries.label')}
               </label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {roles.map(role => (
-                  <label key={role} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'rgba(255, 255, 255, 0.7)', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={selectedRoles.includes(role)} onChange={() => toggleRole(role)} />
-                    {role}
+                {sectorOptions.map(industry => (
+                  <label key={industry} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'rgba(255, 255, 255, 0.7)', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={selectedIndustries.includes(industry)} onChange={() => toggleIndustry(industry)} />
+                    {industry}
                   </label>
                 ))}
               </div>
@@ -396,12 +412,12 @@ export default function CommunityPeopleDiscovery() {
               <>
                 <div className="community-results" style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <p style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.6)' }}>
-                    {t('communityPage.results.count', { count: totalMembers })}
+                    {t('communityPage.results.count', { count: filteredPeople.length })}
                   </p>
                 </div>
 
                 <div className="community-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '24px', opacity: isLoading ? 0.6 : 1, transition: 'opacity 0.2s' }}>
-                  {people.map(person => (
+                  {paginatedPeople.map(person => (
                     <div
                       key={person.id}
                       onClick={() => navigate(`/profile/${person.id}`)}
