@@ -621,75 +621,51 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw);
     const isEmail = raw.includes('@');
 
-    const selectCols = 'id,profile_id,checked_in,check_in_at,name,email,company,photo_url,avatar_url,ticket_type,ticket_color,ticket_code,confirmation_code,qr_token,is_vip,meta';
-
     let attendee: any = null;
 
     // 1. Try UUID / Primary ID
     if (isUuid) {
-      const { data: uuidData, error } = await supabase
+      const { data } = await supabase
         .from('event_attendees')
-        .select(selectCols)
+        .select('*')
         .eq('event_id', eventId)
         .eq('id', raw)
         .maybeSingle();
-      if (error) console.error('[QR Scan] UUID lookup error:', error.message);
-      if (uuidData) attendee = uuidData;
+      if (data) attendee = data;
     }
 
     // 2. Try Email
     if (!attendee && isEmail) {
-      const { data: emailData } = await supabase
+      const { data } = await supabase
         .from('event_attendees')
-        .select(selectCols)
+        .select('*')
         .eq('event_id', eventId)
         .eq('email', raw)
         .maybeSingle();
-      if (emailData) attendee = emailData;
+      if (data) attendee = data;
     }
 
-    // 3. Try Standard Columns (ticket_code, confirmation_code, qr_token)
+    // 3. Try Standard Columns one by one
     if (!attendee) {
-      const { data: stdData, error } = await supabase
-        .from('event_attendees')
-        .select(selectCols)
-        .eq('event_id', eventId)
-        .or(`ticket_code.eq.${raw},confirmation_code.eq.${raw},qr_token.eq.${raw}`)
-        .maybeSingle();
-      if (error) console.error('[QR Scan] Standard column lookup error:', error.message);
-      if (stdData) attendee = stdData;
+      for (const col of ['ticket_code', 'confirmation_code', 'qr_token']) {
+        const { data } = await supabase
+          .from('event_attendees')
+          .select('*')
+          .eq('event_id', eventId)
+          .eq(col, raw)
+          .maybeSingle();
+        if (data) { attendee = data; break; }
+      }
     }
 
-    // 4. Try Meta JSON (Deep Search)
-    if (!attendee) {
-      const { data: metaData } = await supabase
-        .from('event_attendees')
-        .select(selectCols)
-        .eq('event_id', eventId)
-        .contains('meta', { confirmation_code: raw })
-        .maybeSingle();
-      if (metaData) attendee = metaData;
-    }
-
-    // 5. Hard ID Fallback (if not UUID but exists in id column)
-    if (!attendee) {
-      const { data: idData } = await supabase
-        .from('event_attendees')
-        .select(selectCols)
-        .eq('event_id', eventId)
-        .eq('id', raw)
-        .maybeSingle();
-      if (idData) attendee = idData;
-    }
-
-    // 6. Fallback: try without event_id filter (in case of mismatch)
+    // 4. Fallback: try without event_id filter
     if (!attendee && isUuid) {
-      const { data: globalData } = await supabase
+      const { data } = await supabase
         .from('event_attendees')
-        .select(selectCols)
+        .select('*')
         .eq('id', raw)
         .maybeSingle();
-      if (globalData) attendee = globalData;
+      if (data) attendee = data;
     }
 
     if (!attendee) return null;
@@ -743,7 +719,6 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
         return;
       }
 
-      toast.info(`Scanned: "${code.slice(0, 80)}"`);
       const attendee = await resolveAttendee(code);
       if (!attendee?.id) {
         setScanResult('error');
