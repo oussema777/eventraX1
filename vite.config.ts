@@ -51,7 +51,7 @@
       },
     },
     build: {
-      target: 'esnext',
+      target: ['es2017', 'safari12'],
       outDir: 'build',
     },
     server: {
