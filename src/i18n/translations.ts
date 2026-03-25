@@ -2347,6 +2347,31 @@ export const translations = {
         },
         meetings: {
           noMeetings: 'No meetings available'
+        },
+        toasts: {
+          settingsSaved: 'Scanner settings saved',
+          settingsFailed: 'Failed to save scanner settings',
+          synced: 'Queued check-ins synced',
+          cameraUnavailable: 'Camera access not available',
+          cameraDenied: 'Camera access denied',
+          cameraInactive: 'Camera is not active',
+          torchUnsupported: 'Flashlight not supported on this device',
+          torchFailed: 'Failed to toggle flashlight',
+          qrUnsupported: 'QR scanning not supported on this device',
+          enterCode: 'Please enter a code',
+          invalidCode: 'Invalid QR code — attendee not found',
+          selectSession: 'Please select a session first',
+          selectMeeting: 'Please select a meeting first',
+          meetingNotFound: 'Meeting not found',
+          notAssigned: 'Attendee is not assigned to this meeting',
+          duplicateBlocked: 'Duplicate check-in blocked',
+          queuedOffline: 'Check-in queued offline — will sync when online',
+          reentryLogged: 'Re-entry logged successfully',
+          checkInSuccess: 'Check-in successful!',
+          checkInFailed: 'Check-in failed — please try again',
+          noDuplicate: 'No pending duplicate to confirm',
+          reportDownloaded: 'Report downloaded',
+          reportFailed: 'Failed to download report'
         }
       },
       reporting: {
@@ -7762,6 +7787,31 @@ export const translations = {
         },
         meetings: {
           noMeetings: 'Aucune reunion disponible'
+        },
+        toasts: {
+          settingsSaved: 'Paramètres du scanner enregistrés',
+          settingsFailed: 'Échec de l\'enregistrement des paramètres',
+          synced: 'Check-ins en attente synchronisés',
+          cameraUnavailable: 'Accès caméra non disponible',
+          cameraDenied: 'Accès caméra refusé',
+          cameraInactive: 'La caméra n\'est pas active',
+          torchUnsupported: 'Lampe torche non supportée sur cet appareil',
+          torchFailed: 'Échec de la lampe torche',
+          qrUnsupported: 'Scan QR non supporté sur cet appareil',
+          enterCode: 'Veuillez entrer un code',
+          invalidCode: 'QR code invalide — participant non trouvé',
+          selectSession: 'Veuillez sélectionner une session',
+          selectMeeting: 'Veuillez sélectionner une réunion',
+          meetingNotFound: 'Réunion introuvable',
+          notAssigned: 'Le participant n\'est pas affecté à cette réunion',
+          duplicateBlocked: 'Doublon de check-in bloqué',
+          queuedOffline: 'Check-in mis en file — synchronisation quand en ligne',
+          reentryLogged: 'Ré-entrée enregistrée avec succès',
+          checkInSuccess: 'Check-in réussi !',
+          checkInFailed: 'Échec du check-in — veuillez réessayer',
+          noDuplicate: 'Aucun doublon en attente à confirmer',
+          reportDownloaded: 'Rapport téléchargé',
+          reportFailed: 'Échec du téléchargement du rapport'
         }
       },
       reporting: {

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import jsQR from 'jsqr';
 import {
   Users,
   CheckCircle,
@@ -453,26 +454,39 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
     setTorchEnabled(false);
   };
 
+  const scanWithJsQR = (): string | null => {
+    const video = videoRef.current;
+    if (!video || video.readyState < 2) return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height);
+    return code?.data || null;
+  };
+
   const startScannerLoop = () => {
     if (scanIntervalRef.current !== null) return;
     const Detector = (window as any).BarcodeDetector;
-    if (!Detector) {
-      if (!scannerUnsupportedRef.current) {
-        scannerUnsupportedRef.current = true;
-        setCameraError('QR scanning not supported on this device');
-        toast.error(t('manageEvent.dayOf.toasts.qrUnsupported'));
-      }
-      return;
-    }
-    const detector = new Detector({ formats: ['qr_code'] });
+    const useBarcodeDetector = !!Detector;
+    const detector = useBarcodeDetector ? new Detector({ formats: ['qr_code'] }) : null;
+
     scanIntervalRef.current = window.setInterval(async () => {
       if (!videoRef.current || !showScanner || scanResult) return;
       if (scanLockRef.current) return;
       if (videoRef.current.readyState < 2) return;
       scanLockRef.current = true;
       try {
-        const codes = await detector.detect(videoRef.current);
-        const rawValue = codes?.[0]?.rawValue || codes?.[0]?.data;
+        let rawValue: string | null = null;
+        if (detector) {
+          const codes = await detector.detect(videoRef.current);
+          rawValue = codes?.[0]?.rawValue || codes?.[0]?.data || null;
+        } else {
+          rawValue = scanWithJsQR();
+        }
         if (rawValue) {
           await handleDetectedCode(rawValue);
         }
