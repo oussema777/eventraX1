@@ -743,6 +743,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
         return;
       }
 
+      toast.info(`Scanned: "${code.slice(0, 80)}"`);
       const attendee = await resolveAttendee(code);
       if (!attendee?.id) {
         setScanResult('error');
