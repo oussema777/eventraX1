@@ -609,10 +609,16 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
     };
   }, [scanResult, scannerSettings.autoAdvance, scannerSettings.soundOnSuccess, scannerSettings.vibrateOnSuccess]);
   const resolveAttendee = async (codeOrId: string) => {
-    const raw = (codeOrId || '').trim();
+    let raw = (codeOrId || '').trim();
     if (!raw) return null;
 
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(raw);
+    // Extract UUID from URL if the QR code contains a full URL
+    const uuidInUrl = raw.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+    if (uuidInUrl && raw.includes('/')) {
+      raw = uuidInUrl[0];
+    }
+
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw);
     const isEmail = raw.includes('@');
 
     const selectCols = 'id,profile_id,checked_in,check_in_at,name,email,company,photo_url,avatar_url,ticket_type,ticket_color,ticket_code,confirmation_code,qr_token,is_vip,meta';
@@ -621,12 +627,13 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
 
     // 1. Try UUID / Primary ID
     if (isUuid) {
-      const { data: uuidData } = await supabase
+      const { data: uuidData, error } = await supabase
         .from('event_attendees')
         .select(selectCols)
         .eq('event_id', eventId)
         .eq('id', raw)
         .maybeSingle();
+      if (error) console.error('[QR Scan] UUID lookup error:', error.message);
       if (uuidData) attendee = uuidData;
     }
 
@@ -643,12 +650,13 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
 
     // 3. Try Standard Columns (ticket_code, confirmation_code, qr_token)
     if (!attendee) {
-      const { data: stdData } = await supabase
+      const { data: stdData, error } = await supabase
         .from('event_attendees')
         .select(selectCols)
         .eq('event_id', eventId)
-        .or(`ticket_code.eq."${raw}",confirmation_code.eq."${raw}",qr_token.eq."${raw}"`)
+        .or(`ticket_code.eq.${raw},confirmation_code.eq.${raw},qr_token.eq.${raw}`)
         .maybeSingle();
+      if (error) console.error('[QR Scan] Standard column lookup error:', error.message);
       if (stdData) attendee = stdData;
     }
 
@@ -672,6 +680,16 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
         .eq('id', raw)
         .maybeSingle();
       if (idData) attendee = idData;
+    }
+
+    // 6. Fallback: try without event_id filter (in case of mismatch)
+    if (!attendee && isUuid) {
+      const { data: globalData } = await supabase
+        .from('event_attendees')
+        .select(selectCols)
+        .eq('id', raw)
+        .maybeSingle();
+      if (globalData) attendee = globalData;
     }
 
     if (!attendee) return null;
