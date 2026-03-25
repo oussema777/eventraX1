@@ -746,7 +746,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
       const attendee = await resolveAttendee(code);
       if (!attendee?.id) {
         setScanResult('error');
-        toast.error(t('manageEvent.dayOf.toasts.invalidCode'));
+        toast.error(`Not found: "${code.slice(0, 60)}"`);
         return;
       }
 
