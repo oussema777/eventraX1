@@ -811,17 +811,24 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
         scanned_code: forcedAttendeeId ? null : code
       };
 
+      // Mark attendee as checked in
+      if (!attendee.checked_in) {
+        await supabase
+          .from('event_attendees')
+          .update({ checked_in: true, check_in_at: nowIso })
+          .eq('id', attendee.id);
+      }
+
+      // Try to insert checkin log (non-blocking)
       try {
-        if (!attendee.checked_in) {
-          await supabase
-            .from('event_attendees')
-            .update({ checked_in: true, check_in_at: nowIso })
-            .eq('id', attendee.id);
-        }
-
         await insertCheckin(payload);
+      } catch (logErr) {
+        console.error('Checkin log insert failed (non-blocking):', logErr);
+      }
 
-        if (kind === 'b2b' && selectedMeeting) {
+      // B2B meeting completion check
+      if (kind === 'b2b' && selectedMeeting) {
+        try {
           const { data } = await supabase
             .from('event_checkins')
             .select('attendee_id')
@@ -835,28 +842,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
               .update({ status: 'completed' })
               .eq('id', selectedMeeting);
           }
-        }
-      } catch (e) {
-        if (scannerSettings.offlineScanning) {
-          const queue = readOfflineQueue();
-          queue.push({
-            event_id: eventId,
-            attendee_id: attendee.id,
-            type: kind,
-            session_id: kind === 'session' ? selectedSession : null,
-            meeting_id: kind === 'b2b' ? selectedMeeting : null,
-            scanned_code: forcedAttendeeId ? null : code,
-            created_at: nowIso,
-            check_in_at: nowIso
-          });
-          writeOfflineQueue(queue);
-          setManualCode('');
-          setScanResult('success');
-          setLastScanDetails(details);
-          toast.info(t('manageEvent.dayOf.toasts.queuedOffline'));
-          return;
-        }
-        throw e;
+        } catch { /* ignore */ }
       }
 
       setManualCode('');
