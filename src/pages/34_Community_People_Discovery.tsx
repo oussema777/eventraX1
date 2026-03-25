@@ -28,6 +28,7 @@ import { toast } from 'sonner@2.0.3';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
+import { extractProfileSectors, useCommunitySectors } from '../hooks/useCommunitySectors';
 
 interface Person {
   id: string;
@@ -52,7 +53,7 @@ export default function CommunityPeopleDiscovery() {
   const searchParams = new URLSearchParams(location.search);
   const selectedSector = searchParams.get('sector');
   const { user: currentUser, signOut } = useAuth();
-  const { t } = useI18n();
+  const { t, tList } = useI18n();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showMeetingModal, setShowMeetingModal] = useState(false);
@@ -71,20 +72,24 @@ export default function CommunityPeopleDiscovery() {
 
   // Filters
   const [minMatchScore, setMinMatchScore] = useState(0);
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [selectedIndustries, setSelectedIndustries] = useState<string[]>([]);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [onlineOnly, setOnlineOnly] = useState(false);
   const [openToMeetingsOnly, setOpenToMeetingsOnly] = useState(false);
+  const fallbackCommunities = tList<string>('nav.communities.items');
+  const { sectors: sectorOptions } = useCommunitySectors(fallbackCommunities);
 
   useEffect(() => {
     fetchPeople();
-  }, [currentUser?.id]);
+  }, [currentUser?.id, selectedSector]);
 
   const fetchPeople = async () => {
     try {
       setIsLoading(true);
-      const query = supabase.from('profiles').select('*').limit(20);
+      const query = supabase
+        .from('profiles')
+        .select('id, full_name, job_title, company, location, avatar_url, bio, professional_data, b2b_profile, industry')
+        .limit(100);
       if (currentUser?.id) {
         query.neq('id', currentUser.id); // Don't show self
       }
@@ -95,6 +100,7 @@ export default function CommunityPeopleDiscovery() {
       const mapped: Person[] = (data || []).map(profile => {
         const profData = profile.professional_data || {};
         const b2b = profile.b2b_profile || {};
+        const sectors = extractProfileSectors(profile);
         
         return {
           id: profile.id,
@@ -108,9 +114,9 @@ export default function CommunityPeopleDiscovery() {
           tags: Array.isArray(profData.skills) ? profData.skills.slice(0, 3) : [t('communityPage.defaults.tag')],
           isOnline: Math.random() > 0.5,
           openToMeetings: b2b.enabled !== false,
-          role: profile.industry || t('communityPage.defaults.role'),
-          industry: profile.industry || t('communityPage.defaults.industry'),
-          sectors: Array.isArray(b2b.industries_of_interest) ? b2b.industries_of_interest : []
+          role: profile.industry || sectors[0] || t('communityPage.defaults.role'),
+          industry: profile.industry || sectors[0] || t('communityPage.defaults.industry'),
+          sectors
         };
       });
 
@@ -143,19 +149,13 @@ export default function CommunityPeopleDiscovery() {
     setShowLoginModal(true);
   };
 
-  const roles = [
-    t('communityPage.roles.technology'),
-    t('communityPage.roles.marketing'),
-    t('communityPage.roles.consulting'),
-    t('communityPage.roles.finance'),
-    t('communityPage.roles.education')
-  ];
-  // ... rest of the constants (industries, interests, availableDates, timeSlots)
-
   // Filter logic (same as before)
   const filteredPeople = people.filter(person => {
+    const normalizedPersonSectors = person.sectors.map(sector => sector.trim().toLowerCase());
+
     if (selectedSector) {
-      const matchesSector = person.industry === selectedSector || (person.sectors && person.sectors.includes(selectedSector));
+      const normalizedSelectedSector = selectedSector.trim().toLowerCase();
+      const matchesSector = normalizedPersonSectors.includes(normalizedSelectedSector);
       if (!matchesSector) return false;
     }
     if (searchQuery && !person.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
@@ -164,19 +164,19 @@ export default function CommunityPeopleDiscovery() {
       return false;
     }
     if (person.matchScore < minMatchScore) return false;
-    if (selectedRoles.length > 0 && !selectedRoles.includes(person.role)) return false;
-    if (selectedIndustries.length > 0 && !selectedIndustries.includes(person.industry)) return false;
+    if (
+      selectedIndustries.length > 0 &&
+      !selectedIndustries.some(industry =>
+        normalizedPersonSectors.includes(industry.trim().toLowerCase())
+      )
+    ) {
+      return false;
+    }
     if (selectedInterests.length > 0 && !selectedInterests.some(interest => person.tags.includes(interest))) return false;
     if (onlineOnly && !person.isOnline) return false;
     if (openToMeetingsOnly && !person.openToMeetings) return false;
     return true;
   });
-
-  const toggleRole = (role: string) => {
-    setSelectedRoles(prev =>
-      prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
-    );
-  };
 
   const toggleIndustry = (industry: string) => {
     setSelectedIndustries(prev =>
@@ -355,10 +355,10 @@ export default function CommunityPeopleDiscovery() {
                 {t('communityPage.filters.industries.label')}
               </label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {roles.map(role => (
-                  <label key={role} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'rgba(255, 255, 255, 0.7)', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={selectedRoles.includes(role)} onChange={() => toggleRole(role)} />
-                    {role}
+                {sectorOptions.map(industry => (
+                  <label key={industry} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'rgba(255, 255, 255, 0.7)', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={selectedIndustries.includes(industry)} onChange={() => toggleIndustry(industry)} />
+                    {industry}
                   </label>
                 ))}
               </div>

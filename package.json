@@ -65,6 +65,9 @@
       "scripts": {
             "dev": "vite",
             "build": "vite build",
+            "export:community-sectors": "node scripts/community-sector-cleanup/export-community-sectors.mjs",
+            "normalize:community-sectors": "node scripts/community-sector-cleanup/normalize-community-sectors.mjs",
+            "apply:community-sectors": "node scripts/community-sector-cleanup/apply-community-sector-normalization.mjs",
             "test:e2e": "playwright test",
             "test:e2e:ui": "playwright test --ui",
             "test:e2e:report": "playwright show-report"
