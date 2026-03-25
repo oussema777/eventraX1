@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { X, Lock, Check } from 'lucide-react';
+import { useI18n } from '../../../i18n/I18nContext';
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -8,14 +9,15 @@ interface UpgradeModalProps {
 
 export default function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
   const navigate = useNavigate();
+  const { t, tList } = useI18n();
   if (!isOpen) return null;
 
-  const features = [
+  const features = tList<string>('designStudio.modals.upgradeDesign.features', [
     'Hero video backgrounds',
     'Advanced content blocks',
     'Custom animations',
     'Priority support'
-  ];
+  ]);
 
   return (
     <div
@@ -64,7 +66,7 @@ export default function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
             className="text-2xl mb-3"
             style={{ fontWeight: 600, color: '#0B2641' }}
           >
-            Unlock Premium Design Features
+            {t('designStudio.modals.upgradeDesign.title')}
           </h2>
 
           {/* Description */}
@@ -72,7 +74,7 @@ export default function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
             className="text-base mb-6"
             style={{ color: '#6B7280' }}
           >
-            Add video backgrounds, advanced layouts, and more with Pro
+            {t('designStudio.modals.upgradeDesign.description')}
           </p>
 
           {/* Features List */}
@@ -110,7 +112,7 @@ export default function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
               navigate('/pricing');
             }}
           >
-            Upgrade to Pro - $49/month
+            {t('designStudio.modals.upgradeDesign.cta')}
           </button>
 
           {/* Learn More Link */}
@@ -121,7 +123,7 @@ export default function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
               console.log('Navigate to learn more page');
             }}
           >
-            Learn More
+            {t('designStudio.modals.upgradeDesign.learnMore')}
           </button>
 
           {/* Maybe Later */}
@@ -131,7 +133,7 @@ export default function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
               style={{ color: '#6B7280' }}
               onClick={onClose}
             >
-              Maybe Later
+              {t('designStudio.modals.upgradeDesign.maybeLater')}
             </button>
           </div>
         </div>

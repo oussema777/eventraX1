@@ -1,5 +1,6 @@
 import { X, CheckCircle, Send, Monitor, Smartphone, Bold, Italic, Underline, Link as LinkIcon } from 'lucide-react';
 import { useState } from 'react';
+import { useI18n } from '../../../i18n/I18nContext';
 
 interface EmailTemplate {
   id: string;
@@ -20,6 +21,7 @@ interface EmailEditorModalProps {
 }
 
 export default function EmailEditorModal({ isOpen, onClose, onSave, template }: EmailEditorModalProps) {
+  const { t } = useI18n();
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [formData, setFormData] = useState({
     subject: 'You\'re Registered for SaaS Summit 2024!',
@@ -88,7 +90,7 @@ The SaaS Summit Team`,
                   className="text-2xl mb-1"
                   style={{ fontWeight: 600, color: '#0B2641' }}
                 >
-                  Edit Email Template
+                  {t('wizard.step3.marketingTools.modals.emailEditor.title')}
                 </h2>
                 <p className="text-sm" style={{ color: '#6B7280' }}>
                   {template.name}
@@ -115,7 +117,7 @@ The SaaS Summit Team`,
                 {/* Email Subject */}
                 <div>
                   <label className="block text-sm mb-2" style={{ fontWeight: 500, color: '#0B2641' }}>
-                    Subject Line
+                    {t('wizard.step3.marketingTools.modals.emailEditor.labels.subjectLine')}
                   </label>
                   <input
                     type="text"
@@ -126,7 +128,7 @@ The SaaS Summit Team`,
                   />
                   <div className="flex justify-between items-center mt-1">
                     <p className="text-xs" style={{ color: '#9CA3AF' }}>
-                      Keep it under 50 characters for mobile
+                      {t('wizard.step3.marketingTools.modals.emailEditor.hints.subjectLength')}
                     </p>
                     <span className="text-xs" style={{ color: 'var(--success)', fontWeight: 600 }}>
                       {formData.subject.length}/100
@@ -137,7 +139,7 @@ The SaaS Summit Team`,
                 {/* Preview Text */}
                 <div>
                   <label className="block text-sm mb-2" style={{ fontWeight: 500, color: '#0B2641' }}>
-                    Preview Text
+                    {t('wizard.step3.marketingTools.modals.emailEditor.labels.previewText')}
                   </label>
                   <input
                     type="text"
@@ -147,14 +149,14 @@ The SaaS Summit Team`,
                     style={{ borderColor: '#E5E7EB', color: '#0B2641' }}
                   />
                   <p className="text-xs mt-1" style={{ color: '#9CA3AF' }}>
-                    Appears in email client preview
+                    {t('wizard.step3.marketingTools.modals.emailEditor.hints.previewText')}
                   </p>
                 </div>
 
                 {/* From Name */}
                 <div>
                   <label className="block text-sm mb-2" style={{ fontWeight: 500, color: '#0B2641' }}>
-                    From Name
+                    {t('wizard.step3.marketingTools.modals.emailEditor.labels.fromName')}
                   </label>
                   <input
                     type="text"
@@ -168,7 +170,7 @@ The SaaS Summit Team`,
                 {/* Reply-To Email */}
                 <div>
                   <label className="block text-sm mb-2" style={{ fontWeight: 500, color: '#0B2641' }}>
-                    Reply-To Email
+                    {t('wizard.step3.marketingTools.modals.emailEditor.labels.replyTo')}
                   </label>
                   <input
                     type="email"
@@ -182,7 +184,7 @@ The SaaS Summit Team`,
                 {/* Email Body */}
                 <div>
                   <label className="block text-sm mb-2" style={{ fontWeight: 500, color: '#0B2641' }}>
-                    Email Content
+                    {t('wizard.step3.marketingTools.modals.emailEditor.labels.emailContent')}
                   </label>
                   
                   {/* Toolbar */}
@@ -207,7 +209,7 @@ The SaaS Summit Team`,
                       className="px-2 h-8 rounded text-xs border-0 outline-none cursor-pointer"
                       style={{ backgroundColor: 'transparent', color: '#6B7280' }}
                     >
-                      <option>Insert variable</option>
+                      <option>{t('wizard.step3.marketingTools.modals.emailEditor.labels.insertVariable')}</option>
                       <option>{'{ attendee_name }'}</option>
                       <option>{'{ event_name }'}</option>
                       <option>{'{ event_date }'}</option>
@@ -227,7 +229,7 @@ The SaaS Summit Team`,
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <label className="text-sm" style={{ fontWeight: 500, color: '#0B2641' }}>
-                      CTA Button
+                      {t('wizard.step3.marketingTools.modals.emailEditor.labels.ctaButton')}
                     </label>
                     <button
                       onClick={() => setFormData({ ...formData, ctaEnabled: !formData.ctaEnabled })}
@@ -245,7 +247,7 @@ The SaaS Summit Team`,
                     <div className="space-y-3">
                       <input
                         type="text"
-                        placeholder="Button text"
+                        placeholder={t('wizard.step3.marketingTools.modals.emailEditor.placeholders.buttonText')}
                         value={formData.ctaText}
                         onChange={(e) => setFormData({ ...formData, ctaText: e.target.value })}
                         className="w-full h-9 px-3 rounded-lg border outline-none"
@@ -253,7 +255,7 @@ The SaaS Summit Team`,
                       />
                       <input
                         type="url"
-                        placeholder="Button URL"
+                        placeholder={t('wizard.step3.marketingTools.modals.emailEditor.placeholders.buttonUrl')}
                         value={formData.ctaUrl}
                         onChange={(e) => setFormData({ ...formData, ctaUrl: e.target.value })}
                         className="w-full h-9 px-3 rounded-lg border outline-none"
@@ -266,7 +268,7 @@ The SaaS Summit Team`,
                 {/* Footer Text */}
                 <div>
                   <label className="block text-sm mb-2" style={{ fontWeight: 500, color: '#0B2641' }}>
-                    Email Footer
+                    {t('wizard.step3.marketingTools.modals.emailEditor.labels.emailFooter')}
                   </label>
                   <textarea
                     value={formData.footer}
@@ -286,8 +288,8 @@ The SaaS Summit Team`,
               {/* Device Toggle */}
               <div className="flex items-center justify-center gap-2 mb-6">
                 {[
-                  { id: 'desktop', icon: Monitor, label: 'Desktop' },
-                  { id: 'mobile', icon: Smartphone, label: 'Mobile' }
+                  { id: 'desktop', icon: Monitor, label: t('wizard.step3.marketingTools.modals.emailEditor.devices.desktop') },
+                  { id: 'mobile', icon: Smartphone, label: t('wizard.step3.marketingTools.modals.emailEditor.devices.mobile') }
                 ].map((device) => {
                   const Icon = device.icon;
                   const isActive = previewDevice === device.id;
@@ -384,11 +386,11 @@ The SaaS Summit Team`,
             <div className="flex items-center gap-3">
               <button className="flex items-center gap-2 px-4 h-11 rounded-lg transition-colors hover:bg-gray-100">
                 <Send size={18} style={{ color: '#6B7280' }} />
-                <span style={{ color: '#6B7280', fontWeight: 600 }}>Send Test Email</span>
+                <span style={{ color: '#6B7280', fontWeight: 600 }}>{t('wizard.step3.marketingTools.modals.emailEditor.actions.sendTest')}</span>
               </button>
               <input
                 type="email"
-                placeholder="your@email.com"
+                placeholder={t('wizard.step3.marketingTools.modals.emailEditor.actions.testPlaceholder')}
                 className="w-48 h-11 px-3 rounded-lg border outline-none text-sm"
                 style={{ borderColor: '#E5E7EB', color: '#0B2641' }}
               />
@@ -399,19 +401,19 @@ The SaaS Summit Team`,
                 className="h-11 px-5 rounded-lg transition-colors hover:bg-gray-100"
                 style={{ color: '#0B2641', fontWeight: 600 }}
               >
-                Cancel
+                {t('wizard.step3.marketingTools.modals.emailEditor.actions.cancel')}
               </button>
               <button
                 onClick={onSave}
                 className="flex items-center gap-2 h-11 px-5 rounded-lg transition-all hover:scale-105"
-                style={{ 
+                style={{
                   backgroundColor: 'var(--primary)',
                   color: '#FFFFFF',
                   fontWeight: 600
                 }}
               >
                 <CheckCircle size={18} />
-                Save Template
+                {t('wizard.step3.marketingTools.modals.emailEditor.actions.save')}
               </button>
             </div>
           </div>

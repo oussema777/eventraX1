@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Loader2, Upload, Image as ImageIcon } from 'lucide-react';
+import { useI18n } from '../../../i18n/I18nContext';
 
 interface HeroBlockSettingsModalProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ export default function HeroBlockSettingsModal({
   onImageUpload,
   isSaving = false
 }: HeroBlockSettingsModalProps) {
+  const { t } = useI18n();
   const [title, setTitle] = useState(currentSettings.title || '');
   const [subtitle, setSubtitle] = useState(currentSettings.subtitle || '');
   const [backgroundImage, setBackgroundImage] = useState(currentSettings.backgroundImage || '');
@@ -126,10 +128,10 @@ export default function HeroBlockSettingsModal({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 28px', borderBottom: '1px solid #F3F4F6' }}>
           <div>
             <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#111827', marginBottom: '4px' }}>
-              Hero Section Settings
+              {t('wizard.designStudio.modals.heroBlock.title')}
             </h2>
             <p style={{ fontSize: '13px', color: '#6B7280' }}>
-              Customize the main banner of your event page.
+              {t('wizard.designStudio.modals.heroBlock.subtitle')}
             </p>
           </div>
           <button 
@@ -156,11 +158,11 @@ export default function HeroBlockSettingsModal({
           
           {/* Background Image */}
           <div style={{ marginBottom: '24px' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Background Image</h3>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>{t('wizard.designStudio.modals.heroBlock.sections.backgroundImage')}</h3>
             
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
-                Hero Banner Image
+                {t('wizard.designStudio.modals.heroBlock.labels.heroBannerImage')}
               </label>
               
               {!backgroundImage ? (
@@ -192,7 +194,7 @@ export default function HeroBlockSettingsModal({
                   {isUploading ? (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                       <Loader2 size={24} className="animate-spin" style={{ color: '#0684F5' }} />
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#6B7280' }}>Uploading...</span>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#6B7280' }}>{t('wizard.designStudio.modals.heroBlock.labels.uploading')}</span>
                     </div>
                   ) : (
                     <>
@@ -200,8 +202,8 @@ export default function HeroBlockSettingsModal({
                         <Upload size={20} style={{ color: '#0684F5' }} />
                       </div>
                       <div style={{ textAlign: 'center' }}>
-                        <span style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827' }}>Click to upload</span>
-                        <span style={{ fontSize: '12px', color: '#6B7280' }}>SVG, PNG, JPG or GIF (max. 5MB)</span>
+                        <span style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827' }}>{t('wizard.designStudio.modals.heroBlock.labels.clickToUpload')}</span>
+                        <span style={{ fontSize: '12px', color: '#6B7280' }}>{t('wizard.designStudio.modals.heroBlock.labels.fileTypes')}</span>
                       </div>
                     </>
                   )}
@@ -229,7 +231,7 @@ export default function HeroBlockSettingsModal({
                       }}
                     >
                       <ImageIcon size={14} />
-                      Change
+                      {t('wizard.designStudio.modals.heroBlock.labels.change')}
                     </button>
                     <button
                       type="button"
@@ -264,11 +266,11 @@ export default function HeroBlockSettingsModal({
 
           {/* Text Content */}
           <div style={{ marginBottom: '24px' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Text Content</h3>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>{t('wizard.designStudio.modals.heroBlock.sections.textContent')}</h3>
             
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
-                Event Title
+                {t('wizard.designStudio.modals.heroBlock.labels.eventTitle')}
               </label>
               <input
                 value={title}
@@ -284,13 +286,13 @@ export default function HeroBlockSettingsModal({
                   fontWeight: 500,
                   outline: 'none'
                 }}
-                placeholder="Defaults to event name"
+                placeholder={t('wizard.designStudio.modals.heroBlock.placeholders.title')}
               />
             </div>
 
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
-                Tagline / Subtitle
+                {t('wizard.designStudio.modals.heroBlock.labels.taglineSubtitle')}
               </label>
               <input
                 value={subtitle}
@@ -306,7 +308,7 @@ export default function HeroBlockSettingsModal({
                   fontWeight: 500,
                   outline: 'none'
                 }}
-                placeholder="Defaults to event tagline"
+                placeholder={t('wizard.designStudio.modals.heroBlock.placeholders.subtitle')}
               />
             </div>
           </div>
@@ -314,22 +316,22 @@ export default function HeroBlockSettingsModal({
           {/* Primary Button */}
           <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#F9FAFB', borderRadius: '12px', border: '1px solid #E5E7EB' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#111827' }}>Primary Button</h3>
+              <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#111827' }}>{t('wizard.designStudio.modals.heroBlock.sections.primaryButton')}</h3>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#374151', cursor: 'pointer' }}>
-                <input 
-                  type="checkbox" 
-                  checked={btn1Visible} 
+                <input
+                  type="checkbox"
+                  checked={btn1Visible}
                   onChange={(e) => setBtn1Visible(e.target.checked)}
                   style={{ width: '16px', height: '16px', accentColor: '#0684F5' }}
                 />
-                Visible
+                {t('wizard.designStudio.modals.heroBlock.labels.visible')}
               </label>
             </div>
-            
+
             {btn1Visible && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '4px' }}>Text</label>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '4px' }}>{t('wizard.designStudio.modals.heroBlock.labels.text')}</label>
                   <input
                     value={btn1Text}
                     onChange={(e) => setBtn1Text(e.target.value)}
@@ -337,9 +339,9 @@ export default function HeroBlockSettingsModal({
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '4px' }}>Action (Locked)</label>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '4px' }}>{t('wizard.designStudio.modals.heroBlock.labels.actionLocked')}</label>
                   <input
-                    value="Registration Page"
+                    value={t('wizard.designStudio.modals.heroBlock.labels.registrationPage')}
                     disabled
                     style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #E5E7EB', fontSize: '14px', color: '#9CA3AF', backgroundColor: '#F3F4F6', cursor: 'not-allowed' }}
                   />
@@ -351,22 +353,22 @@ export default function HeroBlockSettingsModal({
           {/* Secondary Button */}
           <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#F9FAFB', borderRadius: '12px', border: '1px solid #E5E7EB' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#111827' }}>Secondary Button</h3>
+              <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#111827' }}>{t('wizard.designStudio.modals.heroBlock.sections.secondaryButton')}</h3>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#374151', cursor: 'pointer' }}>
-                <input 
-                  type="checkbox" 
-                  checked={btn2Visible} 
+                <input
+                  type="checkbox"
+                  checked={btn2Visible}
                   onChange={(e) => setBtn2Visible(e.target.checked)}
                   style={{ width: '16px', height: '16px', accentColor: '#0684F5' }}
                 />
-                Visible
+                {t('wizard.designStudio.modals.heroBlock.labels.visible')}
               </label>
             </div>
-            
+
             {btn2Visible && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '4px' }}>Text</label>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '4px' }}>{t('wizard.designStudio.modals.heroBlock.labels.text')}</label>
                   <input
                     value={btn2Text}
                     onChange={(e) => setBtn2Text(e.target.value)}
@@ -374,7 +376,7 @@ export default function HeroBlockSettingsModal({
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '4px' }}>Link / Action</label>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '4px' }}>{t('wizard.designStudio.modals.heroBlock.labels.linkAction')}</label>
                   <input
                     value={btn2Url}
                     onChange={(e) => setBtn2Url(e.target.value)}
@@ -404,7 +406,7 @@ export default function HeroBlockSettingsModal({
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FFFFFF'}
             >
-              Cancel
+              {t('wizard.designStudio.modals.heroBlock.actions.cancel')}
             </button>
             <button
               type="submit"
@@ -426,7 +428,7 @@ export default function HeroBlockSettingsModal({
               }}
             >
               {isSaving && <Loader2 size={16} className="animate-spin" />}
-              {isSaving ? 'Updating...' : 'Update Section'}
+              {isSaving ? t('wizard.designStudio.modals.heroBlock.actions.updating') : t('wizard.designStudio.modals.heroBlock.actions.updateSection')}
             </button>
           </div>
         </form>

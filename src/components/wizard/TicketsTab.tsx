@@ -185,10 +185,10 @@ export default function TicketsTab({ eventId }: TicketsTabProps) {
                     <Crown size={28} style={{ color: '#FFFFFF' }} />
                   </div>
                   <h3 className="text-xl mb-2" style={{ color: '#0B2641', fontWeight: 600 }}>
-                    PRO Feature
+                    {t('wizard.step3.ticketsTab.pro.title')}
                   </h3>
                   <p className="text-sm mb-4" style={{ color: '#6B7280' }}>
-                    Upgrade to create VIP tickets
+                    {t('wizard.step3.ticketsTab.pro.subtitle')}
                   </p>
                   <button
                     className="px-6 h-10 rounded-lg"
@@ -198,7 +198,7 @@ export default function TicketsTab({ eventId }: TicketsTabProps) {
                       fontWeight: 700
                     }}
                   >
-                    Upgrade to Pro
+                    {t('wizard.step3.ticketsTab.pro.cta')}
                   </button>
                 </div>
               </div>
@@ -226,7 +226,7 @@ export default function TicketsTab({ eventId }: TicketsTabProps) {
                         className="px-2 py-1 rounded-full text-xs"
                         style={{ backgroundColor: '#E5E7EB', color: '#6B7280', fontWeight: 600 }}
                       >
-                        Expired
+                        {t('wizard.step3.ticketsTab.status.expired')}
                       </span>
                     )}
                     {ticket.status === 'draft' && (
@@ -234,7 +234,7 @@ export default function TicketsTab({ eventId }: TicketsTabProps) {
                         className="px-2 py-1 rounded-full text-xs"
                         style={{ backgroundColor: '#E5E7EB', color: '#6B7280', fontWeight: 600 }}
                       >
-                        Disabled
+                        {t('wizard.step3.ticketsTab.status.disabled')}
                       </span>
                     )}
                   </div>
@@ -243,7 +243,7 @@ export default function TicketsTab({ eventId }: TicketsTabProps) {
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
                   <span className="text-sm" style={{ color: '#94A3B8', fontWeight: 500 }}>
-                    {ticket.status === 'active' ? 'Enabled' : 'Disabled'}
+                    {ticket.status === 'active' ? t('wizard.step3.ticketsTab.status.enabled') : t('wizard.step3.ticketsTab.status.disabled')}
                   </span>
                   <button
                     onClick={() => handleToggleTicket(ticket.id)}
@@ -275,7 +275,7 @@ export default function TicketsTab({ eventId }: TicketsTabProps) {
             <div className="grid grid-cols-2 gap-6 mb-5">
               {/* Pricing */}
               <div>
-                <p className="text-sm mb-2" style={{ color: '#94A3B8', fontWeight: 500 }}>Price</p>
+                <p className="text-sm mb-2" style={{ color: '#94A3B8', fontWeight: 500 }}>{t('wizard.step3.ticketsTab.card.price')}</p>
                 <p 
                   className="text-4xl mb-1"
                   style={{ 
@@ -286,17 +286,17 @@ export default function TicketsTab({ eventId }: TicketsTabProps) {
                 >
                   ${ticket.price}
                 </p>
-                <p className="text-xs" style={{ color: '#94A3B8' }}>per attendee</p>
+                <p className="text-xs" style={{ color: '#94A3B8' }}>{t('wizard.step3.ticketsTab.card.perAttendee')}</p>
               </div>
 
               {/* Total Available */}
               <div>
-                <p className="text-sm mb-2" style={{ color: '#94A3B8', fontWeight: 500 }}>Total Available</p>
+                <p className="text-sm mb-2" style={{ color: '#94A3B8', fontWeight: 500 }}>{t('wizard.step3.ticketsTab.card.totalAvailable')}</p>
                 <p className="text-4xl mb-1" style={{ color: '#FFFFFF', fontWeight: 700 }}>
                   {ticket.total}
                 </p>
                 <p className="text-xs" style={{ color: '#94A3B8' }}>
-                  tickets
+                  {t('wizard.step3.ticketsTab.card.tickets')}
                 </p>
               </div>
             </div>
@@ -309,13 +309,13 @@ export default function TicketsTab({ eventId }: TicketsTabProps) {
               <div className="flex items-center gap-2">
                 <Calendar size={16} style={{ color: '#94A3B8' }} />
                 <span className="text-sm" style={{ color: '#94A3B8' }}>
-                  Sale ends: {ticket.endDate || 'N/A'}
+                  {t('wizard.step3.ticketsTab.card.saleEnds', { date: ticket.endDate || t('wizard.step3.ticketsTab.card.noEndDate') })}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <Tag size={16} style={{ color: '#94A3B8' }} />
                 <span className="text-sm" style={{ color: '#94A3B8' }}>
-                  Includes: {ticket.includes.join(', ')}
+                  {t('wizard.step3.ticketsTab.card.includes', { count: ticket.includes.length })}: {ticket.includes.join(', ')}
                 </span>
               </div>
             </div>
@@ -325,7 +325,7 @@ export default function TicketsTab({ eventId }: TicketsTabProps) {
               {ticket.status === 'expired' ? (
                 <button className="flex items-center gap-2 px-4 h-9 rounded-lg border transition-colors" style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#FFFFFF' }}>
                   <Archive size={16} />
-                  <span className="text-sm" style={{ fontWeight: 600 }}>Archive</span>
+                  <span className="text-sm" style={{ fontWeight: 600 }}>{t('wizard.step3.ticketsTab.card.archive')}</span>
                 </button>
               ) : (
                 <>
@@ -336,7 +336,7 @@ export default function TicketsTab({ eventId }: TicketsTabProps) {
                     }}
                     className="flex items-center gap-2 px-4 h-9 rounded-lg border transition-colors" style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#FFFFFF' }}>
                     <Edit2 size={16} />
-                    <span className="text-sm" style={{ fontWeight: 600 }}>Edit Ticket</span>
+                    <span className="text-sm" style={{ fontWeight: 600 }}>{t('wizard.step3.ticketsTab.card.edit')}</span>
                   </button>
                 </>
               )}
@@ -360,16 +360,16 @@ export default function TicketsTab({ eventId }: TicketsTabProps) {
         >
           <Plus size={48} style={{ color: '#94A3B8', marginBottom: '12px' }} />
           <h3 className="text-lg mb-2" style={{ color: '#FFFFFF', fontWeight: 600 }}>
-            Add Free Ticket Option
+            {t('wizard.step3.ticketsTab.empty.title')}
           </h3>
           <p className="text-sm mb-4" style={{ color: '#94A3B8' }}>
-            Great for networking events or community meetups
+            {t('wizard.step3.ticketsTab.empty.subtitle')}
           </p>
-          <button 
+          <button
             className="px-5 h-10 rounded-lg border transition-colors"
             style={{ borderColor: 'rgba(255,255,255,0.2)', color: '#FFFFFF', fontWeight: 600 }}
           >
-            Add Free Ticket
+            {t('wizard.step3.ticketsTab.empty.cta')}
           </button>
         </div>
       </div>
@@ -384,7 +384,7 @@ export default function TicketsTab({ eventId }: TicketsTabProps) {
           <div className="flex items-center gap-3">
             <Settings size={20} style={{ color: '#FFFFFF' }} />
             <span className="text-lg" style={{ color: '#FFFFFF', fontWeight: 600 }}>
-              Ticket Settings
+              {t('wizard.step3.ticketsTab.settings.title')}
             </span>
           </div>
           <ChevronDown 
@@ -403,10 +403,10 @@ export default function TicketsTab({ eventId }: TicketsTabProps) {
               {/* Global Ticket Limit */}
               <div>
                 <h4 className="text-base mb-3" style={{ color: '#0B2641', fontWeight: 600 }}>
-                  Global Ticket Limit
+                  {t('wizard.step3.ticketsTab.settings.globalLimit.title')}
                 </h4>
                 <p className="text-sm mb-4" style={{ color: '#6B7280' }}>
-                  Limit the total number of tickets one person can purchase across all ticket types
+                  {t('wizard.step3.ticketsTab.settings.globalLimit.subtitle')}
                 </p>
                 <div className="flex items-center gap-3 mb-4">
                   <button
@@ -424,7 +424,7 @@ export default function TicketsTab({ eventId }: TicketsTabProps) {
                     />
                   </button>
                   <span className="text-sm" style={{ color: '#0B2641', fontWeight: 500 }}>
-                    Enable global ticket limit
+                    {t('wizard.step3.ticketsTab.settings.globalLimit.toggle')}
                   </span>
                 </div>
 
@@ -434,13 +434,13 @@ export default function TicketsTab({ eventId }: TicketsTabProps) {
                     style={{ backgroundColor: '#F9FAFB', borderColor: '#E5E7EB' }}
                   >
                     <label className="block text-sm mb-2" style={{ color: '#6B7280', fontWeight: 500 }}>
-                      Maximum tickets per person
+                      {t('wizard.step3.ticketsTab.settings.globalLimit.maxPerPerson')}
                     </label>
                     <input
                       type="number"
                       value={globalMaxTickets}
                       onChange={(e) => setGlobalMaxTickets(Number(e.target.value))}
-                      placeholder="e.g., 10"
+                      placeholder={t('wizard.step3.ticketsTab.settings.globalLimit.placeholder')}
                       min="1"
                       className="w-full h-11 px-4 rounded-lg border outline-none mb-3"
                       style={{ borderColor: '#E5E7EB', color: '#0B2641', backgroundColor: '#FFFFFF' }}
@@ -451,7 +451,7 @@ export default function TicketsTab({ eventId }: TicketsTabProps) {
                     >
                       <Info size={16} style={{ color: 'var(--primary)', marginTop: '2px', flexShrink: 0 }} />
                       <div className="text-xs" style={{ color: '#0B2641', lineHeight: '1.5' }}>
-                        <strong>Example:</strong> If set to {globalMaxTickets}, a person can buy up to {globalMaxTickets} tickets total in any combination (e.g., {Math.floor(globalMaxTickets * 0.6)} General + {Math.floor(globalMaxTickets * 0.4)} VIP), but cannot exceed {globalMaxTickets} tickets total.
+                        <strong>{t('wizard.step3.ticketsTab.settings.globalLimit.exampleLabel')}</strong> {t('wizard.step3.ticketsTab.settings.globalLimit.exampleBody', { count: String(globalMaxTickets) })}
                       </div>
                     </div>
                   </div>
@@ -477,32 +477,32 @@ export default function TicketsTab({ eventId }: TicketsTabProps) {
         >
           <div className="flex items-center gap-3">
             <span className="text-sm" style={{ color: '#0B2641', fontWeight: 500 }}>
-              {selectedTickets.size} tickets selected
+              {t('wizard.step3.ticketsTab.bulk.selected', { count: selectedTickets.size })}
             </span>
             <button
               onClick={() => setSelectedTickets(new Set())}
               className="text-xs transition-colors hover:underline"
               style={{ color: 'var(--primary)', fontWeight: 600 }}
             >
-              Deselect All
+              {t('wizard.step3.ticketsTab.bulk.deselectAll')}
             </button>
           </div>
           <div className="ticket-bulk-actions flex items-center gap-2">
             <button className="ticket-bulk-btn flex items-center gap-2 px-4 h-9 rounded-lg transition-colors hover:bg-gray-50">
               <Check size={16} style={{ color: '#6B7280' }} />
-              <span className="text-sm" style={{ color: '#6B7280', fontWeight: 600 }}>Enable All</span>
+              <span className="text-sm" style={{ color: '#6B7280', fontWeight: 600 }}>{t('wizard.step3.ticketsTab.bulk.enableAll')}</span>
             </button>
             <button className="ticket-bulk-btn flex items-center gap-2 px-4 h-9 rounded-lg transition-colors hover:bg-gray-50">
               <X size={16} style={{ color: '#6B7280' }} />
-              <span className="text-sm" style={{ color: '#6B7280', fontWeight: 600 }}>Disable All</span>
+              <span className="text-sm" style={{ color: '#6B7280', fontWeight: 600 }}>{t('wizard.step3.ticketsTab.bulk.disableAll')}</span>
             </button>
             <button className="ticket-bulk-btn flex items-center gap-2 px-4 h-9 rounded-lg border transition-colors hover:bg-gray-50">
               <Copy size={16} />
-              <span className="text-sm" style={{ fontWeight: 600 }}>Duplicate</span>
+              <span className="text-sm" style={{ fontWeight: 600 }}>{t('wizard.step3.ticketsTab.bulk.duplicate')}</span>
             </button>
             <button className="ticket-bulk-btn flex items-center gap-2 px-4 h-9 rounded-lg transition-colors hover:bg-red-50">
               <Trash2 size={16} style={{ color: '#EF4444' }} />
-              <span className="text-sm" style={{ color: '#EF4444', fontWeight: 600 }}>Delete</span>
+              <span className="text-sm" style={{ color: '#EF4444', fontWeight: 600 }}>{t('wizard.step3.ticketsTab.bulk.delete')}</span>
             </button>
           </div>
         </div>

@@ -1,25 +1,31 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { 
-  Rocket, 
-  Users, 
-  Store, 
+import {
+  Rocket,
+  Users,
+  Store,
   Calendar,
   LayoutDashboard,
-  Sparkles
+  Link2,
+  Copy,
+  CheckCircle,
+  Clock,
+  ExternalLink,
+  Eye
 } from 'lucide-react';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import { useEventStats } from '../hooks/useEventStats';
+import { toast } from 'sonner@2.0.3';
 
 // Confetti component for celebration effect
 function ConfettiAnimation() {
   return (
-    <div style={{ 
-      position: 'fixed', 
-      top: 0, 
-      left: 0, 
-      width: '100%', 
-      height: '100%', 
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
       pointerEvents: 'none',
       zIndex: 50,
       overflow: 'hidden'
@@ -31,7 +37,7 @@ function ConfettiAnimation() {
         const randomLeft = Math.random() * 100;
         const randomDelay = Math.random() * 2;
         const randomDuration = 2 + Math.random() * 2;
-        
+
         return (
           <div
             key={i}
@@ -68,10 +74,13 @@ function ConfettiAnimation() {
 export default function EventLiveSuccess() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [showConfetti, setShowConfetti] = useState(true);
+  const [copied, setCopied] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const eventId = searchParams.get('eventId');
   const { baseStats } = useEventStats(eventId || undefined);
+
+  const previewUrl = eventId ? `${window.location.origin}/event/${eventId}/landing` : '';
 
   // Hide confetti after 4 seconds
   useEffect(() => {
@@ -89,13 +98,30 @@ export default function EventLiveSuccess() {
     }
   };
 
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(previewUrl);
+      setCopied(true);
+      toast.success('Preview link copied!');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Failed to copy link');
+    }
+  };
+
+  const handleOpenPreview = () => {
+    if (eventId) {
+      window.open(`/event/${eventId}/landing`, '_blank');
+    }
+  };
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0B2641' }}>
       {/* Confetti Animation */}
       {showConfetti && <ConfettiAnimation />}
 
       {/* Fixed Navigation */}
-      <NavbarLoggedIn 
+      <NavbarLoggedIn
         isUserMenuOpen={isUserMenuOpen}
         setIsUserMenuOpen={setIsUserMenuOpen}
         currentPage="success"
@@ -104,11 +130,11 @@ export default function EventLiveSuccess() {
       {/* Main Content - Centered */}
       <main className="flex items-center justify-center px-6" style={{ minHeight: 'calc(100vh - 72px)', paddingTop: '120px', paddingBottom: '80px' }}>
         <div style={{ maxWidth: '700px', width: '100%' }}>
-          
+
           {/* SUCCESS MESSAGE */}
           <div className="text-center mb-10">
             {/* Animated Icon */}
-            <div 
+            <div
               className="inline-flex items-center justify-center mb-6"
               style={{
                 width: '120px',
@@ -119,37 +145,162 @@ export default function EventLiveSuccess() {
                 animation: 'successPulse 2s ease-in-out infinite'
               }}
             >
-              <Rocket 
-                size={56} 
-                style={{ 
+              <Rocket
+                size={56}
+                style={{
                   color: '#FFFFFF',
                   animation: 'rocketShake 1s ease-in-out infinite'
-                }} 
+                }}
               />
             </div>
 
             {/* Title */}
             <h1 className="text-4xl mb-4" style={{ fontWeight: 700, color: '#FFFFFF' }}>
-              🎉 Your Event is Live!
+              Your Event Has Been Published!
             </h1>
 
             {/* Subtitle */}
-            <p className="text-xl" style={{ color: '#94A3B8' }}>
-              Your event page is now public and ready for registrations.
+            <p className="text-lg" style={{ color: '#94A3B8', maxWidth: '520px', margin: '0 auto', lineHeight: '1.7' }}>
+              Your event is now under review by our team. Once approved, it will appear publicly in Browse Events.
             </p>
           </div>
 
+          {/* REVIEW STATUS BANNER */}
+          <div
+            className="mb-8 p-5 rounded-xl flex items-center gap-4"
+            style={{
+              backgroundColor: 'rgba(245, 158, 11, 0.08)',
+              border: '1px solid rgba(245, 158, 11, 0.25)'
+            }}
+          >
+            <div
+              className="flex-shrink-0 flex items-center justify-center"
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(245, 158, 11, 0.15)'
+              }}
+            >
+              <Clock size={22} style={{ color: '#F59E0B' }} />
+            </div>
+            <div>
+              <p style={{ fontWeight: 600, color: '#F59E0B', fontSize: '14px', marginBottom: '2px' }}>
+                Pending Admin Approval
+              </p>
+              <p style={{ color: '#94A3B8', fontSize: '13px', lineHeight: '1.5' }}>
+                Your event is submitted and awaiting review. You'll be notified once it's approved.
+              </p>
+            </div>
+          </div>
+
+          {/* PREVIEW LINK CARD */}
+          {eventId && (
+            <div
+              className="mb-8 rounded-xl overflow-hidden"
+              style={{
+                backgroundColor: 'rgba(6, 132, 245, 0.06)',
+                border: '1px solid rgba(6, 132, 245, 0.2)'
+              }}
+            >
+              <div className="p-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div
+                    className="flex items-center justify-center"
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '10px',
+                      backgroundColor: 'rgba(6, 132, 245, 0.15)'
+                    }}
+                  >
+                    <Eye size={18} style={{ color: '#0684F5' }} />
+                  </div>
+                  <div>
+                    <p style={{ fontWeight: 600, color: '#FFFFFF', fontSize: '15px' }}>Event Preview</p>
+                    <p style={{ color: '#64748B', fontSize: '12px' }}>Share this link to preview your event before it goes live</p>
+                  </div>
+                </div>
+
+                {/* URL bar */}
+                <div
+                  className="flex items-center gap-2 rounded-lg overflow-hidden"
+                  style={{
+                    backgroundColor: 'rgba(0,0,0,0.25)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    padding: '4px'
+                  }}
+                >
+                  <div className="flex items-center gap-2 flex-1 min-w-0 px-3 py-2">
+                    <Link2 size={14} style={{ color: '#64748B', flexShrink: 0 }} />
+                    <span
+                      style={{
+                        fontSize: '13px',
+                        color: '#94A3B8',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        fontFamily: 'monospace'
+                      }}
+                    >
+                      {previewUrl}
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleCopyLink}
+                    className="flex items-center gap-2 flex-shrink-0"
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      backgroundColor: copied ? '#10B981' : '#0684F5',
+                      color: '#fff',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {copied ? <><CheckCircle size={14} /> Copied!</> : <><Copy size={14} /> Copy Link</>}
+                  </button>
+                </div>
+
+                {/* Open preview button */}
+                <button
+                  onClick={handleOpenPreview}
+                  className="w-full mt-3 flex items-center justify-center gap-2"
+                  style={{
+                    padding: '10px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(6, 132, 245, 0.25)',
+                    backgroundColor: 'transparent',
+                    color: '#0684F5',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.1)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                >
+                  <ExternalLink size={14} />
+                  Open Event Preview
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* QUICK STATS ROW */}
-          <div className="grid grid-cols-3 gap-6 mb-10">
+          <div className="grid grid-cols-3 gap-6 mb-8">
             {/* Speakers */}
-            <div 
+            <div
               className="p-6 rounded-xl text-center transition-transform hover:scale-105"
-              style={{ 
+              style={{
                 backgroundColor: 'rgba(255, 255, 255, 0.05)',
                 border: '1px solid rgba(139, 92, 246, 0.3)'
               }}
             >
-              <div 
+              <div
                 className="inline-flex items-center justify-center mb-3"
                 style={{
                   width: '48px',
@@ -169,14 +320,14 @@ export default function EventLiveSuccess() {
             </div>
 
             {/* Exhibitors */}
-            <div 
+            <div
               className="p-6 rounded-xl text-center transition-transform hover:scale-105"
-              style={{ 
+              style={{
                 backgroundColor: 'rgba(255, 255, 255, 0.05)',
                 border: '1px solid rgba(6, 132, 245, 0.3)'
               }}
             >
-              <div 
+              <div
                 className="inline-flex items-center justify-center mb-3"
                 style={{
                   width: '48px',
@@ -196,14 +347,14 @@ export default function EventLiveSuccess() {
             </div>
 
             {/* Sessions */}
-            <div 
+            <div
               className="p-6 rounded-xl text-center transition-transform hover:scale-105"
-              style={{ 
+              style={{
                 backgroundColor: 'rgba(255, 255, 255, 0.05)',
                 border: '1px solid rgba(16, 185, 129, 0.3)'
               }}
             >
-              <div 
+              <div
                 className="inline-flex items-center justify-center mb-3"
                 style={{
                   width: '48px',
@@ -248,24 +399,8 @@ export default function EventLiveSuccess() {
               }}
             >
               <LayoutDashboard size={20} />
-              Go to Dashboard Event
+              Go to Event Dashboard
             </button>
-          </div>
-
-          {/* Success Tip */}
-          <div 
-            className="mt-8 p-4 rounded-lg flex items-start gap-3"
-            style={{ 
-              backgroundColor: 'rgba(139, 92, 246, 0.1)',
-              border: '1px solid rgba(139, 92, 246, 0.3)'
-            }}
-          >
-            <Sparkles size={20} style={{ color: '#8B5CF6', marginTop: '2px', flexShrink: 0 }} />
-            <div>
-              <p className="text-sm" style={{ color: '#E2E8F0', lineHeight: '1.6' }}>
-                <strong style={{ color: '#FFFFFF' }}>Pro Tip:</strong> Share your event page on social media and start engaging with early registrants to build momentum!
-              </p>
-            </div>
           </div>
         </div>
       </main>

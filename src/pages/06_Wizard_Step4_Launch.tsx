@@ -35,9 +35,9 @@ export default function WizardStep4Launch() {
       }
       await saveDraft({
         status: 'published',
-        is_public: true,
-        is_approved: true,
-        moderation_status: 'approved'
+        is_public: false,
+        is_approved: false,
+        moderation_status: 'pending'
       });
       if (user?.id) {
         try {

@@ -23,6 +23,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { sendEmail, generateRegistrationEmailHtml } from '../lib/email';
 import { countries } from '../data/countries';
 import { uploadFormSubmissionFile } from '../utils/storage';
+import { useI18n } from '../i18n/I18nContext';
 
 const toFlagEmoji = (code: string) => {
   if (!code) return '';
@@ -64,6 +65,7 @@ export default function EventRegistrationFlow() {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
+  const { t } = useI18n();
   
   const [currentStep, setCurrentStep] = useState<RegistrationStep>(1);
   const [event, setEvent] = useState<any>(null);
@@ -302,14 +304,16 @@ export default function EventRegistrationFlow() {
            }, ...finalFields];
         }
         
+        console.log('[REGISTRATION_DEBUG] Final Fields:', finalFields);
         setFormFields(finalFields);
       } else {
+        console.log('[REGISTRATION_DEBUG] No custom form found, using default fields');
         setFormFields(defaultFields);
       }
 
     } catch (error) {
       console.error('Error fetching registration data:', error);
-      toast.error('Failed to load event details.');
+      toast.error(t('registrationFlow.toasts.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -378,13 +382,27 @@ export default function EventRegistrationFlow() {
       const name = profile?.full_name || formFields.find(f => f.label.toLowerCase().includes('name'))?.value;
 
       if (!email || !name) {
-        toast.error('Name and Email are required');
+        toast.error(t('registrationFlow.toasts.nameEmailRequired'));
         setIsSubmitting(false);
         return;
       }
 
       if (!freeTicketId) {
         console.warn('No ticket found, registration might be incomplete on analytics.');
+      }
+
+      // Fetch notification settings for event_registration
+      let regNotifSettings = { is_email_enabled: true, is_bell_enabled: true };
+      if (eventId) {
+        try {
+          const { data: notifSetting } = await supabase
+            .from('event_notification_settings')
+            .select('is_email_enabled, is_bell_enabled')
+            .eq('event_id', eventId)
+            .eq('trigger_type', 'event_registration')
+            .maybeSingle();
+          if (notifSetting) regNotifSettings = notifSetting;
+        } catch { /* default ON */ }
       }
 
       const code = generateConfirmationCode();
@@ -413,7 +431,7 @@ export default function EventRegistrationFlow() {
       if (regError) {
         if (regError.code === '23505') {
           // Already registered - fetch existing record
-          toast.success("You're already registered! Updating your agenda...");
+          toast.success(t('registrationFlow.toasts.alreadyRegistered'));
           
           let query = supabase
             .from('event_attendees')
@@ -446,13 +464,14 @@ export default function EventRegistrationFlow() {
 
             const mySessions = sessions.filter(s => selectedSessions.has(s.id));
             const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${existing.id}`;
-            const emailHtml = generateRegistrationEmailHtml(event?.name || 'Event', existing.name || email || 'Attendee', qrUrl, mySessions);
-            
-            await sendEmail({
-              to: email || '',
-              subject: `Registration Confirmed: ${event?.name}`,
-              html: emailHtml
-            });
+            if (regNotifSettings.is_email_enabled) {
+              const emailHtml = generateRegistrationEmailHtml(event?.name || 'Event', existing.name || email || 'Attendee', qrUrl, mySessions);
+              await sendEmail({
+                to: email || '',
+                subject: `Registration Confirmed: ${event?.name}`,
+                html: emailHtml
+              });
+            }
             
             setCurrentStep(3);
             return;
@@ -480,17 +499,19 @@ export default function EventRegistrationFlow() {
 
         const mySessions = sessions.filter(s => selectedSessions.has(s.id));
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${attendee.id}`;
-        const emailHtml = generateRegistrationEmailHtml(event?.name || 'Event', attendee.name || email || 'Attendee', qrUrl, mySessions);
-        
-        await sendEmail({
-          to: email || '',
-          subject: `Registration Confirmed: ${event?.name}`,
-          html: emailHtml
-        });
+        if (regNotifSettings.is_email_enabled) {
+          const emailHtml = generateRegistrationEmailHtml(event?.name || 'Event', attendee.name || email || 'Attendee', qrUrl, mySessions);
+          await sendEmail({
+            to: email || '',
+            subject: `Registration Confirmed: ${event?.name}`,
+            html: emailHtml
+          });
+        }
       }
 
       try {
-        if (event?.owner_id) {
+        if (event?.owner_id && regNotifSettings.is_bell_enabled) {
+          // Internal manager alert - kept as simple system notification
           await createNotification({
             recipient_id: event.owner_id,
             actor_id: user?.id || null,
@@ -505,7 +526,7 @@ export default function EventRegistrationFlow() {
       setCurrentStep(3);
     } catch (error: any) {
       console.error('Registration failed:', error);
-      toast.error(error.message || 'Registration failed');
+      toast.error(error.message || t('registrationFlow.toasts.registrationFailed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -533,13 +554,13 @@ export default function EventRegistrationFlow() {
       const url = await uploadFormSubmissionFile(eventId, user?.id || 'guest', file);
       if (url) {
         updateFormField(fieldId, url);
-        toast.success('File uploaded successfully');
+        toast.success(t('registrationFlow.toasts.fileUploaded'));
       } else {
-        toast.error('Failed to upload file');
+        toast.error(t('registrationFlow.toasts.fileUploadFailed'));
       }
     } catch (error) {
       console.error('File upload error:', error);
-      toast.error('Error uploading file');
+      toast.error(t('registrationFlow.toasts.fileUploadError'));
     } finally {
       setFileUploading(prev => ({ ...prev, [fieldId]: false }));
     }
@@ -556,17 +577,29 @@ export default function EventRegistrationFlow() {
 
   const canProceed = () => {
     if (currentStep === 1) {
-      const allRequiredFilled = formFields.filter(f => f.required).every(f => f.value && f.value.trim() !== '');
+      const requiredFields = formFields.filter(f => f.required);
+      const emptyRequired = requiredFields.filter(f => {
+        // Special check for phone fields since they use phoneNumber instead of value
+        if (f.type === 'phone') {
+          return !f.phoneNumber || f.phoneNumber.trim() === '';
+        }
+        return !f.value || f.value.trim() === '';
+      });
+      
+      if (emptyRequired.length > 0) {
+        console.log('[REGISTRATION_DEBUG] Missing required fields:', emptyRequired.map(f => f.label).join(', '));
+      }
+
       const noActiveUploads = !Object.values(fileUploading).some(val => val === true);
-      return allRequiredFilled && noActiveUploads;
+      return emptyRequired.length === 0 && noActiveUploads;
     }
     return true; // Step 2 is optional
   };
 
   const steps = [
-    { number: 1, label: 'Details' },
-    { number: 2, label: 'Sessions' },
-    { number: 3, label: 'Done' }
+    { number: 1, label: t('registrationFlow.steps.details') },
+    { number: 2, label: t('registrationFlow.steps.sessions') },
+    { number: 3, label: t('registrationFlow.steps.done') }
   ];
 
   const formatTime = (iso: string) => {
@@ -705,7 +738,7 @@ export default function EventRegistrationFlow() {
               }}
             >
               <HelpCircle size={16} />
-              Help
+              {t('registrationFlow.help')}
             </button>
           </div>
         </div>
@@ -727,10 +760,10 @@ export default function EventRegistrationFlow() {
             <div>
               <div className="mb-8">
                 <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#FFFFFF', marginBottom: '8px' }}>
-                  Welcome back, {profile?.full_name?.split(' ')[0] || 'Guest'}
+                  {t('registrationFlow.welcomeBack').replace('{name}', profile?.full_name?.split(' ')[0] || t('registrationFlow.guest'))}
                 </h1>
                 <p style={{ fontSize: '15px', color: 'rgba(255, 255, 255, 0.6)' }}>
-                  Confirm your details to register for <span style={{ color: '#FFFFFF', fontWeight: 600 }}>{event?.name}</span>
+                  {t('registrationFlow.confirmDetails').replace('{eventName}', '')} <span style={{ color: '#FFFFFF', fontWeight: 600 }}>{event?.name}</span>
                 </p>
               </div>
 
@@ -757,7 +790,7 @@ export default function EventRegistrationFlow() {
                           padding: '2px 6px',
                           borderRadius: '4px'
                         }}>
-                          Locked
+                          {t('registrationFlow.locked')}
                         </span>
                       )}
                     </label>
@@ -776,7 +809,7 @@ export default function EventRegistrationFlow() {
                             cursor: field.readonly ? 'not-allowed' : 'pointer'
                           }}
                         >
-                          <option value="" style={{ color: '#000' }}>Select an option</option>
+                          <option value="" style={{ color: '#000' }}>{t('registrationFlow.selectOption')}</option>
                           {field.options?.map(opt => <option key={opt} value={opt} style={{ color: '#000' }}>{opt}</option>)}
                         </select>
                       ) : field.type === 'country' ? (
@@ -805,7 +838,7 @@ export default function EventRegistrationFlow() {
                                 {countries.find(c => c.code === field.value)?.name}
                               </span>
                             ) : (
-                              "Select Country"
+                              t('registrationFlow.selectCountry')
                             )}
                             <ChevronDown size={20} style={{ color: '#6B7280' }} />
                           </button>
@@ -904,7 +937,7 @@ export default function EventRegistrationFlow() {
                             type="tel"
                             value={field.phoneNumber || ''}
                             onChange={(e) => updatePhoneField(field.id, 'number', e.target.value)}
-                            placeholder="Phone number"
+                            placeholder={t('registrationFlow.phoneNumber')}
                             className="flex-1 h-[48px] px-4 rounded-lg border outline-none transition-all"
                             style={{
                               fontSize: '16px',
@@ -1012,7 +1045,7 @@ export default function EventRegistrationFlow() {
                             ) : field.value ? (
                               <div className="flex flex-col items-center gap-2">
                                 <Check size={24} className="text-green-500" />
-                                <span className="text-sm text-green-500 font-medium">File Uploaded</span>
+                                <span className="text-sm text-green-500 font-medium">{t('registrationFlow.fileUploaded')}</span>
                                 <span className="text-xs text-slate-400 truncate max-w-[200px]">
                                   {field.value.split('/').pop()}
                                 </span>
@@ -1021,7 +1054,7 @@ export default function EventRegistrationFlow() {
                               <div className="flex flex-col items-center gap-2">
                                 <Upload size={24} style={{ color: '#94A3B8' }} />
                                 <span className="text-sm" style={{ color: '#94A3B8' }}>
-                                  Click to upload document
+                                  {t('registrationFlow.clickToUpload')}
                                 </span>
                               </div>
                             )}
@@ -1108,10 +1141,10 @@ export default function EventRegistrationFlow() {
             <div>
               <div className="mb-8">
                 <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#FFFFFF', marginBottom: '8px' }}>
-                  Customize Your Agenda
+                  {t('registrationFlow.customizeAgenda')}
                 </h1>
                 <p style={{ fontSize: '15px', color: 'rgba(255, 255, 255, 0.6)' }}>
-                  Select the sessions you plan to attend (Optional)
+                  {t('registrationFlow.selectSessionsOptional')}
                 </p>
               </div>
 
@@ -1121,7 +1154,7 @@ export default function EventRegistrationFlow() {
                   style={{ borderColor: 'rgba(255, 255, 255, 0.15)', backgroundColor: 'rgba(255, 255, 255, 0.02)' }}
                 >
                   <Calendar className="mx-auto h-10 w-10 mb-3" style={{ color: 'rgba(255, 255, 255, 0.3)' }} />
-                  <p style={{ color: 'rgba(255, 255, 255, 0.5)' }}>No sessions available for selection yet.</p>
+                  <p style={{ color: 'rgba(255, 255, 255, 0.5)' }}>{t('registrationFlow.noSessionsAvailable')}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -1200,13 +1233,13 @@ export default function EventRegistrationFlow() {
               </div>
 
               <h1 className="text-3xl font-bold mb-4 no-print" style={{ color: '#FFFFFF' }}>
-                {isPaidEvent ? 'Pre-Registration Complete!' : "You're All Set!"}
+                {isPaidEvent ? t('registrationFlow.preRegistrationComplete') : t('registrationFlow.allSet')}
               </h1>
 
               <p className="mb-10 max-w-md mx-auto no-print" style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '16px' }}>
-                {isPaidEvent 
-                  ? `Your details for ${event?.name} have been saved. Follow the final step below to secure your place.`
-                  : `Thank you for registering for ${event?.name}. A confirmation email has been sent to ${user?.email}.`
+                {isPaidEvent
+                  ? t('registrationFlow.paidConfirmationDesc').replace('{eventName}', event?.name || '')
+                  : t('registrationFlow.freeConfirmationDesc').replace('{eventName}', event?.name || '').replace('{email}', user?.email || '')
                 }
               </p>
 
@@ -1227,9 +1260,9 @@ export default function EventRegistrationFlow() {
                       <CreditCard size={24} />
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold mb-2" style={{ color: '#FFFFFF' }}>Final Step: Secure Your Ticket</h3>
+                      <h3 className="text-lg font-bold mb-2" style={{ color: '#FFFFFF' }}>{t('registrationFlow.finalStepTitle')}</h3>
                       <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '14px', lineHeight: '1.6', marginBottom: '20px' }}>
-                        To finalize your subscription and receive your official entry pass, please choose and purchase a ticket from the event marketplace.
+                        {t('registrationFlow.finalStepDesc')}
                       </p>
                       <button
                         onClick={() => navigate(`/event/${eventId}/tickets`)}
@@ -1250,7 +1283,7 @@ export default function EventRegistrationFlow() {
                           e.currentTarget.style.transform = 'scale(1)';
                         }}
                       >
-                        Browse & Secure Ticket
+                        {t('registrationFlow.browseSecureTicket')}
                         <Check size={18} className="transition-transform group-hover:translate-x-1" />
                       </button>
                     </div>
@@ -1288,7 +1321,7 @@ export default function EventRegistrationFlow() {
                     }}
                   >
                     <Download size={18} />
-                    Download Ticket Voucher
+                    {t('registrationFlow.downloadTicketVoucher')}
                   </button>
                 )}
 
@@ -1317,7 +1350,7 @@ export default function EventRegistrationFlow() {
                     e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                   }}
                 >
-                  Back to Event Page
+                  {t('registrationFlow.backToEventPage')}
                 </button>
               </div>
 
@@ -1333,7 +1366,7 @@ export default function EventRegistrationFlow() {
                     <div className="p-6 text-left border-b border-dashed border-gray-200" style={{ backgroundColor: '#0B2641', color: '#FFFFFF' }}>
                       <div className="flex justify-between items-start mb-4">
                         <div>
-                          <p className="text-[10px] uppercase tracking-widest opacity-60 font-bold mb-1">Official Entry Ticket</p>
+                          <p className="text-[10px] uppercase tracking-widest opacity-60 font-bold mb-1">{t('registrationFlow.voucher.officialEntryTicket')}</p>
                           <h2 className="text-xl font-black leading-tight">{event?.name}</h2>
                         </div>
                         <div className="bg-blue-500/20 p-2 rounded-lg">
@@ -1342,12 +1375,12 @@ export default function EventRegistrationFlow() {
                       </div>
                       <div className="flex gap-4 text-[11px] font-medium opacity-80">
                         <div>
-                          <p className="uppercase opacity-60 mb-0.5">Date</p>
-                          <p>{event?.start_date ? new Date(event.start_date).toLocaleDateString() : 'TBD'}</p>
+                          <p className="uppercase opacity-60 mb-0.5">{t('registrationFlow.voucher.date')}</p>
+                          <p>{event?.start_date ? new Date(event.start_date).toLocaleDateString() : t('registrationFlow.voucher.tbd')}</p>
                         </div>
                         <div>
-                          <p className="uppercase opacity-60 mb-0.5">Time</p>
-                          <p>{event?.start_date ? new Date(event.start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'TBD'}</p>
+                          <p className="uppercase opacity-60 mb-0.5">{t('registrationFlow.voucher.time')}</p>
+                          <p>{event?.start_date ? new Date(event.start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : t('registrationFlow.voucher.tbd')}</p>
                         </div>
                       </div>
                     </div>
@@ -1363,12 +1396,12 @@ export default function EventRegistrationFlow() {
                       </div>
                       
                       <div className="text-center">
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold mb-1">Attendee</p>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold mb-1">{t('registrationFlow.voucher.attendee')}</p>
                         <p className="text-lg font-bold mb-4">{profile?.full_name || user?.email?.split('@')[0]}</p>
                         
                         {confirmationCode && (
                           <div className="inline-block px-4 py-2 bg-blue-50 rounded-lg">
-                            <p className="text-[9px] uppercase tracking-widest text-blue-600 font-bold mb-0.5">Conf. Code</p>
+                            <p className="text-[9px] uppercase tracking-widest text-blue-600 font-bold mb-0.5">{t('registrationFlow.voucher.confCode')}</p>
                             <p className="text-xl font-black tracking-tighter text-blue-700">{confirmationCode}</p>
                           </div>
                         )}
@@ -1377,7 +1410,7 @@ export default function EventRegistrationFlow() {
 
                     {/* Voucher Footer */}
                     <div className="px-8 py-4 bg-gray-50 text-center border-t border-dashed border-gray-200">
-                      <p className="text-[10px] text-gray-400 font-medium italic">Please present this QR code at the event entrance for seamless check-in.</p>
+                      <p className="text-[10px] text-gray-400 font-medium italic">{t('registrationFlow.voucher.presentQR')}</p>
                     </div>
                   </div>
                 )}
@@ -1393,10 +1426,10 @@ export default function EventRegistrationFlow() {
                   >
                     <div className="flex justify-between items-baseline mb-6">
                       <h3 className="text-lg font-light tracking-tight" style={{ color: 'rgba(255, 255, 255, 0.9)' }}>
-                        Selected Sessions
+                        {t('registrationFlow.selectedSessions')}
                       </h3>
                       <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)', color: 'rgba(255, 255, 255, 0.6)' }}>
-                        {selectedSessions.size} items
+                        {t('registrationFlow.itemsCount').replace('{count}', String(selectedSessions.size))}
                       </span>
                     </div>
 
@@ -1410,7 +1443,7 @@ export default function EventRegistrationFlow() {
                                 {s.title}
                               </p>
                               <p className="text-[11px] font-light mt-1" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>
-                                {s.location || 'Main Hall'}
+                                {s.location || t('registrationFlow.mainHall')}
                               </p>
                             </div>
                             <div className="text-right">
@@ -1426,9 +1459,9 @@ export default function EventRegistrationFlow() {
                       className="mt-8 pt-6 flex justify-between items-center"
                       style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}
                     >
-                      <span className="text-sm font-light text-white/40">Registration Status</span>
+                      <span className="text-sm font-light text-white/40">{t('registrationFlow.registrationStatus')}</span>
                       <span className="text-sm font-light text-white">
-                        {isPaidEvent ? 'Ticket Purchase Required' : 'Free'}
+                        {isPaidEvent ? t('registrationFlow.ticketPurchaseRequired') : t('registrationFlow.free')}
                       </span>
                     </div>
                   </div>
@@ -1472,7 +1505,7 @@ export default function EventRegistrationFlow() {
               }}
             >
               <ChevronLeft size={18} />
-              Back
+              {t('registrationFlow.back')}
             </button>
 
             <button
@@ -1501,7 +1534,7 @@ export default function EventRegistrationFlow() {
               }}
             >
               {isSubmitting && <Loader2 size={16} className="animate-spin" />}
-              {currentStep === 2 ? 'Complete Registration' : 'Continue'}
+              {currentStep === 2 ? t('registrationFlow.completeRegistration') : t('registrationFlow.continue')}
             </button>
           </div>
         </footer>

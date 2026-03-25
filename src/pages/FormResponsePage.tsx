@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner@2.0.3';
 import { Loader2, CheckCircle, AlertCircle, ChevronDown } from 'lucide-react';
+import { useI18n } from '../i18n/I18nContext';
 
 interface FormField {
   id: string;
@@ -26,6 +27,7 @@ interface EventForm {
 
 export default function FormResponsePage() {
   const { formId } = useParams();
+  const { t } = useI18n();
   const [form, setForm] = useState<EventForm | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -52,7 +54,7 @@ export default function FormResponsePage() {
       setForm(data);
     } catch (err: any) {
       console.error('Error fetching form:', err);
-      setError(err.message || 'Failed to load form');
+      setError(err.message || t('formResponse.errors.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -67,7 +69,7 @@ export default function FormResponsePage() {
       (f) => f.required && !formData[f.id]
     );
     if (missing.length > 0) {
-      toast.error(`Please fill in required fields: ${missing.map(f => f.label).join(', ')}`);
+      toast.error(t('formResponse.errors.missingFields', { fields: missing.map(f => f.label).join(', ') }));
       return;
     }
 
@@ -90,10 +92,10 @@ export default function FormResponsePage() {
       if (error) throw error;
 
       setSubmitted(true);
-      toast.success('Form submitted successfully!');
+      toast.success(t('formResponse.toasts.submitSuccess'));
     } catch (err) {
       console.error('Submission error:', err);
-      toast.error('Failed to submit form');
+      toast.error(t('formResponse.toasts.submitError'));
     } finally {
       setSubmitting(false);
     }
@@ -180,8 +182,8 @@ export default function FormResponsePage() {
         <div style={cardStyle}>
           <div style={{ padding: '60px 40px', textAlign: 'center' }}>
             <AlertCircle size={64} style={{ color: '#EF4444', marginBottom: '24px' }} />
-            <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#FFFFFF', marginBottom: '12px' }}>Form Unavailable</h2>
-            <p style={{ fontSize: '16px', color: '#94A3B8' }}>{error || 'This form does not exist or has been deactivated.'}</p>
+            <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#FFFFFF', marginBottom: '12px' }}>{t('formResponse.unavailable.title')}</h2>
+            <p style={{ fontSize: '16px', color: '#94A3B8' }}>{error || t('formResponse.unavailable.description')}</p>
           </div>
         </div>
       </div>
@@ -196,13 +198,13 @@ export default function FormResponsePage() {
             <div style={{ width: '80px', height: '80px', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyCenter: 'center', margin: '0 auto 32px' }}>
               <CheckCircle size={40} style={{ color: '#10B981', margin: '0 auto' }} />
             </div>
-            <h2 style={{ fontSize: '32px', fontWeight: 800, color: '#FFFFFF', marginBottom: '16px' }}>Submission Received!</h2>
-            <p style={{ fontSize: '18px', color: '#94A3B8', marginBottom: '40px', lineHeight: 1.6 }}>Thank you for your response. Your information has been securely recorded.</p>
-            <button 
+            <h2 style={{ fontSize: '32px', fontWeight: 800, color: '#FFFFFF', marginBottom: '16px' }}>{t('formResponse.success.title')}</h2>
+            <p style={{ fontSize: '18px', color: '#94A3B8', marginBottom: '40px', lineHeight: 1.6 }}>{t('formResponse.success.description')}</p>
+            <button
               onClick={() => window.location.reload()}
               style={{ background: 'none', border: 'none', color: '#0684F5', fontWeight: 600, fontSize: '16px', cursor: 'pointer', textDecoration: 'underline' }}
             >
-              Submit another response
+              {t('formResponse.success.submitAnother')}
             </button>
           </div>
         </div>
@@ -251,7 +253,7 @@ export default function FormResponsePage() {
                       onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
                       defaultValue=""
                     >
-                      <option value="" disabled style={{ color: '#64748B' }}>Select an option</option>
+                      <option value="" disabled style={{ color: '#64748B' }}>{t('formResponse.selectOption')}</option>
                       {field.options?.map((opt) => (
                         <option key={opt} value={opt} style={{ backgroundColor: '#0D3052', color: '#FFFFFF' }}>{opt}</option>
                       ))}
@@ -319,10 +321,10 @@ export default function FormResponsePage() {
                 {submitting ? (
                   <>
                     <Loader2 size={20} className="animate-spin" />
-                    Submitting...
+                    {t('formResponse.submitting')}
                   </>
                 ) : (
-                  'Submit Response'
+                  t('formResponse.submit')
                 )}
               </button>
             </div>
@@ -332,7 +334,7 @@ export default function FormResponsePage() {
         {/* Footer Branding */}
         <div style={{ padding: '24px', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', backgroundColor: 'rgba(0,0,0,0.1)' }}>
           <p style={{ fontSize: '13px', color: '#64748B' }}>
-            Powered by <span style={{ color: '#FFFFFF', fontWeight: 700 }}>Eventra</span>
+            {t('formResponse.poweredBy')} <span style={{ color: '#FFFFFF', fontWeight: 700 }}>Eventra</span>
           </p>
         </div>
       </div>

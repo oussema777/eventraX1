@@ -212,9 +212,9 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
 
       if (!checkinsErr) {
         const typeMeta: Record<string, { label: string; color: string }> = {
-          event: { label: 'Event Check-in', color: '#10B981' },
-          session: { label: 'Session Check-in', color: '#8B5CF6' },
-          b2b: { label: 'B2B Meeting', color: '#F59E0B' }
+          event: { label: t('manageEvent.dayOf.checkInTypes.event'), color: '#10B981' },
+          session: { label: t('manageEvent.dayOf.checkInTypes.session'), color: '#8B5CF6' },
+          b2b: { label: t('manageEvent.dayOf.checkInTypes.b2b'), color: '#F59E0B' }
         };
 
         const mapped = (checkinsData || []).map((checkIn: any) => {
@@ -223,7 +223,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
           const photo = attendee.photo_url || attendee.avatar_url || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=80&q=80';
           const ticketType = attendee.ticket_type || 'General';
           const ticketBadgeColor = resolveTicketBadgeKey(ticketType, attendee.ticket_color);
-          const meta = typeMeta[checkIn.type] || { label: 'Check-in', color: '#94A3B8' };
+          const meta = typeMeta[checkIn.type] || { label: t('manageEvent.dayOf.checkInTypes.default'), color: '#94A3B8' };
           let typeLabel = meta.label;
           if (checkIn.type === 'session' && checkIn.session?.title) {
             typeLabel = `Session - ${checkIn.session.title}`;
@@ -310,11 +310,11 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
       if (error) throw error;
       setScannerSettingsBase(nextBase);
       setScannerSettings(nextSettings);
-      toast.success('Settings saved');
+      toast.success(t('manageEvent.dayOf.toasts.settingsSaved'));
       return true;
     } catch (e) {
       console.error('Scanner settings save error', e);
-      toast.error('Failed to save settings');
+      toast.error(t('manageEvent.dayOf.toasts.settingsFailed'));
       return false;
     } finally {
       setSavingScannerSettings(false);
@@ -373,7 +373,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
 
       writeOfflineQueue(remaining);
       if (queue.length && remaining.length !== queue.length) {
-        toast.success('Queued check-ins synced');
+        toast.success(t('manageEvent.dayOf.toasts.synced'));
         refreshDayOfData();
       }
     } finally {
@@ -460,7 +460,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
       if (!scannerUnsupportedRef.current) {
         scannerUnsupportedRef.current = true;
         setCameraError('QR scanning not supported on this device');
-        toast.error('QR scanning not supported in this browser');
+        toast.error(t('manageEvent.dayOf.toasts.qrUnsupported'));
       }
       return;
     }
@@ -488,7 +488,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
     if (!showScanner) return;
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraError('Camera access not available');
-      toast.error('Camera not available on this device');
+      toast.error(t('manageEvent.dayOf.toasts.cameraUnavailable'));
       return;
     }
     stopScannerCamera();
@@ -506,7 +506,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
       startScannerLoop();
     } catch (e) {
       setCameraError('Unable to access camera');
-      toast.error('Camera access denied');
+      toast.error(t('manageEvent.dayOf.toasts.cameraDenied'));
     }
   };
 
@@ -526,19 +526,19 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
     try {
       const track = streamRef.current?.getVideoTracks?.()[0];
       if (!track) {
-        toast.error('Camera is not active');
+        toast.error(t('manageEvent.dayOf.toasts.cameraInactive'));
         return;
       }
       const caps = (track as any).getCapabilities ? (track as any).getCapabilities() : {};
       if (!caps?.torch) {
-        toast.error('Torch not supported on this device');
+        toast.error(t('manageEvent.dayOf.toasts.torchUnsupported'));
         return;
       }
       const next = !torchEnabled;
       await (track as any).applyConstraints({ advanced: [{ torch: next }] });
       setTorchEnabled(next);
     } catch (e) {
-      toast.error('Unable to toggle torch');
+      toast.error(t('manageEvent.dayOf.toasts.torchFailed'));
     }
   };
 
@@ -707,26 +707,26 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
     try {
       const code = (codeOverride || forcedAttendeeId || manualCode || '').trim();
       if (!code) {
-        toast.error('Enter a ticket/confirmation code');
+        toast.error(t('manageEvent.dayOf.toasts.enterCode'));
         return;
       }
 
       const attendee = await resolveAttendee(code);
       if (!attendee?.id) {
         setScanResult('error');
-        toast.error('Invalid code');
+        toast.error(t('manageEvent.dayOf.toasts.invalidCode'));
         return;
       }
 
       if (kind === 'session' && !selectedSession) {
         setScanResult('error');
-        toast.error('Select a session');
+        toast.error(t('manageEvent.dayOf.toasts.selectSession'));
         return;
       }
 
       if (kind === 'b2b' && !selectedMeeting) {
         setScanResult('error');
-        toast.error('Select a meeting');
+        toast.error(t('manageEvent.dayOf.toasts.selectMeeting'));
         return;
       }
 
@@ -743,12 +743,12 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
         }
         if (!meetingRecord) {
           setScanResult('error');
-          toast.error('Meeting not found');
+          toast.error(t('manageEvent.dayOf.toasts.meetingNotFound'));
           return;
         }
         if (meetingRecord.attendee_a_id !== attendee.id && meetingRecord.attendee_b_id !== attendee.id) {
           setScanResult('error');
-          toast.error('Attendee is not assigned to this meeting');
+          toast.error(t('manageEvent.dayOf.toasts.notAssigned'));
           return;
         }
       }
@@ -789,7 +789,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
           });
         } else {
           setPendingDuplicate(null);
-          toast.error('Duplicate check-in blocked');
+          toast.error(t('manageEvent.dayOf.toasts.duplicateBlocked'));
         }
         return;
       }
@@ -845,7 +845,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
           setManualCode('');
           setScanResult('success');
           setLastScanDetails(details);
-          toast.info('Check-in queued offline');
+          toast.info(t('manageEvent.dayOf.toasts.queuedOffline'));
           return;
         }
         throw e;
@@ -855,12 +855,12 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
       setScanResult('success');
       setLastScanDetails(details);
       setPendingDuplicate(null);
-      toast.success(hasDuplicate ? 'Re-entry logged' : 'Check-in successful!');
+      toast.success(hasDuplicate ? t('manageEvent.dayOf.toasts.reentryLogged') : t('manageEvent.dayOf.toasts.checkInSuccess'));
       refreshDayOfData();
     } catch (e) {
       console.error('Check-in error', e);
       setScanResult('error');
-      toast.error('Check-in failed');
+      toast.error(t('manageEvent.dayOf.toasts.checkInFailed'));
     }
   };
 
@@ -875,11 +875,11 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
 
   const handleAllowDuplicate = async () => {
     if (scannerSettings.duplicatePolicy === 'block') {
-      toast.error('Duplicate check-in blocked');
+      toast.error(t('manageEvent.dayOf.toasts.duplicateBlocked'));
       return;
     }
     if (!pendingDuplicate?.attendee) {
-      toast.error('No duplicate to override');
+      toast.error(t('manageEvent.dayOf.toasts.noDuplicate'));
       return;
     }
 
@@ -937,12 +937,12 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
         setLastScanDetails(details);
         setPendingDuplicate(null);
         setManualCode('');
-        toast.info('Check-in queued offline');
+        toast.info(t('manageEvent.dayOf.toasts.queuedOffline'));
         return;
       }
       console.error('Check-in error', e);
       setScanResult('error');
-      toast.error('Check-in failed');
+      toast.error(t('manageEvent.dayOf.toasts.checkInFailed'));
       return;
     }
 
@@ -950,7 +950,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
     setLastScanDetails(details);
     setPendingDuplicate(null);
     setManualCode('');
-    toast.success('Re-entry logged');
+    toast.success(t('manageEvent.dayOf.toasts.reentryLogged'));
     refreshDayOfData();
   };
 
@@ -1189,7 +1189,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
               {stats.checkedIn}
             </p>
             <p style={{ fontSize: '12px', color: '#94A3B8', marginTop: '8px' }}>
-              {stats.registered ? Math.round((stats.checkedIn / stats.registered) * 100) : 0}% of registered ({stats.registered})
+              {t('manageEvent.dayOf.stats.registered', { percent: stats.registered ? Math.round((stats.checkedIn / stats.registered) * 100) : 0, total: stats.registered })}
             </p>
           </div>
 
@@ -1226,7 +1226,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
               {stats.activeSessions}
             </p>
             <p style={{ fontSize: '12px', color: '#94A3B8', marginTop: '8px' }}>
-              {stats.upcomingSessions} upcoming today
+              {t('manageEvent.dayOf.stats.upcomingSessions', { count: stats.upcomingSessions })}
             </p>
           </div>
 
@@ -1244,7 +1244,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
               {stats.activeB2BMeetings}
             </p>
             <p style={{ fontSize: '12px', color: '#94A3B8', marginTop: '8px' }}>
-              {stats.scheduledB2BMeetings} scheduled today
+              {t('manageEvent.dayOf.stats.scheduledMeetings', { count: stats.scheduledB2BMeetings })}
             </p>
           </div>
         </div>
@@ -1663,9 +1663,9 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
                 {showScanner === 'b2b' && <Handshake size={32} style={{ color: '#F59E0B' }} />}
                 <div>
                   <h2 style={{ fontSize: '24px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
-                    {showScanner === 'event' && 'Event Check-in Scanner'}
-                    {showScanner === 'session' && 'Session Check-in Scanner'}
-                    {showScanner === 'b2b' && 'B2B Meeting Check-in Scanner'}
+                    {showScanner === 'event' && t('manageEvent.dayOf.tools.event.title')}
+                    {showScanner === 'session' && t('manageEvent.dayOf.tools.session.title')}
+                    {showScanner === 'b2b' && t('manageEvent.dayOf.tools.b2b.title')}
                   </h2>
                   {showScanner === 'session' && (
                     <select
@@ -1822,7 +1822,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
                       color: '#FFFFFF'
                     }}
                   >
-                    {cameraError || (scanResult ? 'Scan Complete' : cameraReady ? 'Ready to Scan' : 'Initializing camera...')}
+                    {cameraError || (scanResult ? t('manageEvent.dayOf.scanner.complete') : cameraReady ? t('manageEvent.dayOf.scanner.ready') : t('manageEvent.dayOf.scanner.initializing'))}
                   </div>
                 </div>
 
@@ -2252,10 +2252,10 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
             <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
               {/* Setting toggles */}
               {[
-                { key: 'autoAdvance', label: 'Auto-advance after successful scan', helper: 'Automatically prepare for next scan', checked: scannerSettings.autoAdvance },
-                { key: 'soundOnSuccess', label: 'Play sound on successful scan', helper: 'Beep sound for feedback', checked: scannerSettings.soundOnSuccess },
-                { key: 'vibrateOnSuccess', label: 'Vibrate on scan (mobile devices)', helper: 'Haptic feedback', checked: scannerSettings.vibrateOnSuccess },
-                { key: 'offlineScanning', label: 'Enable offline scanning', helper: 'Sync data when connection restored', checked: scannerSettings.offlineScanning }
+                { key: 'autoAdvance', label: t('manageEvent.dayOf.settings.toggles.autoAdvance'), helper: '', checked: scannerSettings.autoAdvance },
+                { key: 'soundOnSuccess', label: t('manageEvent.dayOf.settings.toggles.sound'), helper: '', checked: scannerSettings.soundOnSuccess },
+                { key: 'vibrateOnSuccess', label: t('manageEvent.dayOf.settings.toggles.vibrate'), helper: '', checked: scannerSettings.vibrateOnSuccess },
+                { key: 'offlineScanning', label: t('manageEvent.dayOf.settings.toggles.offline'), helper: '', checked: scannerSettings.offlineScanning }
               ].map((setting) => (
                 <div key={setting.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
@@ -2359,7 +2359,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
                   opacity: savingScannerSettings ? 0.7 : 1
                 }}
               >
-                {savingScannerSettings ? 'Saving...' : 'Save Settings'}
+                {savingScannerSettings ? t('manageEvent.dayOf.settings.saving') : t('manageEvent.dayOf.settings.save')}
               </button>
             </div>
           </div>
@@ -2574,10 +2574,10 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
                     URL.revokeObjectURL(url);
 
                     setShowDownload(false);
-                    toast.success('Report downloaded successfully');
+                    toast.success(t('manageEvent.dayOf.toasts.reportDownloaded'));
                   } catch (e) {
                     console.error('Report download error', e);
-                    toast.error('Failed to download report');
+                    toast.error(t('manageEvent.dayOf.toasts.reportFailed'));
                   }
                 }}
                 style={{

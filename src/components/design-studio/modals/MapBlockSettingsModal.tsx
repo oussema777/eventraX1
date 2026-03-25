@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Save, MapPin, Loader2, Navigation, Info } from 'lucide-react';
+import { useI18n } from '../../../i18n/I18nContext';
 
 interface MapBlockSettingsModalProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ export default function MapBlockSettingsModal({
   onSave,
   isSaving = false
 }: MapBlockSettingsModalProps) {
+  const { t } = useI18n();
   const [formData, setFormData] = useState({
     title: '',
     subtitle: '',
@@ -79,10 +81,10 @@ export default function MapBlockSettingsModal({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 28px', borderBottom: '1px solid #F3F4F6' }}>
           <div>
             <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#111827', marginBottom: '4px' }}>
-              Map & Location Settings
+              {t('wizard.designStudio.modals.mapBlock.title')}
             </h2>
             <p style={{ fontSize: '13px', color: '#6B7280' }}>
-              Customize your venue map and location info.
+              {t('wizard.designStudio.modals.mapBlock.subtitle')}
             </p>
           </div>
           <button 
@@ -109,11 +111,11 @@ export default function MapBlockSettingsModal({
           
           {/* Header Text */}
           <div style={{ marginBottom: '24px' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Section Header</h3>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>{t('wizard.designStudio.modals.mapBlock.sections.sectionHeader')}</h3>
             
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
-                Main Title
+                {t('wizard.designStudio.modals.mapBlock.labels.mainTitle')}
               </label>
               <input
                 value={formData.title}
@@ -128,7 +130,7 @@ export default function MapBlockSettingsModal({
                   fontWeight: 500,
                   outline: 'none'
                 }}
-                placeholder="e.g., Location & Venue"
+                placeholder={t('wizard.designStudio.modals.mapBlock.placeholders.title')}
               />
             </div>
           </div>
@@ -137,11 +139,11 @@ export default function MapBlockSettingsModal({
 
           {/* Venue Details */}
           <div style={{ marginBottom: '24px' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Venue Details</h3>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>{t('wizard.designStudio.modals.mapBlock.sections.venueDetails')}</h3>
             
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
-                Venue Name
+                {t('wizard.designStudio.modals.mapBlock.labels.venueName')}
               </label>
               <input
                 value={formData.venueName}
@@ -156,13 +158,13 @@ export default function MapBlockSettingsModal({
                   fontWeight: 500,
                   outline: 'none'
                 }}
-                placeholder="e.g., Grand Exhibition Center"
+                placeholder={t('wizard.designStudio.modals.mapBlock.placeholders.venueName')}
               />
             </div>
 
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
-                Full Address
+                {t('wizard.designStudio.modals.mapBlock.labels.fullAddress')}
               </label>
               <textarea
                 value={formData.address}
@@ -179,7 +181,7 @@ export default function MapBlockSettingsModal({
                   minHeight: '80px',
                   resize: 'none'
                 }}
-                placeholder="123 Street Name, City, Country"
+                placeholder={t('wizard.designStudio.modals.mapBlock.placeholders.address')}
               />
             </div>
           </div>
@@ -188,11 +190,11 @@ export default function MapBlockSettingsModal({
 
           {/* Map Embed */}
           <div style={{ marginBottom: '24px' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Interactive Map</h3>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>{t('wizard.designStudio.modals.mapBlock.sections.interactiveMap')}</h3>
             
             <div style={{ marginBottom: '12px' }}>
               <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
-                Google Maps Embed URL
+                {t('wizard.designStudio.modals.mapBlock.labels.googleMapsEmbedUrl')}
               </label>
               <div style={{ position: 'relative' }}>
                 <Navigation size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
@@ -209,16 +211,14 @@ export default function MapBlockSettingsModal({
                     fontWeight: 500,
                     outline: 'none'
                   }}
-                  placeholder="https://www.google.com/maps/embed?..."
+                  placeholder={t('wizard.designStudio.modals.mapBlock.placeholders.embedUrl')}
                 />
               </div>
             </div>
             
             <div style={{ padding: '12px', backgroundColor: '#EFF6FF', borderRadius: '8px', border: '1px solid #DBEAFE', display: 'flex', gap: '10px' }}>
               <Info size={16} style={{ color: '#2563EB', marginTop: '2px', flexShrink: 0 }} />
-              <p style={{ fontSize: '11px', color: '#1E40AF', lineHeight: '1.5' }}>
-                To get this: Search venue on Google Maps → Share → Embed a map → Copy HTML (extract the <strong>src</strong> attribute value).
-              </p>
+              <p style={{ fontSize: '11px', color: '#1E40AF', lineHeight: '1.5' }} dangerouslySetInnerHTML={{__html: t('wizard.designStudio.modals.mapBlock.labels.mapHint')}} />
             </div>
           </div>
 
@@ -227,8 +227,8 @@ export default function MapBlockSettingsModal({
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <Info size={18} style={{ color: '#6B7280' }} />
               <div>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#111827' }}>Display Info Card</div>
-                <div style={{ fontSize: '12px', color: '#6B7280' }}>Show floating box with venue details</div>
+                <div style={{ fontSize: '14px', fontWeight: 700, color: '#111827' }}>{t('wizard.designStudio.modals.mapBlock.labels.displayInfoCard')}</div>
+                <div style={{ fontSize: '12px', color: '#6B7280' }}>{t('wizard.designStudio.modals.mapBlock.labels.infoCardDesc')}</div>
               </div>
             </div>
             <input 
@@ -255,7 +255,7 @@ export default function MapBlockSettingsModal({
                 cursor: 'pointer'
               }}
             >
-              Cancel
+              {t('wizard.designStudio.modals.mapBlock.actions.cancel')}
             </button>
             <button
               type="submit"
@@ -277,7 +277,7 @@ export default function MapBlockSettingsModal({
               }}
             >
               {isSaving && <Loader2 size={16} className="animate-spin" />}
-              {isSaving ? 'Updating...' : 'Update Section'}
+              {isSaving ? t('wizard.designStudio.modals.mapBlock.actions.updating') : t('wizard.designStudio.modals.mapBlock.actions.updateSection')}
             </button>
           </div>
         </form>

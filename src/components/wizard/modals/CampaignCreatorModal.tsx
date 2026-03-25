@@ -1,5 +1,6 @@
 import { X, CheckCircle, Calendar, Upload } from 'lucide-react';
 import { useState } from 'react';
+import { useI18n } from '../../../i18n/I18nContext';
 
 interface CampaignCreatorModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export interface CampaignData {
 }
 
 export default function CampaignCreatorModal({ isOpen, onClose, onSave }: CampaignCreatorModalProps) {
+  const { t } = useI18n();
   const [formData, setFormData] = useState<CampaignData>({
     name: '',
     template: '',
@@ -67,10 +69,10 @@ export default function CampaignCreatorModal({ isOpen, onClose, onSave }: Campai
                   className="text-2xl mb-1"
                   style={{ fontWeight: 600, color: '#0B2641' }}
                 >
-                  Create Email Campaign
+                  {t('wizard.step3.marketingTools.modals.campaignCreator.title')}
                 </h2>
                 <p className="text-sm" style={{ color: '#6B7280' }}>
-                  Schedule promotional emails to attendees
+                  {t('wizard.step3.marketingTools.modals.campaignCreator.subtitle')}
                 </p>
               </div>
               <button
@@ -95,13 +97,13 @@ export default function CampaignCreatorModal({ isOpen, onClose, onSave }: Campai
                   className="block text-sm mb-2"
                   style={{ fontWeight: 500, color: '#0B2641' }}
                 >
-                  Campaign Name *
+                  {t('wizard.step3.marketingTools.modals.campaignCreator.labels.campaignName')} *
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g., Early Bird Reminder"
+                  placeholder={t('wizard.step3.marketingTools.modals.campaignCreator.placeholders.campaignName')}
                   className="w-full h-11 px-4 rounded-lg border outline-none transition-colors focus:border-blue-400"
                   style={{ 
                     borderColor: '#E5E7EB',
@@ -117,7 +119,7 @@ export default function CampaignCreatorModal({ isOpen, onClose, onSave }: Campai
                   className="block text-sm mb-2"
                   style={{ fontWeight: 500, color: '#0B2641' }}
                 >
-                  Email Template *
+                  {t('wizard.step3.marketingTools.modals.campaignCreator.labels.emailTemplate')} *
                 </label>
                 <select
                   value={formData.template}
@@ -129,16 +131,16 @@ export default function CampaignCreatorModal({ isOpen, onClose, onSave }: Campai
                     backgroundColor: '#FFFFFF'
                   }}
                 >
-                  <option value="">Select template...</option>
-                  <option value="confirmation">Registration Confirmation</option>
-                  <option value="reminder">Event Reminder</option>
-                  <option value="custom">Custom Template</option>
+                  <option value="">{t('wizard.step3.marketingTools.modals.campaignCreator.templates.select')}</option>
+                  <option value="confirmation">{t('wizard.step3.marketingTools.modals.campaignCreator.templates.confirmation')}</option>
+                  <option value="reminder">{t('wizard.step3.marketingTools.modals.campaignCreator.templates.reminder')}</option>
+                  <option value="custom">{t('wizard.step3.marketingTools.modals.campaignCreator.templates.custom')}</option>
                 </select>
                 <button 
                   className="text-xs mt-2 transition-colors hover:underline"
                   style={{ color: 'var(--primary)', fontWeight: 600 }}
                 >
-                  + Create new template
+                  {t('wizard.step3.marketingTools.modals.campaignCreator.templates.createNew')}
                 </button>
               </div>
 
@@ -148,13 +150,13 @@ export default function CampaignCreatorModal({ isOpen, onClose, onSave }: Campai
                   className="block text-sm mb-3"
                   style={{ fontWeight: 500, color: '#0B2641' }}
                 >
-                  Send to
+                  {t('wizard.step3.marketingTools.modals.campaignCreator.labels.sendTo')}
                 </label>
                 <div className="space-y-2">
                   {[
-                    { value: 'all', label: 'All registered attendees' },
-                    { value: 'specific', label: 'Specific ticket types' },
-                    { value: 'custom', label: 'Custom list' }
+                    { value: 'all', label: t('wizard.step3.marketingTools.modals.campaignCreator.recipients.all') },
+                    { value: 'specific', label: t('wizard.step3.marketingTools.modals.campaignCreator.recipients.specific') },
+                    { value: 'custom', label: t('wizard.step3.marketingTools.modals.campaignCreator.recipients.custom') }
                   ].map((option) => (
                     <button
                       key={option.value}
@@ -215,10 +217,10 @@ export default function CampaignCreatorModal({ isOpen, onClose, onSave }: Campai
                   >
                     <Upload size={32} style={{ color: '#9CA3AF', marginBottom: '8px' }} />
                     <p className="text-sm mb-1" style={{ color: '#0B2641', fontWeight: 500 }}>
-                      Upload CSV file
+                      {t('wizard.step3.marketingTools.modals.campaignCreator.upload.title')}
                     </p>
                     <p className="text-xs" style={{ color: '#6B7280' }}>
-                      Or drag and drop here
+                      {t('wizard.step3.marketingTools.modals.campaignCreator.upload.hint')}
                     </p>
                   </div>
                 )}
@@ -230,12 +232,12 @@ export default function CampaignCreatorModal({ isOpen, onClose, onSave }: Campai
                   className="block text-sm mb-3"
                   style={{ fontWeight: 500, color: '#0B2641' }}
                 >
-                  Send Time
+                  {t('wizard.step3.marketingTools.modals.campaignCreator.labels.sendTime')}
                 </label>
                 <div className="space-y-2">
                   {[
-                    { value: 'immediate', label: 'Send immediately' },
-                    { value: 'scheduled', label: 'Schedule for later' }
+                    { value: 'immediate', label: t('wizard.step3.marketingTools.modals.campaignCreator.schedule.immediate') },
+                    { value: 'scheduled', label: t('wizard.step3.marketingTools.modals.campaignCreator.schedule.scheduled') }
                   ].map((option) => (
                     <button
                       key={option.value}
@@ -277,7 +279,7 @@ export default function CampaignCreatorModal({ isOpen, onClose, onSave }: Campai
                   <div className="grid grid-cols-2 gap-4 mt-3">
                     <div>
                       <label className="block text-xs mb-2" style={{ color: '#6B7280' }}>
-                        Date
+                        {t('wizard.step3.marketingTools.modals.campaignCreator.labels.date')}
                       </label>
                       <div className="flex items-center gap-2 px-3 h-11 rounded-lg border" style={{ borderColor: '#E5E7EB' }}>
                         <Calendar size={16} style={{ color: '#6B7280' }} />
@@ -292,7 +294,7 @@ export default function CampaignCreatorModal({ isOpen, onClose, onSave }: Campai
                     </div>
                     <div>
                       <label className="block text-xs mb-2" style={{ color: '#6B7280' }}>
-                        Time
+                        {t('wizard.step3.marketingTools.modals.campaignCreator.labels.time')}
                       </label>
                       <input
                         type="time"
@@ -307,7 +309,7 @@ export default function CampaignCreatorModal({ isOpen, onClose, onSave }: Campai
 
                 {formData.schedule === 'scheduled' && (
                   <p className="text-xs mt-2" style={{ color: '#9CA3AF' }}>
-                    Pacific Time (PT)
+                    {t('wizard.step3.marketingTools.modals.campaignCreator.schedule.timezone')}
                   </p>
                 )}
               </div>
@@ -320,7 +322,7 @@ export default function CampaignCreatorModal({ isOpen, onClose, onSave }: Campai
                       className="block text-sm"
                       style={{ fontWeight: 500, color: '#0B2641' }}
                     >
-                      A/B Testing
+                      {t('wizard.step3.marketingTools.modals.campaignCreator.labels.abTesting')}
                     </label>
                     <span 
                       className="inline-block mt-1 px-2 py-0.5 rounded text-xs"
@@ -330,7 +332,7 @@ export default function CampaignCreatorModal({ isOpen, onClose, onSave }: Campai
                         fontWeight: 700
                       }}
                     >
-                      PRO
+                      {t('wizard.step3.marketingTools.modals.campaignCreator.abTest.pro')}
                     </span>
                   </div>
                   <button
@@ -352,30 +354,30 @@ export default function CampaignCreatorModal({ isOpen, onClose, onSave }: Campai
                 {formData.abTesting && (
                   <div className="space-y-3">
                     <p className="text-xs" style={{ color: '#6B7280' }}>
-                      Test subject line variations (50/50 split)
+                      {t('wizard.step3.marketingTools.modals.campaignCreator.abTest.description')}
                     </p>
                     <div>
                       <label className="block text-xs mb-2" style={{ color: '#6B7280' }}>
-                        Subject Line A
+                        {t('wizard.step3.marketingTools.modals.campaignCreator.labels.subjectLineA')}
                       </label>
                       <input
                         type="text"
                         value={formData.subjectA || ''}
                         onChange={(e) => setFormData({ ...formData, subjectA: e.target.value })}
-                        placeholder="e.g., Don't miss out on Early Bird tickets"
+                        placeholder={t('wizard.step3.marketingTools.modals.campaignCreator.placeholders.subjectA')}
                         className="w-full h-10 px-4 rounded-lg border outline-none"
                         style={{ borderColor: '#E5E7EB', color: '#0B2641' }}
                       />
                     </div>
                     <div>
                       <label className="block text-xs mb-2" style={{ color: '#6B7280' }}>
-                        Subject Line B
+                        {t('wizard.step3.marketingTools.modals.campaignCreator.labels.subjectLineB')}
                       </label>
                       <input
                         type="text"
                         value={formData.subjectB || ''}
                         onChange={(e) => setFormData({ ...formData, subjectB: e.target.value })}
-                        placeholder="e.g., Early Bird tickets ending soon"
+                        placeholder={t('wizard.step3.marketingTools.modals.campaignCreator.placeholders.subjectB')}
                         className="w-full h-10 px-4 rounded-lg border outline-none"
                         style={{ borderColor: '#E5E7EB', color: '#0B2641' }}
                       />
@@ -395,7 +397,7 @@ export default function CampaignCreatorModal({ isOpen, onClose, onSave }: Campai
               className="text-sm transition-colors hover:underline"
               style={{ color: '#6B7280', fontWeight: 500 }}
             >
-              Save as Draft
+              {t('wizard.step3.marketingTools.modals.campaignCreator.actions.saveDraft')}
             </button>
             <div className="flex items-center gap-3">
               <button
@@ -403,19 +405,19 @@ export default function CampaignCreatorModal({ isOpen, onClose, onSave }: Campai
                 className="h-11 px-5 rounded-lg transition-colors hover:bg-gray-100"
                 style={{ color: '#0B2641', fontWeight: 600 }}
               >
-                Cancel
+                {t('wizard.step3.marketingTools.modals.campaignCreator.actions.cancel')}
               </button>
               <button
                 onClick={handleSave}
                 className="h-11 px-5 rounded-lg flex items-center gap-2 transition-all hover:scale-105"
-                style={{ 
+                style={{
                   backgroundColor: 'var(--primary)',
                   color: '#FFFFFF',
                   fontWeight: 600
                 }}
               >
                 <CheckCircle size={18} />
-                {formData.schedule === 'immediate' ? 'Send Now' : 'Schedule Campaign'}
+                {formData.schedule === 'immediate' ? t('wizard.step3.marketingTools.modals.campaignCreator.actions.sendNow') : t('wizard.step3.marketingTools.modals.campaignCreator.actions.scheduleCampaign')}
               </button>
             </div>
           </div>

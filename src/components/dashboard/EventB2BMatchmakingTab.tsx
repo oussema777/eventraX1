@@ -1769,7 +1769,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
           {[
             { id: 'ai-matchmaker' as const, icon: Sparkles, label: t('manageEvent.b2b.tabs.aiMatchmaker') },
             { id: 'all-meetings' as const, icon: Handshake, label: t('manageEvent.b2b.tabs.allMeetings') },
-            { id: 'logistics' as const, icon: MapPin, label: "Logistics" },
+            { id: 'logistics' as const, icon: MapPin, label: t('manageEvent.b2b.tabs.logistics') },
             { id: 'analytics' as const, icon: TrendingUp, label: t('manageEvent.b2b.tabs.analytics') },
             { id: 'suggestions' as const, icon: Target, label: t('manageEvent.b2b.tabs.suggestions') }
           ].map((tab) => {
@@ -2509,15 +2509,15 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
                 <LayoutGrid size={32} style={{ color: '#0684F5' }} />
                 <div>
-                  <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF' }}>Venue Capacity</h3>
-                  <p style={{ fontSize: '14px', color: '#94A3B8' }}>Define the physical constraints of your networking area.</p>
+                  <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF' }}>{t('manageEvent.b2b.logistics.venueCapacity.title')}</h3>
+                  <p style={{ fontSize: '14px', color: '#94A3B8' }}>{t('manageEvent.b2b.logistics.venueCapacity.subtitle')}</p>
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px' }}>
-                    Number of Tables
+                    {t('manageEvent.b2b.logistics.venueCapacity.tableCount')}
                   </label>
                   <input
                     type="number"
@@ -2539,11 +2539,11 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px' }}>
-                    Table Prefix
+                    {t('manageEvent.b2b.logistics.venueCapacity.tablePrefix')}
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Table-"
+                    placeholder={t('manageEvent.b2b.logistics.venueCapacity.tablePrefixPlaceholder')}
                     value={venueConfig.tablePrefix}
                     onChange={(e) => setVenueConfig(prev => ({ ...prev, tablePrefix: e.target.value }))}
                     style={{
@@ -2562,7 +2562,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
 
               <div style={{ marginBottom: '32px' }}>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px' }}>
-                  Meeting Slot Duration
+                  {t('manageEvent.b2b.logistics.venueCapacity.slotDuration')}
                 </label>
                 <div style={{ display: 'flex', gap: '12px' }}>
                   {[15, 20, 30, 45, 60].map(mins => (
@@ -2590,7 +2590,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
               <div style={{ padding: '20px', backgroundColor: 'rgba(16,185,129,0.1)', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.2)' }}>
                 <h4 style={{ fontSize: '16px', fontWeight: 600, color: '#10B981', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <TrendingUp size={18} />
-                  Capacity Calculation
+                  {t('manageEvent.b2b.logistics.capacityCalc.title')}
                 </h4>
                 
                 {(() => {
@@ -2606,19 +2606,19 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                   return (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
                       <div>
-                        <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '4px' }}>Table Setup</p>
+                        <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '4px' }}>{t('manageEvent.b2b.logistics.capacityCalc.tableSetup')}</p>
                         <p style={{ fontSize: '16px', fontWeight: 700, color: '#FFFFFF' }}>{venueConfig.tablePrefix}{venueConfig.tableCount.toString().padStart(2, '0')}</p>
                       </div>
                       <div>
-                        <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '4px' }}>Slot Duration</p>
+                        <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '4px' }}>{t('manageEvent.b2b.logistics.capacityCalc.slotDuration')}</p>
                         <p style={{ fontSize: '16px', fontWeight: 700, color: '#FFFFFF' }}>{venueConfig.slotDuration} min</p>
                       </div>
                       <div style={{ marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '12px' }}>
-                        <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '4px' }}>Total Time Slots</p>
+                        <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '4px' }}>{t('manageEvent.b2b.logistics.capacityCalc.totalTimeSlots')}</p>
                         <p style={{ fontSize: '24px', fontWeight: 700, color: '#10B981' }}>{totalSlots}</p>
                       </div>
                       <div style={{ marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '12px' }}>
-                        <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '4px' }}>Max Meetings</p>
+                        <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '4px' }}>{t('manageEvent.b2b.logistics.capacityCalc.maxMeetings')}</p>
                         <p style={{ fontSize: '24px', fontWeight: 700, color: '#0684F5' }}>{totalCapacity}</p>
                       </div>
                     </div>
@@ -2632,8 +2632,8 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
                 <Clock size={32} style={{ color: '#F59E0B' }} />
                 <div>
-                  <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF' }}>Networking Schedule</h3>
-                  <p style={{ fontSize: '14px', color: '#94A3B8' }}>Select specific dates and hours for B2B sessions.</p>
+                  <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF' }}>{t('manageEvent.b2b.logistics.schedule.title')}</h3>
+                  <p style={{ fontSize: '14px', color: '#94A3B8' }}>{t('manageEvent.b2b.logistics.schedule.subtitle')}</p>
                 </div>
               </div>
 
@@ -2659,7 +2659,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                   }}
                   style={{ padding: '0 20px', backgroundColor: '#0684F5', color: '#FFFFFF', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}
                 >
-                  Add Date
+                  {t('manageEvent.b2b.logistics.schedule.addDate')}
                 </button>
               </div>
 
@@ -2681,7 +2681,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                           }}
                           style={{ padding: '6px', borderRadius: '4px', backgroundColor: '#0B2641', border: '1px solid rgba(255,255,255,0.2)', color: '#FFFFFF', fontSize: '13px' }}
                         />
-                        <span style={{ color: '#94A3B8', fontSize: '13px' }}>to</span>
+                        <span style={{ color: '#94A3B8', fontSize: '13px' }}>{t('manageEvent.b2b.logistics.schedule.to')}</span>
                         <input
                           type="time"
                           value={schedule.end}
@@ -2718,7 +2718,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                           newSchedules.splice(idx + 1, 0, newBlock); // Insert after current
                           setVenueConfig(prev => ({ ...prev, schedules: newSchedules }));
                         }}
-                        title="Duplicate Time Block"
+                        title={t('manageEvent.b2b.logistics.schedule.duplicateBlock')}
                         style={{ padding: '8px', backgroundColor: 'rgba(6,132,245,0.1)', color: '#0684F5', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
                       >
                         <Copy size={16} />
@@ -2737,8 +2737,8 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                 ))}
                 {venueConfig.schedules.length === 0 && (
                   <div style={{ padding: '32px', textAlign: 'center', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '8px' }}>
-                    <p style={{ color: '#94A3B8', fontSize: '14px' }}>No active dates configured.</p>
-                    <p style={{ color: '#6B7280', fontSize: '12px' }}>Add a date to enable booking.</p>
+                    <p style={{ color: '#94A3B8', fontSize: '14px' }}>{t('manageEvent.b2b.logistics.schedule.noDates')}</p>
+                    <p style={{ color: '#6B7280', fontSize: '12px' }}>{t('manageEvent.b2b.logistics.schedule.noDatesHint')}</p>
                   </div>
                 )}
               </div>
@@ -2763,7 +2763,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                 }}
               >
                 <CheckCircle size={20} />
-                {savingSettings ? 'Saving...' : 'Save Configuration'}
+                {savingSettings ? t('manageEvent.b2b.logistics.schedule.saving') : t('manageEvent.b2b.logistics.schedule.saveConfig')}
               </button>
             </div>
           </div>

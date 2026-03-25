@@ -54,7 +54,8 @@ import {
   Smartphone,
   Lightbulb,
   Crown,
-  BarChart3
+  BarChart3,
+  ClipboardCheck
 } from 'lucide-react';
 import FieldPropertiesPanel from './FieldPropertiesPanel';
 import { IncludeInDashboardToggle } from './IncludeInDashboardToggle';
@@ -73,7 +74,7 @@ interface FormCard {
   id: string;
   title: string;
   description: string;
-  type: 'registration' | 'survey' | 'assessment' | 'feedback' | 'data-collection' | 'application' | 'submission' | 'custom';
+  type: 'registration' | 'survey' | 'assessment' | 'feedback' | 'data-collection' | 'application' | 'submission' | 'evaluation' | 'custom';
   status: 'active' | 'draft' | 'locked';
   isDefault?: boolean;
   isFree: boolean;
@@ -162,6 +163,7 @@ const iconForFormType = (formType: string) => {
   if (t.includes('feedback')) return MessageSquare;
   if (t.includes('submission')) return Upload;
   if (t.includes('application')) return Hand;
+  if (t.includes('evaluation')) return ClipboardCheck;
   if (t.includes('data')) return FileText;
   return ClipboardList;
 };
@@ -174,6 +176,7 @@ const colorForFormType = (formType: string) => {
   if (t.includes('feedback')) return '#F59E0B';
   if (t.includes('submission')) return '#EF4444';
   if (t.includes('application')) return '#EC4899';
+  if (t.includes('evaluation')) return '#14B8A6';
   if (t.includes('data')) return '#06B6D4';
   return '#10B981';
 };
@@ -703,7 +706,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
       await openBuilderForForm(rowToCard(row, fieldFallbackLabel), row);
     } catch (e: any) {
       console.error('Error creating blank form:', e);
-      toast.error('Failed to create form');
+      toast.error(t('wizard.step3.customForms.toasts.createFailed'));
     }
   };
 
@@ -744,7 +747,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
       await openBuilderForForm(rowToCard(row, fieldFallbackLabel), row);
     } catch (e: any) {
       console.error('Error creating template form:', e);
-      toast.error('Failed to create form');
+      toast.error(t('wizard.step3.customForms.toasts.createFailed'));
     }
   };
 
@@ -757,7 +760,8 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
       'feedback': '#14B8A6',
       'data-collection': '#10B981',
       'application': '#EC4899',
-      'submission': '#3B82F6'
+      'submission': '#3B82F6',
+      'evaluation': '#14B8A6'
     };
     return colors[type] || '#6B7280';
   };
@@ -2152,6 +2156,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                       <option value="data-collection">{t('wizard.step3.customForms.formTypes.data-collection')}</option>
                       <option value="application">{t('wizard.step3.customForms.formTypes.application')}</option>
                       <option value="submission">{t('wizard.step3.customForms.formTypes.submission')}</option>
+                      <option value="evaluation">{t('wizard.step3.customForms.formTypes.evaluation')}</option>
                       <option value="custom">{t('wizard.step3.customForms.formTypes.custom')}</option>
                     </select>
                   </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Video, Upload, Crown } from 'lucide-react';
+import { useI18n } from '../../../i18n/I18nContext';
 
 export interface VideoSettingsData {
   videoUrl: string;
@@ -22,6 +23,7 @@ export default function VideoSettingsModal({
   initialData,
   hasPro
 }: VideoSettingsModalProps) {
+  const { t } = useI18n();
   const [videoUrl, setVideoUrl] = useState(initialData.videoUrl);
   const [pastedUrl, setPastedUrl] = useState('');
   const [autoplay, setAutoplay] = useState(true);
@@ -79,7 +81,7 @@ export default function VideoSettingsModal({
               className="text-xl"
               style={{ fontWeight: 600, color: '#0B2641' }}
             >
-              Hero Video Settings
+              {t('designStudio.modals.videoSettings.title')}
             </h2>
             <span
               className="px-2 py-1 rounded text-xs flex items-center gap-1"
@@ -90,7 +92,7 @@ export default function VideoSettingsModal({
               }}
             >
               <Crown size={12} />
-              PRO
+              {t('designStudio.modals.videoSettings.pro')}
             </span>
           </div>
           <button
@@ -112,7 +114,7 @@ export default function VideoSettingsModal({
               className="block text-sm mb-2"
               style={{ fontWeight: 500, color: '#0B2641' }}
             >
-              Upload Video
+              {t('designStudio.modals.videoSettings.labels.uploadVideo')}
             </label>
             <div
               className="relative border-2 border-dashed rounded-lg cursor-pointer transition-all hover:border-solid"
@@ -143,20 +145,20 @@ export default function VideoSettingsModal({
                   <div className="text-center">
                     <Video size={48} style={{ color: '#10B981', marginBottom: '12px' }} className="mx-auto" />
                     <span className="text-sm" style={{ color: '#10B981', fontWeight: 600 }}>
-                      Video uploaded successfully
+                      {t('designStudio.modals.videoSettings.upload.success')}
                     </span>
                     <p className="text-xs mt-1" style={{ color: '#6B7280' }}>
-                      Click to change
+                      {t('designStudio.modals.videoSettings.upload.clickToChange')}
                     </p>
                   </div>
                 ) : (
                   <>
                     <Upload size={40} style={{ color: '#6B7280', marginBottom: '12px' }} />
                     <span className="text-sm" style={{ color: '#0B2641' }}>
-                      Upload video file or paste URL
+                      {t('designStudio.modals.videoSettings.upload.instruction')}
                     </span>
                     <p className="text-xs mt-1" style={{ color: '#6B7280' }}>
-                      Supported: MP4, WebM, YouTube, Vimeo
+                      {t('designStudio.modals.videoSettings.upload.supported')}
                     </p>
                   </>
                 )}
@@ -170,7 +172,7 @@ export default function VideoSettingsModal({
               className="block text-sm mb-2"
               style={{ fontWeight: 500, color: '#0B2641' }}
             >
-              Or paste video URL
+              {t('designStudio.modals.videoSettings.labels.pasteUrl')}
             </label>
             <input
               type="text"
@@ -187,7 +189,7 @@ export default function VideoSettingsModal({
               }}
             />
             <p className="text-xs mt-2" style={{ color: '#6B7280' }}>
-              YouTube and Vimeo links supported
+              {t('designStudio.modals.videoSettings.hints.linksSupported')}
             </p>
           </div>
 
@@ -197,14 +199,14 @@ export default function VideoSettingsModal({
               className="block text-sm mb-3"
               style={{ fontWeight: 500, color: '#0B2641' }}
             >
-              Playback Settings
+              {t('designStudio.modals.videoSettings.labels.playbackSettings')}
             </label>
             <div className="space-y-3">
               {[
-                { label: 'Autoplay video', state: autoplay, setState: setAutoplay },
-                { label: 'Loop video', state: loop, setState: setLoop },
-                { label: 'Mute by default', state: mute, setState: setMute },
-                { label: 'Show video controls', state: showControls, setState: setShowControls }
+                { label: t('designStudio.modals.videoSettings.playback.autoplay'), state: autoplay, setState: setAutoplay },
+                { label: t('designStudio.modals.videoSettings.playback.loop'), state: loop, setState: setLoop },
+                { label: t('designStudio.modals.videoSettings.playback.mute'), state: mute, setState: setMute },
+                { label: t('designStudio.modals.videoSettings.playback.showControls'), state: showControls, setState: setShowControls }
               ].map((setting) => (
                 <div key={setting.label} className="flex items-center justify-between">
                   <span className="text-sm" style={{ color: '#0B2641' }}>
@@ -236,7 +238,7 @@ export default function VideoSettingsModal({
                 className="block text-sm"
                 style={{ fontWeight: 500, color: '#0B2641' }}
               >
-                Text Overlay
+                {t('designStudio.modals.videoSettings.labels.textOverlay')}
               </label>
               <button
                 onClick={() => setShowTextOverlay(!showTextOverlay)}
@@ -258,13 +260,13 @@ export default function VideoSettingsModal({
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs mb-2" style={{ color: '#6B7280' }}>
-                    Headline
+                    {t('designStudio.modals.videoSettings.labels.headline')}
                   </label>
                   <input
                     type="text"
                     value={headlineText}
                     onChange={(e) => setHeadlineText(e.target.value)}
-                    placeholder="Event title"
+                    placeholder={t('designStudio.modals.videoSettings.placeholders.headline')}
                     className="w-full h-10 px-3 rounded-lg border outline-none"
                     style={{
                       borderColor: '#E5E7EB',
@@ -274,13 +276,13 @@ export default function VideoSettingsModal({
                 </div>
                 <div>
                   <label className="block text-xs mb-2" style={{ color: '#6B7280' }}>
-                    Subtitle
+                    {t('designStudio.modals.videoSettings.labels.subtitle')}
                   </label>
                   <input
                     type="text"
                     value={subtitleText}
                     onChange={(e) => setSubtitleText(e.target.value)}
-                    placeholder="Tagline"
+                    placeholder={t('designStudio.modals.videoSettings.placeholders.subtitle')}
                     className="w-full h-10 px-3 rounded-lg border outline-none"
                     style={{
                       borderColor: '#E5E7EB',
@@ -290,7 +292,7 @@ export default function VideoSettingsModal({
                 </div>
                 <div>
                   <label className="block text-xs mb-2" style={{ color: '#6B7280' }}>
-                    Overlay Darkness ({overlayDarkness}%)
+                    {t('designStudio.modals.videoSettings.labels.overlayDarkness', { percent: String(overlayDarkness) })}
                   </label>
                   <input
                     type="range"
@@ -320,7 +322,7 @@ export default function VideoSettingsModal({
               border: '1px solid #E5E7EB'
             }}
           >
-            Cancel
+            {t('designStudio.modals.videoSettings.actions.cancel')}
           </button>
           <button
             onClick={handleSave}
@@ -331,7 +333,7 @@ export default function VideoSettingsModal({
               fontWeight: 600
             }}
           >
-            Apply Video
+            {t('designStudio.modals.videoSettings.actions.apply')}
           </button>
         </div>
       </div>

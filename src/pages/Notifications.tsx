@@ -1,10 +1,12 @@
 import { Bell, Check, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../hooks/useNotifications';
+import { useI18n } from '../i18n/I18nContext';
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
   const { notifications, unreadCount, isLoading, markAsRead, markAllAsRead } = useNotifications();
+  const { t } = useI18n();
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#0B2641', paddingTop: '90px' }}>
@@ -13,7 +15,7 @@ export default function NotificationsPage() {
           <div className="flex items-center gap-3">
             <Bell size={22} style={{ color: '#94A3B8' }} />
             <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#FFFFFF' }}>
-              Notifications
+              {t('notifications.page.title')}
             </h1>
           </div>
           <button
@@ -25,7 +27,7 @@ export default function NotificationsPage() {
               color: '#0684F5'
             }}
           >
-            Mark all as read ({unreadCount})
+            {t('notifications.page.markAllRead', { count: String(unreadCount) })}
           </button>
         </div>
 
@@ -44,7 +46,7 @@ export default function NotificationsPage() {
 
           {!isLoading && notifications.length === 0 && (
             <div className="py-12 text-center" style={{ color: '#94A3B8' }}>
-              No notifications yet.
+              {t('notifications.page.empty')}
             </div>
           )}
 

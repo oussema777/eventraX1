@@ -27,7 +27,7 @@ import { createNotification } from '../../lib/notifications';
 import { useI18n } from '../../i18n/I18nContext';
 import { useMessageThread } from '../../hooks/useMessageThread';
 import BookMeetingModal from './BookMeetingModal';
-import { sendEmail, generateMeetingConfirmationEmailHtml } from '../../lib/email';
+import { sendEmail, generateMeetingConfirmationEmailHtml, sendMeetingConfirmationEmails } from '../../lib/email';
 
 const MATCHES_TABLE = 'b2b_matches';
 const REQUESTS_TABLE = 'b2b_requests';
@@ -785,47 +785,19 @@ export default function UserB2BCenter() {
         const organizer = meeting.organizer || meeting.profile_a;
         const recipient = meeting.profile_b;
 
-        const organizerEmail = organizer?.email;
-        const recipientEmail = recipient?.email;
-        const organizerName = organizer?.full_name || 'Organizer';
-        const recipientName = recipient?.full_name || 'Participant';
-
-        // 4. Generate QR Code
-        const qrData = JSON.stringify({
-          meetingId: meeting.id,
-          event: eventName,
-          organizer: organizerName,
-          recipient: recipientName,
-          time: `${meetingDate} ${meetingTime}`,
-          location: location
-        });
-        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`;
-
-        // 5. Send Emails
-        const emailHtml = generateMeetingConfirmationEmailHtml({
-          eventName,
-          meetingDate,
-          meetingTime,
-          location,
-          organizerName,
-          recipientName,
-          qrCodeUrl
-        });
-
-        if (organizerEmail) {
-          sendEmail({
-            to: organizerEmail,
-            subject: `Meeting Confirmed: ${recipientName} for ${eventName}`,
-            html: emailHtml
-          });
-        }
-
-        if (recipientEmail) {
-          sendEmail({
-            to: recipientEmail,
-            subject: `Meeting Confirmed: ${organizerName} for ${eventName}`,
-            html: emailHtml
-          });
+        if (organizer?.email && recipient?.email) {
+          sendMeetingConfirmationEmails({
+            organizerEmail: organizer.email,
+            organizerName: organizer.full_name || organizer.email,
+            recipientEmail: recipient.email,
+            recipientName: recipient.full_name || recipient.email,
+            meetingDate,
+            meetingTime,
+            location,
+            eventName,
+            meetingId: meeting.id,
+            status: 'confirmed'
+          }).catch(err => console.error('Failed to send confirmation emails:', err));
         }
       }
 

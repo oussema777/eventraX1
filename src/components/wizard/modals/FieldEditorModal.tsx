@@ -1,5 +1,6 @@
 import { X, CheckCircle, Plus, XCircle, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { useI18n } from '../../../i18n/I18nContext';
 
 interface CustomField {
   id: string;
@@ -21,6 +22,7 @@ interface FieldEditorModalProps {
 }
 
 export default function FieldEditorModal({ isOpen, onClose, onSave, onDelete, field }: FieldEditorModalProps) {
+  const { t } = useI18n();
   const [formData, setFormData] = useState<CustomField>(field);
   const [charCount, setCharCount] = useState(field.label.length);
   const [newOption, setNewOption] = useState('');
@@ -66,25 +68,23 @@ export default function FieldEditorModal({ isOpen, onClose, onSave, onDelete, fi
   const needsOptions = ['dropdown', 'radio', 'multichoice', 'checkbox'].includes(formData.type);
   const supportsPlaceholder = ['text', 'textarea', 'number', 'email', 'phone', 'url'].includes(formData.type);
 
-  const getFieldTypeName = () => {
-    const names: Record<string, string> = {
-      text: 'Single Line Text',
-      textarea: 'Multi-line Text',
-      dropdown: 'Dropdown Select',
-      checkbox: 'Checkboxes',
-      radio: 'Radio Buttons',
-      date: 'Date Picker',
-      file: 'File Upload',
-      number: 'Number Input',
-      multichoice: 'Multiple Choice',
-      country: 'Country Selector',
-      email: 'Email Input',
-      phone: 'Phone Number Input',
-      url: 'URL Input',
-      address: 'Address Input'
-    };
-    return names[formData.type] || formData.type;
+  const FIELD_TYPE_LABELS: Record<string, { label: string; color: string }> = {
+    text: { label: 'Short Text', color: '#0684F5' },
+    textarea: { label: 'Long Text', color: '#0684F5' },
+    dropdown: { label: 'Dropdown Select', color: '#8B5CF6' },
+    checkbox: { label: 'Checkbox', color: '#10B981' },
+    radio: { label: 'Single Choice', color: '#F59E0B' },
+    date: { label: 'Date Picker', color: '#EC4899' },
+    file: { label: 'File Upload', color: '#F97316' },
+    number: { label: 'Number', color: '#06B6D4' },
+    multichoice: { label: 'Multiple Choice', color: '#8B5CF6' },
+    country: { label: 'Country Select', color: '#10B981' },
+    email: { label: 'Email Address', color: '#0684F5' },
+    phone: { label: 'Phone Number', color: '#06B6D4' },
+    url: { label: 'Website URL', color: '#0684F5' },
+    address: { label: 'Address', color: '#10B981' },
   };
+  const typeMeta = FIELD_TYPE_LABELS[formData.type] || { label: formData.type, color: '#94A3B8' };
 
   return (
     <>
@@ -116,13 +116,14 @@ export default function FieldEditorModal({ isOpen, onClose, onSave, onDelete, fi
                   className="text-lg mb-1"
                   style={{ fontWeight: 600, color: '#FFFFFF' }}
                 >
-                  Edit Field
+                  {t('designStudio.modals.fieldEditor.title')}
                 </h2>
-                <span 
-                  className="inline-block px-2 py-0.5 rounded text-[11px]"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.1)', color: '#94A3B8', fontWeight: 600 }}
+                <span
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] uppercase tracking-wide"
+                  style={{ backgroundColor: `${typeMeta.color}18`, color: typeMeta.color, fontWeight: 700 }}
                 >
-                  {getFieldTypeName()}
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: typeMeta.color }} />
+                  {typeMeta.label}
                 </span>
               </div>
               <button
@@ -144,15 +145,15 @@ export default function FieldEditorModal({ isOpen, onClose, onSave, onDelete, fi
               <div>
                 <label 
                   className="block text-sm mb-2"
-                  style={{ fontWeight: 500, color: '#FFFFFF' }}
+                  style={{ fontWeight: 600, color: '#E2E8F0' }}
                 >
-                  Field Label *
+                  {t('designStudio.modals.fieldEditor.labels.fieldLabel')} *
                 </label>
                 <input
                   type="text"
                   value={formData.label}
                   onChange={(e) => handleLabelChange(e.target.value)}
-                  placeholder="e.g., Company Name"
+                  placeholder={t('designStudio.modals.fieldEditor.placeholders.fieldLabel')}
                   className="w-full h-10 px-3 rounded-lg border outline-none transition-colors focus:border-blue-500 text-sm"
                   style={{ 
                     borderColor: 'rgba(255,255,255,0.1)',
@@ -174,15 +175,15 @@ export default function FieldEditorModal({ isOpen, onClose, onSave, onDelete, fi
               <div>
                 <label 
                   className="block text-sm mb-2"
-                  style={{ fontWeight: 500, color: '#FFFFFF' }}
+                  style={{ fontWeight: 600, color: '#E2E8F0' }}
                 >
-                  Help Text (Optional)
+                  {t('designStudio.modals.fieldEditor.labels.helpText')}
                 </label>
                 <input
                   type="text"
                   value={formData.helpText || ''}
                   onChange={(e) => setFormData({ ...formData, helpText: e.target.value })}
-                  placeholder="Add instructions or examples"
+                  placeholder={t('designStudio.modals.fieldEditor.placeholders.helpText')}
                   className="w-full h-10 px-3 rounded-lg border outline-none transition-colors focus:border-blue-500 text-sm"
                   style={{ 
                     borderColor: 'rgba(255,255,255,0.1)',
@@ -197,15 +198,15 @@ export default function FieldEditorModal({ isOpen, onClose, onSave, onDelete, fi
                 <div>
                   <label 
                     className="block text-sm mb-2"
-                    style={{ fontWeight: 500, color: '#FFFFFF' }}
+                    style={{ fontWeight: 600, color: '#E2E8F0' }}
                   >
-                    Placeholder
+                    {t('designStudio.modals.fieldEditor.labels.placeholder')}
                   </label>
                   <input
                     type="text"
                     value={formData.placeholder || ''}
                     onChange={(e) => setFormData({ ...formData, placeholder: e.target.value })}
-                    placeholder="e.g., Enter your company"
+                    placeholder={t('designStudio.modals.fieldEditor.placeholders.placeholder')}
                     className="w-full h-10 px-3 rounded-lg border outline-none transition-colors focus:border-blue-500 text-sm"
                     style={{ 
                       borderColor: 'rgba(255,255,255,0.1)',
@@ -221,9 +222,9 @@ export default function FieldEditorModal({ isOpen, onClose, onSave, onDelete, fi
                 <div>
                   <label 
                     className="block text-sm mb-2"
-                    style={{ fontWeight: 500, color: '#FFFFFF' }}
+                    style={{ fontWeight: 600, color: '#E2E8F0' }}
                   >
-                    Options
+                    {t('designStudio.modals.fieldEditor.labels.options')}
                   </label>
                   
                   {/* Existing Options */}
@@ -259,7 +260,7 @@ export default function FieldEditorModal({ isOpen, onClose, onSave, onDelete, fi
                       value={newOption}
                       onChange={(e) => setNewOption(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleAddOption()}
-                      placeholder="Add new option"
+                      placeholder={t('designStudio.modals.fieldEditor.placeholders.newOption')}
                       className="flex-1 h-9 px-3 rounded-lg border outline-none transition-colors focus:border-blue-500 text-sm"
                       style={{ 
                         borderColor: 'rgba(255,255,255,0.1)',
@@ -282,16 +283,16 @@ export default function FieldEditorModal({ isOpen, onClose, onSave, onDelete, fi
               <div>
                 <label 
                   className="block text-sm mb-3"
-                  style={{ fontWeight: 500, color: '#FFFFFF' }}
+                  style={{ fontWeight: 600, color: '#E2E8F0' }}
                 >
-                  Validation Rules
+                  {t('designStudio.modals.fieldEditor.labels.validationRules')}
                 </label>
                 
                 <div className="space-y-3">
                   {/* Make Required */}
                   <div className="flex items-center justify-between p-3 rounded-lg" style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}>
                     <span className="text-sm" style={{ color: '#FFFFFF' }}>
-                      Make this field required
+                      {t('designStudio.modals.fieldEditor.labels.makeRequired')}
                     </span>
                     <button
                       onClick={() => setFormData({ ...formData, required: !formData.required })}
@@ -324,7 +325,7 @@ export default function FieldEditorModal({ isOpen, onClose, onSave, onDelete, fi
               style={{ color: '#EF4444', fontWeight: 500 }}
             >
               <Trash2 size={16} />
-              Delete Field
+              {t('designStudio.modals.fieldEditor.actions.deleteField')}
             </button>
             <div className="flex items-center gap-3">
               <button
@@ -332,19 +333,19 @@ export default function FieldEditorModal({ isOpen, onClose, onSave, onDelete, fi
                 className="h-9 px-4 rounded-lg transition-colors hover:bg-white/10 text-sm"
                 style={{ color: '#FFFFFF', fontWeight: 500 }}
               >
-                Cancel
+                {t('designStudio.modals.fieldEditor.actions.cancel')}
               </button>
               <button
                 onClick={handleSave}
                 className="h-9 px-4 rounded-lg flex items-center gap-2 transition-all hover:bg-blue-600 text-sm"
-                style={{ 
+                style={{
                   backgroundColor: '#0684F5',
                   color: '#FFFFFF',
                   fontWeight: 600
                 }}
               >
                 <CheckCircle size={16} />
-                Save Changes
+                {t('designStudio.modals.fieldEditor.actions.saveChanges')}
               </button>
             </div>
           </div>

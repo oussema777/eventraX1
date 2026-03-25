@@ -180,18 +180,18 @@ export default function BlockLibraryPanel({
     },
     {
       id: 'sponsor-packages',
-      name: 'Sponsor Packages',
+      name: t('wizard.designStudio.blocks.sponsorPackages.name'),
       type: 'sponsor-packages',
-      description: 'Display available sponsorship packages for purchase.',
+      description: t('wizard.designStudio.blocks.sponsorPackages.description'),
       tier: 'PRO',
       thumbnail: 'pricing-cards',
       icon: '💎'
     },
     {
       id: 'networking',
-      name: 'B2B Networking',
+      name: t('wizard.designStudio.blocks.networking.name'),
       type: 'networking',
-      description: 'Promote matchmaking and 1-on-1 meetings at your event.',
+      description: t('wizard.designStudio.blocks.networking.description'),
       tier: 'PRO',
       thumbnail: 'grid',
       icon: '🤝'
@@ -310,7 +310,7 @@ export default function BlockLibraryPanel({
             {isBrandingStep ? t('wizard.designStudio.branding.title') : t('wizard.designStudio.title')}
           </h2>
           <p style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.6)' }}>
-            {isBrandingStep ? 'Set up your event branding and identity.' : t('wizard.designStudio.subtitle')}
+            {isBrandingStep ? t('wizard.designStudio.branding.subtitle') : t('wizard.designStudio.subtitle')}
           </p>
         </div>
 
@@ -516,7 +516,7 @@ export default function BlockLibraryPanel({
               {/* Logo Size Slider */}
               <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
                 <label style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255, 255, 255, 0.9)', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span>Logo Size</span>
+                  <span>{t('wizard.designStudio.branding.logoSize')}</span>
                   <span style={{ color: 'rgba(255, 255, 255, 0.6)' }}>{logoSize}px</span>
                 </label>
                 <input

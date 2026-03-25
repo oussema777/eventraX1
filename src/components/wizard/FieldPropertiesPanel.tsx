@@ -1,5 +1,6 @@
 import { X, CheckCircle, Plus, XCircle, Trash2, ChevronLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface CustomField {
   id: string;
@@ -22,6 +23,7 @@ interface FieldPropertiesPanelProps {
 }
 
 export default function FieldPropertiesPanel({ field, onSave, onDelete, onClose }: FieldPropertiesPanelProps) {
+  const { t } = useI18n();
   const [formData, setFormData] = useState<CustomField>(field);
   const [newOption, setNewOption] = useState('');
 
@@ -30,13 +32,11 @@ export default function FieldPropertiesPanel({ field, onSave, onDelete, onClose 
     setFormData(field);
   }, [field]);
 
-  // Auto-save on changes (or we can keep it explicit with a "Done" button)
-  // The user asked for "editor that saves". Real-time updates feel better in a panel.
-  // I will trigger onSave whenever formData changes.
+  // Auto-save on changes
   useEffect(() => {
     const timer = setTimeout(() => {
         onSave(formData);
-    }, 300); // Debounce slightly to avoid excessive re-renders/saves
+    }, 300);
     return () => clearTimeout(timer);
   }, [formData]);
 
@@ -74,23 +74,23 @@ export default function FieldPropertiesPanel({ field, onSave, onDelete, onClose 
   const supportsPlaceholder = ['text', 'textarea', 'number', 'email', 'phone', 'url'].includes(formData.type);
 
   const getFieldTypeName = () => {
-    const names: Record<string, string> = {
-      text: 'Single Line Text',
-      textarea: 'Multi-line Text',
-      dropdown: 'Dropdown Select',
-      checkbox: 'Checkboxes',
-      radio: 'Radio Buttons',
-      date: 'Date Picker',
-      file: 'File Upload',
-      number: 'Number Input',
-      multichoice: 'Multiple Choice',
-      country: 'Country Selector',
-      email: 'Email Input',
-      phone: 'Phone Number Input',
-      url: 'URL Input',
-      address: 'Address Input'
-    };
-    return names[formData.type] || formData.type;
+    switch(formData.type) {
+      case 'text': return t('wizard.step3.customForms.fieldTypes.text.label');
+      case 'textarea': return t('wizard.step3.customForms.fieldTypes.textarea.label');
+      case 'dropdown': return t('wizard.step3.customForms.fieldTypes.dropdown.label');
+      case 'checkbox': return t('wizard.step3.customForms.fieldTypes.checkbox.label');
+      case 'radio': return t('wizard.step3.customForms.fieldTypes.radio.label');
+      case 'date': return t('wizard.step3.customForms.fieldTypes.date.label');
+      case 'file': return t('wizard.step3.customForms.fieldTypes.file.label');
+      case 'number': return t('wizard.step3.customForms.fieldTypes.number.label');
+      case 'multichoice': return t('wizard.step3.customForms.fieldTypes.multichoice.label');
+      case 'country': return t('wizard.step3.customForms.fieldTypes.country.label');
+      case 'email': return t('wizard.step3.customForms.fieldTypes.email.label');
+      case 'phone': return t('wizard.step3.customForms.fieldTypes.phone.label');
+      case 'url': return t('wizard.step3.customForms.builder.fieldLabels.websiteUrl');
+      case 'address': return t('wizard.step3.customForms.builder.fieldLabels.address');
+      default: return formData.type;
+    }
   };
 
   return (
@@ -105,7 +105,9 @@ export default function FieldPropertiesPanel({ field, onSave, onDelete, onClose 
           <ChevronLeft size={20} />
         </button>
         <div>
-          <h3 className="text-lg font-semibold text-white">Edit Field</h3>
+          <h3 className="text-lg font-semibold text-white">
+            {t('wizard.step3.customForms.fieldSettings.title')}
+          </h3>
           <p className="text-xs text-slate-400">{getFieldTypeName()}</p>
         </div>
       </div>
@@ -114,7 +116,7 @@ export default function FieldPropertiesPanel({ field, onSave, onDelete, onClose 
         {/* Field Label */}
         <div>
           <label className="block text-sm font-medium text-white mb-2">
-            Field Label <span className="text-red-500">*</span>
+            {t('wizard.step3.customForms.fieldSettings.labels.fieldLabel')} <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
@@ -138,13 +140,13 @@ export default function FieldPropertiesPanel({ field, onSave, onDelete, onClose 
         {/* Help Text */}
         <div>
           <label className="block text-sm font-medium text-white mb-2">
-            Help Text
+            {t('wizard.step3.customForms.fieldSettings.labels.helpText')}
           </label>
           <input
             type="text"
             value={formData.helpText || ''}
             onChange={(e) => setFormData(prev => ({ ...prev, helpText: e.target.value }))}
-            placeholder="Instructions for user"
+            placeholder={t('wizard.step3.customForms.fieldSettings.placeholders.helpText')}
             className="w-full h-10 px-3 rounded-lg border outline-none transition-colors text-sm"
             style={{ 
               borderColor: 'rgba(255,255,255,0.1)',
@@ -158,13 +160,13 @@ export default function FieldPropertiesPanel({ field, onSave, onDelete, onClose 
         {supportsPlaceholder && (
           <div>
             <label className="block text-sm font-medium text-white mb-2">
-              Placeholder
+              {t('wizard.step3.customForms.fieldSettings.labels.placeholder')}
             </label>
             <input
               type="text"
               value={formData.placeholder || ''}
               onChange={(e) => setFormData(prev => ({ ...prev, placeholder: e.target.value }))}
-              placeholder="Input placeholder"
+              placeholder={t('wizard.step3.customForms.fieldSettings.placeholders.inputPlaceholder')}
               className="w-full h-10 px-3 rounded-lg border outline-none transition-colors text-sm"
               style={{ 
                 borderColor: 'rgba(255,255,255,0.1)',
@@ -179,7 +181,7 @@ export default function FieldPropertiesPanel({ field, onSave, onDelete, onClose 
         {needsOptions && (
           <div>
             <label className="block text-sm font-medium text-white mb-2">
-              Options
+              {t('wizard.step3.customForms.fieldSettings.labels.options')}
             </label>
             <div className="space-y-2 mb-3">
               {formData.options?.map((option, index) => (
@@ -210,7 +212,7 @@ export default function FieldPropertiesPanel({ field, onSave, onDelete, onClose 
                 value={newOption}
                 onChange={(e) => setNewOption(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddOption()}
-                placeholder="New option"
+                placeholder={t('wizard.step3.customForms.fieldSettings.labels.newOption')}
                 className="flex-1 h-9 px-3 rounded-lg border outline-none transition-colors text-sm"
                 style={{ 
                   borderColor: 'rgba(255,255,255,0.1)',
@@ -228,15 +230,21 @@ export default function FieldPropertiesPanel({ field, onSave, onDelete, onClose 
           </div>
         )}
 
-        {/* Validation */}
+        {/* Settings */}
         <div>
           <label className="block text-sm font-medium text-white mb-3">
-            Settings
+            {t('wizard.step3.customForms.fieldSettings.labels.settings')}
           </label>
           <div className="flex items-center justify-between p-3 rounded-lg" style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}>
             <div className="flex flex-col">
-              <span className="text-sm text-white">Required Field</span>
-              {field.isSystem && <span className="text-[10px] text-slate-500">System fields are always required</span>}
+              <span className="text-sm text-white">
+                {t('wizard.step3.customForms.fieldSettings.labels.requiredField')}
+              </span>
+              {field.isSystem && (
+                <span className="text-[10px] text-slate-500">
+                  {t('wizard.step3.customForms.fieldSettings.labels.requiredSystemNote')}
+                </span>
+              )}
             </div>
             <button
               onClick={() => !field.isSystem && setFormData(prev => ({ ...prev, required: !prev.required }))}
@@ -252,8 +260,12 @@ export default function FieldPropertiesPanel({ field, onSave, onDelete, onClose 
 
           <div className="flex items-center justify-between p-3 rounded-lg mt-2" style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}>
             <div>
-              <span className="text-sm text-white block">Show in Dashboard (KPI)</span>
-              <span className="text-[10px] text-slate-400">Display stats in Event Overview</span>
+              <span className="text-sm text-white block">
+                {t('wizard.step3.customForms.fieldSettings.labels.showInDashboard')}
+              </span>
+              <span className="text-[10px] text-slate-400">
+                {t('wizard.step3.customForms.fieldSettings.labels.dashboardNote')}
+              </span>
             </div>
             <button
               onClick={() => setFormData(prev => ({ ...prev, isKpi: !prev.isKpi }))}
@@ -276,7 +288,7 @@ export default function FieldPropertiesPanel({ field, onSave, onDelete, onClose 
               className="w-full h-10 rounded-lg flex items-center justify-center gap-2 transition-colors hover:bg-red-500/10 text-red-400 text-sm font-medium"
             >
               <Trash2 size={16} />
-              Delete Field
+              {t('wizard.step3.customForms.fieldSettings.actions.deleteField')}
             </button>
           </div>
         )}
@@ -289,7 +301,7 @@ export default function FieldPropertiesPanel({ field, onSave, onDelete, onClose 
           className="w-full h-10 rounded-lg flex items-center justify-center gap-2 transition-colors bg-blue-600 hover:bg-blue-700 text-white font-medium"
         >
           <CheckCircle size={16} />
-          Done Editing
+          {t('wizard.step3.customForms.builder.saveButton')}
         </button>
       </div>
     </div>

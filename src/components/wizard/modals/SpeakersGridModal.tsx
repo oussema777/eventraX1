@@ -1,5 +1,6 @@
 import { X, Users, CheckCircle, Lock, Crown, ChevronDown, ChevronUp, Plus, Upload } from 'lucide-react';
 import { useState } from 'react';
+import { useI18n } from '../../../i18n/I18nContext';
 
 interface SpeakersGridModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export interface SpeakersGridData {
 }
 
 export default function SpeakersGridModal({ isOpen, onClose, onSave, initialData, hasPro }: SpeakersGridModalProps) {
+  const { t } = useI18n();
   const [formData, setFormData] = useState<SpeakersGridData>(initialData);
   const [expandedSpeaker, setExpandedSpeaker] = useState<string | null>(initialData.speakers[0]?.id || null);
 
@@ -101,7 +103,7 @@ export default function SpeakersGridModal({ isOpen, onClose, onSave, initialData
                   className="text-xl"
                   style={{ fontWeight: 600, color: '#0B2641' }}
                 >
-                  Edit Speakers Grid
+                  {t('designStudio.modals.speakersGrid.title')}
                 </h2>
               </div>
               <button
@@ -127,13 +129,13 @@ export default function SpeakersGridModal({ isOpen, onClose, onSave, initialData
                 className="text-2xl mb-3"
                 style={{ fontWeight: 600, color: '#0B2641' }}
               >
-                Upgrade to Edit Speakers
+                {t('designStudio.modals.speakersGrid.upgrade.title')}
               </h3>
               <p 
                 className="text-base mb-8 max-w-md mx-auto"
                 style={{ color: '#6B7280' }}
               >
-                Add and showcase event speakers with Pro. Create professional speaker profiles with photos, bios, and social links.
+                {t('designStudio.modals.speakersGrid.upgrade.description')}
               </p>
               <div className="flex flex-col items-center gap-3">
                 <button
@@ -146,13 +148,13 @@ export default function SpeakersGridModal({ isOpen, onClose, onSave, initialData
                   }}
                 >
                   <Crown size={20} />
-                  Upgrade to Pro
+                  {t('designStudio.modals.speakersGrid.upgrade.cta')}
                 </button>
                 <button
                   className="text-sm transition-colors hover:underline"
                   style={{ color: 'var(--primary)', fontWeight: 500 }}
                 >
-                  Learn More About Pro
+                  {t('designStudio.modals.speakersGrid.upgrade.learnMore')}
                 </button>
               </div>
             </div>
@@ -199,7 +201,7 @@ export default function SpeakersGridModal({ isOpen, onClose, onSave, initialData
                 className="text-xl"
                 style={{ fontWeight: 600, color: '#0B2641' }}
               >
-                Edit Speakers Grid
+                {t('designStudio.modals.speakersGrid.title')}
               </h2>
             </div>
             <button
@@ -224,7 +226,7 @@ export default function SpeakersGridModal({ isOpen, onClose, onSave, initialData
                     className="block text-sm mb-2"
                     style={{ fontWeight: 500, color: '#0B2641' }}
                   >
-                    Number of Speakers
+                    {t('designStudio.modals.speakersGrid.labels.numberOfSpeakers')}
                   </label>
                   <input
                     type="number"
@@ -245,7 +247,7 @@ export default function SpeakersGridModal({ isOpen, onClose, onSave, initialData
                     className="block text-sm mb-2"
                     style={{ fontWeight: 500, color: '#0B2641' }}
                   >
-                    Layout
+                    {t('designStudio.modals.speakersGrid.labels.layout')}
                   </label>
                   <select
                     value={formData.layout}
@@ -257,9 +259,9 @@ export default function SpeakersGridModal({ isOpen, onClose, onSave, initialData
                       backgroundColor: '#FFFFFF'
                     }}
                   >
-                    <option value="2-cols">Grid (2 columns)</option>
-                    <option value="3-cols">Grid (3 columns)</option>
-                    <option value="4-cols">Grid (4 columns)</option>
+                    <option value="2-cols">{t('designStudio.modals.speakersGrid.layouts.twoCols')}</option>
+                    <option value="3-cols">{t('designStudio.modals.speakersGrid.layouts.threeCols')}</option>
+                    <option value="4-cols">{t('designStudio.modals.speakersGrid.layouts.fourCols')}</option>
                   </select>
                 </div>
               </div>
@@ -270,7 +272,7 @@ export default function SpeakersGridModal({ isOpen, onClose, onSave, initialData
                   className="block text-sm mb-3"
                   style={{ fontWeight: 500, color: '#0B2641' }}
                 >
-                  Speakers ({formData.speakers.length})
+                  {t('designStudio.modals.speakersGrid.labels.speakers', { count: formData.speakers.length })}
                 </label>
                 <div className="space-y-2">
                   {formData.speakers.map((speaker, index) => (
@@ -300,7 +302,7 @@ export default function SpeakersGridModal({ isOpen, onClose, onSave, initialData
                               className="text-sm"
                               style={{ fontWeight: 600, color: '#0B2641' }}
                             >
-                              {speaker.name || `Speaker ${index + 1}`}
+                              {speaker.name || t('designStudio.modals.speakersGrid.placeholders.defaultSpeaker', { index: index + 1 })}
                             </div>
                             {speaker.title && (
                               <div 
@@ -331,14 +333,14 @@ export default function SpeakersGridModal({ isOpen, onClose, onSave, initialData
                               className="block text-xs mb-2"
                               style={{ fontWeight: 500, color: '#0B2641' }}
                             >
-                              Photo
+                              {t('designStudio.modals.speakersGrid.labels.photo')}
                             </label>
                             <div 
                               className="w-24 h-24 rounded-full border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-colors hover:border-blue-400 hover:bg-blue-50"
                               style={{ borderColor: '#E5E7EB', backgroundColor: '#FFFFFF' }}
                             >
                               <Upload size={20} style={{ color: '#9CA3AF' }} />
-                              <span className="text-xs mt-1" style={{ color: '#9CA3AF' }}>Upload</span>
+                              <span className="text-xs mt-1" style={{ color: '#9CA3AF' }}>{t('designStudio.modals.speakersGrid.labels.upload')}</span>
                             </div>
                           </div>
 
@@ -348,13 +350,13 @@ export default function SpeakersGridModal({ isOpen, onClose, onSave, initialData
                               className="block text-xs mb-2"
                               style={{ fontWeight: 500, color: '#0B2641' }}
                             >
-                              Name
+                              {t('designStudio.modals.speakersGrid.labels.name')}
                             </label>
                             <input
                               type="text"
                               value={speaker.name}
                               onChange={(e) => handleUpdateSpeaker(speaker.id, { name: e.target.value })}
-                              placeholder="Speaker name"
+                              placeholder={t('designStudio.modals.speakersGrid.placeholders.speakerName')}
                               className="w-full h-10 px-3 rounded-lg border outline-none transition-colors focus:border-blue-400"
                               style={{ 
                                 borderColor: '#E5E7EB',
@@ -370,13 +372,13 @@ export default function SpeakersGridModal({ isOpen, onClose, onSave, initialData
                               className="block text-xs mb-2"
                               style={{ fontWeight: 500, color: '#0B2641' }}
                             >
-                              Title
+                              {t('designStudio.modals.speakersGrid.labels.speakerTitle')}
                             </label>
                             <input
                               type="text"
                               value={speaker.title}
                               onChange={(e) => handleUpdateSpeaker(speaker.id, { title: e.target.value })}
-                              placeholder="Job title"
+                              placeholder={t('designStudio.modals.speakersGrid.placeholders.jobTitle')}
                               className="w-full h-10 px-3 rounded-lg border outline-none transition-colors focus:border-blue-400"
                               style={{ 
                                 borderColor: '#E5E7EB',
@@ -392,13 +394,13 @@ export default function SpeakersGridModal({ isOpen, onClose, onSave, initialData
                               className="block text-xs mb-2"
                               style={{ fontWeight: 500, color: '#0B2641' }}
                             >
-                              Company
+                              {t('designStudio.modals.speakersGrid.labels.company')}
                             </label>
                             <input
                               type="text"
                               value={speaker.company}
                               onChange={(e) => handleUpdateSpeaker(speaker.id, { company: e.target.value })}
-                              placeholder="Company name"
+                              placeholder={t('designStudio.modals.speakersGrid.placeholders.companyName')}
                               className="w-full h-10 px-3 rounded-lg border outline-none transition-colors focus:border-blue-400"
                               style={{ 
                                 borderColor: '#E5E7EB',
@@ -414,12 +416,12 @@ export default function SpeakersGridModal({ isOpen, onClose, onSave, initialData
                               className="block text-xs mb-2"
                               style={{ fontWeight: 500, color: '#0B2641' }}
                             >
-                              Bio (Optional)
+                              {t('designStudio.modals.speakersGrid.labels.bio')}
                             </label>
                             <textarea
                               value={speaker.bio}
                               onChange={(e) => handleUpdateSpeaker(speaker.id, { bio: e.target.value })}
-                              placeholder="Brief biography..."
+                              placeholder={t('designStudio.modals.speakersGrid.placeholders.bio')}
                               className="w-full h-20 p-3 rounded-lg border outline-none resize-none transition-colors focus:border-blue-400"
                               style={{ 
                                 borderColor: '#E5E7EB',
@@ -436,7 +438,7 @@ export default function SpeakersGridModal({ isOpen, onClose, onSave, initialData
                               className="text-xs transition-colors hover:underline"
                               style={{ color: '#EF4444', fontWeight: 500 }}
                             >
-                              Remove Speaker
+                              {t('designStudio.modals.speakersGrid.actions.removeSpeaker')}
                             </button>
                           )}
                         </div>
@@ -457,7 +459,7 @@ export default function SpeakersGridModal({ isOpen, onClose, onSave, initialData
                     }}
                   >
                     <Plus size={18} />
-                    Add Another Speaker
+                    {t('designStudio.modals.speakersGrid.actions.addSpeaker')}
                   </button>
                 )}
               </div>
@@ -474,7 +476,7 @@ export default function SpeakersGridModal({ isOpen, onClose, onSave, initialData
               className="text-sm transition-colors hover:underline"
               style={{ color: '#6B7280', fontWeight: 500 }}
             >
-              Restore Default
+              {t('designStudio.modals.speakersGrid.actions.restoreDefault')}
             </button>
             <div className="flex items-center gap-3">
               <button
@@ -482,19 +484,19 @@ export default function SpeakersGridModal({ isOpen, onClose, onSave, initialData
                 className="h-11 px-5 rounded-lg transition-colors hover:bg-gray-100"
                 style={{ color: '#0B2641', fontWeight: 600 }}
               >
-                Cancel
+                {t('designStudio.modals.speakersGrid.actions.cancel')}
               </button>
               <button
                 onClick={handleSave}
                 className="h-11 px-5 rounded-lg flex items-center gap-2 transition-all hover:scale-105"
-                style={{ 
+                style={{
                   backgroundColor: 'var(--primary)',
                   color: '#FFFFFF',
                   fontWeight: 600
                 }}
               >
                 <CheckCircle size={18} />
-                Save Changes
+                {t('designStudio.modals.speakersGrid.actions.saveChanges')}
               </button>
             </div>
           </div>

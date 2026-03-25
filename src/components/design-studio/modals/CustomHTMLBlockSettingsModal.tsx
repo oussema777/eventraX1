@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Code, Palette, Save, AlertCircle, Loader2 } from 'lucide-react';
+import { useI18n } from '../../../i18n/I18nContext';
 
 interface CustomHTMLBlockSettingsModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export default function CustomHTMLBlockSettingsModal({
   onSave,
   isSaving = false
 }: CustomHTMLBlockSettingsModalProps) {
+  const { t } = useI18n();
   const [html, setHtml] = useState(settings?.html || '');
   const [css, setCss] = useState(settings?.css || '');
   const [activeTab, setActiveTab] = useState<'html' | 'css'>('html');
@@ -71,10 +73,10 @@ export default function CustomHTMLBlockSettingsModal({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 28px', borderBottom: '1px solid #F3F4F6' }}>
           <div>
             <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#111827', marginBottom: '4px' }}>
-              Custom HTML Block Settings
+              {t('wizard.designStudio.modals.customHtmlBlock.title')}
             </h2>
             <p style={{ fontSize: '13px', color: '#6B7280' }}>
-              Add custom HTML and CSS to your event page.
+              {t('wizard.designStudio.modals.customHtmlBlock.subtitle')}
             </p>
           </div>
           <button 
@@ -116,7 +118,7 @@ export default function CustomHTMLBlockSettingsModal({
             }}
           >
             <Code size={16} />
-            HTML
+            {t('wizard.designStudio.modals.customHtmlBlock.tabs.html')}
           </button>
           <button
             onClick={() => setActiveTab('css')}
@@ -136,7 +138,7 @@ export default function CustomHTMLBlockSettingsModal({
             }}
           >
             <Palette size={16} />
-            CSS
+            {t('wizard.designStudio.modals.customHtmlBlock.tabs.css')}
           </button>
         </div>
 
@@ -147,12 +149,12 @@ export default function CustomHTMLBlockSettingsModal({
             {activeTab === 'html' ? (
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '12px' }}>
-                  HTML Content
+                  {t('wizard.designStudio.modals.customHtmlBlock.labels.htmlContent')}
                 </label>
                 <textarea
                   value={html}
                   onChange={(e) => setHtml(e.target.value)}
-                  placeholder="<div class='my-section'>Hello World</div>"
+                  placeholder={t('wizard.designStudio.modals.customHtmlBlock.placeholders.html')}
                   spellCheck={false}
                   style={{ 
                     flex: 1,
@@ -172,12 +174,12 @@ export default function CustomHTMLBlockSettingsModal({
             ) : (
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '12px' }}>
-                  CSS Styles
+                  {t('wizard.designStudio.modals.customHtmlBlock.labels.cssStyles')}
                 </label>
                 <textarea
                   value={css}
                   onChange={(e) => setCss(e.target.value)}
-                  placeholder=".my-section { background: blue; }"
+                  placeholder={t('wizard.designStudio.modals.customHtmlBlock.placeholders.css')}
                   spellCheck={false}
                   style={{ 
                     flex: 1,
@@ -195,9 +197,7 @@ export default function CustomHTMLBlockSettingsModal({
                 />
                 <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#FFF7ED', borderRadius: '10px', border: '1px solid #FFEDD5', display: 'flex', gap: '10px' }}>
                   <AlertCircle size={18} style={{ color: '#F97316', flexShrink: 0 }} />
-                  <p style={{ fontSize: '12px', color: '#9A3412', lineHeight: '1.5' }}>
-                    <strong>Note:</strong> Styles are injected globally. Use specific classes to avoid affecting other sections of your event page.
-                  </p>
+                  <p style={{ fontSize: '12px', color: '#9A3412', lineHeight: '1.5' }} dangerouslySetInnerHTML={{__html: t('wizard.designStudio.modals.customHtmlBlock.cssWarning')}} />
                 </div>
               </div>
             )}
@@ -222,7 +222,7 @@ export default function CustomHTMLBlockSettingsModal({
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FFFFFF'}
             >
-              Cancel
+              {t('wizard.designStudio.modals.customHtmlBlock.actions.cancel')}
             </button>
             <button
               type="submit"
@@ -244,7 +244,7 @@ export default function CustomHTMLBlockSettingsModal({
               }}
             >
               {isSaving && <Loader2 size={16} className="animate-spin" />}
-              {isSaving ? 'Updating...' : 'Update Section'}
+              {isSaving ? t('wizard.designStudio.modals.customHtmlBlock.actions.updating') : t('wizard.designStudio.modals.customHtmlBlock.actions.updateSection')}
             </button>
           </div>
         </form>

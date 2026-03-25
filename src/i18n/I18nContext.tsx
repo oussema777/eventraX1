@@ -47,14 +47,14 @@ const formatTranslation = (value: string, vars?: Record<string, string | number>
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(getInitialLocale);
 
-  const isRTL = useMemo(() => locale === 'ar', [locale]);
+  const isRTL = useMemo(() => false, []); // Always false as per user request to not flip layout
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
-      document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+      document.documentElement.dir = 'ltr'; // Always LTR
       document.documentElement.lang = locale;
     }
-  }, [locale, isRTL]);
+  }, [locale]);
 
   const setLocale = useCallback((nextLocale: Locale) => {
     setLocaleState(nextLocale);

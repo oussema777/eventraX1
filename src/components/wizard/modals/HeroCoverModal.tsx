@@ -1,5 +1,6 @@
 import { X, Upload, CheckCircle } from 'lucide-react';
 import { useState } from 'react';
+import { useI18n } from '../../../i18n/I18nContext';
 
 interface HeroCoverModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export interface HeroCoverData {
 }
 
 export default function HeroCoverModal({ isOpen, onClose, onSave, initialData }: HeroCoverModalProps) {
+  const { t } = useI18n();
   const [formData, setFormData] = useState<HeroCoverData>(initialData);
 
   if (!isOpen) return null;
@@ -73,7 +75,7 @@ export default function HeroCoverModal({ isOpen, onClose, onSave, initialData }:
                 className="text-xl"
                 style={{ fontWeight: 600, color: '#0B2641' }}
               >
-                Edit Hero Cover
+                {t('designStudio.modals.heroCover.title')}
               </h2>
             </div>
             <button
@@ -97,7 +99,7 @@ export default function HeroCoverModal({ isOpen, onClose, onSave, initialData }:
                   className="block text-sm mb-2"
                   style={{ fontWeight: 500, color: '#0B2641' }}
                 >
-                  Cover Image
+                  {t('designStudio.modals.heroCover.labels.coverImage')}
                 </label>
                 <div 
                   className="w-full h-[120px] rounded-lg border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-colors hover:border-blue-400 hover:bg-blue-50"
@@ -105,11 +107,11 @@ export default function HeroCoverModal({ isOpen, onClose, onSave, initialData }:
                 >
                   <Upload size={24} style={{ color: '#9CA3AF' }} />
                   <p className="text-sm mt-2" style={{ color: '#6B7280' }}>
-                    Click to upload or drag image
+                    {t('designStudio.modals.heroCover.placeholders.uploadImage')}
                   </p>
                 </div>
                 <p className="text-xs mt-2" style={{ color: '#9CA3AF' }}>
-                  Recommended: 1920x600px, max 5MB
+                  {t('designStudio.modals.heroCover.hints.recommended')}
                 </p>
               </div>
 
@@ -119,13 +121,13 @@ export default function HeroCoverModal({ isOpen, onClose, onSave, initialData }:
                   className="block text-sm mb-2"
                   style={{ fontWeight: 500, color: '#0B2641' }}
                 >
-                  Event Headline
+                  {t('designStudio.modals.heroCover.labels.eventHeadline')}
                 </label>
                 <input
                   type="text"
                   value={formData.headline}
                   onChange={(e) => setFormData({ ...formData, headline: e.target.value })}
-                  placeholder="Enter your event title"
+                  placeholder={t('designStudio.modals.heroCover.placeholders.headline')}
                   className="w-full h-11 px-4 rounded-lg border outline-none transition-colors focus:border-blue-400"
                   style={{ 
                     borderColor: '#E5E7EB',
@@ -141,13 +143,13 @@ export default function HeroCoverModal({ isOpen, onClose, onSave, initialData }:
                   className="block text-sm mb-2"
                   style={{ fontWeight: 500, color: '#0B2641' }}
                 >
-                  Tagline
+                  {t('designStudio.modals.heroCover.labels.tagline')}
                 </label>
                 <input
                   type="text"
                   value={formData.tagline}
                   onChange={(e) => setFormData({ ...formData, tagline: e.target.value })}
-                  placeholder="Enter tagline"
+                  placeholder={t('designStudio.modals.heroCover.placeholders.tagline')}
                   className="w-full h-11 px-4 rounded-lg border outline-none transition-colors focus:border-blue-400"
                   style={{ 
                     borderColor: '#E5E7EB',
@@ -163,7 +165,7 @@ export default function HeroCoverModal({ isOpen, onClose, onSave, initialData }:
                   className="block text-sm mb-2"
                   style={{ fontWeight: 500, color: '#0B2641' }}
                 >
-                  Image Overlay Opacity ({formData.overlayOpacity}%)
+                  {t('designStudio.modals.heroCover.labels.overlayOpacity', { percent: String(formData.overlayOpacity) })}
                 </label>
                 <input
                   type="range"
@@ -188,7 +190,7 @@ export default function HeroCoverModal({ isOpen, onClose, onSave, initialData }:
                   />
                   <div className="absolute inset-0 flex items-center justify-center">
                     <span className="text-sm" style={{ color: '#FFFFFF', fontWeight: 600 }}>
-                      Preview
+                      {t('designStudio.modals.heroCover.labels.preview')}
                     </span>
                   </div>
                 </div>
@@ -200,7 +202,7 @@ export default function HeroCoverModal({ isOpen, onClose, onSave, initialData }:
                   className="block text-sm mb-2"
                   style={{ fontWeight: 500, color: '#0B2641' }}
                 >
-                  Call-to-Action Button
+                  {t('designStudio.modals.heroCover.labels.ctaButton')}
                 </label>
                 <div className="flex items-center gap-3 mb-3">
                   <button
@@ -218,7 +220,7 @@ export default function HeroCoverModal({ isOpen, onClose, onSave, initialData }:
                     />
                   </button>
                   <span className="text-sm" style={{ color: '#6B7280' }}>
-                    Show Register Button
+                    {t('designStudio.modals.heroCover.labels.showRegisterButton')}
                   </span>
                 </div>
                 {formData.showButton && (
@@ -226,7 +228,7 @@ export default function HeroCoverModal({ isOpen, onClose, onSave, initialData }:
                     type="text"
                     value={formData.buttonText}
                     onChange={(e) => setFormData({ ...formData, buttonText: e.target.value })}
-                    placeholder="Button text"
+                    placeholder={t('designStudio.modals.heroCover.placeholders.buttonText')}
                     className="w-full h-11 px-4 rounded-lg border outline-none transition-colors focus:border-blue-400"
                     style={{ 
                       borderColor: '#E5E7EB',
@@ -249,7 +251,7 @@ export default function HeroCoverModal({ isOpen, onClose, onSave, initialData }:
               className="text-sm transition-colors hover:underline"
               style={{ color: '#6B7280', fontWeight: 500 }}
             >
-              Restore Default
+              {t('designStudio.modals.heroCover.actions.restoreDefault')}
             </button>
             <div className="flex items-center gap-3">
               <button
@@ -257,19 +259,19 @@ export default function HeroCoverModal({ isOpen, onClose, onSave, initialData }:
                 className="h-11 px-5 rounded-lg transition-colors hover:bg-gray-100"
                 style={{ color: '#0B2641', fontWeight: 600 }}
               >
-                Cancel
+                {t('designStudio.modals.heroCover.actions.cancel')}
               </button>
               <button
                 onClick={handleSave}
                 className="h-11 px-5 rounded-lg flex items-center gap-2 transition-all hover:scale-105"
-                style={{ 
+                style={{
                   backgroundColor: 'var(--primary)',
                   color: '#FFFFFF',
                   fontWeight: 600
                 }}
               >
                 <CheckCircle size={18} />
-                Save Changes
+                {t('designStudio.modals.heroCover.actions.saveChanges')}
               </button>
             </div>
           </div>

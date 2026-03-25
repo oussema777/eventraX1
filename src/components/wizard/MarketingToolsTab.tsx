@@ -929,7 +929,7 @@ export default function MarketingToolsTab({ eventId }: MarketingToolsTabProps) {
                 </span>
               </div>
               <p className="text-sm" style={{ color: '#94A3B8' }}>
-                {hasPro ? 'Automate event communication via WhatsApp' : t('wizard.step3.marketingTools.whatsapp.lockedSubtitle')}
+                {hasPro ? t('wizard.step3.marketingTools.whatsapp.subtitle') : t('wizard.step3.marketingTools.whatsapp.lockedSubtitle')}
               </p>
             </div>
           </div>
@@ -958,16 +958,16 @@ export default function MarketingToolsTab({ eventId }: MarketingToolsTabProps) {
               <div className="p-6 rounded-xl bg-white/5 border border-white/10">
                 <h4 className="text-white font-bold mb-4 flex items-center gap-2">
                   <Globe size={18} className="text-[#25D366]" />
-                  Connection Status
+                  {t('wizard.step3.marketingTools.whatsapp.connectionStatus')}
                 </h4>
                 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs text-gray-400 mb-2 uppercase tracking-widest font-bold">Business Number</label>
+                    <label className="block text-xs text-gray-400 mb-2 uppercase tracking-widest font-bold">{t('wizard.step3.marketingTools.whatsapp.businessNumber')}</label>
                     <div className="flex gap-2">
                       <input
                         type="text"
-                        placeholder="+1 234 567 8900"
+                        placeholder={t('wizard.step3.marketingTools.whatsapp.phonePlaceholder')}
                         value={whatsappSettings.phoneNumber}
                         onChange={(e) => setWhatsappSettings(prev => ({ ...prev, phoneNumber: e.target.value }))}
                         className="flex-1 h-11 px-4 rounded-lg border border-white/10 bg-white/5 text-white outline-none focus:border-[#25D366] transition-colors"
@@ -975,7 +975,7 @@ export default function MarketingToolsTab({ eventId }: MarketingToolsTabProps) {
                       <button 
                         onClick={async () => {
                           if (!whatsappSettings.phoneNumber) {
-                            toast.error('Please enter a phone number first');
+                            toast.error(t('wizard.step3.marketingTools.whatsapp.toasts.enterPhone'));
                             return;
                           }
                           setIsConnecting(true);
@@ -990,9 +990,9 @@ export default function MarketingToolsTab({ eventId }: MarketingToolsTabProps) {
                         {isConnecting ? (
                           <>
                             <Loader2 size={16} className="animate-spin" />
-                            Connecting...
+                            {t('wizard.step3.marketingTools.whatsapp.connecting')}
                           </>
-                        ) : 'Connect'}
+                        ) : t('wizard.step3.marketingTools.whatsapp.connect')}
                       </button>
                     </div>
                   </div>
@@ -1008,32 +1008,32 @@ export default function MarketingToolsTab({ eventId }: MarketingToolsTabProps) {
                         className="text-[11px] font-semibold text-center"
                         style={{ color: '#0B2641' }}
                       >
-                        Scan with your WhatsApp mobile app to authorize this event.
+                        {t('wizard.step3.marketingTools.whatsapp.scanInstruction')}
                       </p>
                       <div className="flex gap-4">
                         <button 
                           onClick={() => {
                             setShowWhatsappQr(false);
-                            toast.success('WhatsApp Business Account Connected!');
+                            toast.success(t('wizard.step3.marketingTools.whatsapp.toasts.connected'));
                           }}
                           className="text-[11px] hover:underline font-bold"
                           style={{ color: '#0684F5' }}
                         >
-                          Confirm Scan
+                          {t('wizard.step3.marketingTools.whatsapp.confirmScan')}
                         </button>
                         <button 
                           onClick={() => setShowWhatsappQr(false)}
                           className="text-[11px] hover:underline font-bold"
                           style={{ color: '#4B5563' }}
                         >
-                          Hide QR
+                          {t('wizard.step3.marketingTools.whatsapp.hideQr')}
                         </button>
                       </div>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 text-sm text-yellow-500 bg-yellow-500/10 p-3 rounded-lg border border-yellow-500/20 cursor-pointer hover:bg-yellow-500/20 transition-colors" onClick={() => setShowWhatsappQr(true)}>
                       <QrCode size={16} />
-                      <span>Scan QR code to authorize after saving number.</span>
+                      <span>{t('wizard.step3.marketingTools.whatsapp.scanPrompt')}</span>
                     </div>
                   )}
                 </div>
@@ -1043,13 +1043,13 @@ export default function MarketingToolsTab({ eventId }: MarketingToolsTabProps) {
               <div className="space-y-4">
                 <h4 className="text-white font-bold flex items-center gap-2">
                   <CheckCircle size={18} className="text-[#25D366]" />
-                  Automated Workflows
+                  {t('wizard.step3.marketingTools.whatsapp.automatedWorkflows')}
                 </h4>
                 
                 {[
-                  { id: 'confirmations', label: 'Registration Confirmations', desc: 'Send ticket & QR code instantly' },
-                  { id: 'reminders', label: 'Event Reminders', desc: '24h before event starts' },
-                  { id: 'thankyou', label: 'Post-Event Thank You', desc: 'Collect feedback after event' }
+                  { id: 'confirmations', label: t('wizard.step3.marketingTools.whatsapp.workflows.confirmations'), desc: t('wizard.step3.marketingTools.whatsapp.workflows.confirmationsDesc') },
+                  { id: 'reminders', label: t('wizard.step3.marketingTools.whatsapp.workflows.reminders'), desc: t('wizard.step3.marketingTools.whatsapp.workflows.remindersDesc') },
+                  { id: 'thankyou', label: t('wizard.step3.marketingTools.whatsapp.workflows.thankyou'), desc: t('wizard.step3.marketingTools.whatsapp.workflows.thankyouDesc') }
                 ].map((item) => (
                   <div key={item.id} className="flex items-center justify-between p-4 rounded-lg bg-white/5 border border-white/10">
                     <div>
@@ -1098,15 +1098,15 @@ export default function MarketingToolsTab({ eventId }: MarketingToolsTabProps) {
                     .eq('id', eventId);
                   
                   if (error) {
-                    toast.error('Failed to save WhatsApp settings');
+                    toast.error(t('wizard.step3.marketingTools.whatsapp.toasts.saveFailed'));
                   } else {
-                    toast.success('WhatsApp configuration saved');
+                    toast.success(t('wizard.step3.marketingTools.whatsapp.toasts.saved'));
                   }
                 }}
                 className="px-8 py-3 rounded-lg bg-[#25D366] hover:bg-[#1fb355] text-white font-bold transition-all flex items-center gap-2"
               >
                 <Save size={18} />
-                Save WhatsApp Settings
+                {t('wizard.step3.marketingTools.whatsapp.saveSettings')}
               </button>
             </div>
           </div>

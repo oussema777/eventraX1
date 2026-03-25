@@ -766,8 +766,8 @@ function SessionCard({ session, onEdit, onDelete, compact = false }: SessionCard
                       )}
                     </div>
                     <div>
-                      <p style={{ fontSize: '14px', fontWeight: 600, color: '#0B2641' }}>{speaker.full_name || speaker.name || 'Untitled Speaker'}</p>
-                      <p style={{ fontSize: '12px', color: '#6B7280' }}>{speaker.title || 'No Title'}</p>
+                      <p style={{ fontSize: '14px', fontWeight: 600, color: '#0B2641' }}>{speaker.full_name || speaker.name || t('wizard.step3.sessions.fallback.untitledSpeaker')}</p>
+                      <p style={{ fontSize: '12px', color: '#6B7280' }}>{speaker.title || t('wizard.step3.sessions.fallback.noTitle')}</p>
                     </div>
                   </div>
                 ))}
@@ -1128,7 +1128,7 @@ function AddSessionModal({
       
       // Check 1: Individual session capacity > Event capacity
       if (currentVal > eventMaxCapacity) {
-        setCapacityError('Max Capacity should not be more than the max. attendees');
+        setCapacityError(t('wizard.step3.sessions.modal.errors.capacityExceedsEvent'));
         return;
       }
 
@@ -1138,7 +1138,7 @@ function AddSessionModal({
       const otherSessionsTotal = otherSessions.reduce((sum, s) => sum + (s.capacity || 0), 0);
       
       if (currentVal + otherSessionsTotal > eventMaxCapacity) {
-        setCapacityError(`Total session capacity (${currentVal + otherSessionsTotal}) exceeds event capacity (${eventMaxCapacity})`);
+        setCapacityError(t('wizard.step3.sessions.modal.errors.totalCapacityExceeds', { total: currentVal + otherSessionsTotal, max: eventMaxCapacity }));
         return;
       }
 
@@ -1240,8 +1240,8 @@ function AddSessionModal({
         if (conflict) {
           toast.error(
             <div className="flex flex-col gap-1">
-              <span className="font-bold text-red-600">Schedule Conflict detected!</span>
-              <span className="text-sm">The room <span className="font-semibold">"{finalVenue}"</span> is already occupied by <span className="font-semibold">"{conflict.title}"</span> during this time.</span>
+              <span className="font-bold text-red-600">{t('wizard.step3.sessions.modal.errors.conflictTitle')}</span>
+              <span className="text-sm">{t('wizard.step3.sessions.modal.errors.conflictBody', { venue: finalVenue, session: conflict.title })}</span>
             </div>,
             { duration: 5000 }
           );
@@ -1478,7 +1478,7 @@ function AddSessionModal({
                               {/* Date Selection Cards */}
                               <div style={{ marginBottom: '24px' }}>
                                 <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                  Select Event Day
+                                  {t('wizard.step3.sessions.modal.selectEventDay')}
                                 </p>
                                 <div className="flex flex-wrap gap-3">
                                   {availableDates.map((d, index) => {
@@ -1578,12 +1578,12 @@ function AddSessionModal({
                                                   <div className="flex items-center gap-2 justify-center py-2 px-4 rounded-full mx-auto w-fit" style={{ backgroundColor: 'rgba(6, 132, 245, 0.1)', border: '1px solid rgba(6, 132, 245, 0.2)' }}>
                                                     <TrendingUp size={14} style={{ color: '#0684F5' }} />
                                                     <span style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>
-                                                      Duration: {(() => {
+                                                      {t('wizard.step3.sessions.modal.duration')} {(() => {
                                                         try {
                                                           const [sH, sM] = startTime.split(':').map(Number);
                                                           const [eH, eM] = endTime.split(':').map(Number);
                                                           const diff = (eH * 60 + eM) - (sH * 60 + sM);
-                                                          if (diff <= 0) return 'Invalid range';
+                                                          if (diff <= 0) return t('wizard.step3.sessions.modal.invalidRange');
                                                           const h = Math.floor(diff / 60);
                                                           const m = diff % 60;
                                                           return `${h > 0 ? `${h}h ` : ''}${m} min`;
@@ -1638,7 +1638,7 @@ function AddSessionModal({
                       id="capacity"
                       type="text"
                       inputMode="numeric"
-                      placeholder="0 (Unlimited)"
+                      placeholder={t('wizard.step3.sessions.modal.capacityUnlimited')}
                       value={capacity}
                       onChange={handleCapacityChange}
                       className="w-full h-11 px-4 rounded-lg outline-none transition-all"
@@ -1676,7 +1676,7 @@ function AddSessionModal({
                       onClick={handleCancelNewVenue}
                       className="text-[11px] font-bold text-gray-400 hover:text-white uppercase tracking-wider"
                     >
-                      Cancel
+                      {t('wizard.step3.sessions.modal.cancelVenue')}
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -1698,7 +1698,7 @@ function AddSessionModal({
                       </label>
                       <input
                         type="number"
-                        placeholder="e.g. 50"
+                        placeholder={t('wizard.step3.sessions.modal.newVenueCapacityPlaceholder')}
                         value={newVenueCapacity}
                         onChange={(e) => setNewVenueCapacity(e.target.value)}
                         className="w-full h-10 px-3 rounded-lg outline-none bg-[#0B2641] border border-white/10 text-white text-sm focus:border-[#0684F5] transition-all"
@@ -1716,7 +1716,7 @@ function AddSessionModal({
                       cursor: newVenueName ? 'pointer' : 'not-allowed'
                     }}
                   >
-                    Confirm & Use Venue
+                    {t('wizard.step3.sessions.modal.confirmUseVenue')}
                   </button>
                 </div>
               )}
@@ -1818,10 +1818,10 @@ function AddSessionModal({
                           </div>
                           <div>
                             <p style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF' }}>
-                              {speaker.full_name || speaker.name || 'Untitled Speaker'}
+                              {speaker.full_name || speaker.name || t('wizard.step3.sessions.fallback.untitledSpeaker')}
                             </p>
                             <p style={{ fontSize: '12px', color: '#94A3B8' }}>
-                              {t('wizard.step3.sessions.modal.speakerLine', { title: speaker.title || 'No Title', company: speaker.company || 'No Company' })}
+                              {t('wizard.step3.sessions.modal.speakerLine', { title: speaker.title || t('wizard.step3.sessions.fallback.noTitle'), company: speaker.company || t('wizard.step3.sessions.fallback.noCompany') })}
                             </p>
                           </div>
                         </div>
@@ -2289,10 +2289,10 @@ function SpeakerSelectionModal({ onClose, selectedSpeakers, setSelectedSpeakers,
                     </div>
                     <div className="flex-1">
                         <p style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF', marginBottom: '2px' }}>
-                        {speaker.full_name || speaker.name || 'Untitled Speaker'}
+                        {speaker.full_name || speaker.name || t('wizard.step3.sessions.fallback.untitledSpeaker')}
                         </p>
                         <p style={{ fontSize: '13px', color: '#94A3B8' }}>
-                        {speaker.title || 'No Title'} • {speaker.company || 'No Company'}
+                        {speaker.title || t('wizard.step3.sessions.fallback.noTitle')} • {speaker.company || t('wizard.step3.sessions.fallback.noCompany')}
                         </p>
                     </div>
                     {isSelected && (
@@ -2367,7 +2367,7 @@ function ExportModal({ onClose, sessions }: ExportModalProps) {
 
   const handleExportCSV = () => {
     if (sessions.length === 0) {
-      toast.info('No sessions to export');
+      toast.info(t('wizard.step3.sessions.export.noSessions'));
       return;
     }
 
@@ -2397,19 +2397,19 @@ function ExportModal({ onClose, sessions }: ExportModalProps) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success('Schedule exported as CSV');
+    toast.success(t('wizard.step3.sessions.export.csvSuccess'));
     onClose();
   };
 
   const handleExportPDF = () => {
     if (sessions.length === 0) {
-      toast.info('No sessions to export');
+      toast.info(t('wizard.step3.sessions.export.noSessions'));
       return;
     }
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      toast.error('Please allow popups to export PDF');
+      toast.error(t('wizard.step3.sessions.export.allowPopups'));
       return;
     }
 

@@ -1,0 +1,12 @@
+-- EVENTRA DATABASE UPDATE: Bulk Business Verification
+-- This script marks all existing business profiles as 'verified' and makes them public.
+-- Run this in your Supabase SQL Editor
+
+UPDATE public.business_profiles
+SET 
+  verification_status = 'verified',
+  is_public = true
+WHERE (verification_status != 'verified' OR verification_status IS NULL);
+
+-- Optional: Verify that the update worked
+-- SELECT id, company_name, verification_status, is_public FROM public.business_profiles;

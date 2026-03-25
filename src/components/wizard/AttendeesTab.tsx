@@ -112,11 +112,11 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
 
       if (error) throw error;
 
-      toast.success(`Successfully imported ${payload.length} attendees`);
+      toast.success(t('wizard.step3.attendeesTab.toasts.importSuccess', { count: payload.length }));
       fetchAttendees();
     } catch (error: any) {
       console.error('Bulk import failed:', error);
-      toast.error('Failed to import attendees: ' + (error.message || 'Unknown error'));
+      toast.error(t('wizard.step3.attendeesTab.toasts.importFailed') + ': ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -201,20 +201,20 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
     const email = formData['Email Address'];
 
     if (!name || !email) {
-      toast.error('Full Name and Email are required');
+      toast.error(t('wizard.step3.attendeesTab.toasts.nameEmailRequired'));
       return;
     }
 
     // Email Validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      toast.error('Please enter a valid email address');
+      toast.error(t('wizard.step3.attendeesTab.toasts.invalidEmail'));
       return;
     }
 
     const missing = formFields.filter(f => f.required && !formData[f.label]);
     if (missing.length > 0) {
-      toast.error(`Missing required field: ${missing[0].label}`);
+      toast.error(t('wizard.step3.attendeesTab.toasts.missingField', { field: missing[0].label }));
       return;
     }
 
@@ -252,7 +252,7 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
         await supabase.from('event_attendee_sessions').insert(sessionInserts);
       }
 
-      toast.success('Attendee added successfully');
+      toast.success(t('wizard.step3.attendeesTab.toasts.addSuccess'));
       setIsAdding(false);
       setFormData({});
       setSelectedSessions(new Set());
@@ -260,9 +260,9 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
     } catch (error: any) {
       console.error('Error adding attendee:', error);
       if (error.code === '23505') {
-        toast.error('This email is already registered for this event');
+        toast.error(t('wizard.step3.attendeesTab.toasts.duplicateEmail'));
       } else {
-        toast.error('Failed to add attendee');
+        toast.error(t('wizard.step3.attendeesTab.toasts.addFailed'));
       }
     }
   };
@@ -281,7 +281,7 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
 
   const handleExport = () => {
     if (attendees.length === 0) {
-      toast.info('No attendees to export');
+      toast.info(t('wizard.step3.attendeesTab.toasts.noExport'));
       return;
     }
     const headers = ['Name', 'Email', 'Ticket Type', 'Status', 'Checked In', 'Confirmation Code'];
@@ -299,7 +299,7 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
     a.download = `attendees-${eventId}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
-    toast.success('Export started');
+    toast.success(t('wizard.step3.attendeesTab.toasts.exportStarted'));
   };
 
   const filteredAttendees = attendees.filter(a => 
@@ -319,10 +319,10 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>
-              Attendee Management
+              {t('wizard.step3.attendeesTab.title')}
             </h2>
             <p style={{ fontSize: '14px', color: '#94A3B8' }}>
-              Manage your guest list, registrations, and check-ins
+              {t('wizard.step3.attendeesTab.subtitle')}
             </p>
           </div>
           
@@ -332,13 +332,13 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg text-xs font-bold border border-white/10 transition-all shadow-sm"
              >
                <Download size={14} />
-               CSV Template
+               {t('wizard.step3.attendeesTab.csvTemplate')}
              </button>
              <div className="relative group">
                 <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#0684F5] transition-colors" />
                 <input
                   type="text"
-                  placeholder="Search attendees..."
+                  placeholder={t('wizard.step3.attendeesTab.searchPlaceholder')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   style={{
@@ -369,8 +369,8 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
               <div className="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 group-hover:bg-emerald-500/20 border border-emerald-500/20">
                 <Plus size={28} className="text-emerald-500" />
               </div>
-              <h3 className="text-lg font-bold text-white mb-1 group-hover:text-emerald-400 transition-colors">Add Manually</h3>
-              <p className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">Register single attendee</p>
+              <h3 className="text-lg font-bold text-white mb-1 group-hover:text-emerald-400 transition-colors">{t('wizard.step3.attendeesTab.actions.addManually')}</h3>
+              <p className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">{t('wizard.step3.attendeesTab.actions.addManuallyDesc')}</p>
             </div>
 
             <div 
@@ -380,8 +380,8 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
               <div className="w-14 h-14 rounded-full bg-blue-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 group-hover:bg-blue-500/20 border border-blue-500/20">
                 <Upload size={28} className="text-blue-500" />
               </div>
-              <h3 className="text-lg font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">Import CSV</h3>
-              <p className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">Bulk upload list</p>
+              <h3 className="text-lg font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">{t('wizard.step3.attendeesTab.actions.importCsv')}</h3>
+              <p className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">{t('wizard.step3.attendeesTab.actions.importCsvDesc')}</p>
             </div>
 
             <div 
@@ -391,8 +391,8 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
               <div className="w-14 h-14 rounded-full bg-purple-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 group-hover:bg-purple-500/20 border border-purple-500/20">
                 <Download size={28} className="text-purple-500" />
               </div>
-              <h3 className="text-lg font-bold text-white mb-1 group-hover:text-purple-400 transition-colors">Export List</h3>
-              <p className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">Download CSV report</p>
+              <h3 className="text-lg font-bold text-white mb-1 group-hover:text-purple-400 transition-colors">{t('wizard.step3.attendeesTab.actions.exportList')}</h3>
+              <p className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">{t('wizard.step3.attendeesTab.actions.exportListDesc')}</p>
             </div>
           </div>
         )}
@@ -417,8 +417,8 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                   <ArrowLeft size={18} />
                 </button>
                 <div>
-                  <h3 className="text-lg font-bold text-white">Add New Attendee</h3>
-                  <p className="text-xs text-gray-400">Enter guest details manually</p>
+                  <h3 className="text-lg font-bold text-white">{t('wizard.step3.attendeesTab.addForm.title')}</h3>
+                  <p className="text-xs text-gray-400">{t('wizard.step3.attendeesTab.addForm.subtitle')}</p>
                 </div>
               </div>
             </div>
@@ -428,7 +428,7 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                  {/* Ticket & Status */}
                  <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-2">
-                       <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Ticket Type</label>
+                       <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">{t('wizard.step3.attendeesTab.addForm.ticketType')}</label>
                        <div className="relative group">
                           <Ticket size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#0684F5] transition-colors" />
                           <select 
@@ -439,13 +439,13 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                              {tickets.map(t => (
                                <option key={t.id} value={t.id}>{t.name} • ${t.price}</option>
                              ))}
-                             {tickets.length === 0 && <option value="">General Admission</option>}
+                             {tickets.length === 0 && <option value="">{t('wizard.step3.attendeesTab.addForm.generalAdmission')}</option>}
                           </select>
                           <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
                        </div>
                     </div>
                     <div className="space-y-2">
-                       <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Status</label>
+                       <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">{t('wizard.step3.attendeesTab.addForm.status')}</label>
                        <div className="relative group">
                           <CheckCircle size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#0684F5] transition-colors" />
                           <select 
@@ -453,8 +453,8 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                             value={registrationStatus}
                             onChange={(e) => setRegistrationStatus(e.target.value)}
                           >
-                             <option value="approved">Approved</option>
-                             <option value="pending">Pending</option>
+                             <option value="approved">{t('wizard.step3.attendeesTab.addForm.statusApproved')}</option>
+                             <option value="pending">{t('wizard.step3.attendeesTab.addForm.statusPending')}</option>
                           </select>
                           <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
                        </div>
@@ -475,7 +475,7 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                            <div className="relative group">
                              <textarea
                                className="w-full bg-[#162C46] border border-white/10 rounded-xl px-4 py-4 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all resize-none placeholder-gray-600 min-h-[100px] hover:border-white/20"
-                               placeholder={`Enter ${field.label.toLowerCase()}...`}
+                               placeholder={t('wizard.step3.attendeesTab.addForm.enterField', { field: field.label.toLowerCase() })}
                                value={formData[field.label] || ''}
                                onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}
                              />
@@ -487,7 +487,7 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                                 value={formData[field.label] || ''}
                                 onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}
                               >
-                                <option value="">Select option...</option>
+                                <option value="">{t('wizard.step3.attendeesTab.addForm.selectOption')}</option>
                                 {field.options?.map(opt => (
                                   <option key={opt} value={opt}>{opt}</option>
                                 ))}
@@ -523,14 +523,14 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                              <Calendar size={18} />
                           </div>
                           <div className="text-left">
-                             <span className="block text-sm font-bold text-white group-hover:text-[#0684F5] transition-colors">Assign Sessions</span>
-                             <span className="block text-xs text-gray-400">Optional: Pre-register attendee for specific agenda items</span>
+                             <span className="block text-sm font-bold text-white group-hover:text-[#0684F5] transition-colors">{t('wizard.step3.attendeesTab.addForm.assignSessions')}</span>
+                             <span className="block text-xs text-gray-400">{t('wizard.step3.attendeesTab.addForm.assignSessionsDesc')}</span>
                           </div>
                        </div>
                        <div className="flex items-center gap-3">
                           {selectedSessions.size > 0 && (
                              <span className="text-[10px] bg-[#0684F5] text-white px-2.5 py-1 rounded-full font-bold shadow-sm shadow-blue-500/20">
-                                {selectedSessions.size} Selected
+                                {t('wizard.step3.attendeesTab.addForm.selectedCount', { count: selectedSessions.size })}
                              </span>
                           )}
                           {showSessions ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
@@ -540,7 +540,7 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                     {showSessions && (
                        <div className="mt-2 space-y-2 border border-white/10 rounded-xl p-3 max-h-[300px] overflow-y-auto bg-[#0B2236] shadow-inner">
                           {sessions.length === 0 ? (
-                             <p className="text-center text-xs text-gray-500 py-6">No sessions available.</p>
+                             <p className="text-center text-xs text-gray-500 py-6">{t('wizard.step3.attendeesTab.addForm.noSessions')}</p>
                           ) : (
                              sessions.map(session => {
                                const isSelected = selectedSessions.has(session.id);
@@ -588,14 +588,14 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                 onClick={() => setIsAdding(false)}
                 className="px-6 py-2.5 rounded-xl text-gray-300 font-medium hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all active:scale-95"
               >
-                Discard Changes
+                {t('wizard.step3.attendeesTab.addForm.discardChanges')}
               </button>
               <button 
                 onClick={handleAddAttendee}
                 className="px-8 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-bold hover:from-emerald-400 hover:to-emerald-500 transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/25 active:scale-95 border border-emerald-400/20"
               >
                 <Save size={18} />
-                Save Registration
+                {t('wizard.step3.attendeesTab.addForm.saveRegistration')}
               </button>
             </div>
           </div>
@@ -610,22 +610,22 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
           }}
         >
           {loading ? (
-            <div className="p-12 text-center text-gray-400">Loading attendees...</div>
+            <div className="p-12 text-center text-gray-400">{t('wizard.step3.attendeesTab.loading')}</div>
           ) : attendees.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-16 text-center">
               <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 ring-1 ring-white/10">
                 <Users size={32} className="text-gray-400" />
               </div>
-              <h3 className="text-lg font-semibold text-white mb-2">No attendees yet</h3>
+              <h3 className="text-lg font-semibold text-white mb-2">{t('wizard.step3.attendeesTab.empty.title')}</h3>
               <p className="text-gray-400 max-w-md mx-auto mb-6">
-                Your attendee list is empty. As soon as people register for your event, they will appear here automatically.
+                {t('wizard.step3.attendeesTab.empty.subtitle')}
               </p>
               {!isAdding && (
                 <button
                   onClick={() => setIsAdding(true)}
                   className="px-6 py-2.5 bg-[#10B981] text-white rounded-lg font-bold hover:bg-[#0da06f] transition-all shadow-lg shadow-[#10B981]/20"
                 >
-                  Add First Attendee
+                  {t('wizard.step3.attendeesTab.actions.addFirstAttendee')}
                 </button>
               )}
             </div>
@@ -634,11 +634,11 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
               <table className="w-full">
                 <thead style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}>
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Ticket</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Checked In</th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">Actions</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('wizard.step3.attendeesTab.table.name')}</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('wizard.step3.attendeesTab.table.ticket')}</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('wizard.step3.attendeesTab.table.status')}</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('wizard.step3.attendeesTab.table.checkedIn')}</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('wizard.step3.attendeesTab.table.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/10">
@@ -663,21 +663,21 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                       <td className="px-6 py-4 whitespace-nowrap">
                          {attendee.status === 'approved' ? (
                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                             <CheckCircle size={12} /> Approved
+                             <CheckCircle size={12} /> {t('wizard.step3.attendeesTab.table.approved')}
                            </span>
                          ) : (
                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                             <Clock size={12} /> Pending
+                             <Clock size={12} /> {t('wizard.step3.attendeesTab.table.pending')}
                            </span>
                          )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {attendee.checked_in ? (
                           <span className="text-emerald-500 text-sm flex items-center gap-1.5 font-medium">
-                            <CheckCircle size={14} /> Yes
+                            <CheckCircle size={14} /> {t('wizard.step3.attendeesTab.table.yes')}
                           </span>
                         ) : (
-                          <span className="text-gray-500 text-sm">No</span>
+                          <span className="text-gray-500 text-sm">{t('wizard.step3.attendeesTab.table.no')}</span>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -699,7 +699,7 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
         <section className="mt-12">
           <div className="mb-4 flex items-end gap-2">
              <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF' }}>
-               Badges & Check-in
+               {t('wizard.step3.attendeesTab.badges.title')}
              </h3>
              <div className="h-px bg-white/10 flex-1 mb-2"></div>
           </div>
@@ -711,10 +711,10 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
              >
                 <div className="relative z-10 flex items-start justify-between">
                    <div>
-                      <h4 className="text-lg font-bold text-white mb-2 group-hover:text-[#0684F5] transition-colors">Design Badges</h4>
-                      <p className="text-sm text-gray-400 mb-4 max-w-[80%]">Customize the layout, colors, and logos for your event badges.</p>
+                      <h4 className="text-lg font-bold text-white mb-2 group-hover:text-[#0684F5] transition-colors">{t('wizard.step3.attendeesTab.badges.designTitle')}</h4>
+                      <p className="text-sm text-gray-400 mb-4 max-w-[80%]">{t('wizard.step3.attendeesTab.badges.designDesc')}</p>
                       <span className="text-[#0684F5] font-medium text-sm flex items-center gap-2 group-hover:gap-3 transition-all">
-                         <CreditCard size={16} /> Open Editor
+                         <CreditCard size={16} /> {t('wizard.step3.attendeesTab.badges.openEditor')}
                       </span>
                    </div>
                    <div className="p-3 bg-white/5 rounded-lg group-hover:bg-[#0684F5]/20 transition-colors">

@@ -10,30 +10,9 @@ import { usePlan } from '../hooks/usePlan';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
+import { useI18n } from '../i18n/I18nContext';
 
 type BillingPeriod = '3-months' | '6-months' | '1-year';
-
-const planFeatures = {
-  free: [
-    'Unlimited free events',
-    'Basic registration flows',
-    'Standard event pages',
-    'Email support',
-    'Community access',
-    'Mobile responsive designs'
-  ],
-  pro: [
-    'Everything in Free, plus:',
-    'Paid tickets and payments',
-    'Advanced design studio blocks',
-    'Marketing automation tools',
-    'Priority support (24h response)',
-    'Custom branding & white-label',
-    'Advanced analytics & reporting',
-    'API access',
-    'Remove Eventra branding'
-  ]
-};
 
 const pricing = {
   '3-months': {
@@ -63,6 +42,7 @@ export default function PricingPage() {
   const navigate = useNavigate();
   const { isPro, isFree } = usePlan();
   const { user, signOut, refreshProfile } = useAuth();
+  const { t, tList } = useI18n();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -91,10 +71,10 @@ export default function PricingPage() {
       if (error) throw error;
 
       await refreshProfile();
-      toast.success(tier === 'pro' ? 'Welcome to Pro!' : 'Switched to Free plan');
+      toast.success(tier === 'pro' ? t('pricing.toasts.welcomePro') : t('pricing.toasts.switchedFree'));
     } catch (error) {
       console.error('Error updating plan:', error);
-      toast.error('Failed to update plan. Please try again.');
+      toast.error(t('pricing.toasts.updateError'));
     } finally {
       setIsUpdating(false);
     }
@@ -145,14 +125,14 @@ export default function PricingPage() {
                   fontWeight: 600
                 }}
               >
-                Simple, transparent pricing
+                {t('pricing.hero.badge')}
               </span>
             </div>
             <h1 className="text-5xl mb-4" style={{ fontWeight: 800, color: '#0B2641' }}>
-              Plans that grow with you
+              {t('pricing.hero.title')}
             </h1>
             <p className="text-lg max-w-2xl mx-auto" style={{ color: '#6B7280' }}>
-              Choose the perfect plan for your events. Start free and upgrade when you need advanced features.
+              {t('pricing.hero.subtitle')}
             </p>
           </div>
 
@@ -194,12 +174,12 @@ export default function PricingPage() {
                             fontWeight: 700
                           }}
                         >
-                          Most Popular
+                          {t('pricing.billing.mostPopular')}
                         </span>
                       )}
                       {!isActive && periodData.discount > 0 && (
                         <span className="text-xs mt-1" style={{ color: '#10B981' }}>
-                          Save {periodData.discount}%
+                          {t('pricing.billing.save', { percent: String(periodData.discount) })}
                         </span>
                       )}
                     </div>
@@ -238,20 +218,20 @@ export default function PricingPage() {
                   </div>
                   <div>
                     <h2 className="text-xl" style={{ fontWeight: 700, color: '#0B2641' }}>
-                      Free
+                      {t('pricing.plans.free.name')}
                     </h2>
                   </div>
                 </div>
                 {isFree && (
                   <span
                     className="px-2 py-1 rounded-full text-xs"
-                    style={{ 
-                      backgroundColor: 'rgba(6, 132, 245, 0.1)', 
-                      color: '#0684F5', 
+                    style={{
+                      backgroundColor: 'rgba(6, 132, 245, 0.1)',
+                      color: '#0684F5',
                       fontWeight: 700
                     }}
                   >
-                    Active
+                    {t('pricing.plans.active')}
                   </span>
                 )}
               </div>
@@ -262,16 +242,16 @@ export default function PricingPage() {
                     $0
                   </span>
                   <span className="text-base" style={{ color: '#6B7280', fontWeight: 500 }}>
-                    /month
+                    {t('pricing.plans.perMonth')}
                   </span>
                 </div>
                 <p className="text-xs mt-1" style={{ color: '#6B7280' }}>
-                  Free forever
+                  {t('pricing.plans.free.tagline')}
                 </p>
               </div>
 
               <div className="space-y-3 mb-6">
-                {planFeatures.free.map((feature, index) => (
+                {tList<string>('pricing.plans.free.features').map((feature, index) => (
                   <div 
                     key={feature} 
                     className="flex items-start gap-2"
@@ -300,7 +280,7 @@ export default function PricingPage() {
                   }}
                   disabled
                 >
-                  ✓ Current Plan
+                  ✓ {t('pricing.plans.currentPlan')}
                 </button>
               )}
             </div>
@@ -345,7 +325,7 @@ export default function PricingPage() {
                   <div>
                     <div className="flex items-center gap-1.5">
                       <h2 className="text-xl" style={{ fontWeight: 700, color: '#0B2641' }}>
-                        Pro
+                        {t('pricing.plans.pro.name')}
                       </h2>
                       <span
                         className="px-1.5 py-0.5 rounded-full text-xs flex items-center gap-0.5"
@@ -364,13 +344,13 @@ export default function PricingPage() {
                 {isPro && (
                   <span
                     className="px-2 py-1 rounded-full text-xs"
-                    style={{ 
-                      backgroundColor: 'rgba(245, 158, 11, 0.15)', 
-                      color: '#F59E0B', 
+                    style={{
+                      backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                      color: '#F59E0B',
                       fontWeight: 700
                     }}
                   >
-                    Active
+                    {t('pricing.plans.active')}
                   </span>
                 )}
               </div>
@@ -381,35 +361,35 @@ export default function PricingPage() {
                     ${currentPricing.pro}
                   </span>
                   <span className="text-base" style={{ color: '#6B7280', fontWeight: 500 }}>
-                    /mo
+                    {t('pricing.plans.perMonthShort')}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                   {currentPricing.discount > 0 && (
                     <>
                       <span className="text-xs line-through" style={{ color: '#9CA3AF' }}>
-                        $49/mo
+                        $49{t('pricing.plans.perMonthShort')}
                       </span>
-                      <span 
+                      <span
                         className="px-1.5 py-0.5 rounded-full text-xs"
-                        style={{ 
-                          backgroundColor: 'rgba(16, 185, 129, 0.1)', 
+                        style={{
+                          backgroundColor: 'rgba(16, 185, 129, 0.1)',
                           color: '#10B981',
                           fontWeight: 700
                         }}
                       >
-                        {currentPricing.discount}% OFF
+                        {currentPricing.discount}% {t('pricing.plans.off')}
                       </span>
                     </>
                   )}
                 </div>
                 <p className="text-xs mt-1" style={{ color: '#6B7280' }}>
-                  Billed {billingPeriod === '3-months' ? 'quarterly' : billingPeriod === '6-months' ? 'semi-annually' : 'annually'}
+                  {t(`pricing.billing.billed.${billingPeriod}`)}
                 </p>
               </div>
 
               <div className="space-y-3 mb-6">
-                {planFeatures.pro.map((feature, index) => (
+                {tList<string>('pricing.plans.pro.features').map((feature, index) => (
                   <div 
                     key={feature} 
                     className="flex items-start gap-2"
@@ -474,7 +454,7 @@ export default function PricingPage() {
                   }
                 }}
               >
-                {isPro ? 'Cancel Subscription' : isUpdating ? 'Processing...' : 'Upgrade to Pro'}
+                {isPro ? t('pricing.plans.pro.cancel') : isUpdating ? t('pricing.plans.pro.processing') : t('pricing.plans.pro.upgrade')}
               </button>
             </div>
           </div>

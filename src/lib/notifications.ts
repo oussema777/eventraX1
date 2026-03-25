@@ -42,4 +42,3 @@ export async function createNotification(input: CreateNotificationInput) {
   if (error) throw error;
   return data as NotificationItem;
 }
-

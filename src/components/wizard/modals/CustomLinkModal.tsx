@@ -1,5 +1,6 @@
 import { X, CheckCircle, ChevronDown, Share2 } from 'lucide-react';
 import { useState } from 'react';
+import { useI18n } from '../../../i18n/I18nContext';
 
 interface CustomLinkModalProps {
   isOpen: boolean;
@@ -9,6 +10,7 @@ interface CustomLinkModalProps {
 }
 
 export default function CustomLinkModal({ isOpen, onClose, onSave, baseUrl }: CustomLinkModalProps) {
+  const { t } = useI18n();
   const [formData, setFormData] = useState({
     name: '',
     sourceTag: '',
@@ -72,10 +74,10 @@ export default function CustomLinkModal({ isOpen, onClose, onSave, baseUrl }: Cu
                   className="text-xl mb-1"
                   style={{ fontWeight: 600, color: '#0B2641' }}
                 >
-                  Create Custom Tracking Link
+                  {t('wizard.step3.marketingTools.modals.customLink.title')}
                 </h2>
                 <p className="text-sm" style={{ color: '#6B7280' }}>
-                  Track registrations from specific sources
+                  {t('wizard.step3.marketingTools.modals.customLink.subtitle')}
                 </p>
               </div>
               <button
@@ -100,13 +102,13 @@ export default function CustomLinkModal({ isOpen, onClose, onSave, baseUrl }: Cu
                   className="block text-sm mb-2"
                   style={{ fontWeight: 500, color: '#0B2641' }}
                 >
-                  Link Name (Internal)
+                  {t('wizard.step3.marketingTools.modals.customLink.labels.linkName')}
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g., Facebook Ads Campaign"
+                  placeholder={t('wizard.step3.marketingTools.modals.customLink.placeholders.linkName')}
                   className="w-full h-11 px-4 rounded-lg border outline-none transition-colors focus:border-blue-400"
                   style={{ 
                     borderColor: '#E5E7EB',
@@ -115,7 +117,7 @@ export default function CustomLinkModal({ isOpen, onClose, onSave, baseUrl }: Cu
                   }}
                 />
                 <p className="text-xs mt-1" style={{ color: '#9CA3AF' }}>
-                  Only you will see this name
+                  {t('wizard.step3.marketingTools.modals.customLink.hints.linkNameHint')}
                 </p>
               </div>
 
@@ -125,13 +127,13 @@ export default function CustomLinkModal({ isOpen, onClose, onSave, baseUrl }: Cu
                   className="block text-sm mb-2"
                   style={{ fontWeight: 500, color: '#0B2641' }}
                 >
-                  Source Tag (ref parameter)
+                  {t('wizard.step3.marketingTools.modals.customLink.labels.sourceTag')}
                 </label>
                 <input
                   type="text"
                   value={formData.sourceTag}
                   onChange={(e) => setFormData({ ...formData, sourceTag: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
-                  placeholder="e.g., facebook-ads-dec"
+                  placeholder={t('wizard.step3.marketingTools.modals.customLink.placeholders.sourceTag')}
                   className="w-full h-11 px-4 rounded-lg border outline-none transition-colors focus:border-blue-400"
                   style={{ 
                     borderColor: '#E5E7EB',
@@ -140,7 +142,7 @@ export default function CustomLinkModal({ isOpen, onClose, onSave, baseUrl }: Cu
                   }}
                 />
                 <p className="text-xs mt-1" style={{ color: '#9CA3AF' }}>
-                  Use lowercase and hyphens only
+                  {t('wizard.step3.marketingTools.modals.customLink.hints.sourceTagHint')}
                 </p>
                 
                 {/* Live Preview */}
@@ -149,7 +151,7 @@ export default function CustomLinkModal({ isOpen, onClose, onSave, baseUrl }: Cu
                   style={{ backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB' }}
                 >
                   <p className="text-xs mb-1" style={{ color: '#6B7280', fontWeight: 500 }}>
-                    Live Preview:
+                    {t('wizard.step3.marketingTools.modals.customLink.labels.livePreview')}
                   </p>
                   <code 
                     className="text-xs"
@@ -166,7 +168,7 @@ export default function CustomLinkModal({ isOpen, onClose, onSave, baseUrl }: Cu
                   className="block text-sm mb-2"
                   style={{ fontWeight: 500, color: '#0B2641' }}
                 >
-                  Platform Icon (Optional)
+                  {t('wizard.step3.marketingTools.modals.customLink.labels.platformIcon')}
                 </label>
                 <div className="grid grid-cols-4 gap-2">
                   {platforms.map((platform) => (
@@ -206,7 +208,7 @@ export default function CustomLinkModal({ isOpen, onClose, onSave, baseUrl }: Cu
                   className="flex items-center gap-2 text-sm transition-colors hover:text-blue-600"
                   style={{ color: 'var(--primary)', fontWeight: 600 }}
                 >
-                  Advanced UTM Tracking
+                  {t('wizard.step3.marketingTools.modals.customLink.labels.utmTracking')}
                   <ChevronDown 
                     size={16} 
                     style={{ 
@@ -220,39 +222,39 @@ export default function CustomLinkModal({ isOpen, onClose, onSave, baseUrl }: Cu
                   <div className="mt-4 space-y-3">
                     <div>
                       <label className="block text-xs mb-1" style={{ color: '#6B7280', fontWeight: 500 }}>
-                        UTM Source
+                        {t('wizard.step3.marketingTools.modals.customLink.labels.utmSource')}
                       </label>
                       <input
                         type="text"
-                        placeholder="e.g., facebook"
+                        placeholder={t('wizard.step3.marketingTools.modals.customLink.placeholders.utmSource')}
                         className="w-full h-9 px-3 rounded-lg border outline-none text-sm"
                         style={{ borderColor: '#E5E7EB', color: '#0B2641' }}
                       />
                     </div>
                     <div>
                       <label className="block text-xs mb-1" style={{ color: '#6B7280', fontWeight: 500 }}>
-                        UTM Medium
+                        {t('wizard.step3.marketingTools.modals.customLink.labels.utmMedium')}
                       </label>
                       <input
                         type="text"
-                        placeholder="e.g., paid-social"
+                        placeholder={t('wizard.step3.marketingTools.modals.customLink.placeholders.utmMedium')}
                         className="w-full h-9 px-3 rounded-lg border outline-none text-sm"
                         style={{ borderColor: '#E5E7EB', color: '#0B2641' }}
                       />
                     </div>
                     <div>
                       <label className="block text-xs mb-1" style={{ color: '#6B7280', fontWeight: 500 }}>
-                        UTM Campaign
+                        {t('wizard.step3.marketingTools.modals.customLink.labels.utmCampaign')}
                       </label>
                       <input
                         type="text"
-                        placeholder="e.g., december-promo"
+                        placeholder={t('wizard.step3.marketingTools.modals.customLink.placeholders.utmCampaign')}
                         className="w-full h-9 px-3 rounded-lg border outline-none text-sm"
                         style={{ borderColor: '#E5E7EB', color: '#0B2641' }}
                       />
                     </div>
                     <p className="text-xs" style={{ color: '#9CA3AF' }}>
-                      Optional - for Google Analytics integration
+                      {t('wizard.step3.marketingTools.modals.customLink.hints.utmHint')}
                     </p>
                   </div>
                 )}
@@ -270,7 +272,7 @@ export default function CustomLinkModal({ isOpen, onClose, onSave, baseUrl }: Cu
               className="h-11 px-5 rounded-lg transition-colors hover:bg-gray-100"
               style={{ color: '#0B2641', fontWeight: 600 }}
             >
-              Cancel
+              {t('wizard.step3.marketingTools.modals.customLink.actions.cancel')}
             </button>
             <button
               onClick={() => onSave({
@@ -279,14 +281,14 @@ export default function CustomLinkModal({ isOpen, onClose, onSave, baseUrl }: Cu
                 platform: formData.selectedIcon
               })}
               className="flex items-center gap-2 h-11 px-5 rounded-lg transition-all hover:scale-105"
-              style={{ 
+              style={{
                 backgroundColor: 'var(--primary)',
                 color: '#FFFFFF',
                 fontWeight: 600
               }}
             >
               <CheckCircle size={18} />
-              Create Link
+              {t('wizard.step3.marketingTools.modals.customLink.actions.createLink')}
             </button>
           </div>
         </div>

@@ -971,7 +971,7 @@ function AddExhibitorModal({
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        toast.error('File size must be less than 5MB');
+        toast.error(t('wizard.step3.exhibitors.toasts.fileTooLarge'));
         return;
       }
       setLogoFile(file);
@@ -981,7 +981,7 @@ function AddExhibitorModal({
 
   const handleSubmit = () => {
     if (!isFormValid) {
-      toast.error('Please fill in all required fields');
+      toast.error(t('wizard.step3.exhibitors.toasts.fillRequired'));
       return;
     }
     onSave(formData, logoFile);
@@ -1067,7 +1067,7 @@ function AddExhibitorModal({
               {/* Logo Upload */}
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ fontSize: '14px', fontWeight: 500, color: '#0B2641', display: 'block', marginBottom: '8px' }}>
-                  Company Logo
+                  {t('wizard.step3.exhibitors.modal.fields.companyLogo')}
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                   <div style={{
@@ -1082,7 +1082,7 @@ function AddExhibitorModal({
                     justifyContent: 'center'
                   }}>
                     {logoPreview ? (
-                      <img src={logoPreview} alt="Logo Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img src={logoPreview} alt={t('wizard.step3.exhibitors.modal.fields.logoPreview')} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
                       <Upload size={24} style={{ color: '#9CA3AF' }} />
                     )}
@@ -1109,10 +1109,10 @@ function AddExhibitorModal({
                         display: 'inline-block'
                       }}
                     >
-                      Upload Logo
+                      {t('wizard.step3.exhibitors.modal.fields.uploadLogo')}
                     </label>
                     <p style={{ fontSize: '12px', color: '#6B7280', marginTop: '4px' }}>
-                      Max 5MB. PNG, JPG supported.
+                      {t('wizard.step3.exhibitors.modal.fields.logoHelper')}
                     </p>
                   </div>
                 </div>
@@ -1359,7 +1359,7 @@ function AddExhibitorModal({
               cursor: 'pointer'
             }}
           >
-            Cancel
+            {t('wizard.step3.exhibitors.modal.cancel')}
           </button>
           <button
             onClick={handleSubmit}

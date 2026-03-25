@@ -113,10 +113,10 @@ export default function FooterBlockSettingsModal({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 28px', borderBottom: '1px solid #F3F4F6' }}>
           <div>
             <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#111827', marginBottom: '4px' }}>
-              Footer Configuration
+              {t('wizard.designStudio.modals.footerBlock.title')}
             </h2>
             <p style={{ fontSize: '13px', color: '#6B7280' }}>
-              Update the contact information and links shown at the bottom of your page.
+              {t('wizard.designStudio.modals.footerBlock.subtitle')}
             </p>
           </div>
           <button 
@@ -143,12 +143,12 @@ export default function FooterBlockSettingsModal({
           {/* General Info */}
           <div style={{ marginBottom: '32px' }}>
             <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.5px' }}>
-              Contact Details & Copyright
+              {t('wizard.designStudio.modals.footerBlock.sections.contactCopyright')}
             </h3>
             
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
-                Copyright Notice
+                {t('wizard.designStudio.modals.footerBlock.labels.copyrightNotice')}
               </label>
               <input
                 value={copyrightText}
@@ -157,14 +157,14 @@ export default function FooterBlockSettingsModal({
                 style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '2px solid #E5E7EB', fontSize: '14px', color: '#111827', fontWeight: 500, outline: 'none' }}
                 onFocus={(e) => e.currentTarget.style.borderColor = '#0684F5'}
                 onBlur={(e) => e.currentTarget.style.borderColor = '#E5E7EB'}
-                placeholder="e.g. © 2024 Eventra. All rights reserved."
+                placeholder={t('wizard.designStudio.modals.footerBlock.placeholders.copyright')}
               />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
-                  Support Email
+                  {t('wizard.designStudio.modals.footerBlock.labels.supportEmail')}
                 </label>
                 <input
                   value={contactEmail}
@@ -173,12 +173,12 @@ export default function FooterBlockSettingsModal({
                   style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '2px solid #E5E7EB', fontSize: '14px', color: '#111827', fontWeight: 500, outline: 'none' }}
                   onFocus={(e) => e.currentTarget.style.borderColor = '#0684F5'}
                   onBlur={(e) => e.currentTarget.style.borderColor = '#E5E7EB'}
-                  placeholder="contact@your-event.com"
+                  placeholder={t('wizard.designStudio.modals.footerBlock.placeholders.email')}
                 />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
-                  Contact Number
+                  {t('wizard.designStudio.modals.footerBlock.labels.contactNumber')}
                 </label>
                 <input
                   value={contactPhone}
@@ -187,7 +187,7 @@ export default function FooterBlockSettingsModal({
                   style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '2px solid #E5E7EB', fontSize: '14px', color: '#111827', fontWeight: 500, outline: 'none' }}
                   onFocus={(e) => e.currentTarget.style.borderColor = '#0684F5'}
                   onBlur={(e) => e.currentTarget.style.borderColor = '#E5E7EB'}
-                  placeholder="+1 (555) 000-0000"
+                  placeholder={t('wizard.designStudio.modals.footerBlock.placeholders.phone')}
                 />
               </div>
             </div>
@@ -196,7 +196,7 @@ export default function FooterBlockSettingsModal({
           {/* Social Profiles */}
           <div style={{ marginBottom: '32px' }}>
             <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.5px' }}>
-              Social Media Links
+              {t('wizard.designStudio.modals.footerBlock.sections.socialMedia')}
             </h3>
             
             <div style={{ display: 'grid', gap: '12px' }}>
@@ -209,7 +209,7 @@ export default function FooterBlockSettingsModal({
                   style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '2px solid #E5E7EB', fontSize: '14px', color: '#111827', fontWeight: 500, outline: 'none' }}
                   onFocus={(e) => e.currentTarget.style.borderColor = '#0684F5'}
                   onBlur={(e) => e.currentTarget.style.borderColor = '#E5E7EB'}
-                  placeholder="Link to Facebook profile"
+                  placeholder={t('wizard.designStudio.modals.footerBlock.placeholders.facebook')}
                 />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -221,7 +221,7 @@ export default function FooterBlockSettingsModal({
                   style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '2px solid #E5E7EB', fontSize: '14px', color: '#111827', fontWeight: 500, outline: 'none' }}
                   onFocus={(e) => e.currentTarget.style.borderColor = '#0684F5'}
                   onBlur={(e) => e.currentTarget.style.borderColor = '#E5E7EB'}
-                  placeholder="Link to Twitter / X profile"
+                  placeholder={t('wizard.designStudio.modals.footerBlock.placeholders.twitter')}
                 />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -233,7 +233,7 @@ export default function FooterBlockSettingsModal({
                   style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '2px solid #E5E7EB', fontSize: '14px', color: '#111827', fontWeight: 500, outline: 'none' }}
                   onFocus={(e) => e.currentTarget.style.borderColor = '#0684F5'}
                   onBlur={(e) => e.currentTarget.style.borderColor = '#E5E7EB'}
-                  placeholder="Link to LinkedIn profile"
+                  placeholder={t('wizard.designStudio.modals.footerBlock.placeholders.linkedin')}
                 />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -245,7 +245,7 @@ export default function FooterBlockSettingsModal({
                   style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '2px solid #E5E7EB', fontSize: '14px', color: '#111827', fontWeight: 500, outline: 'none' }}
                   onFocus={(e) => e.currentTarget.style.borderColor = '#0684F5'}
                   onBlur={(e) => e.currentTarget.style.borderColor = '#E5E7EB'}
-                  placeholder="Link to Instagram profile"
+                  placeholder={t('wizard.designStudio.modals.footerBlock.placeholders.instagram')}
                 />
               </div>
             </div>
@@ -254,7 +254,7 @@ export default function FooterBlockSettingsModal({
           {/* Useful Links */}
           <div style={{ marginBottom: '20px' }}>
             <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.5px' }}>
-              External Navigation Links
+              {t('wizard.designStudio.modals.footerBlock.sections.externalLinks')}
             </h3>
 
             <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
@@ -265,7 +265,7 @@ export default function FooterBlockSettingsModal({
                 style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '2px solid #E5E7EB', fontSize: '14px', color: '#111827', fontWeight: 500, outline: 'none' }}
                 onFocus={(e) => e.currentTarget.style.borderColor = '#0684F5'}
                 onBlur={(e) => e.currentTarget.style.borderColor = '#E5E7EB'}
-                placeholder="Label (e.g. Terms of Use)"
+                placeholder={t('wizard.designStudio.modals.footerBlock.placeholders.linkLabel')}
               />
               <input
                 value={newLinkUrl}
@@ -274,7 +274,7 @@ export default function FooterBlockSettingsModal({
                 style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '2px solid #E5E7EB', fontSize: '14px', color: '#111827', fontWeight: 500, outline: 'none' }}
                 onFocus={(e) => e.currentTarget.style.borderColor = '#0684F5'}
                 onBlur={(e) => e.currentTarget.style.borderColor = '#E5E7EB'}
-                placeholder="URL (https://...)"
+                placeholder={t('wizard.designStudio.modals.footerBlock.placeholders.linkUrl')}
                 onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddLink())}
               />
               <button
@@ -332,7 +332,7 @@ export default function FooterBlockSettingsModal({
               ))}
               {quickLinks.length === 0 && (
                 <div style={{ fontSize: '13px', color: '#9CA3AF', fontStyle: 'italic' }}>
-                  No custom links added yet.
+                  {t('wizard.designStudio.modals.footerBlock.emptyLinks')}
                 </div>
               )}
             </div>
@@ -356,29 +356,29 @@ export default function FooterBlockSettingsModal({
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FFFFFF'}
             >
-              Cancel
+              {t('wizard.designStudio.modals.footerBlock.actions.cancel')}
             </button>
             <button
               type="submit"
               disabled={isSaving}
-              style={{ 
-                padding: '10px 24px', 
-                borderRadius: '8px', 
-                border: 'none', 
-                backgroundColor: '#0684F5', 
-                color: '#FFFFFF', 
-                fontSize: '14px', 
-                fontWeight: 700, 
-                cursor: 'pointer', 
-                opacity: isSaving ? 0.7 : 1, 
-                display: 'flex', 
-                alignItems: 'center', 
+              style={{
+                padding: '10px 24px',
+                borderRadius: '8px',
+                border: 'none',
+                backgroundColor: '#0684F5',
+                color: '#FFFFFF',
+                fontSize: '14px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                opacity: isSaving ? 0.7 : 1,
+                display: 'flex',
+                alignItems: 'center',
                 gap: '8px',
                 boxShadow: '0 4px 6px -1px rgba(6, 132, 245, 0.2)'
               }}
             >
               {isSaving && <Loader2 size={16} className="animate-spin" />}
-              {isSaving ? 'Updating...' : 'Update Footer'}
+              {isSaving ? t('wizard.designStudio.modals.footerBlock.actions.updating') : t('wizard.designStudio.modals.footerBlock.actions.updateFooter')}
             </button>
           </div>
         </form>

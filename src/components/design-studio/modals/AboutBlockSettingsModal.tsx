@@ -133,10 +133,10 @@ export default function AboutBlockSettingsModal({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 28px', borderBottom: '1px solid #F3F4F6' }}>
           <div>
             <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#111827', marginBottom: '4px' }}>
-              About Section Settings
+              {t('wizard.designStudio.modals.aboutBlock.title')}
             </h2>
             <p style={{ fontSize: '13px', color: '#6B7280' }}>
-              Personalize the content displayed in this section.
+              {t('wizard.designStudio.modals.aboutBlock.subtitle')}
             </p>
           </div>
           <button 
@@ -161,7 +161,7 @@ export default function AboutBlockSettingsModal({
         <form onSubmit={handleSubmit} style={{ padding: '28px', overflowY: 'auto' }}>
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
-              Section Image
+              {t('wizard.designStudio.modals.aboutBlock.labels.sectionImage')}
             </label>
             <div style={{ display: 'flex', gap: '8px' }}>
               <input
@@ -206,7 +206,7 @@ export default function AboutBlockSettingsModal({
                   justifyContent: 'center',
                   minWidth: '50px'
                 }}
-                title="Upload Image"
+                title={t('wizard.designStudio.modals.aboutBlock.labels.uploadImage')}
               >
                 {isUploading ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
               </button>
@@ -220,7 +220,7 @@ export default function AboutBlockSettingsModal({
 
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
-              Section Headline
+              {t('wizard.designStudio.modals.aboutBlock.labels.sectionHeadline')}
             </label>
             <input
               value={name}
@@ -239,13 +239,13 @@ export default function AboutBlockSettingsModal({
               }}
               onFocus={(e) => e.currentTarget.style.borderColor = '#0684F5'}
               onBlur={(e) => e.currentTarget.style.borderColor = '#E5E7EB'}
-              placeholder="Enter a catchy title for this section"
+              placeholder={t('wizard.designStudio.modals.aboutBlock.placeholders.headline')}
             />
           </div>
 
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
-              Brief Summary
+              {t('wizard.designStudio.modals.aboutBlock.labels.briefSummary')}
             </label>
             <input
               value={tagline}
@@ -263,13 +263,13 @@ export default function AboutBlockSettingsModal({
               }}
               onFocus={(e) => e.currentTarget.style.borderColor = '#0684F5'}
               onBlur={(e) => e.currentTarget.style.borderColor = '#E5E7EB'}
-              placeholder="A short sentence summarizing the event"
+              placeholder={t('wizard.designStudio.modals.aboutBlock.placeholders.summary')}
             />
           </div>
 
           <div style={{ marginBottom: '28px' }}>
             <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
-              Main Information
+              {t('wizard.designStudio.modals.aboutBlock.labels.mainInformation')}
             </label>
             <textarea
               value={description}
@@ -290,14 +290,14 @@ export default function AboutBlockSettingsModal({
               }}
               onFocus={(e) => e.currentTarget.style.borderColor = '#0684F5'}
               onBlur={(e) => e.currentTarget.style.borderColor = '#E5E7EB'}
-              placeholder="Tell your attendees exactly what this event is about"
+              placeholder={t('wizard.designStudio.modals.aboutBlock.placeholders.description')}
             />
           </div>
 
           {/* Key Features Section */}
           <div style={{ marginBottom: '28px' }}>
             <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
-              Key Highlights / Takeaways
+              {t('wizard.designStudio.modals.aboutBlock.labels.keyHighlights')}
             </label>
             
             <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
@@ -315,7 +315,7 @@ export default function AboutBlockSettingsModal({
                   color: '#111827',
                   outline: 'none'
                 }}
-                placeholder="Add a bullet point..."
+                placeholder={t('wizard.designStudio.modals.aboutBlock.placeholders.addBullet')}
               />
               <button
                 type="button"
@@ -368,7 +368,7 @@ export default function AboutBlockSettingsModal({
               ))}
               {features.length === 0 && (
                 <div style={{ fontSize: '13px', color: '#9CA3AF', fontStyle: 'italic' }}>
-                  No highlights added yet.
+                  {t('wizard.designStudio.modals.aboutBlock.emptyHighlights')}
                 </div>
               )}
             </div>
@@ -392,29 +392,29 @@ export default function AboutBlockSettingsModal({
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FFFFFF'}
             >
-              Cancel
+              {t('wizard.designStudio.modals.aboutBlock.actions.cancel')}
             </button>
             <button
               type="submit"
               disabled={isSaving}
-              style={{ 
-                padding: '10px 24px', 
-                borderRadius: '8px', 
-                border: 'none', 
-                backgroundColor: '#0684F5', 
-                color: '#FFFFFF', 
-                fontSize: '14px', 
-                fontWeight: 700, 
-                cursor: 'pointer', 
-                opacity: isSaving ? 0.7 : 1, 
-                display: 'flex', 
-                alignItems: 'center', 
+              style={{
+                padding: '10px 24px',
+                borderRadius: '8px',
+                border: 'none',
+                backgroundColor: '#0684F5',
+                color: '#FFFFFF',
+                fontSize: '14px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                opacity: isSaving ? 0.7 : 1,
+                display: 'flex',
+                alignItems: 'center',
                 gap: '8px',
                 boxShadow: '0 4px 6px -1px rgba(6, 132, 245, 0.2)'
               }}
             >
               {isSaving && <Loader2 size={16} className="animate-spin" />}
-              {isSaving ? 'Updating...' : 'Update Section'}
+              {isSaving ? t('wizard.designStudio.modals.aboutBlock.actions.updating') : t('wizard.designStudio.modals.aboutBlock.actions.updateSection')}
             </button>
           </div>
         </form>

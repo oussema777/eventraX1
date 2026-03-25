@@ -1,5 +1,6 @@
 import { X, AlignLeft, CheckCircle } from 'lucide-react';
 import { useState } from 'react';
+import { useI18n } from '../../../i18n/I18nContext';
 
 interface AboutSectionModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ export interface AboutSectionData {
 }
 
 export default function AboutSectionModal({ isOpen, onClose, onSave, initialData }: AboutSectionModalProps) {
+  const { t } = useI18n();
   const [formData, setFormData] = useState<AboutSectionData>(initialData);
   const [charCount, setCharCount] = useState(initialData.description.length);
 
@@ -81,7 +83,7 @@ export default function AboutSectionModal({ isOpen, onClose, onSave, initialData
                 className="text-xl"
                 style={{ fontWeight: 600, color: '#0B2641' }}
               >
-                Edit About Section
+                {t('designStudio.modals.aboutSection.title')}
               </h2>
             </div>
             <button
@@ -105,13 +107,13 @@ export default function AboutSectionModal({ isOpen, onClose, onSave, initialData
                   className="block text-sm mb-2"
                   style={{ fontWeight: 500, color: '#0B2641' }}
                 >
-                  Section Heading
+                  {t('designStudio.modals.aboutSection.labels.sectionHeading')}
                 </label>
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Enter section heading"
+                  placeholder={t('designStudio.modals.aboutSection.placeholders.heading')}
                   className="w-full h-11 px-4 rounded-lg border outline-none transition-colors focus:border-blue-400"
                   style={{ 
                     borderColor: '#E5E7EB',
@@ -127,12 +129,12 @@ export default function AboutSectionModal({ isOpen, onClose, onSave, initialData
                   className="block text-sm mb-2"
                   style={{ fontWeight: 500, color: '#0B2641' }}
                 >
-                  Event Description
+                  {t('designStudio.modals.aboutSection.labels.eventDescription')}
                 </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => handleDescriptionChange(e.target.value)}
-                  placeholder="Tell attendees about your event..."
+                  placeholder={t('designStudio.modals.aboutSection.placeholders.description')}
                   className="w-full h-[200px] p-4 rounded-lg border outline-none resize-none transition-colors focus:border-blue-400"
                   style={{ 
                     borderColor: '#E5E7EB',
@@ -156,13 +158,13 @@ export default function AboutSectionModal({ isOpen, onClose, onSave, initialData
                   className="block text-sm mb-3"
                   style={{ fontWeight: 500, color: '#0B2641' }}
                 >
-                  Section Background
+                  {t('designStudio.modals.aboutSection.labels.sectionBackground')}
                 </label>
                 <div className="space-y-2">
                   {[
-                    { value: 'white', label: 'White', color: '#FFFFFF' },
-                    { value: 'light-gray', label: 'Light Gray', color: '#F3F4F6' },
-                    { value: 'custom', label: 'Custom Color', color: formData.customColor || '#E0F2FE' }
+                    { value: 'white', label: t('designStudio.modals.aboutSection.backgrounds.white'), color: '#FFFFFF' },
+                    { value: 'light-gray', label: t('designStudio.modals.aboutSection.backgrounds.lightGray'), color: '#F3F4F6' },
+                    { value: 'custom', label: t('designStudio.modals.aboutSection.backgrounds.custom'), color: formData.customColor || '#E0F2FE' }
                   ].map((option) => (
                     <button
                       key={option.value}
@@ -221,13 +223,13 @@ export default function AboutSectionModal({ isOpen, onClose, onSave, initialData
                   className="block text-sm mb-3"
                   style={{ fontWeight: 500, color: '#0B2641' }}
                 >
-                  Text Alignment
+                  {t('designStudio.modals.aboutSection.labels.textAlignment')}
                 </label>
                 <div className="flex gap-2">
                   {[
-                    { value: 'left', label: 'Left' },
-                    { value: 'center', label: 'Center' },
-                    { value: 'right', label: 'Right' }
+                    { value: 'left', label: t('designStudio.modals.aboutSection.alignments.left') },
+                    { value: 'center', label: t('designStudio.modals.aboutSection.alignments.center') },
+                    { value: 'right', label: t('designStudio.modals.aboutSection.alignments.right') }
                   ].map((align) => (
                     <button
                       key={align.value}
@@ -258,7 +260,7 @@ export default function AboutSectionModal({ isOpen, onClose, onSave, initialData
               className="text-sm transition-colors hover:underline"
               style={{ color: '#6B7280', fontWeight: 500 }}
             >
-              Restore Default
+              {t('designStudio.modals.aboutSection.actions.restoreDefault')}
             </button>
             <div className="flex items-center gap-3">
               <button
@@ -266,19 +268,19 @@ export default function AboutSectionModal({ isOpen, onClose, onSave, initialData
                 className="h-11 px-5 rounded-lg transition-colors hover:bg-gray-100"
                 style={{ color: '#0B2641', fontWeight: 600 }}
               >
-                Cancel
+                {t('designStudio.modals.aboutSection.actions.cancel')}
               </button>
               <button
                 onClick={handleSave}
                 className="h-11 px-5 rounded-lg flex items-center gap-2 transition-all hover:scale-105"
-                style={{ 
+                style={{
                   backgroundColor: 'var(--primary)',
                   color: '#FFFFFF',
                   fontWeight: 600
                 }}
               >
                 <CheckCircle size={18} />
-                Save Changes
+                {t('designStudio.modals.aboutSection.actions.saveChanges')}
               </button>
             </div>
           </div>

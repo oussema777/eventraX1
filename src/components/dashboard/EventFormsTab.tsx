@@ -63,7 +63,7 @@ export default function EventFormsTab({ eventId }: { eventId: string }) {
       setForms(data || []);
     } catch (error) {
       console.error('Error loading forms:', error);
-      toast.error('Failed to load forms');
+      toast.error(t('manageEvent.forms.toasts.loadFormsFailed'));
     } finally {
       setLoading(false);
     }
@@ -94,7 +94,7 @@ export default function EventFormsTab({ eventId }: { eventId: string }) {
         id: row.id,
         created_at: row.created_at,
         attendee_id: row.attendee_id,
-        attendee_name: row.event_attendees?.name || 'Anonymous',
+        attendee_name: row.event_attendees?.name || t('manageEvent.forms.anonymous'),
         attendee_email: row.event_attendees?.email || '',
         data: row.data || {}
       }));
@@ -102,7 +102,7 @@ export default function EventFormsTab({ eventId }: { eventId: string }) {
       setSubmissions(formatted);
     } catch (error) {
       console.error('Error loading submissions:', error);
-      toast.error('Failed to load submissions');
+      toast.error(t('manageEvent.forms.toasts.loadSubmissionsFailed'));
     } finally {
       setLoadingSubmissions(false);
     }
@@ -117,7 +117,7 @@ export default function EventFormsTab({ eventId }: { eventId: string }) {
   const handleCopyLink = (formId: string) => {
     const link = `${window.location.origin}/forms/${formId}`;
     navigator.clipboard.writeText(link);
-    toast.success('Form link copied to clipboard');
+    toast.success(t('manageEvent.forms.toasts.linkCopied'));
   };
 
   const handleExportCSV = () => {
@@ -125,7 +125,7 @@ export default function EventFormsTab({ eventId }: { eventId: string }) {
 
     // Get all unique keys from data
     const keys = Array.from(new Set(submissions.flatMap(s => Object.keys(s.data))));
-    const headers = ['Submitted At', 'Attendee Name', 'Attendee Email', ...keys];
+    const headers = [t('manageEvent.forms.submissions.submittedAt'), t('manageEvent.forms.submissions.attendeeName'), t('manageEvent.forms.submissions.attendeeEmail'), ...keys];
     
     const csvContent = [
       headers.join(','),
@@ -162,7 +162,7 @@ export default function EventFormsTab({ eventId }: { eventId: string }) {
             </button>
             <div>
               <h2 className="text-2xl font-bold text-white">{selectedForm.title}</h2>
-              <p className="text-gray-400">Viewing {submissions.length} submissions</p>
+              <p className="text-gray-400">{t('manageEvent.forms.submissions.viewing').replace('{count}', submissions.length.toString())}</p>
             </div>
           </div>
           <div className="flex gap-3">
@@ -171,7 +171,7 @@ export default function EventFormsTab({ eventId }: { eventId: string }) {
               className="flex items-center gap-2 px-4 py-2 bg-[#0684F5] text-white rounded-lg hover:bg-[#0570D6] transition-colors font-medium"
             >
               <Download size={18} />
-              Export CSV
+              {t('manageEvent.forms.buttons.exportCsv')}
             </button>
           </div>
         </div>
@@ -181,19 +181,19 @@ export default function EventFormsTab({ eventId }: { eventId: string }) {
             <table className="w-full text-left text-sm text-gray-400">
               <thead className="bg-white/5 text-xs uppercase font-medium text-white">
                 <tr>
-                  <th className="px-6 py-4">Submitted At</th>
-                  <th className="px-6 py-4">Attendee</th>
+                  <th className="px-6 py-4">{t('manageEvent.forms.submissions.submittedAt')}</th>
+                  <th className="px-6 py-4">{t('manageEvent.forms.submissions.attendee')}</th>
                   {/* Dynamic Headers based on schema if available, else generic */}
                   {selectedForm.schema?.fields?.map((f: any) => (
                     <th key={f.id} className="px-6 py-4">{f.label}</th>
-                  )) || <th className="px-6 py-4">Data</th>}
+                  )) || <th className="px-6 py-4">{t('manageEvent.forms.submissions.data')}</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
                 {submissions.length === 0 ? (
                   <tr>
                     <td colSpan={10} className="px-6 py-8 text-center text-gray-500">
-                      No submissions yet.
+                      {t('manageEvent.forms.submissions.noSubmissions')}
                     </td>
                   </tr>
                 ) : (
@@ -229,8 +229,8 @@ export default function EventFormsTab({ eventId }: { eventId: string }) {
   return (
     <div className="p-8 bg-[#0B2641] min-h-screen">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">Form Management</h1>
-        <p className="text-gray-400">View and manage submissions for your event forms.</p>
+        <h1 className="text-3xl font-bold text-white mb-2">{t('manageEvent.forms.title')}</h1>
+        <p className="text-gray-400">{t('manageEvent.forms.subtitle')}</p>
       </div>
 
       <div className="rounded-xl border border-white/10 bg-[#0D3052] overflow-hidden">
@@ -238,10 +238,10 @@ export default function EventFormsTab({ eventId }: { eventId: string }) {
           <table className="w-full text-left text-sm text-gray-400">
             <thead className="bg-white/5 text-xs uppercase font-medium text-white">
               <tr>
-                <th className="px-6 py-4">Form Name</th>
-                <th className="px-6 py-4">Type</th>
-                <th className="px-6 py-4">Created</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th className="px-6 py-4">{t('manageEvent.forms.table.formName')}</th>
+                <th className="px-6 py-4">{t('manageEvent.forms.table.type')}</th>
+                <th className="px-6 py-4">{t('manageEvent.forms.table.created')}</th>
+                <th className="px-6 py-4 text-right">{t('manageEvent.forms.table.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -264,7 +264,7 @@ export default function EventFormsTab({ eventId }: { eventId: string }) {
                       <button
                         onClick={() => handleCopyLink(form.id)}
                         className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
-                        title="Copy Public Link"
+                        title={t('manageEvent.forms.buttons.copyLink')}
                       >
                         <Copy size={18} />
                       </button>
@@ -273,7 +273,7 @@ export default function EventFormsTab({ eventId }: { eventId: string }) {
                         className="flex items-center gap-2 px-4 py-2 bg-[#0684F5] text-white rounded-lg hover:bg-[#0570D6] transition-colors text-xs font-bold"
                       >
                         <Eye size={16} />
-                        View Submissions
+                        {t('manageEvent.forms.buttons.viewSubmissions')}
                       </button>
                     </div>
                   </td>
@@ -283,7 +283,7 @@ export default function EventFormsTab({ eventId }: { eventId: string }) {
                 <tr>
                   <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
                     <FileText size={48} className="mx-auto mb-4 opacity-20" />
-                    No custom forms found for this event.
+                    {t('manageEvent.forms.empty')}
                   </td>
                 </tr>
               )}

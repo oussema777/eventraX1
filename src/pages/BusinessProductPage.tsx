@@ -19,7 +19,9 @@ import {
   Award,
   Heart,
   ExternalLink,
-  Loader2
+  Loader2,
+  X,
+  Send
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
@@ -30,6 +32,8 @@ import { supabase } from '../lib/supabase';
 import { useI18n } from '../i18n/I18nContext';
 import { useMessageThread } from '../hooks/useMessageThread';
 import { useAuth } from '../contexts/AuthContext';
+import { createNotification } from '../lib/notifications';
+import { sendEmail } from '../lib/email';
 
 type BusinessProfile = {
   id: string;
@@ -196,6 +200,12 @@ export default function BusinessProductPage() {
   const [business, setBusiness] = useState<BusinessProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Quote modal
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [quoteMessage, setQuoteMessage] = useState('');
+  const [quoteQuantity, setQuoteQuantity] = useState(1);
+  const [isSubmittingQuote, setIsSubmittingQuote] = useState(false);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -365,51 +375,106 @@ export default function BusinessProductPage() {
   };
 
   const handleContactSeller = async () => {
-    if (!user?.id) {
-      setShowLoginModal(true);
-      return;
-    }
-    if (!business?.owner_profile_id) {
-      toast.error(t('businessProductPage.errors.noOwner'));
-      return;
-    }
-    if (business.owner_profile_id === user?.id) {
-      toast.error(t('businessProductPage.errors.contactSelf'));
-      return;
-    }
+    if (!user?.id) { setShowLoginModal(true); return; }
+    if (!business?.owner_profile_id) { toast.error(t('businessProductPage.errors.noOwner')); return; }
+    if (business.owner_profile_id === user.id) { toast.error(t('businessProductPage.errors.contactSelf')); return; }
+
     const threadId = await getOrCreateThread(business.owner_profile_id);
-    if (threadId) {
-      navigate('/messages', { state: { threadId } });
-    }
+    if (!threadId) return;
+
+    // Send an opening message so the conversation isn't blank
+    try {
+      await supabase.from('messages').insert({
+        thread_id: threadId,
+        sender_id: user.id,
+        content: `Hi! I'm interested in "${productName}". Could we discuss further?`,
+      });
+    } catch { /* non-fatal — thread is created, just no opener */ }
+
+    navigate('/messages', { state: { threadId } });
   };
 
-  const handleRequestQuote = async () => {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const sessionUser = sessionData?.session?.user;
-    if (!sessionUser?.id) {
-      setShowLoginModal(true);
-      return;
-    }
-    if (!business?.owner_profile_id) {
-      toast.error(t('businessProductPage.errors.noOwner'));
-      return;
-    }
-    if (business.owner_profile_id === sessionUser.id) {
-      toast.error(t('businessProductPage.errors.contactSelf'));
-      return;
-    }
+  // Opens the quote modal (auth-gated)
+  const handleRequestQuote = () => {
+    if (!user?.id) { setShowLoginModal(true); return; }
+    if (!business?.owner_profile_id) { toast.error(t('businessProductPage.errors.noOwner')); return; }
+    if (business.owner_profile_id === user.id) { toast.error(t('businessProductPage.errors.contactSelf')); return; }
+    setQuoteMessage('');
+    setQuoteQuantity(quantity);
+    setShowQuoteModal(true);
+  };
+
+  // Submits the quote — notification + email + message thread
+  const handleSubmitQuote = async () => {
+    if (!quoteMessage.trim()) { toast.error('Please describe your requirements'); return; }
+    if (!business?.owner_profile_id || !product || !user?.id) return;
+
+    setIsSubmittingQuote(true);
     try {
-      const { error } = await supabase.rpc('create_notification', {
-        p_recipient_id: business.owner_profile_id,
-        p_title: t('businessProductPage.notifications.quoteTitle'),
-        p_body: t('businessProductPage.notifications.quoteBody', { product: productName }),
-        p_type: 'action',
-        p_action_url: `/business/${business.id}/offerings/${product.id}`
+      // 1. Bell notification to business owner
+      await createNotification({
+        recipient_id: business.owner_profile_id,
+        actor_id: user.id,
+        title: `New quote request: ${productName}`,
+        body: `${profile?.full_name || user.email} requested a quote for "${productName}". Qty: ${quoteQuantity}. "${quoteMessage.slice(0, 80)}${quoteMessage.length > 80 ? '…' : ''}"`,
+        type: 'action',
+        action_url: `/business/${business.id}/offerings/${product.id}`,
       });
-      if (error) throw error;
-      toast.success(t('businessProductPage.toasts.quoteSent'));
-    } catch (error: any) {
-      toast.error(error?.message || t('businessProductPage.toasts.quoteFailed'));
+
+      // 2. Email to business owner
+      const { data: ownerProfile } = await supabase
+        .from('profiles')
+        .select('email, full_name')
+        .eq('id', business.owner_profile_id)
+        .single();
+
+      if (ownerProfile?.email) {
+        const senderName = profile?.full_name || user.email || 'A potential buyer';
+        const html = `
+          <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;border:1px solid #e5e7eb;border-radius:12px;">
+            <h2 style="color:#0B2641;margin-bottom:4px;">New Quote Request</h2>
+            <p style="color:#6B7280;font-size:13px;margin-top:0;">via Eventra B2B Marketplace</p>
+            <hr style="border:none;border-top:1px solid #f3f4f6;margin:16px 0;"/>
+            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+              <tr><td style="padding:8px 0;color:#6B7280;width:120px;">Product</td><td style="padding:8px 0;font-weight:600;color:#111827;">${escapeHtml(productName)}</td></tr>
+              <tr><td style="padding:8px 0;color:#6B7280;">From</td><td style="padding:8px 0;color:#111827;">${escapeHtml(senderName)}</td></tr>
+              <tr><td style="padding:8px 0;color:#6B7280;">Email</td><td style="padding:8px 0;color:#111827;">${escapeHtml(user.email || '')}</td></tr>
+              <tr><td style="padding:8px 0;color:#6B7280;">Quantity</td><td style="padding:8px 0;color:#111827;">${quoteQuantity}</td></tr>
+            </table>
+            <div style="background:#f9fafb;border-radius:8px;padding:16px;margin:16px 0;">
+              <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:0.05em;">Requirements</p>
+              <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">${escapeHtml(quoteMessage).replace(/\n/g, '<br/>')}</p>
+            </div>
+            <a href="${window.location.origin}/business/${business.id}/offerings/${product.id}" style="display:inline-block;padding:12px 24px;background:#0684F5;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">View Offering</a>
+            <p style="font-size:11px;color:#9ca3af;margin-top:24px;">Reply directly to this email or use the Eventra messaging system.</p>
+          </div>`;
+
+        await sendEmail({
+          to: ownerProfile.email,
+          subject: `Quote Request: ${productName} from ${senderName}`,
+          html,
+        });
+      }
+
+      // 3. Create/get message thread and post quote as first message
+      const threadId = await getOrCreateThread(business.owner_profile_id);
+      if (threadId) {
+        await supabase.from('messages').insert({
+          thread_id: threadId,
+          sender_id: user.id,
+          content: `📋 **Quote Request for "${productName}"**\n\nQuantity: ${quoteQuantity}\n\n${quoteMessage}`,
+        });
+        setShowQuoteModal(false);
+        toast.success('Quote sent! Redirecting to messages…');
+        setTimeout(() => navigate('/messages', { state: { threadId } }), 1200);
+      } else {
+        setShowQuoteModal(false);
+        toast.success(t('businessProductPage.toasts.quoteSent'));
+      }
+    } catch (err: any) {
+      toast.error(err?.message || t('businessProductPage.toasts.quoteFailed'));
+    } finally {
+      setIsSubmittingQuote(false);
     }
   };
 
@@ -477,972 +542,518 @@ export default function BusinessProductPage() {
   }
 
   return (
-    <div className="product-page" style={{ minHeight: '100vh', backgroundColor: '#0B2641' }}>
+    <div className="product-page" style={{ minHeight: '100vh', backgroundColor: '#07192e' }}>
       {user ? (
         <NavbarLoggedIn onLogout={handleLogout} />
       ) : (
-        <NavbarLoggedOut 
+        <NavbarLoggedOut
           onSignUpClick={() => setShowRegistrationModal(true)}
           onLoginClick={() => setShowLoginModal(true)}
         />
       )}
 
       <style>{`
-        @media (max-width: 1024px) {
-          .product-page__content {
-            grid-template-columns: 1fr !important;
-            min-height: auto !important;
-          }
-          .product-page__gallery {
-            position: static !important;
-          }
-        }
+        .pp-btn-primary { transition: opacity 0.15s, transform 0.1s; }
+        .pp-btn-primary:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
+        .pp-btn-ghost:hover { background: rgba(255,255,255,0.08) !important; color: #fff !important; }
+        .pp-thumb:hover { border-color: rgba(6,132,245,0.6) !important; opacity: 1 !important; }
+        .pp-feature-card:hover { border-color: rgba(6,132,245,0.3) !important; background: rgba(6,132,245,0.05) !important; }
+        .pp-review-card:hover { border-color: rgba(255,255,255,0.15) !important; }
+        .pp-tab-btn { transition: color 0.15s, background 0.15s; }
 
-        @media (max-width: 768px) {
-          .product-page__content {
-            padding: 16px !important;
-            gap: 32px !important;
-          }
-          .product-page__breadcrumb {
-            flex-wrap: wrap;
-            row-gap: 6px;
-          }
-          .product-page__main-image {
-            height: 360px !important;
-          }
-          .product-page__thumbs {
-            grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)) !important;
-          }
-          .product-page__cta {
-            flex-direction: column !important;
-          }
-          .product-page__cta button {
-            width: 100% !important;
-          }
-          .product-page__secondary {
-            flex-direction: column !important;
-          }
-          .product-page__secondary button {
-            width: 100% !important;
-          }
-          .product-page__features-grid {
-            grid-template-columns: 1fr !important;
-          }
-          .product-page__reviews-summary {
-            flex-direction: column !important;
-            align-items: stretch !important;
-          }
-          .product-page__tabs {
-            margin-bottom: 24px !important;
-          }
-          .product-page__tablist {
-            overflow-x: auto;
-            white-space: nowrap;
-          }
-          .product-page__tablist button {
-            flex: 0 0 auto;
-          }
-          .product-page__seller-card .flex.items-start {
-            flex-direction: column !important;
-            align-items: flex-start !important;
-          }
+        @media (max-width: 1100px) {
+          .pp-layout { grid-template-columns: 1fr !important; }
+          .pp-sticky { position: static !important; }
         }
-
-        @media (max-width: 480px) {
-          .product-page__main-image {
-            height: 280px !important;
-          }
-          .product-page__thumbs button {
-            height: 72px !important;
-          }
-          .product-page__seller-card {
-            padding: 16px !important;
-          }
+        @media (max-width: 700px) {
+          .pp-layout { padding: 16px !important; gap: 32px !important; }
+          .pp-hero { padding: 20px 16px 0 !important; }
+          .pp-main-img { height: 300px !important; }
+          .pp-cta-row { flex-direction: column !important; }
+          .pp-cta-row button { width: 100% !important; }
+          .pp-sec-row { flex-direction: column !important; }
+          .pp-sec-row button { width: 100% !important; }
+          .pp-feat-grid { grid-template-columns: 1fr !important; }
+          .pp-rev-summary { flex-direction: column !important; }
+          .pp-tablist { overflow-x: auto; white-space: nowrap; }
+          .pp-tablist button { flex: 0 0 auto; }
+          .pp-title { font-size: 26px !important; }
+          .pp-price-num { font-size: 34px !important; }
         }
       `}</style>
 
-      {/* Breadcrumb Navigation */}
-      <div
-        style={{
-          maxWidth: '1400px',
-          margin: '0 auto',
-          padding: '24px 20px 16px'
-        }}
-      >
-        <div className="product-page__breadcrumb flex items-center gap-2" style={{ fontSize: '14px', color: '#94A3B8' }}>
-          <button
-            onClick={() => navigate('/b2b-marketplace')}
-            className="flex items-center gap-2 transition-colors"
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#94A3B8',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.color = '#0684F5'}
-            onMouseLeave={(e) => e.currentTarget.style.color = '#94A3B8'}
-          >
-            <ArrowLeft size={16} />
-            {t('businessProductPage.breadcrumb.marketplace')}
-          </button>
-          <span>/</span>
-          <button
-            onClick={() => navigate(`/business/${business.id}`)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#94A3B8',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.color = '#0684F5'}
-            onMouseLeave={(e) => e.currentTarget.style.color = '#94A3B8'}
-          >
-            {business.company_name || t('businessProductPage.seller.fallbackName')}
-          </button>
-          <span>/</span>
-          <span style={{ color: '#E2E8F0' }}>{productName}</span>
+      {/* ── AMBIENT HERO STRIP ───────────────────────────────────────────────── */}
+      <div style={{ position: 'relative', overflow: 'hidden', paddingTop: '72px' }}>
+        {images[0] && (
+          <>
+            <div style={{
+              position: 'absolute', inset: 0,
+              backgroundImage: `url(${images[0]})`,
+              backgroundSize: 'cover', backgroundPosition: 'center',
+              filter: 'blur(60px) brightness(0.18)',
+              transform: 'scale(1.1)',
+            }} />
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(7,25,46,0.2), #07192e)' }} />
+          </>
+        )}
+
+        {/* Breadcrumb */}
+        <div className="pp-hero" style={{ position: 'relative', maxWidth: '1340px', margin: '0 auto', padding: '28px 32px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#64748B', flexWrap: 'wrap' }}>
+            <button onClick={() => navigate('/b2b-marketplace')} style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', padding: 0 }}
+              onMouseEnter={e => e.currentTarget.style.color = '#0684F5'}
+              onMouseLeave={e => e.currentTarget.style.color = '#64748B'}>
+              <ArrowLeft size={14} /> {t('businessProductPage.breadcrumb.marketplace')}
+            </button>
+            <span style={{ opacity: 0.4 }}>/</span>
+            <button onClick={() => navigate(`/business/${business.id}`)} style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', fontSize: '13px', padding: 0 }}
+              onMouseEnter={e => e.currentTarget.style.color = '#0684F5'}
+              onMouseLeave={e => e.currentTarget.style.color = '#64748B'}>
+              {business.company_name || t('businessProductPage.seller.fallbackName')}
+            </button>
+            <span style={{ opacity: 0.4 }}>/</span>
+            <span style={{ color: '#94A3B8' }}>{productName}</span>
+          </div>
         </div>
+
+        {/* Spacer so hero strip has some height */}
+        <div style={{ height: '24px', position: 'relative' }} />
       </div>
 
-      {/* Main Content - Split Screen Layout */}
-      <div
-        className="product-page__content"
-        style={{
-          maxWidth: '1400px',
-          margin: '0 auto',
-          padding: '20px',
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '48px',
-          minHeight: 'calc(100vh - 200px)'
-        }}
-      >
-        {/* LEFT SIDE: Image Gallery */}
-        <div className="product-page__gallery" style={{ position: 'sticky', top: '100px', height: 'fit-content' }}>
-          {/* Main Image Display */}
-          <div
-            className="product-page__main-image"
-            style={{
-              width: '100%',
-              height: '600px',
-              backgroundColor: '#152C48',
-              borderRadius: '16px',
-              overflow: 'hidden',
-              position: 'relative',
-              marginBottom: '16px',
-              border: '1px solid rgba(255,255,255,0.1)'
-            }}
-          >
+      {/* ── MAIN TWO-COLUMN LAYOUT ───────────────────────────────────────────── */}
+      <div className="pp-layout" style={{
+        maxWidth: '1340px', margin: '0 auto', padding: '0 32px 80px',
+        display: 'grid', gridTemplateColumns: '52% 1fr', gap: '48px', alignItems: 'start',
+      }}>
+
+        {/* ═══════ LEFT — Gallery ═══════ */}
+        <div className="pp-sticky" style={{ position: 'sticky', top: '88px' }}>
+
+          {/* Main image */}
+          <div className="pp-main-img" style={{
+            width: '100%', height: '520px', borderRadius: '20px', overflow: 'hidden',
+            position: 'relative', marginBottom: '14px',
+            background: '#0D2540',
+            boxShadow: '0 24px 60px rgba(0,0,0,0.5)',
+            border: '1px solid rgba(255,255,255,0.07)',
+          }}>
             {images.length ? (
-              <img
-                src={images[selectedImageIndex]}
-                alt={productName}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover'
-                }}
-              />
+              <img src={images[selectedImageIndex]} alt={productName}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'opacity 0.2s' }} />
             ) : (
-              <div className="flex h-full items-center justify-center text-sm text-[#94A3B8]">
-                {t('businessProductPage.pricing.contact')}
+              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4A6080', flexDirection: 'column', gap: '12px' }}>
+                <Package size={48} style={{ opacity: 0.3 }} />
+                <span style={{ fontSize: '14px' }}>{t('businessProductPage.pricing.contact')}</span>
               </div>
             )}
-            
-            {/* Image Navigation Arrows */}
+
+            {/* Discount badge */}
+            {discount && (
+              <div style={{ position: 'absolute', top: '18px', left: '18px', padding: '6px 14px', borderRadius: '999px', background: 'linear-gradient(135deg, #10B981, #059669)', boxShadow: '0 4px 16px rgba(16,185,129,0.4)', fontSize: '13px', fontWeight: 700, color: '#fff' }}>
+                {discount}
+              </div>
+            )}
+
+            {/* Type badge */}
+            <div style={{ position: 'absolute', top: '18px', right: '18px', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '999px', backgroundColor: 'rgba(6,132,245,0.18)', backdropFilter: 'blur(12px)', border: '1px solid rgba(6,132,245,0.35)', fontSize: '12px', fontWeight: 700, color: '#60B4FF' }}>
+              <Package size={12} /> {productTypeLabel}
+            </div>
+
+            {/* Arrows */}
             {images.length > 1 && (
               <>
-                <button
-                  onClick={handlePreviousImage}
-                  className="transition-all"
-                  style={{
-                    position: 'absolute',
-                    left: '16px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '50%',
-                    backgroundColor: 'rgba(11, 38, 65, 0.9)',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    color: '#FFFFFF',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backdropFilter: 'blur(10px)'
+                {[{ side: 'left', handler: handlePreviousImage, Icon: ChevronLeft }, { side: 'right', handler: handleNextImage, Icon: ChevronRight }].map(({ side, handler, Icon }) => (
+                  <button key={side} onClick={handler} style={{
+                    position: 'absolute', top: '50%', [side]: '14px', transform: 'translateY(-50%)',
+                    width: '42px', height: '42px', borderRadius: '50%', border: 'none',
+                    backgroundColor: 'rgba(7,25,46,0.85)', backdropFilter: 'blur(8px)',
+                    color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.9)'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(11, 38, 65, 0.9)'}
-                >
-                  <ChevronLeft size={24} />
-                </button>
-                <button
-                  onClick={handleNextImage}
-                  className="transition-all"
-                  style={{
-                    position: 'absolute',
-                    right: '16px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '50%',
-                    backgroundColor: 'rgba(11, 38, 65, 0.9)',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    color: '#FFFFFF',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backdropFilter: 'blur(10px)'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.9)'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(11, 38, 65, 0.9)'}
-                >
-                  <ChevronRight size={24} />
-                </button>
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(6,132,245,0.85)')}
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'rgba(7,25,46,0.85)')}>
+                    <Icon size={20} />
+                  </button>
+                ))}
               </>
             )}
 
-            {/* Image Counter */}
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '16px',
-                right: '16px',
-                padding: '8px 12px',
-                borderRadius: '8px',
-                backgroundColor: 'rgba(11, 38, 65, 0.9)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                backdropFilter: 'blur(10px)'
-              }}
-            >
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>
+            {/* Counter */}
+            {images.length > 1 && (
+              <div style={{ position: 'absolute', bottom: '16px', right: '16px', padding: '5px 12px', borderRadius: '999px', backgroundColor: 'rgba(7,25,46,0.85)', backdropFilter: 'blur(8px)', fontSize: '12px', fontWeight: 600, color: '#94A3B8' }}>
                 {selectedImageIndex + 1} / {images.length}
-              </span>
-            </div>
-
-            {/* Discount Badge */}
-            {discount && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '16px',
-                  left: '16px',
-                  padding: '8px 16px',
-                  borderRadius: '8px',
-                  background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
-                }}
-              >
-                <span style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF' }}>
-                  {discount}
-                </span>
               </div>
             )}
           </div>
 
-          {/* Thumbnail Gallery */}
-          <div
-            className="product-page__thumbs"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: `repeat(${Math.min(images.length || 1, 5)}, 1fr)`,
-              gap: '12px'
-            }}
-          >
-            {images.map((image, index) => (
-              <button
-                key={image}
-                onClick={() => setSelectedImageIndex(index)}
-                className="transition-all"
-                style={{
-                  width: '100%',
-                  height: '100px',
-                  borderRadius: '8px',
-                  overflow: 'hidden',
-                  border: selectedImageIndex === index ? '2px solid #0684F5' : '2px solid rgba(255,255,255,0.1)',
-                  cursor: 'pointer',
-                  padding: 0,
-                  backgroundColor: '#152C48',
-                  opacity: selectedImageIndex === index ? 1 : 0.6
-                }}
-                onMouseEnter={(e) => {
-                  if (selectedImageIndex !== index) {
-                    e.currentTarget.style.opacity = '0.8';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (selectedImageIndex !== index) {
-                    e.currentTarget.style.opacity = '0.6';
-                  }
-                }}
-              >
-                <img
-                  src={image}
-                  alt={`${productName} ${index + 1}`}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover'
-                  }}
-                />
-              </button>
-            ))}
+          {/* Thumbnail strip */}
+          {images.length > 1 && (
+            <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '4px' }}>
+              {images.map((img, i) => (
+                <button key={img} className="pp-thumb" onClick={() => setSelectedImageIndex(i)} style={{
+                  flexShrink: 0, width: '80px', height: '64px', borderRadius: '10px', overflow: 'hidden', padding: 0,
+                  border: i === selectedImageIndex ? '2px solid #0684F5' : '2px solid rgba(255,255,255,0.08)',
+                  opacity: i === selectedImageIndex ? 1 : 0.55, cursor: 'pointer', background: '#0D2540', transition: 'all 0.15s',
+                }}>
+                  <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Quick trust strip */}
+          <div style={{ display: 'flex', gap: '16px', marginTop: '20px', flexWrap: 'wrap' }}>
+            {isVerifiedSeller(business.verification_status) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '8px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}>
+                <Shield size={14} style={{ color: '#10B981' }} />
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#10B981' }}>{t('businessProductPage.seller.verified')}</span>
+              </div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <Clock size={14} style={{ color: '#94A3B8' }} />
+              <span style={{ fontSize: '12px', color: '#94A3B8' }}>{deliveryTime}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <MapPin size={14} style={{ color: '#94A3B8' }} />
+              <span style={{ fontSize: '12px', color: '#94A3B8' }}>{business.address || t('marketplace.results.locationTbd')}</span>
+            </div>
           </div>
         </div>
 
-        {/* RIGHT SIDE: Product Information */}
-        <div className="product-page__details">
-          {/* Product Header */}
-          <div style={{ marginBottom: '24px' }}>
-            {/* Type Badge */}
-            <div
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg"
-              style={{
-                backgroundColor: 'rgba(6, 132, 245, 0.1)',
-                border: '1px solid rgba(6, 132, 245, 0.3)',
-                marginBottom: '12px'
-              }}
-            >
-              <Package size={14} style={{ color: '#0684F5' }} />
-              <span style={{ fontSize: '12px', fontWeight: 600, color: '#0684F5' }}>
-                {productTypeLabel}
-              </span>
-            </div>
+        {/* ═══════ RIGHT — Details ═══════ */}
+        <div>
 
-            {/* Product Name */}
-            <h1 style={{ fontSize: '36px', fontWeight: 700, color: '#FFFFFF', marginBottom: '12px', lineHeight: 1.2 }}>
+          {/* ── Product header ── */}
+          <div style={{ marginBottom: '28px' }}>
+            <h1 className="pp-title" style={{ fontSize: '32px', fontWeight: 800, color: '#FFFFFF', lineHeight: 1.2, marginBottom: '12px', letterSpacing: '-0.5px' }}>
               {productName}
             </h1>
-
-            {/* Tagline */}
-            <p style={{ fontSize: '18px', color: '#94A3B8', marginBottom: '20px', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '16px', color: '#94A3B8', lineHeight: 1.65, marginBottom: '18px' }}>
               {productTagline}
             </p>
 
-            {/* Rating & Reviews */}
-            <div className="flex items-center gap-4 mb-4">
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={`${product?.id || 'rating'}-${i}`}
-                      size={18}
-                      style={{
-                        color: i < Math.floor(ratingValue) ? '#F59E0B' : '#475569',
-                        fill: i < Math.floor(ratingValue) ? '#F59E0B' : 'none'
-                      }}
-                    />
-                  ))}
-                </div>
-                <span style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF' }}>
-                  {ratingValue.toFixed(1)}
-                </span>
-                <span style={{ fontSize: '14px', color: '#94A3B8' }}>
-                  {t('businessProductPage.reviews.count', { count: reviewCount })}
-                </span>
+            {/* Stars + count */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', gap: '2px' }}>
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} size={16}
+                    style={{ color: i < Math.floor(ratingValue) ? '#F59E0B' : '#2D4A6E', fill: i < Math.floor(ratingValue) ? '#F59E0B' : 'none' }} />
+                ))}
               </div>
+              <span style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>{ratingValue.toFixed(1)}</span>
+              <span style={{ fontSize: '13px', color: '#64748B' }}>{t('businessProductPage.reviews.count', { count: reviewCount })}</span>
             </div>
 
             {/* Tags */}
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="px-3 py-1 rounded-full"
-                  style={{
-                    backgroundColor: 'rgba(74, 124, 109, 0.15)',
-                    border: '1px solid rgba(74, 124, 109, 0.3)',
-                    color: '#4A7C6D',
-                    fontSize: '13px',
-                    fontWeight: 500
-                  }}
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
+            {tags.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {tags.map(tag => (
+                  <span key={tag} style={{ padding: '4px 12px', borderRadius: '999px', backgroundColor: 'rgba(6,132,245,0.08)', border: '1px solid rgba(6,132,245,0.2)', color: '#60A5FA', fontSize: '12px', fontWeight: 500 }}>
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Pricing Section */}
-          <div
-            className="product-page__pricing"
-            style={{
-              padding: '24px',
-              backgroundColor: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '12px',
-              marginBottom: '24px'
-            }}
-          >
-            <div className="flex items-end gap-3 mb-2">
-              <div style={{ fontSize: '42px', fontWeight: 700, color: '#FFFFFF' }}>
-                {priceValue !== null ? formatPrice(priceValue, currency) : t('businessProductPage.pricing.contact')}
+          {/* ── Pricing card ── */}
+          <div style={{
+            borderRadius: '16px', marginBottom: '20px', overflow: 'hidden',
+            background: 'linear-gradient(135deg, rgba(13,53,87,0.8) 0%, rgba(11,38,65,0.9) 100%)',
+            border: '1px solid rgba(6,132,245,0.2)',
+            boxShadow: '0 0 0 1px rgba(6,132,245,0.06), inset 0 1px 0 rgba(255,255,255,0.05)',
+          }}>
+            {/* Price row */}
+            <div style={{ padding: '24px 24px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                <span className="pp-price-num" style={{ fontSize: '40px', fontWeight: 800, color: '#fff', letterSpacing: '-1px', lineHeight: 1 }}>
+                  {priceValue !== null ? formatPrice(priceValue, currency) : t('businessProductPage.pricing.contact')}
+                </span>
+                {originalPrice !== null && originalPrice > 0 && (
+                  <span style={{ fontSize: '20px', color: '#475569', textDecoration: 'line-through', marginBottom: '4px' }}>
+                    {formatPrice(originalPrice, currency)}
+                  </span>
+                )}
               </div>
-              {originalPrice !== null && originalPrice > 0 && (
-                <div style={{ fontSize: '24px', color: '#64748B', textDecoration: 'line-through', marginBottom: '8px' }}>
-                  {formatPrice(originalPrice, currency)}
-                </div>
-              )}
+              <span style={{ fontSize: '13px', color: '#4A6080' }}>
+                {pricingModel ? `${pricingModel}` : currency}
+              </span>
             </div>
-            <p style={{ fontSize: '14px', color: '#94A3B8', marginBottom: '20px' }}>
-              {pricingModel ? `${currency} ${pricingModel}` : currency}
-            </p>
 
-            {/* Quantity Selector (if applicable) */}
+            {/* Quantity */}
             {showQuantity && (
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ fontSize: '14px', fontWeight: 600, color: '#E2E8F0', display: 'block', marginBottom: '8px' }}>
+              <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#94A3B8', display: 'block', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   {t('businessProductPage.pricing.licensesLabel')}
                 </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={quantity}
-                  onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                  style={{
-                    width: '100px',
-                    padding: '10px',
-                    backgroundColor: '#152C48',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    borderRadius: '8px',
-                    color: '#FFFFFF',
-                    fontSize: '14px'
-                  }}
-                />
+                <input type="number" min="1" value={quantity} onChange={e => setQuantity(parseInt(e.target.value) || 1)}
+                  style={{ width: '90px', padding: '9px 12px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', color: '#fff', fontSize: '15px', fontWeight: 600, outline: 'none' }} />
               </div>
             )}
 
-            {/* CTA Buttons */}
-            <div className="product-page__cta" style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-              <button
-                onClick={handleRequestQuote}
-                className="flex-1 transition-all"
-                style={{
-                  padding: '16px',
-                  backgroundColor: '#0684F5',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  borderRadius: '10px',
-                  fontSize: '16px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0570D6'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0684F5'}
-                disabled={connecting}
-              >
-                <FileText size={20} />
-                {t('businessProductPage.actions.requestQuote')}
-              </button>
-              <button
-                onClick={handleContactSeller}
-                className="flex-1 transition-all"
-                style={{
-                  padding: '16px',
-                  backgroundColor: 'rgba(6, 132, 245, 0.1)',
-                  color: '#0684F5',
-                  border: '1px solid #0684F5',
-                  borderRadius: '10px',
-                  fontSize: '16px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.2)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.1)';
-                }}
-                disabled={connecting}
-              >
-                <MessageSquare size={20} />
-                {t('businessProductPage.actions.messageSeller')}
-              </button>
-            </div>
-
-            {/* Secondary Actions */}
-            <div className="product-page__secondary" style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={() => setIsSaved(!isSaved)}
-                className="flex-1 transition-all"
-                style={{
-                  padding: '12px',
-                  backgroundColor: isSaved ? 'rgba(6, 132, 245, 0.1)' : 'rgba(255,255,255,0.05)',
-                  color: isSaved ? '#0684F5' : '#94A3B8',
-                  border: `1px solid ${isSaved ? '#0684F5' : 'rgba(255,255,255,0.2)'}`,
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-              >
-                {isSaved ? <Heart size={18} fill="#0684F5" /> : <Heart size={18} />}
-                {isSaved ? t('businessProductPage.actions.saved') : t('businessProductPage.actions.wishlist')}
-              </button>
-              <button
-                className="flex-1 transition-all"
-                style={{
-                  padding: '12px',
-                  backgroundColor: 'rgba(255,255,255,0.05)',
-                  color: '#94A3B8',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)';
-                  e.currentTarget.style.color = '#FFFFFF';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
-                  e.currentTarget.style.color = '#94A3B8';
-                }}
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(window.location.href);
-                    toast.success(t('businessProductPage.toasts.linkCopied'));
-                  } catch {
-                    toast.error(t('businessProductPage.toasts.copyFailed'));
-                  }
-                }}
-              >
-                <Share2 size={18} />
-                {t('businessProductPage.actions.share')}
-              </button>
-            </div>
-
-            {/* Trust Indicators */}
-            <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-              <div className="flex items-center gap-4 text-sm">
-                {isVerifiedSeller(business.verification_status) && (
-                  <div className="flex items-center gap-2">
-                    <Shield size={16} style={{ color: '#10B981' }} />
-                    <span style={{ fontSize: '13px', color: '#10B981' }}>
-                      {t('businessProductPage.seller.verified')}
-                    </span>
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <Clock size={16} style={{ color: '#94A3B8' }} />
-                  <span style={{ fontSize: '13px', color: '#94A3B8' }}>{deliveryTime}</span>
-                </div>
+            {/* CTA buttons */}
+            <div style={{ padding: '20px 24px 16px' }}>
+              <div className="pp-cta-row" style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
+                <button className="pp-btn-primary" onClick={handleRequestQuote} disabled={connecting}
+                  style={{ flex: 1, padding: '15px', borderRadius: '12px', border: 'none', cursor: connecting ? 'wait' : 'pointer', background: 'linear-gradient(135deg, #0684F5, #0457C8)', color: '#fff', fontSize: '15px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 6px 20px rgba(6,132,245,0.35)' }}>
+                  <FileText size={18} /> {t('businessProductPage.actions.requestQuote')}
+                </button>
+                <button className="pp-btn-primary" onClick={handleContactSeller} disabled={connecting}
+                  style={{ flex: 1, padding: '15px', borderRadius: '12px', border: '1.5px solid rgba(6,132,245,0.5)', cursor: connecting ? 'wait' : 'pointer', background: 'rgba(6,132,245,0.1)', color: '#60B4FF', fontSize: '15px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                  <MessageSquare size={18} /> {t('businessProductPage.actions.messageSeller')}
+                </button>
               </div>
-            </div>
-          </div>
 
-          {/* Seller Information Card */}
-          <div
-            className="product-page__seller-card"
-            style={{
-              padding: '20px',
-              backgroundColor: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '12px',
-              marginBottom: '32px'
-            }}
-          >
-            <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#E2E8F0', marginBottom: '16px' }}>
-              {t('businessProductPage.seller.about')}
-            </h3>
-            <div className="flex items-start gap-4">
-              <img
-                src={business.logo_url || business.cover_url || ''}
-                alt={business.company_name || t('businessProductPage.seller.fallbackName')}
-                style={{
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: '50%',
-                  objectFit: 'cover',
-                  border: '2px solid rgba(6, 132, 245, 0.3)'
-                }}
-              />
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <h4 style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF' }}>
-                    {business.company_name || t('businessProductPage.seller.fallbackName')}
-                  </h4>
-                  {isVerifiedSeller(business.verification_status) && (
-                    <Check size={16} style={{ color: '#10B981' }} />
-                  )}
-                </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="flex items-center gap-1">
-                    <Star size={14} style={{ color: '#F59E0B', fill: '#F59E0B' }} />
-                    <span style={{ fontSize: '13px', color: '#94A3B8' }}>
-                      {ratingValue.toFixed(1)} {t('businessProductPage.reviews.count', { count: reviewCount })}
-                    </span>
-                  </div>
-                  <span style={{ color: '#64748B' }}>-</span>
-                  <span style={{ fontSize: '13px', color: '#94A3B8' }}>
-                    {business.created_at
-                      ? t('businessProductPage.seller.memberSinceInline', {
-                          value: new Date(business.created_at).getFullYear()
-                        })
-                      : t('businessProductPage.seller.memberSince')}
-                  </span>
-                </div>
-                <div className="flex items-center gap-4 mb-3">
-                  <div className="flex items-center gap-2">
-                    <MapPin size={14} style={{ color: '#94A3B8' }} />
-                    <span style={{ fontSize: '13px', color: '#94A3B8' }}>{business.address || t('marketplace.results.locationTbd')}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock size={14} style={{ color: '#94A3B8' }} />
-                    <span style={{ fontSize: '13px', color: '#94A3B8' }}>{t('businessProductPage.seller.responseInline', { value: sellerResponseTime })}</span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => navigate(`/business/${business.id}`)}
-                  className="transition-all"
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: 'rgba(6, 132, 245, 0.1)',
-                    border: '1px solid #0684F5',
-                    borderRadius: '6px',
-                    color: '#0684F5',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.2)'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.1)'}
-                >
-                  {t('businessProductPage.seller.viewProfile')}
-                  <ExternalLink size={14} />
+              <div className="pp-sec-row" style={{ display: 'flex', gap: '10px' }}>
+                <button className="pp-btn-ghost" onClick={() => setIsSaved(!isSaved)}
+                  style={{ flex: 1, padding: '11px', borderRadius: '10px', border: `1.5px solid ${isSaved ? 'rgba(6,132,245,0.5)' : 'rgba(255,255,255,0.1)'}`, background: isSaved ? 'rgba(6,132,245,0.1)' : 'transparent', color: isSaved ? '#60B4FF' : '#64748B', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}>
+                  <Heart size={16} fill={isSaved ? '#60B4FF' : 'none'} />
+                  {isSaved ? t('businessProductPage.actions.saved') : t('businessProductPage.actions.wishlist')}
+                </button>
+                <button className="pp-btn-ghost"
+                  style={{ flex: 1, padding: '11px', borderRadius: '10px', border: '1.5px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#64748B', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}
+                  onClick={async () => { try { await navigator.clipboard.writeText(window.location.href); toast.success(t('businessProductPage.toasts.linkCopied')); } catch { toast.error(t('businessProductPage.toasts.copyFailed')); } }}>
+                  <Share2 size={16} /> {t('businessProductPage.actions.share')}
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Tabs: Description, Specifications, Reviews */}
-          <div className="product-page__tabs" style={{ marginBottom: '32px' }}>
-            {/* Tab Headers */}
-            <div
-              className="product-page__tablist flex gap-1"
-              style={{
-                borderBottom: '1px solid rgba(255,255,255,0.1)',
-                marginBottom: '24px'
-              }}
-            >
-              {(['description', 'specifications', 'reviews'] as const).map((tab) => (
-                <button
-                  key={tab}
+          {/* ── Seller card ── */}
+          <div style={{ borderRadius: '16px', overflow: 'hidden', marginBottom: '28px', border: '1px solid rgba(255,255,255,0.07)', background: '#0B2240' }}>
+            {/* Cover strip */}
+            <div style={{ height: '72px', position: 'relative', overflow: 'hidden', background: 'linear-gradient(135deg, #0D355A, #0B2745)' }}>
+              {(business.cover_url || business.logo_url) && (
+                <img src={business.cover_url || business.logo_url} alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.25 }} />
+              )}
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent, rgba(11,34,64,0.8))' }} />
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '0 20px 20px', position: 'relative' }}>
+              {/* Overlapping logo */}
+              <div style={{ marginTop: '-24px', marginBottom: '12px' }}>
+                <div style={{ width: '52px', height: '52px', borderRadius: '12px', overflow: 'hidden', border: '2px solid rgba(6,132,245,0.4)', background: '#0D2540', flexShrink: 0 }}>
+                  <img src={business.logo_url || business.cover_url || ''} alt={business.company_name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>
+                      {business.company_name || t('businessProductPage.seller.fallbackName')}
+                    </span>
+                    {isVerifiedSeller(business.verification_status) && (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '50%', background: '#10B981' }}>
+                        <Check size={11} style={{ color: '#fff' }} />
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Star size={13} style={{ color: '#F59E0B', fill: '#F59E0B' }} />
+                      <span style={{ fontSize: '13px', color: '#94A3B8' }}>{ratingValue.toFixed(1)} · {t('businessProductPage.reviews.count', { count: reviewCount })}</span>
+                    </div>
+                    <span style={{ fontSize: '12px', color: '#4A6080' }}>
+                      {business.created_at
+                        ? t('businessProductPage.seller.memberSinceInline', { value: new Date(business.created_at).getFullYear() })
+                        : t('businessProductPage.seller.memberSince')}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                    <Clock size={12} style={{ color: '#4A6080' }} />
+                    <span style={{ fontSize: '12px', color: '#4A6080' }}>{t('businessProductPage.seller.responseInline', { value: sellerResponseTime })}</span>
+                  </div>
+                </div>
+
+                <button onClick={() => navigate(`/business/${business.id}`)}
+                  style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid rgba(6,132,245,0.4)', background: 'rgba(6,132,245,0.08)', color: '#60B4FF', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(6,132,245,0.18)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'rgba(6,132,245,0.08)'}>
+                  {t('businessProductPage.seller.viewProfile')} <ExternalLink size={13} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Tabs ── */}
+          <div style={{ marginBottom: '8px' }}>
+            {/* Tab bar */}
+            <div className="pp-tablist" style={{ display: 'flex', gap: '4px', backgroundColor: '#0D2540', borderRadius: '12px', padding: '4px', marginBottom: '24px', width: 'fit-content' }}>
+              {(['description', 'specifications', 'reviews'] as const).map(tab => (
+                <button key={tab} className="pp-tab-btn"
                   onClick={() => setActiveTab(tab)}
-                  className="transition-all"
                   style={{
-                    padding: '12px 24px',
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    borderBottom: activeTab === tab ? '2px solid #0684F5' : '2px solid transparent',
-                    color: activeTab === tab ? '#0684F5' : '#94A3B8',
-                    fontSize: '15px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    textTransform: 'capitalize'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (activeTab !== tab) {
-                      e.currentTarget.style.color = '#CBD5E1';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (activeTab !== tab) {
-                      e.currentTarget.style.color = '#94A3B8';
-                    }
-                  }}
-                >
+                    padding: '9px 20px', borderRadius: '9px', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '14px',
+                    background: activeTab === tab ? '#0684F5' : 'transparent',
+                    color: activeTab === tab ? '#fff' : '#64748B',
+                    boxShadow: activeTab === tab ? '0 4px 12px rgba(6,132,245,0.3)' : 'none',
+                  }}>
                   {t(`businessProductPage.tabs.${tab}`)}
                 </button>
               ))}
             </div>
 
-            {/* Tab Content */}
-            <div>
-              {activeTab === 'description' && (
-                <div>
-                  <div className="mb-8">
-                    <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#E2E8F0', marginBottom: '12px' }}>
-                      {t('businessProductPage.longDescription.overviewTitle')}
-                    </h3>
-                    <p style={{ fontSize: '15px', color: '#CBD5E1', lineHeight: 1.7 }}>
-                      {product.description || t('businessProductPage.longDescription.overviewFallback')}
-                    </p>
-                  </div>
+            {/* ─ Description tab ─ */}
+            {activeTab === 'description' && (
+              <div>
+                {/* Overview */}
+                <div style={{ borderLeft: '3px solid #0684F5', paddingLeft: '20px', marginBottom: '28px' }}>
+                  <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#E2E8F0', marginBottom: '10px' }}>
+                    {t('businessProductPage.longDescription.overviewTitle')}
+                  </h3>
+                  <p style={{ fontSize: '14px', color: '#94A3B8', lineHeight: 1.75, margin: 0 }}>
+                    {product.description || t('businessProductPage.longDescription.overviewFallback')}
+                  </p>
+                </div>
 
-                  <div className="mb-8">
-                    <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#E2E8F0', marginBottom: '12px' }}>
-                      {t('businessProductPage.longDescription.whatYouGetTitle')}
-                    </h3>
-                    <ul style={{ marginLeft: '20px', marginBottom: '16px', color: '#CBD5E1' }}>
-                      {(tags.length ? tags.slice(0, 6) : longDescriptionCopy.fallbackList).map((item, idx) => (
-                        <li key={idx} style={{ marginBottom: '8px', fontSize: '15px' }}>{item}</li>
-                      ))}
-                    </ul>
+                {/* What you get */}
+                <div style={{ marginBottom: '28px' }}>
+                  <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#E2E8F0', marginBottom: '14px' }}>
+                    {t('businessProductPage.longDescription.whatYouGetTitle')}
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {(tags.length ? tags.slice(0, 6) : longDescriptionCopy.fallbackList).map((item, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <Check size={11} style={{ color: '#10B981' }} />
+                        </div>
+                        <span style={{ fontSize: '14px', color: '#CBD5E1' }}>{item}</span>
+                      </div>
+                    ))}
                   </div>
+                </div>
 
-                  <div className="mb-8">
-                    <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#E2E8F0', marginBottom: '12px' }}>
-                      {t('businessProductPage.longDescription.whyItMattersTitle')}
-                    </h3>
-                    <p style={{ fontSize: '15px', color: '#CBD5E1', lineHeight: 1.7 }}>
-                      {t('businessProductPage.longDescription.whyItMattersBody')}
-                    </p>
-                  </div>
+                {/* Why it matters */}
+                <div style={{ marginBottom: '32px', padding: '18px 20px', borderRadius: '12px', background: 'rgba(6,132,245,0.05)', border: '1px solid rgba(6,132,245,0.12)' }}>
+                  <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#60B4FF', marginBottom: '8px' }}>
+                    {t('businessProductPage.longDescription.whyItMattersTitle')}
+                  </h3>
+                  <p style={{ fontSize: '14px', color: '#94A3B8', lineHeight: 1.7, margin: 0 }}>
+                    {t('businessProductPage.longDescription.whyItMattersBody')}
+                  </p>
+                </div>
 
-                  {/* Key Features Grid */}
-                  <div style={{ marginTop: '32px' }}>
-                    <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#E2E8F0', marginBottom: '16px' }}>
+                {/* Features grid */}
+                {features.length > 0 && (
+                  <div>
+                    <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#E2E8F0', marginBottom: '14px' }}>
                       {t('businessProductPage.features.title')}
                     </h3>
-                    <div
-                      className="product-page__features-grid"
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(2, 1fr)',
-                        gap: '16px'
-                      }}
-                    >
-                      {features.map((feature, index) => {
-                        const IconComponent = feature.icon;
+                    <div className="pp-feat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: '12px' }}>
+                      {features.map((feature, i) => {
+                        const Icon = feature.icon;
                         return (
-                          <div
-                            key={`${feature.label}-${index}`}
-                            className="flex gap-3 p-4 rounded-lg transition-all"
-                            style={{
-                              backgroundColor: 'rgba(255,255,255,0.03)',
-                              border: '1px solid rgba(255,255,255,0.1)'
-                            }}
-                          >
-                            <div
-                              className="flex items-center justify-center"
-                              style={{
-                                width: '40px',
-                                height: '40px',
-                                borderRadius: '8px',
-                                backgroundColor: 'rgba(6, 132, 245, 0.15)',
-                                flexShrink: 0
-                              }}
-                            >
-                              <IconComponent size={20} style={{ color: '#0684F5' }} />
+                          <div key={`${feature.label}-${i}`} className="pp-feature-card"
+                            style={{ display: 'flex', gap: '14px', padding: '16px', borderRadius: '12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', transition: 'all 0.15s' }}>
+                            <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'linear-gradient(135deg, rgba(6,132,245,0.2), rgba(6,132,245,0.08))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid rgba(6,132,245,0.15)' }}>
+                              <Icon size={18} style={{ color: '#0684F5' }} />
                             </div>
                             <div>
-                              <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#E2E8F0', marginBottom: '4px' }}>
-                                {feature.label}
-                              </h4>
-                              <p style={{ fontSize: '13px', color: '#94A3B8' }}>
-                                {feature.description}
-                              </p>
+                              <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#E2E8F0', marginBottom: '3px' }}>{feature.label}</h4>
+                              <p style={{ fontSize: '12px', color: '#64748B', lineHeight: 1.5, margin: 0 }}>{feature.description}</p>
                             </div>
                           </div>
                         );
                       })}
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
+            )}
 
-              {activeTab === 'specifications' && (
-                <div>
-                  <div
-                    style={{
-                      backgroundColor: 'rgba(255,255,255,0.02)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: '12px',
-                      overflow: 'hidden'
-                    }}
-                  >
-                    {[
-                      { label: t('businessProductPage.specifications.type'), value: productTypeLabel },
-                      {
-                        label: t('businessProductPage.specifications.availability'),
-                        value: t('businessProductPage.specifications.unlimited')
-                      },
-                      {
-                        label: t('businessProductPage.specifications.quantity'),
-                        value: showQuantity ? String(quantity) : t('businessProductPage.specifications.unlimited')
-                      },
-                      {
-                        label: t('businessProductPage.specifications.tags'),
-                        value: tags.length ? tags.slice(0, 4).join(', ') : t('businessProductPage.specifications.limited')
-                      }
-                    ].map((spec, index, list) => (
-                      <div
-                        key={spec.label}
-                        className="flex justify-between py-4 px-5"
-                        style={{
-                          borderBottom: index < list.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none'
-                        }}
-                      >
-                        <span style={{ fontSize: '14px', fontWeight: 600, color: '#94A3B8' }}>
-                          {spec.label}
-                        </span>
-                        <span style={{ fontSize: '14px', color: '#E2E8F0', textAlign: 'right' }}>
-                          {spec.value}
-                        </span>
+            {/* ─ Specifications tab ─ */}
+            {activeTab === 'specifications' && (
+              <div style={{ borderRadius: '14px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.07)', background: '#0B2240' }}>
+                {[
+                  { label: t('businessProductPage.specifications.type'), value: productTypeLabel },
+                  { label: t('businessProductPage.specifications.availability'), value: t('businessProductPage.specifications.unlimited') },
+                  { label: t('businessProductPage.specifications.quantity'), value: showQuantity ? String(quantity) : t('businessProductPage.specifications.unlimited') },
+                  { label: t('businessProductPage.specifications.tags'), value: tags.length ? tags.slice(0, 4).join(', ') : t('businessProductPage.specifications.limited') },
+                ].map((spec, i, list) => (
+                  <div key={spec.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', borderBottom: i < list.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#4A6080', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{spec.label}</span>
+                    <span style={{ fontSize: '14px', color: '#CBD5E1', fontWeight: 500 }}>{spec.value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ─ Reviews tab ─ */}
+            {activeTab === 'reviews' && (
+              <div>
+                {/* Rating summary card */}
+                <div className="pp-rev-summary" style={{ display: 'flex', gap: '32px', padding: '24px', borderRadius: '16px', background: '#0B2240', border: '1px solid rgba(255,255,255,0.07)', marginBottom: '20px' }}>
+                  <div style={{ textAlign: 'center', flexShrink: 0 }}>
+                    <div style={{ fontSize: '52px', fontWeight: 800, color: '#fff', lineHeight: 1, letterSpacing: '-2px' }}>{ratingValue.toFixed(1)}</div>
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: '2px', margin: '8px 0 4px' }}>
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} size={16} style={{ color: i < Math.floor(ratingValue) ? '#F59E0B' : '#2D4A6E', fill: i < Math.floor(ratingValue) ? '#F59E0B' : 'none' }} />
+                      ))}
+                    </div>
+                    <span style={{ fontSize: '12px', color: '#4A6080' }}>{t('businessProductPage.reviews.count', { count: reviewCount })}</span>
+                  </div>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', justifyContent: 'center' }}>
+                    {ratingBreakdown.map(({ stars, percentage }) => (
+                      <div key={stars} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '12px', color: '#4A6080', width: '40px', textAlign: 'right', flexShrink: 0 }}>{stars}★</span>
+                        <div style={{ flex: 1, height: '6px', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div style={{ width: `${percentage}%`, height: '100%', background: 'linear-gradient(90deg, #F59E0B, #FBBF24)', borderRadius: '3px', transition: 'width 0.4s' }} />
+                        </div>
+                        <span style={{ fontSize: '12px', color: '#4A6080', width: '32px', flexShrink: 0 }}>{percentage}%</span>
                       </div>
                     ))}
                   </div>
                 </div>
-              )}
 
-              {activeTab === 'reviews' && (
-                <div>
-                  {/* Reviews Summary */}
-                  <div
-                    className="product-page__reviews-summary flex items-center gap-8 p-6 rounded-lg"
-                    style={{
-                      backgroundColor: 'rgba(255,255,255,0.03)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      marginBottom: '24px'
-                    }}
-                  >
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '48px', fontWeight: 700, color: '#FFFFFF', marginBottom: '8px' }}>
-                        {ratingValue.toFixed(1)}
-                      </div>
-                      <div className="flex items-center justify-center gap-1 mb-2">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={`summary-${i}`}
-                            size={18}
-                            style={{
-                              color: i < Math.floor(ratingValue) ? '#F59E0B' : '#475569',
-                              fill: i < Math.floor(ratingValue) ? '#F59E0B' : 'none'
-                            }}
-                          />
-                        ))}
-                      </div>
-                      <p style={{ fontSize: '13px', color: '#94A3B8' }}>
-                        {t('businessProductPage.reviews.count', { count: reviewCount })}
-                      </p>
-                    </div>
-                    <div className="flex-1">
-                      {ratingBreakdown.map(({ stars, percentage }) => (
-                        <div key={stars} className="flex items-center gap-3 mb-2">
-                          <span style={{ fontSize: '13px', color: '#94A3B8', width: '60px' }}>
-                            {t('businessProductPage.reviews.starsLabel', { count: stars })}
-                          </span>
-                          <div
-                            style={{
-                              flex: 1,
-                              height: '8px',
-                              backgroundColor: 'rgba(255,255,255,0.1)',
-                              borderRadius: '4px',
-                              overflow: 'hidden'
-                            }}
-                          >
-                            <div
-                              style={{
-                                width: `${percentage}%`,
-                                height: '100%',
-                                backgroundColor: '#F59E0B',
-                                borderRadius: '4px'
-                              }}
-                            />
+                {/* Review cards */}
+                {reviews.length ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {reviews.map(review => (
+                      <div key={review.id} className="pp-review-card"
+                        style={{ padding: '18px 20px', borderRadius: '14px', background: '#0B2240', border: '1px solid rgba(255,255,255,0.07)', transition: 'border-color 0.15s' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', marginBottom: '12px' }}>
+                          {/* Avatar */}
+                          <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'linear-gradient(135deg, #0684F5, #0457C8)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '15px', fontWeight: 700, color: '#fff' }}>
+                            {(review.author || '?')[0].toUpperCase()}
                           </div>
-                          <span style={{ fontSize: '13px', color: '#94A3B8', width: '40px', textAlign: 'right' }}>
-                            {percentage}%
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Individual Reviews */}
-                  {reviews.length ? (
-                    <div className="product-page__review-list" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                      {reviews.map((review) => (
-                        <div
-                          key={review.id}
-                          className="p-5 rounded-lg"
-                          style={{
-                            backgroundColor: 'rgba(255,255,255,0.02)',
-                            border: '1px solid rgba(255,255,255,0.1)'
-                          }}
-                        >
-                          <div className="flex items-start justify-between mb-3">
-                            <div>
-                              <h4 style={{ fontSize: '15px', fontWeight: 600, color: '#E2E8F0', marginBottom: '4px' }}>
-                                {review.author}
-                              </h4>
-                              {review.company && (
-                                <p style={{ fontSize: '13px', color: '#94A3B8' }}>
-                                  {review.company}
-                                </p>
-                              )}
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                              <div>
+                                <span style={{ fontSize: '14px', fontWeight: 700, color: '#E2E8F0' }}>{review.author}</span>
+                                {review.company && <span style={{ fontSize: '12px', color: '#4A6080', marginLeft: '6px' }}>· {review.company}</span>}
+                              </div>
+                              {review.date && <span style={{ fontSize: '11px', color: '#2D4A6E' }}>{review.date}</span>}
                             </div>
-                            {review.date && (
-                              <span style={{ fontSize: '12px', color: '#64748B' }}>
-                                {review.date}
-                              </span>
-                            )}
+                            <div style={{ display: 'flex', gap: '2px', marginTop: '4px' }}>
+                              {[...Array(5)].map((_, i) => (
+                                <Star key={i} size={12} style={{ color: i < (review.rating || 0) ? '#F59E0B' : '#1E3A5F', fill: i < (review.rating || 0) ? '#F59E0B' : 'none' }} />
+                              ))}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1 mb-3">
-                            {[...Array(5)].map((_, i) => (
-                              <Star
-                                key={`${review.id}-star-${i}`}
-                                size={14}
-                                style={{
-                                  color: i < (review.rating || 0) ? '#F59E0B' : '#475569',
-                                  fill: i < (review.rating || 0) ? '#F59E0B' : 'none'
-                                }}
-                              />
-                            ))}
-                          </div>
-                          {review.text && (
-                            <p style={{ fontSize: '14px', color: '#CBD5E1', lineHeight: 1.6, marginBottom: '12px' }}>
-                              {review.text}
-                            </p>
-                          )}
-                          <button
-                            style={{
-                              fontSize: '13px',
-                              color: '#94A3B8',
-                              background: 'none',
-                              border: 'none',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}
-                          >
-                            {t('businessProductPage.reviews.helpful', { count: review.helpful || 0 })}
-                          </button>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={{ color: '#94A3B8', fontSize: '14px' }}>
-                      {t('businessProductPage.reviews.empty')}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+                        {review.text && (
+                          <p style={{ fontSize: '14px', color: '#94A3B8', lineHeight: 1.65, margin: '0 0 10px' }}>{review.text}</p>
+                        )}
+                        <button style={{ fontSize: '12px', color: '#2D4A6E', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                          {t('businessProductPage.reviews.helpful', { count: review.helpful || 0 })}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '48px 20px', color: '#2D4A6E' }}>
+                    <Star size={32} style={{ margin: '0 auto 12px', display: 'block', opacity: 0.3 }} />
+                    <p style={{ margin: 0, fontSize: '14px' }}>{t('businessProductPage.reviews.empty')}</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1462,6 +1073,122 @@ export default function BusinessProductPage() {
         onLoginSuccess={handleLoginSuccess}
         onSignUpClick={handleSwitchToSignup}
       />
+
+      {/* ── Quote Request Modal ── */}
+      {showQuoteModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          {/* Backdrop */}
+          <div
+            onClick={() => !isSubmittingQuote && setShowQuoteModal(false)}
+            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+          />
+
+          {/* Modal card */}
+          <div style={{
+            position: 'relative', width: '100%', maxWidth: '520px', borderRadius: '20px',
+            background: 'linear-gradient(160deg, #0D2F50, #0B2240)',
+            border: '1px solid rgba(6,132,245,0.2)',
+            boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
+            overflow: 'hidden',
+          }}>
+            {/* Header */}
+            <div style={{ padding: '24px 28px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(6,132,245,0.15)', border: '1px solid rgba(6,132,245,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <FileText size={16} style={{ color: '#0684F5' }} />
+                  </div>
+                  <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#fff', margin: 0 }}>Request a Quote</h2>
+                </div>
+                <p style={{ fontSize: '13px', color: '#64748B', margin: 0 }}>
+                  Sending to <span style={{ color: '#94A3B8', fontWeight: 600 }}>{business?.company_name}</span> for <span style={{ color: '#94A3B8' }}>"{productName}"</span>
+                </p>
+              </div>
+              <button
+                onClick={() => setShowQuoteModal(false)}
+                disabled={isSubmittingQuote}
+                style={{ background: 'none', border: 'none', color: '#4A6080', cursor: 'pointer', padding: '4px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+                onMouseLeave={e => e.currentTarget.style.color = '#4A6080'}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '24px 28px' }}>
+              {/* Quantity row */}
+              <div style={{ marginBottom: '18px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+                  Quantity / Units
+                </label>
+                <input
+                  type="number" min="1" value={quoteQuantity}
+                  onChange={e => setQuoteQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                  style={{ width: '100px', padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#fff', fontSize: '15px', fontWeight: 600, outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              {/* Requirements */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+                  Your Requirements <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <textarea
+                  value={quoteMessage}
+                  onChange={e => setQuoteMessage(e.target.value)}
+                  placeholder={`Describe what you need from ${business?.company_name}...\n\nInclude: timeline, specifications, budget range, or any specific requirements.`}
+                  rows={6}
+                  style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: `1px solid ${quoteMessage.trim() ? 'rgba(6,132,245,0.4)' : 'rgba(255,255,255,0.1)'}`, background: 'rgba(255,255,255,0.05)', color: '#fff', fontSize: '14px', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: '1.6', transition: 'border-color 0.15s' }}
+                />
+                <p style={{ fontSize: '12px', color: '#2D4A6E', margin: '6px 0 0' }}>
+                  Your message will also appear in your inbox — you can continue the conversation there.
+                </p>
+              </div>
+
+              {/* Sender info row */}
+              <div style={{ padding: '12px 14px', borderRadius: '10px', background: 'rgba(6,132,245,0.05)', border: '1px solid rgba(6,132,245,0.1)', marginBottom: '20px' }}>
+                <p style={{ fontSize: '12px', color: '#4A6080', margin: '0 0 2px', fontWeight: 600 }}>Sending as</p>
+                <p style={{ fontSize: '13px', color: '#94A3B8', margin: 0 }}>
+                  {profile?.full_name && <strong style={{ color: '#CBD5E1' }}>{profile.full_name} · </strong>}
+                  {user?.email}
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={() => setShowQuoteModal(false)}
+                  disabled={isSubmittingQuote}
+                  style={{ flex: 1, padding: '13px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#64748B', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#94A3B8'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748B'; }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSubmitQuote}
+                  disabled={isSubmittingQuote || !quoteMessage.trim()}
+                  style={{
+                    flex: 2, padding: '13px', borderRadius: '10px', border: 'none',
+                    background: isSubmittingQuote || !quoteMessage.trim() ? 'rgba(6,132,245,0.3)' : 'linear-gradient(135deg, #0684F5, #0457C8)',
+                    color: '#fff', fontSize: '14px', fontWeight: 700, cursor: isSubmittingQuote || !quoteMessage.trim() ? 'not-allowed' : 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    boxShadow: isSubmittingQuote || !quoteMessage.trim() ? 'none' : '0 6px 20px rgba(6,132,245,0.35)',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {isSubmittingQuote ? (
+                    <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Sending…</>
+                  ) : (
+                    <><Send size={16} /> Send Quote Request</>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

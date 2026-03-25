@@ -1,0 +1,35 @@
+-- UNIVERSAL FIX: RLS for Notification Settings
+-- This version uses a simpler 'IN' clause which is more reliable for UPSERT operations.
+
+-- 1. Clean up all previous attempts
+DROP POLICY IF EXISTS "Event owners can manage notification settings" ON public.event_notification_settings;
+DROP POLICY IF EXISTS "Users can view notification settings for their events" ON public.event_notification_settings;
+DROP POLICY IF EXISTS "Users can manage notification settings for their events" ON public.event_notification_settings;
+DROP POLICY IF EXISTS "Manage own notification settings" ON public.event_notification_settings;
+
+-- 2. Create a clean, robust policy for ALL operations
+CREATE POLICY "notification_settings_owner_policy"
+ON public.event_notification_settings
+FOR ALL
+TO authenticated
+USING (
+  event_id IN (
+    SELECT id FROM public.events 
+    WHERE owner_id = auth.uid() 
+    OR organizer_id = auth.uid()
+  )
+)
+WITH CHECK (
+  event_id IN (
+    SELECT id FROM public.events 
+    WHERE owner_id = auth.uid() 
+    OR organizer_id = auth.uid()
+  )
+);
+
+-- 3. Final safety check: ensure RLS is actually ON
+ALTER TABLE public.event_notification_settings ENABLE ROW LEVEL SECURITY;
+
+-- 4. Grant necessary permissions just in case
+GRANT ALL ON public.event_notification_settings TO authenticated;
+GRANT ALL ON public.event_notification_settings TO service_role;

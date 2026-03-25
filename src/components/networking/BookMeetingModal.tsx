@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner@2.0.3';
 import { createNotification } from '../../lib/notifications';
 import { useI18n } from '../../i18n/I18nContext';
+import { sendMeetingConfirmationEmails } from '../../lib/email';
 
 interface BookMeetingModalProps {
   isOpen: boolean;
@@ -75,10 +76,10 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
   const loadEventData = async () => {
     setIsLoadingEvents(true);
     try {
-      // 1. Fetch Event Details
+      // 1. Fetch Event Details - Simplified select to avoid 400 errors if some columns are missing
       const { data: eventData } = await supabase
         .from('events')
-        .select('id, name, start_date, end_date, location, city, country, event_type, status')
+        .select('id, name, start_date, location')
         .eq('id', eventId || '')
         .maybeSingle();
 
@@ -87,10 +88,8 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
           id: eventData.id,
           name: eventData.name,
           startDate: eventData.start_date,
-          endDate: eventData.end_date,
-          location: eventData.city || eventData.location || 'Online',
-          country: eventData.country || '',
-          format: eventData.event_type === 'virtual' ? 'Online' : 'In-person',
+          location: eventData.location || 'Online',
+          format: 'Event',
           capacity: 100
         }]);
       }
@@ -329,24 +328,77 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
             if (error) throw error;
         }
 
-        try {
-            await createNotification({
-            recipient_id: recipient.id,
-            type: 'action',
-            title: meetingEditId 
-              ? t('networking.notifications.meetingRescheduled.title', 'Meeting rescheduled') 
-              : t('networking.notifications.meetingRequested.title', 'Meeting requested'),
-            body: meetingEditId
-              ? t('networking.notifications.meetingRescheduled.body', { name: currentUser.full_name || currentUser.email })
-              : t('networking.notifications.meetingRequested.body', { name: currentUser.full_name || currentUser.email }),
-            action_url: '/my-networking',
-            actor_id: currentUser.id
-            });
-        } catch (notifyError) {
-            console.warn('Failed to send notification (likely RLS):', notifyError);
+        // Fetch notification settings for meeting_booked
+        let meetingNotifSettings = { is_bell_enabled: true, is_email_enabled: true };
+        if (targetEventId) {
+          try {
+            const { data: notifSetting } = await supabase
+              .from('event_notification_settings')
+              .select('is_bell_enabled, is_email_enabled')
+              .eq('event_id', targetEventId)
+              .eq('trigger_type', 'meeting_booked')
+              .maybeSingle();
+            if (notifSetting) meetingNotifSettings = notifSetting;
+          } catch { /* default ON */ }
+        }
+
+        if (meetingNotifSettings.is_bell_enabled) {
+          try {
+              await createNotification({
+              recipient_id: recipient.id,
+              type: 'action',
+              title: meetingEditId
+                ? t('networking.notifications.meetingRescheduled.title', 'Meeting rescheduled')
+                : t('networking.notifications.meetingRequested.title', 'Meeting requested'),
+              body: meetingEditId
+                ? t('networking.notifications.meetingRescheduled.body', { name: currentUser.full_name || currentUser.email })
+                : t('networking.notifications.meetingRequested.body', { name: currentUser.full_name || currentUser.email }),
+              action_url: '/my-networking',
+              actor_id: currentUser.id
+              });
+          } catch (notifyError) {
+              console.warn('Failed to send notification (likely RLS):', notifyError);
+          }
         }
 
         toast.success(meetingEditId ? 'Meeting rescheduled' : 'Meeting requested');
+
+        // --- SEND EMAILS ---
+        if (meetingNotifSettings.is_email_enabled) {
+        try {
+          // 1. Fetch Recipient Email (currentUser already has email in auth)
+          const { data: recipientProfile } = await supabase
+            .from('profiles')
+            .select('email')
+            .eq('id', recipient.id)
+            .single();
+
+          // 2. Fetch Event Name
+          const currentEvent = eventCatalog.find(e => e.id === targetEventId);
+          const eventName = currentEvent ? currentEvent.name : 'Event';
+
+          console.log('[EMAIL_DEBUG] Sending with Event Name:', eventName);
+
+          if (currentUser.email && recipientProfile?.email) {
+            sendMeetingConfirmationEmails({
+              organizerEmail: currentUser.email,
+              organizerName: currentUser.full_name || currentUser.email,
+              recipientEmail: recipientProfile.email,
+              recipientName: recipient.name,
+              meetingDate: startAt.toLocaleDateString(),
+              meetingTime: startAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              location: location,
+              eventName: eventName,
+              meetingId: meetingEditId || 'new',
+              status: 'pending'
+            }).catch(err => console.error('Failed to send meeting emails:', err));
+          }
+        } catch (emailErr) {
+          console.error('Error preparing meeting emails:', emailErr);
+        }
+        } // end is_email_enabled gate
+        // -------------------
+
         onClose();
 
     } catch (err: any) {

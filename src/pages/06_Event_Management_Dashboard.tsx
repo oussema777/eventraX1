@@ -19,7 +19,8 @@ import {
   MapPin,
   Menu,
   X,
-  FileText
+  FileText,
+  Bell
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -35,20 +36,22 @@ import EventMarketingTab from '../components/dashboard/EventMarketingTab';
 import EventDayOfTab from '../components/dashboard/EventDayOfTab';
 import EventReportingTab from '../components/dashboard/EventReportingTab';
 import EventFormsTab from '../components/dashboard/EventFormsTab';
+import EventNotificationCenterTab from '../components/dashboard/EventNotificationCenterTab';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 
-type NavigationTab = 
-  | 'overview' 
-  | 'agenda' 
-  | 'speakers' 
-  | 'attendees' 
+type NavigationTab =
+  | 'overview'
+  | 'agenda'
+  | 'speakers'
+  | 'attendees'
   | 'forms'
-  | 'exhibitors' 
-  | 'ticketing' 
-  | 'b2b' 
-  | 'marketing' 
+  | 'exhibitors'
+  | 'ticketing'
+  | 'b2b'
+  | 'marketing'
   | 'dayof'
-  | 'reporting';
+  | 'reporting'
+  | 'notifications';
 
 interface NavigationItem {
   id: NavigationTab;
@@ -97,11 +100,12 @@ export default function EventManagementDashboard() {
     { id: 'agenda', label: t('manageEvent.nav.agenda.label'), icon: Calendar, description: t('manageEvent.nav.agenda.desc') },
     { id: 'speakers', label: t('manageEvent.nav.speakers.label'), icon: Mic, description: t('manageEvent.nav.speakers.desc') },
     { id: 'attendees', label: t('manageEvent.nav.attendees.label'), icon: Users, description: t('manageEvent.nav.attendees.desc') },
-    { id: 'forms', label: 'Forms', icon: FileText, description: 'View form submissions' },
+    { id: 'forms', label: t('manageEvent.nav.forms.label'), icon: FileText, description: t('manageEvent.nav.forms.desc') },
     { id: 'exhibitors', label: t('manageEvent.nav.exhibitors.label'), icon: Building, description: t('manageEvent.nav.exhibitors.desc') },
     { id: 'ticketing', label: t('manageEvent.nav.ticketing.label'), icon: Ticket, description: t('manageEvent.nav.ticketing.desc') },
     { id: 'b2b', label: t('manageEvent.nav.b2b.label'), icon: Handshake, description: t('manageEvent.nav.b2b.desc') },
-    { id: 'dayof', label: t('manageEvent.nav.dayof.label'), icon: Wrench, description: t('manageEvent.nav.dayof.desc') }
+    { id: 'dayof', label: t('manageEvent.nav.dayof.label'), icon: Wrench, description: t('manageEvent.nav.dayof.desc') },
+    { id: 'notifications', label: 'Notifications', icon: Bell, description: 'Manage notification settings and history' }
   ];
 
   useEffect(() => {
@@ -334,7 +338,7 @@ export default function EventManagementDashboard() {
               <ArrowLeft size={22} />
             </button>
           </div>
-          <nav className="event-dashboard__nav p-3">
+          <nav className="event-dashboard__nav p-3 overflow-y-auto flex-1">
             {navigationItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -371,6 +375,7 @@ export default function EventManagementDashboard() {
           {activeTab === 'b2b' && <EventB2BMatchmakingTab eventId={eventId} />}
           {activeTab === 'marketing' && <EventMarketingTab eventId={eventId} />}
           {activeTab === 'dayof' && <EventDayOfTab eventId={eventId} />}
+          {activeTab === 'notifications' && <EventNotificationCenterTab eventId={eventId} />}
         </main>
       </div>
     </div>

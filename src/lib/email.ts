@@ -9,9 +9,12 @@ interface SendEmailParams {
 
 export async function sendEmail({ to, subject, html }: SendEmailParams): Promise<boolean> {
   try {
-    console.log(`[EMAIL_DEBUG] Sending request to: /api/send-email for: ${to}`);
+    const isLocal = window.location.hostname === 'localhost';
+    const endpoint = isLocal ? 'http://localhost:5001/send-email' : '/api/send-email';
     
-    const res = await fetch('/api/send-email', {
+    console.log(`[EMAIL_DEBUG] Sending request to ${endpoint} for: ${to}`);
+    
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json'
@@ -21,15 +24,15 @@ export async function sendEmail({ to, subject, html }: SendEmailParams): Promise
 
     if (!res.ok) {
       const err = await res.json();
-      console.error('[PROXY_DEBUG] Proxy Error:', err);
+      console.error('[EMAIL_DEBUG] Proxy Error:', err);
       return false;
     }
 
     const data = await res.json();
-    console.log('[PROXY_DEBUG] Proxy Success:', data);
+    console.log('[EMAIL_DEBUG] Proxy Success:', data);
     return true;
   } catch (error) {
-    console.error('[PROXY_DEBUG] Proxy Connection Failed (Is email-proxy.js running?):', error);
+    console.error('[EMAIL_DEBUG] Proxy Connection Failed:', error);
     return false;
   }
 }
@@ -142,6 +145,60 @@ export async function sendWelcomeEmail(to: string, userName: string, userId: str
   });
 }
 
+export async function sendMeetingConfirmationEmails(params: {
+  organizerEmail: string;
+  organizerName: string;
+  recipientEmail: string;
+  recipientName: string;
+  meetingDate: string;
+  meetingTime: string;
+  location: string;
+  eventName: string;
+  meetingId: string;
+  status: 'pending' | 'confirmed';
+}) {
+  const meetingUrl = `${window.location.origin}/my-networking?meetingId=${params.meetingId}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(meetingUrl)}&size=250x250&bgcolor=ffffff&color=0684F5&margin=10`;
+
+  const commonParams = {
+    eventName: params.eventName,
+    meetingDate: params.meetingDate,
+    meetingTime: params.meetingTime,
+    location: params.location,
+    organizerName: params.organizerName,
+    recipientName: params.recipientName,
+    qrCodeUrl,
+    status: params.status
+  };
+
+  // Titles based on status
+  const orgSubject = params.status === 'pending' 
+    ? `Meeting Request: ${params.recipientName} at ${params.eventName}` 
+    : `Meeting Confirmed: ${params.recipientName} at ${params.eventName}`;
+    
+  const recSubject = params.status === 'pending' 
+    ? `New Meeting Request for ${params.eventName}` 
+    : `Meeting Confirmed for ${params.eventName}`;
+
+  // Send to Organizer
+  const organizerHtml = generateMeetingConfirmationEmailHtml({ ...commonParams, role: 'organizer' });
+  const organizerSent = sendEmail({
+    to: params.organizerEmail,
+    subject: orgSubject,
+    html: organizerHtml
+  });
+
+  // Send to Recipient
+  const recipientHtml = generateMeetingConfirmationEmailHtml({ ...commonParams, role: 'recipient' });
+  const recipientSent = sendEmail({
+    to: params.recipientEmail,
+    subject: recSubject,
+    html: recipientHtml
+  });
+
+  return Promise.all([organizerSent, recipientSent]);
+}
+
 export function generateMeetingConfirmationEmailHtml(params: {
   eventName: string;
   meetingDate: string;
@@ -150,16 +207,33 @@ export function generateMeetingConfirmationEmailHtml(params: {
   organizerName: string;
   recipientName: string;
   qrCodeUrl: string;
+  status: 'pending' | 'confirmed';
+  role: 'organizer' | 'recipient';
 }) {
+  const isConfirmed = params.status === 'confirmed';
+  const title = isConfirmed ? 'Meeting Confirmed!' : 'New Meeting Request';
+  const accentColor = isConfirmed ? '#0684F5' : '#F59E0B'; // Blue for confirmed, Amber for pending
+
   return `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #000000; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
-      <h1 style="color: #0684F5;">Meeting Confirmed!</h1>
+      <h1 style="color: ${accentColor};">${title}</h1>
       <p>Hello,</p>
-      <p>This is to confirm your B2B networking meeting for <strong>${params.eventName}</strong>.</p>
+      <p>
+        ${params.status === 'pending' 
+          ? (params.role === 'organizer' 
+              ? `Your meeting request for <strong>${params.eventName}</strong> has been sent.` 
+              : `You have received a new meeting request for <strong>${params.eventName}</strong>.`)
+          : `This is to confirm your B2B networking meeting for <strong>${params.eventName}</strong>.`
+        }
+      </p>
       
       <div style="background: #F8FAFC; padding: 20px; border-radius: 12px; margin: 24px 0; border: 1px solid #E2E8F0;">
         <h3 style="margin-top: 0; color: #1E293B;">Meeting Details</h3>
         <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; color: #64748B; width: 120px;">Status:</td>
+            <td style="padding: 8px 0; font-weight: 600; color: ${accentColor}; text-transform: uppercase; font-size: 12px;">${params.status}</td>
+          </tr>
           <tr>
             <td style="padding: 8px 0; color: #64748B; width: 120px;">Date:</td>
             <td style="padding: 8px 0; font-weight: 600;">${params.meetingDate}</td>
@@ -179,6 +253,7 @@ export function generateMeetingConfirmationEmailHtml(params: {
         </table>
       </div>
 
+      ${isConfirmed ? `
       <div style="text-align: center; margin: 32px 0;">
         <p style="margin-bottom: 16px; font-weight: 700; color: #1E293B;">Meeting QR Code</p>
         <div style="display: inline-block; padding: 16px; background: white; border: 2px solid #0684F5; border-radius: 16px;">
@@ -186,9 +261,14 @@ export function generateMeetingConfirmationEmailHtml(params: {
         </div>
         <p style="font-size: 13px; color: #64748B; margin-top: 16px;">Scan this code at the meeting table for check-in.</p>
       </div>
+      ` : `
+      <div style="text-align: center; margin: 32px 0;">
+        <a href="${window.location.origin}/my-networking" style="display: inline-block; padding: 14px 32px; background-color: #0684F5; color: #FFFFFF; text-decoration: none; border-radius: 8px; font-weight: 600;">Review Request</a>
+      </div>
+      `}
 
       <p style="font-size: 14px; color: #475569; line-height: 1.6;">
-        Please arrive on time. If you need to reschedule, you can do so through your <a href="https://eventra.ilab.tn/my-networking" style="color: #0684F5; text-decoration: none; font-weight: 600;">Networking Dashboard</a>.
+        Please manage your meetings through your <a href="${window.location.origin}/my-networking" style="color: #0684F5; text-decoration: none; font-weight: 600;">Networking Dashboard</a>.
       </p>
       
       <p style="margin-top: 40px; font-size: 12px; color: #94A3B8; text-align: center; border-top: 1px solid #F1F5F9; padding-top: 20px;">

@@ -322,7 +322,7 @@ export default function SponsorsTab() {
                     }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)'}
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
-                    title="Edit Package"
+                    title={t('wizard.step3.sponsors.actions.editPackage')}
                   >
                     <Edit size={14} />
                   </button>

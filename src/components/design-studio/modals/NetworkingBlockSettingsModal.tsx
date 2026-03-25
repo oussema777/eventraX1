@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Save, MessageSquare, Loader2 } from 'lucide-react';
+import { useI18n } from '../../../i18n/I18nContext';
 
 interface NetworkingBlockSettingsModalProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ export default function NetworkingBlockSettingsModal({
   onSave,
   isSaving = false
 }: NetworkingBlockSettingsModalProps) {
+  const { t } = useI18n();
   const [formData, setFormData] = useState({
     title: '',
     subtitle: '',
@@ -75,10 +77,10 @@ export default function NetworkingBlockSettingsModal({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 28px', borderBottom: '1px solid #F3F4F6' }}>
           <div>
             <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#111827', marginBottom: '4px' }}>
-              Networking Settings
+              {t('wizard.designStudio.modals.networkingBlock.title')}
             </h2>
             <p style={{ fontSize: '13px', color: '#6B7280' }}>
-              Customize your B2B networking promotion block.
+              {t('wizard.designStudio.modals.networkingBlock.subtitle')}
             </p>
           </div>
           <button 
@@ -104,53 +106,53 @@ export default function NetworkingBlockSettingsModal({
         <form onSubmit={handleSubmit} style={{ padding: '28px', overflowY: 'auto' }}>
           
           <div style={{ marginBottom: '24px' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Section Content</h3>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>{t('wizard.designStudio.modals.networkingBlock.sections.sectionContent')}</h3>
             
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
-                Main Title
+                {t('wizard.designStudio.modals.networkingBlock.labels.mainTitle')}
               </label>
               <input
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '2px solid #E5E7EB', fontSize: '15px', color: '#111827', fontWeight: 500, outline: 'none' }}
-                placeholder="e.g., Unlock High-Value B2B Connections"
+                placeholder={t('wizard.designStudio.modals.networkingBlock.placeholders.title')}
               />
             </div>
 
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
-                Highlight Tagline
+                {t('wizard.designStudio.modals.networkingBlock.labels.highlightTagline')}
               </label>
               <input
                 value={formData.subtitle}
                 onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
                 style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '2px solid #E5E7EB', fontSize: '15px', color: '#111827', fontWeight: 500, outline: 'none' }}
-                placeholder="e.g., AI-Powered Matchmaking"
+                placeholder={t('wizard.designStudio.modals.networkingBlock.placeholders.tagline')}
               />
             </div>
 
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
-                Description
+                {t('wizard.designStudio.modals.networkingBlock.labels.description')}
               </label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '2px solid #E5E7EB', fontSize: '15px', color: '#111827', fontWeight: 500, outline: 'none', minHeight: '100px', resize: 'none' }}
-                placeholder="Explain the benefits of networking at your event..."
+                placeholder={t('wizard.designStudio.modals.networkingBlock.placeholders.description')}
               />
             </div>
 
             <div style={{ marginBottom: '16px' }}>
               <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
-                CTA Button Text
+                {t('wizard.designStudio.modals.networkingBlock.labels.ctaButtonText')}
               </label>
               <input
                 value={formData.ctaText}
                 onChange={(e) => setFormData({ ...formData, ctaText: e.target.value })}
                 style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '2px solid #E5E7EB', fontSize: '15px', color: '#111827', fontWeight: 500, outline: 'none' }}
-                placeholder="e.g., Explore Networking Center"
+                placeholder={t('wizard.designStudio.modals.networkingBlock.placeholders.ctaText')}
               />
             </div>
           </div>
@@ -162,7 +164,7 @@ export default function NetworkingBlockSettingsModal({
               onClick={onClose}
               style={{ padding: '10px 20px', borderRadius: '8px', border: '2px solid #E5E7EB', backgroundColor: '#FFFFFF', color: '#374151', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
             >
-              Cancel
+              {t('wizard.designStudio.modals.networkingBlock.actions.cancel')}
             </button>
             <button
               type="submit"
@@ -170,7 +172,7 @@ export default function NetworkingBlockSettingsModal({
               style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', backgroundColor: '#0684F5', color: '#FFFFFF', fontSize: '14px', fontWeight: 700, cursor: 'pointer', opacity: isSaving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 6px -1px rgba(6, 132, 245, 0.2)' }}
             >
               {isSaving && <Loader2 size={16} className="animate-spin" />}
-              {isSaving ? 'Updating...' : 'Update Section'}
+              {isSaving ? t('wizard.designStudio.modals.networkingBlock.actions.updating') : t('wizard.designStudio.modals.networkingBlock.actions.updateSection')}
             </button>
           </div>
         </form>

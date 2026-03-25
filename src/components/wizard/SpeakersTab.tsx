@@ -426,7 +426,7 @@ export default function SpeakersTab() {
                             handleEditSpeaker(speaker);
                         }}
                         className="w-8 h-8 rounded flex items-center justify-center transition-colors hover:bg-white/10"
-                        title="Edit"
+                        title={t('wizard.step3.speakers.actions.edit')}
                         >
                         <Edit2 size={14} style={{ color: '#94A3B8' }} />
                         </button>
@@ -436,7 +436,7 @@ export default function SpeakersTab() {
                             handleViewProfile(speaker);
                         }}
                         className="w-8 h-8 rounded flex items-center justify-center transition-colors hover:bg-white/10"
-                        title="View Profile"
+                        title={t('wizard.step3.speakers.actions.viewProfile')}
                         >
                         <Eye size={14} style={{ color: '#94A3B8' }} />
                         </button>
@@ -446,7 +446,7 @@ export default function SpeakersTab() {
                                 handleDeleteSpeaker(speaker.id);
                             }}
                             className="w-8 h-8 rounded flex items-center justify-center transition-colors hover:bg-white/10"
-                            title="Delete"
+                            title={t('wizard.step3.speakers.actions.delete')}
                         >
                         <Trash2 size={14} style={{ color: '#EF4444' }} />
                         </button>
@@ -503,7 +503,7 @@ export default function SpeakersTab() {
                 <span className="text-sm" style={{ fontWeight: 600, color: '#0B2641' }}>{t('manageEvent.speakers.materials.columns.speaker')}</span>
               </div>
               <div className="col-span-3">
-                <span className="text-sm" style={{ fontWeight: 600, color: '#0B2641' }}>Title & Company</span>
+                <span className="text-sm" style={{ fontWeight: 600, color: '#0B2641' }}>{t('wizard.step3.speakers.listView.titleCompany')}</span>
               </div>
               <div className="col-span-1">
                 <span className="text-sm" style={{ fontWeight: 600, color: '#0B2641' }}>{t('manageEvent.speakers.detailModal.tabs.sessions')}</span>
@@ -512,7 +512,7 @@ export default function SpeakersTab() {
                 <span className="text-sm" style={{ fontWeight: 600, color: '#0B2641' }}>{t('manageEvent.speakers.materials.columns.status')}</span>
               </div>
               <div className="col-span-1">
-                <span className="text-sm" style={{ fontWeight: 600, color: '#0B2641' }}>Type</span>
+                <span className="text-sm" style={{ fontWeight: 600, color: '#0B2641' }}>{t('wizard.step3.speakers.listView.type')}</span>
               </div>
               <div className="col-span-1 text-right">
                 <span className="text-sm" style={{ fontWeight: 600, color: '#0B2641' }}>{t('manageEvent.speakers.bySession.columns.actions')}</span>

@@ -1,0 +1,31 @@
+-- FIX: RLS Policy for Notification Settings
+-- Run this in your Supabase SQL Editor to allow saving notification templates.
+
+-- 1. Remove the old restrictive policy
+DROP POLICY IF EXISTS "Event owners can manage notification settings" ON public.event_notification_settings;
+DROP POLICY IF EXISTS "Users can view notification settings for their events" ON public.event_notification_settings;
+DROP POLICY IF EXISTS "Users can manage notification settings for their events" ON public.event_notification_settings;
+
+-- 2. Create an EXPLICIT policy for ALL operations (Select, Insert, Update, Delete)
+-- This verifies that the user owns the event before allowing any modification to the settings.
+CREATE POLICY "Users can manage notification settings for their events"
+ON public.event_notification_settings
+FOR ALL 
+TO authenticated
+USING (
+    EXISTS (
+        SELECT 1 FROM public.events
+        WHERE events.id = event_notification_settings.event_id
+        AND (events.owner_id = auth.uid() OR events.organizer_id = auth.uid())
+    )
+)
+WITH CHECK (
+    EXISTS (
+        SELECT 1 FROM public.events
+        WHERE events.id = event_id
+        AND (events.owner_id = auth.uid() OR events.organizer_id = auth.uid())
+    )
+);
+
+-- 3. Ensure the table is also readable for checking existing rows
+ALTER TABLE public.event_notification_settings ENABLE ROW LEVEL SECURITY;
