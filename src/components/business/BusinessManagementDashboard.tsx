@@ -3,7 +3,7 @@ import {
   Home,
   Edit,
   Users,
-  Sparkles,
+  Search,
   Globe,
   Palette,
   BarChart3,
@@ -27,9 +27,6 @@ import {
   Mail,
   Phone,
   MapPin,
-  Lightbulb,
-  Target,
-  Award,
   Package,
   Loader2
 } from 'lucide-react';
@@ -43,7 +40,7 @@ import { createNotification } from '../../lib/notifications';
 import { useI18n } from '../../i18n/I18nContext';
 
 type ProfileStatus = 'draft' | 'pending' | 'live';
-type TabKey = 'dashboard' | 'profile' | 'team' | 'products' | 'ai' | 'visibility' | 'appearance' | 'analytics';
+type TabKey = 'dashboard' | 'profile' | 'team' | 'products' | 'visibility' | 'appearance' | 'analytics';
 
 interface TeamMember {
   id: string;
@@ -312,7 +309,6 @@ export default function BusinessManagementDashboard() {
     { key: 'profile' as TabKey, label: t('businessDashboard.tabs.profile'), icon: Edit },
     { key: 'team' as TabKey, label: t('businessDashboard.tabs.team'), icon: Users },
     { key: 'products' as TabKey, label: t('businessDashboard.tabs.products'), icon: Package },
-    { key: 'ai' as TabKey, label: t('businessDashboard.tabs.ai'), icon: Sparkles, highlight: true },
     { key: 'visibility' as TabKey, label: t('businessDashboard.tabs.visibility'), icon: Globe },
     { key: 'appearance' as TabKey, label: t('businessDashboard.tabs.appearance'), icon: Palette },
     { key: 'analytics' as TabKey, label: t('businessDashboard.tabs.analytics'), icon: BarChart3 }
@@ -2015,275 +2011,6 @@ export default function BusinessManagementDashboard() {
                   </div>
                 </div>
               )}
-            </div>
-          )}
-
-          {/* AI Advisor Tab */}
-          {activeTab === 'ai' && (
-            <div>
-              <div className="flex items-center gap-3 mb-6">
-                <Sparkles size={32} style={{ color: '#F59E0B' }} />
-                <h2 style={{ fontSize: '28px', fontWeight: 700, color: '#FFFFFF' }}>
-                  {t('businessDashboard.ai.title')}
-                </h2>
-              </div>
-              <p style={{ fontSize: '16px', color: '#94A3B8', marginBottom: '32px' }}>
-                {t('businessDashboard.ai.subtitle')}
-              </p>
-
-              {/* Content Optimizer */}
-              <div
-                className="rounded-xl p-6 mb-6"
-                style={{
-                  backgroundColor: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)'
-                }}
-              >
-                <div className="flex items-center gap-2 mb-4">
-                  <Edit size={20} style={{ color: '#F59E0B' }} />
-                  <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF' }}>
-                    {t('businessDashboard.ai.optimizer.title')}
-                  </h3>
-                </div>
-
-                <div className="mb-4">
-                  <label style={{ fontSize: '14px', fontWeight: 600, color: '#94A3B8', marginBottom: '8px', display: 'block' }}>
-                    {t('businessDashboard.ai.optimizer.current')}
-                  </label>
-                  <textarea
-                    value={originalDescription}
-                    onChange={(e) => setOriginalDescription(e.target.value)}
-                    rows={3}
-                    className="w-full rounded-lg p-4"
-                    style={{
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      color: '#FFFFFF',
-                      fontSize: '14px',
-                      resize: 'none',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-
-                <button
-                  onClick={handleOptimizeContent}
-                  disabled={isGenerating}
-                  className="px-6 py-2 rounded-lg flex items-center gap-2 transition-all mb-4"
-                  style={{
-                    backgroundColor: isGenerating ? '#6B7280' : '#F59E0B',
-                    color: '#FFFFFF',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    border: 'none',
-                    cursor: isGenerating ? 'not-allowed' : 'pointer',
-                    opacity: isGenerating ? 0.7 : 1
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isGenerating) e.currentTarget.style.backgroundColor = '#D97706';
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isGenerating) e.currentTarget.style.backgroundColor = '#F59E0B';
-                  }}
-                >
-                  {isGenerating ? (
-                    <>
-                      <RefreshCw size={18} className="animate-spin" />
-                      {t('businessDashboard.ai.optimizer.generating')}
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles size={18} />
-                      {t('businessDashboard.ai.optimizer.rewrite')}
-                    </>
-                  )}
-                </button>
-
-                {showAISuggestion && (
-                  <div
-                    className="rounded-lg p-4 mb-4"
-                    style={{
-                      backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                      border: '1px solid #F59E0B'
-                    }}
-                  >
-                    <div className="flex items-start gap-2 mb-3">
-                      <Sparkles size={18} style={{ color: '#F59E0B', flexShrink: 0, marginTop: '2px' }} />
-                      <div>
-                        <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#F59E0B', marginBottom: '8px' }}>
-                          {t('businessDashboard.ai.optimizer.suggestion')}
-                        </h4>
-                        <p style={{ fontSize: '14px', color: '#E2E8F0', lineHeight: '1.6' }}>
-                          {aiSuggestion}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex gap-3">
-                      <button
-                        onClick={handleAcceptSuggestion}
-                        className="px-4 py-2 rounded-lg transition-all"
-                        style={{
-                          backgroundColor: '#10B981',
-                          color: '#FFFFFF',
-                          fontSize: '13px',
-                          fontWeight: 600,
-                          border: 'none',
-                          cursor: 'pointer'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10B981'}
-                      >
-                        {t('businessDashboard.ai.optimizer.accept')}
-                      </button>
-                      <button
-                        onClick={handleOptimizeContent}
-                        className="px-4 py-2 rounded-lg transition-all"
-                        style={{
-                          backgroundColor: 'rgba(255,255,255,0.1)',
-                          color: '#FFFFFF',
-                          fontSize: '13px',
-                          fontWeight: 600,
-                          border: '1px solid rgba(255,255,255,0.2)',
-                          cursor: 'pointer'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
-                      >
-                        {t('businessDashboard.ai.optimizer.tryAgain')}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Tag Generator */}
-              <div
-                className="rounded-xl p-6 mb-6"
-                style={{
-                  backgroundColor: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)'
-                }}
-              >
-                <div className="flex items-center gap-2 mb-4">
-                  <Target size={20} style={{ color: '#F59E0B' }} />
-                  <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF' }}>
-                    {t('businessDashboard.ai.tags.title')}
-                  </h3>
-                </div>
-                <p style={{ fontSize: '14px', color: '#94A3B8', marginBottom: '12px' }}>
-                  {t('businessDashboard.ai.tags.subtitle')}
-                </p>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {SUGGESTED_TAGS.map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-3 py-1.5 rounded-lg"
-                      style={{
-                        backgroundColor: 'rgba(6, 132, 245, 0.1)',
-                        border: '1px solid #0684F5',
-                        color: '#0684F5',
-                        fontSize: '13px',
-                        fontWeight: 600
-                      }}
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-                <button
-                  className="px-5 py-2 rounded-lg transition-all"
-                  style={{
-                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                    color: '#F59E0B',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    border: '1px solid #F59E0B',
-                    cursor: 'pointer'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.2)'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.1)'}
-                  onClick={handleApplySuggestedTags}
-                >
-                  {t('businessDashboard.ai.tags.apply')}
-                </button>
-              </div>
-
-              {/* Competitor Insight */}
-              <div
-                className="rounded-xl p-6 mb-6"
-                style={{
-                  backgroundColor: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)'
-                }}
-              >
-                <div className="flex items-center gap-2 mb-4">
-                  <TrendingUp size={20} style={{ color: '#F59E0B' }} />
-                  <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF' }}>
-                    {t('businessDashboard.ai.competitor.title')}
-                  </h3>
-                </div>
-                <div
-                  className="rounded-lg p-4"
-                  style={{
-                    backgroundColor: 'rgba(124, 58, 237, 0.1)',
-                    border: '1px solid rgba(124, 58, 237, 0.3)'
-                  }}
-                >
-                  <p style={{ fontSize: '14px', color: '#E2E8F0', fontStyle: 'italic', lineHeight: '1.6' }}>
-                    "Similar businesses in your sector typically list 3-5 case studies. You currently have 0. Adding case studies can increase credibility by up to 60%."
-                  </p>
-                </div>
-              </div>
-
-              {/* Best Practices */}
-              <div
-                className="rounded-xl p-6"
-                style={{
-                  backgroundColor: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)'
-                }}
-              >
-                <div className="flex items-center gap-2 mb-4">
-                  <Lightbulb size={20} style={{ color: '#F59E0B' }} />
-                  <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF' }}>
-                    {t('businessDashboard.ai.bestPractices.title')}
-                  </h3>
-                </div>
-                <div className="space-y-3">
-                  {[
-                    { tip: 'Profiles with a cover video get 40% more engagement', impact: 'High Impact' },
-                    { tip: 'Adding team member profiles increases trust by 35%', impact: 'Medium Impact' },
-                    { tip: 'Regular content updates improve search rankings', impact: 'Medium Impact' }
-                  ].map((item, index) => (
-                    <div
-                      key={index}
-                      className="flex items-start gap-3 p-3 rounded-lg"
-                      style={{
-                        backgroundColor: 'rgba(255,255,255,0.03)',
-                        border: '1px solid rgba(255,255,255,0.05)'
-                      }}
-                    >
-                      <Award size={18} style={{ color: '#10B981', flexShrink: 0, marginTop: '2px' }} />
-                      <div className="flex-1">
-                        <p style={{ fontSize: '14px', color: '#E2E8F0', marginBottom: '4px' }}>
-                          {item.tip}
-                        </p>
-                        <span
-                          className="px-2 py-0.5 rounded text-xs"
-                          style={{
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            color: '#10B981',
-                            fontSize: '11px',
-                            fontWeight: 600
-                          }}
-                        >
-                          {item.impact}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
 

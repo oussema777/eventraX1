@@ -21,7 +21,10 @@ import {
   ChevronDown,
   ChevronUp,
   Save,
-  ArrowLeft
+  ArrowLeft,
+  UserCheck,
+  UserX,
+  ScanLine
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import { supabase } from '../../lib/supabase';
@@ -311,378 +314,410 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
     return <BadgeEditorSimple eventId={eventId} onBack={() => setIsDesigningBadges(false)} />;
   }
 
+  const approvedCount = attendees.filter(a => a.status === 'approved').length;
+  const pendingCount = attendees.filter(a => a.status === 'pending').length;
+  const checkedInCount = attendees.filter(a => a.checked_in).length;
+
   return (
-    <div className="attendees-tab space-y-8">
-      
-      {/* HEADER SECTION */}
-      <section>
-        <div className="flex items-center justify-between mb-6">
+    <div className="attendees-tab space-y-6">
+
+      {/* ─── HEADER ─── */}
+      <div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>
-              {t('wizard.step3.attendeesTab.title')}
-            </h2>
-            <p style={{ fontSize: '14px', color: '#94A3B8' }}>
-              {t('wizard.step3.attendeesTab.subtitle')}
-            </p>
+            <h2 className="text-xl sm:text-2xl font-bold text-white">{t('wizard.step3.attendeesTab.title')}</h2>
+            <p className="text-sm text-gray-400 mt-1">{t('wizard.step3.attendeesTab.subtitle')}</p>
           </div>
-          
-          <div className="flex items-center gap-3">
-             <button
-               onClick={handleDownloadTemplate}
-               className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg text-xs font-bold border border-white/10 transition-all shadow-sm"
-             >
-               <Download size={14} />
-               {t('wizard.step3.attendeesTab.csvTemplate')}
-             </button>
-             <div className="relative group">
-                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#0684F5] transition-colors" />
-                <input
-                  type="text"
-                  placeholder={t('wizard.step3.attendeesTab.searchPlaceholder')}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{
-                    height: '42px',
-                    paddingLeft: '40px',
-                    paddingRight: '16px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '10px',
-                    color: '#FFFFFF',
-                    fontSize: '14px',
-                    minWidth: '260px',
-                    outline: 'none'
-                  }}
-                  className="focus:border-[#0684F5] transition-colors"
-                />
-             </div>
+          {!isAdding && (
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={handleDownloadTemplate}
+                className="p-2.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg border border-white/10 transition-all"
+                title={t('wizard.step3.attendeesTab.csvTemplate')}
+              >
+                <Download size={16} />
+              </button>
+              <button
+                onClick={handleExport}
+                className="p-2.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg border border-white/10 transition-all"
+                title={t('wizard.step3.attendeesTab.actions.exportList')}
+              >
+                <Upload size={16} />
+              </button>
+              <button
+                onClick={() => setIsImportModalOpen(true)}
+                className="flex items-center gap-2 px-3 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg text-xs font-semibold border border-white/10 transition-all"
+              >
+                <Upload size={14} />
+                <span className="hidden sm:inline">{t('wizard.step3.attendeesTab.actions.importCsv')}</span>
+              </button>
+              <button
+                onClick={() => setIsAdding(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg text-xs font-bold transition-all shadow-lg shadow-emerald-500/20"
+              >
+                <Plus size={16} />
+                <span className="hidden sm:inline">{t('wizard.step3.attendeesTab.actions.addManually')}</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ─── STAT CARDS ─── */}
+      {!isAdding && attendees.length > 0 && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-500/10"><Users size={18} className="text-blue-400" /></div>
+              <div>
+                <p className="text-2xl font-bold text-white">{attendees.length}</p>
+                <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider">{t('wizard.step3.attendeesTab.table.name')}s</p>
+              </div>
+            </div>
+          </div>
+          <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-emerald-500/10"><UserCheck size={18} className="text-emerald-400" /></div>
+              <div>
+                <p className="text-2xl font-bold text-white">{approvedCount}</p>
+                <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider">{t('wizard.step3.attendeesTab.table.approved')}</p>
+              </div>
+            </div>
+          </div>
+          <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-amber-500/10"><Clock size={18} className="text-amber-400" /></div>
+              <div>
+                <p className="text-2xl font-bold text-white">{pendingCount}</p>
+                <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider">{t('wizard.step3.attendeesTab.table.pending')}</p>
+              </div>
+            </div>
+          </div>
+          <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-purple-500/10"><ScanLine size={18} className="text-purple-400" /></div>
+              <div>
+                <p className="text-2xl font-bold text-white">{checkedInCount}</p>
+                <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider">{t('wizard.step3.attendeesTab.table.checkedIn')}</p>
+              </div>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* ACTIONS ROW (Add, Export, Import) */}
-        {!isAdding && (
-          <div className="grid grid-cols-3 gap-6 mb-8">
-            <div 
-              className="p-6 rounded-xl border border-dashed border-emerald-500/30 bg-emerald-500/5 flex flex-col items-center justify-center text-center hover:bg-emerald-500/10 hover:border-emerald-500/60 hover:-translate-y-1 hover:shadow-lg hover:shadow-emerald-500/10 transition-all cursor-pointer group duration-300"
-              onClick={() => setIsAdding(true)}
-            >
-              <div className="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 group-hover:bg-emerald-500/20 border border-emerald-500/20">
-                <Plus size={28} className="text-emerald-500" />
-              </div>
-              <h3 className="text-lg font-bold text-white mb-1 group-hover:text-emerald-400 transition-colors">{t('wizard.step3.attendeesTab.actions.addManually')}</h3>
-              <p className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">{t('wizard.step3.attendeesTab.actions.addManuallyDesc')}</p>
-            </div>
+      {/* ─── IMPORT MODAL ─── */}
+      <ImportAttendeesModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={handleBulkImport}
+      />
 
-            <div 
-              className="p-6 rounded-xl border border-dashed border-blue-500/30 bg-blue-500/5 flex flex-col items-center justify-center text-center hover:bg-blue-500/10 hover:border-blue-500/60 hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/10 transition-all cursor-pointer group duration-300"
-              onClick={() => setIsImportModalOpen(true)}
+      {/* ─── INLINE ADD FORM ─── */}
+      {isAdding && (
+        <div className="bg-[#0D243B] border border-white/10 rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300 shadow-2xl ring-1 ring-white/5">
+          {/* Header */}
+          <div className="px-4 sm:px-6 py-4 border-b border-white/10 flex items-center gap-3 bg-[#0B2236]">
+            <button
+              onClick={() => setIsAdding(false)}
+              className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-all border border-white/5 hover:border-white/20 shrink-0"
             >
-              <div className="w-14 h-14 rounded-full bg-blue-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 group-hover:bg-blue-500/20 border border-blue-500/20">
-                <Upload size={28} className="text-blue-500" />
-              </div>
-              <h3 className="text-lg font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">{t('wizard.step3.attendeesTab.actions.importCsv')}</h3>
-              <p className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">{t('wizard.step3.attendeesTab.actions.importCsvDesc')}</p>
-            </div>
-
-            <div 
-              className="p-6 rounded-xl border border-dashed border-purple-500/30 bg-purple-500/5 flex flex-col items-center justify-center text-center hover:bg-purple-500/10 hover:border-purple-500/60 hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-500/10 transition-all cursor-pointer group duration-300"
-              onClick={handleExport}
-            >
-              <div className="w-14 h-14 rounded-full bg-purple-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 group-hover:bg-purple-500/20 border border-purple-500/20">
-                <Download size={28} className="text-purple-500" />
-              </div>
-              <h3 className="text-lg font-bold text-white mb-1 group-hover:text-purple-400 transition-colors">{t('wizard.step3.attendeesTab.actions.exportList')}</h3>
-              <p className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors">{t('wizard.step3.attendeesTab.actions.exportListDesc')}</p>
+              <ArrowLeft size={18} />
+            </button>
+            <div className="min-w-0">
+              <h3 className="text-base sm:text-lg font-bold text-white truncate">{t('wizard.step3.attendeesTab.addForm.title')}</h3>
+              <p className="text-xs text-gray-400 hidden sm:block">{t('wizard.step3.attendeesTab.addForm.subtitle')}</p>
             </div>
           </div>
-        )}
 
-        {/* IMPORT MODAL */}
-        <ImportAttendeesModal
-          isOpen={isImportModalOpen}
-          onClose={() => setIsImportModalOpen(false)}
-          onImport={handleBulkImport}
-        />
+          <div className="p-4 sm:p-6 lg:p-8">
+            <div className="max-w-3xl mx-auto space-y-6">
+               {/* Ticket & Status */}
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                     <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">{t('wizard.step3.attendeesTab.addForm.ticketType')}</label>
+                     <div className="relative group">
+                        <Ticket size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#0684F5] transition-colors" />
+                        <select
+                          className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-12 pr-10 py-3.5 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all appearance-none cursor-pointer hover:border-white/20"
+                          value={selectedTicketId}
+                          onChange={(e) => setSelectedTicketId(e.target.value)}
+                        >
+                           {tickets.map(t => (
+                             <option key={t.id} value={t.id}>{t.name} • ${t.price}</option>
+                           ))}
+                           {tickets.length === 0 && <option value="">{t('wizard.step3.attendeesTab.addForm.generalAdmission')}</option>}
+                        </select>
+                        <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                     </div>
+                  </div>
+                  <div className="space-y-2">
+                     <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">{t('wizard.step3.attendeesTab.addForm.status')}</label>
+                     <div className="relative group">
+                        <CheckCircle size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#0684F5] transition-colors" />
+                        <select
+                          className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-11 pr-10 py-3.5 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all appearance-none cursor-pointer hover:border-white/20"
+                          value={registrationStatus}
+                          onChange={(e) => setRegistrationStatus(e.target.value)}
+                        >
+                           <option value="approved">{t('wizard.step3.attendeesTab.addForm.statusApproved')}</option>
+                           <option value="pending">{t('wizard.step3.attendeesTab.addForm.statusPending')}</option>
+                        </select>
+                        <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                     </div>
+                  </div>
+               </div>
 
-        {/* INLINE ADD FORM */}
-        {isAdding && (
-          <div className="mb-8 bg-[#0D243B] border border-white/10 rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300 shadow-2xl ring-1 ring-white/5">
-            {/* Header */}
-            <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-[#0B2236]">
-              <div className="flex items-center gap-4">
-                <button 
-                  onClick={() => setIsAdding(false)}
-                  className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-all border border-white/5 hover:border-white/20"
-                >
-                  <ArrowLeft size={18} />
-                </button>
-                <div>
-                  <h3 className="text-lg font-bold text-white">{t('wizard.step3.attendeesTab.addForm.title')}</h3>
-                  <p className="text-xs text-gray-400">{t('wizard.step3.attendeesTab.addForm.subtitle')}</p>
-                </div>
-              </div>
-            </div>
+               <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent w-full" />
 
-            <div className="p-8">
-              <div className="max-w-3xl mx-auto space-y-8">
-                 {/* Ticket & Status */}
-                 <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                       <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">{t('wizard.step3.attendeesTab.addForm.ticketType')}</label>
-                       <div className="relative group">
-                          <Ticket size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#0684F5] transition-colors" />
-                          <select 
-                            className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-12 pr-10 py-4 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all appearance-none cursor-pointer hover:border-white/20"
-                            value={selectedTicketId}
-                            onChange={(e) => setSelectedTicketId(e.target.value)}
-                          >
-                             {tickets.map(t => (
-                               <option key={t.id} value={t.id}>{t.name} • ${t.price}</option>
-                             ))}
-                             {tickets.length === 0 && <option value="">{t('wizard.step3.attendeesTab.addForm.generalAdmission')}</option>}
-                          </select>
-                          <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
-                       </div>
+               {/* Form Fields */}
+               <div className="space-y-4">
+                  {formFields.map((field) => (
+                    <div key={field.id} className="space-y-1.5">
+                       <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">
+                         {field.label} {field.required && <span className="text-emerald-500">*</span>}
+                       </label>
+
+                       {field.type === 'textarea' ? (
+                         <textarea
+                           className="w-full bg-[#162C46] border border-white/10 rounded-xl px-4 py-3.5 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all resize-none placeholder-gray-600 min-h-[100px] hover:border-white/20"
+                           placeholder={t('wizard.step3.attendeesTab.addForm.enterField', { field: field.label.toLowerCase() })}
+                           value={formData[field.label] || ''}
+                           onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}
+                         />
+                       ) : field.type === 'dropdown' ? (
+                         <div className="relative">
+                            <select
+                              className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-4 pr-10 py-3.5 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all appearance-none cursor-pointer hover:border-white/20"
+                              value={formData[field.label] || ''}
+                              onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}
+                            >
+                              <option value="">{t('wizard.step3.attendeesTab.addForm.selectOption')}</option>
+                              {field.options?.map(opt => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                         </div>
+                       ) : (
+                         <div className="relative group">
+                            <input
+                              type={field.type === 'email' ? 'email' : 'text'}
+                              className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-11 pr-4 py-3.5 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all placeholder-gray-600 hover:border-white/20"
+                              placeholder={field.label}
+                              value={formData[field.label] || ''}
+                              onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}
+                            />
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#0684F5] transition-colors pointer-events-none">
+                               {field.type === 'email' ? <Mail size={16} /> : <User size={16} />}
+                            </div>
+                         </div>
+                       )}
                     </div>
-                    <div className="space-y-2">
-                       <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">{t('wizard.step3.attendeesTab.addForm.status')}</label>
-                       <div className="relative group">
-                          <CheckCircle size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#0684F5] transition-colors" />
-                          <select 
-                            className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-11 pr-10 py-4 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all appearance-none cursor-pointer hover:border-white/20"
-                            value={registrationStatus}
-                            onChange={(e) => setRegistrationStatus(e.target.value)}
-                          >
-                             <option value="approved">{t('wizard.step3.attendeesTab.addForm.statusApproved')}</option>
-                             <option value="pending">{t('wizard.step3.attendeesTab.addForm.statusPending')}</option>
-                          </select>
-                          <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
-                       </div>
-                    </div>
-                 </div>
+                  ))}
+               </div>
 
-                 <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent w-full"></div>
+               {/* Collapsible Agenda Section */}
+               <div>
+                  <button
+                    onClick={() => setShowSessions(!showSessions)}
+                    className="flex items-center justify-between w-full p-3.5 rounded-xl bg-[#162C46] border border-white/5 hover:border-white/10 hover:bg-[#1c3756] transition-all group"
+                  >
+                     <div className="flex items-center gap-3 min-w-0">
+                        <div className="p-2 rounded-lg bg-[#0684F5]/10 text-[#0684F5] group-hover:bg-[#0684F5]/20 transition-colors shrink-0">
+                           <Calendar size={16} />
+                        </div>
+                        <div className="text-left min-w-0">
+                           <span className="block text-sm font-bold text-white group-hover:text-[#0684F5] transition-colors truncate">{t('wizard.step3.attendeesTab.addForm.assignSessions')}</span>
+                           <span className="block text-xs text-gray-400 hidden sm:block">{t('wizard.step3.attendeesTab.addForm.assignSessionsDesc')}</span>
+                        </div>
+                     </div>
+                     <div className="flex items-center gap-2 shrink-0 ml-2">
+                        {selectedSessions.size > 0 && (
+                           <span className="text-[10px] bg-[#0684F5] text-white px-2 py-0.5 rounded-full font-bold">
+                              {selectedSessions.size}
+                           </span>
+                        )}
+                        {showSessions ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                     </div>
+                  </button>
 
-                 {/* Form Fields */}
-                 <div className="space-y-5">
-                    {formFields.map((field) => (
-                      <div key={field.id} className="space-y-2">
-                         <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">
-                           {field.label} {field.required && <span className="text-emerald-500">*</span>}
-                         </label>
-                         
-                         {field.type === 'textarea' ? (
-                           <div className="relative group">
-                             <textarea
-                               className="w-full bg-[#162C46] border border-white/10 rounded-xl px-4 py-4 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all resize-none placeholder-gray-600 min-h-[100px] hover:border-white/20"
-                               placeholder={t('wizard.step3.attendeesTab.addForm.enterField', { field: field.label.toLowerCase() })}
-                               value={formData[field.label] || ''}
-                               onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}
-                             />
-                           </div>
-                         ) : field.type === 'dropdown' ? (
-                           <div className="relative group">
-                              <select
-                                className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-4 pr-10 py-4 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all appearance-none cursor-pointer hover:border-white/20"
-                                value={formData[field.label] || ''}
-                                onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}
-                              >
-                                <option value="">{t('wizard.step3.attendeesTab.addForm.selectOption')}</option>
-                                {field.options?.map(opt => (
-                                  <option key={opt} value={opt}>{opt}</option>
-                                ))}
-                              </select>
-                              <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
-                           </div>
-                         ) : (
-                           <div className="relative group">
-                              <input
-                                type={field.type === 'email' ? 'email' : 'text'}
-                                className="w-full bg-[#162C46] border border-white/10 rounded-xl px-4 py-4 text-white text-sm focus:outline-none focus:border-[#0684F5] focus:ring-1 focus:ring-[#0684F5] transition-all placeholder-gray-600 pl-12 hover:border-white/20"
-                                placeholder={field.label}
-                                value={formData[field.label] || ''}
-                                onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}
-                              />
-                              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#0684F5] transition-colors pointer-events-none">
-                                 {field.type === 'email' ? <Mail size={18} /> : <User size={18} />}
-                              </div>
-                           </div>
-                         )}
-                      </div>
-                    ))}
-                 </div>
-
-                 {/* Collapsible Agenda Section */}
-                 <div className="pt-2">
-                    <button 
-                      onClick={() => setShowSessions(!showSessions)}
-                      className="flex items-center justify-between w-full p-4 rounded-xl bg-[#162C46] border border-white/5 hover:border-white/10 hover:bg-[#1c3756] transition-all group"
-                    >
-                       <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg bg-[#0684F5]/10 text-[#0684F5] group-hover:bg-[#0684F5]/20 transition-colors">
-                             <Calendar size={18} />
-                          </div>
-                          <div className="text-left">
-                             <span className="block text-sm font-bold text-white group-hover:text-[#0684F5] transition-colors">{t('wizard.step3.attendeesTab.addForm.assignSessions')}</span>
-                             <span className="block text-xs text-gray-400">{t('wizard.step3.attendeesTab.addForm.assignSessionsDesc')}</span>
-                          </div>
-                       </div>
-                       <div className="flex items-center gap-3">
-                          {selectedSessions.size > 0 && (
-                             <span className="text-[10px] bg-[#0684F5] text-white px-2.5 py-1 rounded-full font-bold shadow-sm shadow-blue-500/20">
-                                {t('wizard.step3.attendeesTab.addForm.selectedCount', { count: selectedSessions.size })}
-                             </span>
-                          )}
-                          {showSessions ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
-                       </div>
-                    </button>
-
-                    {showSessions && (
-                       <div className="mt-2 space-y-2 border border-white/10 rounded-xl p-3 max-h-[300px] overflow-y-auto bg-[#0B2236] shadow-inner">
-                          {sessions.length === 0 ? (
-                             <p className="text-center text-xs text-gray-500 py-6">{t('wizard.step3.attendeesTab.addForm.noSessions')}</p>
-                          ) : (
-                             sessions.map(session => {
-                               const isSelected = selectedSessions.has(session.id);
-                               return (
-                                 <div 
-                                   key={session.id}
-                                   onClick={() => {
-                                     const next = new Set(selectedSessions);
-                                     if (isSelected) next.delete(session.id);
-                                     else next.add(session.id);
-                                     setSelectedSessions(next);
-                                   }}
-                                   className={`p-3 rounded-lg border cursor-pointer transition-all flex items-start gap-3 ${ 
-                                     isSelected 
-                                       ? 'bg-[#0684F5]/10 border-[#0684F5] shadow-sm shadow-blue-500/10' 
-                                       : 'bg-transparent border-transparent hover:bg-white/5'
-                                   }`}
-                                 >
-                                   <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-all ${ 
-                                      isSelected ? 'bg-[#0684F5] border-[#0684F5]' : 'border-gray-600'
-                                   }`}>
-                                      {isSelected && <Check size={12} className="text-white" />}
-                                   </div>
-                                   <div className="min-w-0">
-                                     <p className={`text-sm font-medium truncate ${isSelected ? 'text-white' : 'text-gray-300'}`}>
-                                        {session.title}
-                                     </p>
-                                     <p className="text-xs text-gray-500 mt-0.5">
-                                       {new Date(session.starts_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                     </p>
-                                   </div>
+                  {showSessions && (
+                     <div className="mt-2 space-y-1.5 border border-white/10 rounded-xl p-2.5 max-h-[250px] overflow-y-auto bg-[#0B2236]">
+                        {sessions.length === 0 ? (
+                           <p className="text-center text-xs text-gray-500 py-6">{t('wizard.step3.attendeesTab.addForm.noSessions')}</p>
+                        ) : (
+                           sessions.map(session => {
+                             const isSelected = selectedSessions.has(session.id);
+                             return (
+                               <div
+                                 key={session.id}
+                                 onClick={() => {
+                                   const next = new Set(selectedSessions);
+                                   if (isSelected) next.delete(session.id);
+                                   else next.add(session.id);
+                                   setSelectedSessions(next);
+                                 }}
+                                 className={`p-3 rounded-lg border cursor-pointer transition-all flex items-start gap-3 ${
+                                   isSelected
+                                     ? 'bg-[#0684F5]/10 border-[#0684F5]/40'
+                                     : 'bg-transparent border-transparent hover:bg-white/5'
+                                 }`}
+                               >
+                                 <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-all ${
+                                    isSelected ? 'bg-[#0684F5] border-[#0684F5]' : 'border-gray-600'
+                                 }`}>
+                                    {isSelected && <Check size={12} className="text-white" />}
                                  </div>
-                               );
-                             })
-                          )}
-                       </div>
-                    )}
-                 </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="px-8 py-6 border-t border-white/10 flex justify-end gap-4 bg-[#0B2236]">
-              <button 
-                onClick={() => setIsAdding(false)}
-                className="px-6 py-2.5 rounded-xl text-gray-300 font-medium hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all active:scale-95"
-              >
-                {t('wizard.step3.attendeesTab.addForm.discardChanges')}
-              </button>
-              <button 
-                onClick={handleAddAttendee}
-                className="px-8 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-bold hover:from-emerald-400 hover:to-emerald-500 transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/25 active:scale-95 border border-emerald-400/20"
-              >
-                <Save size={18} />
-                {t('wizard.step3.attendeesTab.addForm.saveRegistration')}
-              </button>
+                                 <div className="min-w-0">
+                                   <p className={`text-sm font-medium truncate ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+                                      {session.title}
+                                   </p>
+                                   <p className="text-xs text-gray-500 mt-0.5">
+                                     {new Date(session.starts_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                   </p>
+                                 </div>
+                               </div>
+                             );
+                           })
+                        )}
+                     </div>
+                  )}
+               </div>
             </div>
           </div>
-        )}
 
-        {/* ATTENDEE TABLE */}
-        <div 
-          className="rounded-xl border overflow-hidden backdrop-blur-sm"
-          style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.03)',
-            borderColor: 'rgba(255, 255, 255, 0.1)'
-          }}
-        >
-          {loading ? (
-            <div className="p-12 text-center text-gray-400">{t('wizard.step3.attendeesTab.loading')}</div>
-          ) : attendees.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-16 text-center">
-              <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4 ring-1 ring-white/10">
-                <Users size={32} className="text-gray-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-white mb-2">{t('wizard.step3.attendeesTab.empty.title')}</h3>
-              <p className="text-gray-400 max-w-md mx-auto mb-6">
-                {t('wizard.step3.attendeesTab.empty.subtitle')}
-              </p>
-              {!isAdding && (
-                <button
-                  onClick={() => setIsAdding(true)}
-                  className="px-6 py-2.5 bg-[#10B981] text-white rounded-lg font-bold hover:bg-[#0da06f] transition-all shadow-lg shadow-[#10B981]/20"
-                >
-                  {t('wizard.step3.attendeesTab.actions.addFirstAttendee')}
+          {/* Footer */}
+          <div className="px-4 sm:px-6 lg:px-8 py-4 border-t border-white/10 flex flex-col-reverse sm:flex-row justify-end gap-3 bg-[#0B2236]">
+            <button
+              onClick={() => setIsAdding(false)}
+              className="px-5 py-2.5 rounded-xl text-gray-300 font-medium hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all active:scale-[0.98] text-center text-sm"
+            >
+              {t('wizard.step3.attendeesTab.addForm.discardChanges')}
+            </button>
+            <button
+              onClick={handleAddAttendee}
+              className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-bold hover:from-emerald-400 hover:to-emerald-500 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 active:scale-[0.98] border border-emerald-400/20 text-sm"
+            >
+              <Save size={16} />
+              {t('wizard.step3.attendeesTab.addForm.saveRegistration')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── ATTENDEE LIST ─── */}
+      <div className="rounded-xl border border-white/10 overflow-hidden bg-white/[0.02]">
+        {/* Search Bar inside the list */}
+        {!loading && attendees.length > 0 && (
+          <div className="px-4 py-3 border-b border-white/10 bg-white/[0.02]">
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                type="text"
+                placeholder={t('wizard.step3.attendeesTab.searchPlaceholder')}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full h-10 pl-10 pr-4 bg-white/5 border border-white/10 rounded-lg text-white text-sm outline-none focus:border-[#0684F5] transition-colors placeholder-gray-500"
+              />
+              {searchTerm && (
+                <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors">
+                  <X size={14} />
                 </button>
               )}
             </div>
-          ) : (
-            <div className="overflow-x-auto">
+            {searchTerm && (
+              <p className="text-xs text-gray-500 mt-2 px-1">
+                {filteredAttendees.length} / {attendees.length}
+              </p>
+            )}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="p-12 text-center">
+            <div className="inline-block w-8 h-8 border-2 border-white/20 border-t-[#0684F5] rounded-full animate-spin mb-3" />
+            <p className="text-gray-400 text-sm">{t('wizard.step3.attendeesTab.loading')}</p>
+          </div>
+        ) : attendees.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-10 sm:p-16 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-5 ring-1 ring-white/10">
+              <Users size={28} className="text-gray-500" />
+            </div>
+            <h3 className="text-lg font-semibold text-white mb-2">{t('wizard.step3.attendeesTab.empty.title')}</h3>
+            <p className="text-gray-400 text-sm max-w-sm mx-auto mb-6">
+              {t('wizard.step3.attendeesTab.empty.subtitle')}
+            </p>
+            {!isAdding && (
+              <button
+                onClick={() => setIsAdding(true)}
+                className="px-6 py-2.5 bg-emerald-500 text-white rounded-lg font-bold hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2 text-sm"
+              >
+                <Plus size={16} />
+                {t('wizard.step3.attendeesTab.actions.addFirstAttendee')}
+              </button>
+            )}
+          </div>
+        ) : filteredAttendees.length === 0 ? (
+          <div className="p-10 text-center">
+            <Search size={24} className="text-gray-600 mx-auto mb-3" />
+            <p className="text-gray-400 text-sm">No attendees match "{searchTerm}"</p>
+          </div>
+        ) : (
+          <>
+            {/* ─── Desktop Table ─── */}
+            <div className="hidden lg:block">
               <table className="w-full">
-                <thead style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}>
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('wizard.step3.attendeesTab.table.name')}</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('wizard.step3.attendeesTab.table.ticket')}</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('wizard.step3.attendeesTab.table.status')}</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('wizard.step3.attendeesTab.table.checkedIn')}</th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('wizard.step3.attendeesTab.table.actions')}</th>
+                <thead>
+                  <tr className="border-b border-white/10 bg-white/[0.03]">
+                    <th className="px-5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{t('wizard.step3.attendeesTab.table.name')}</th>
+                    <th className="px-5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{t('wizard.step3.attendeesTab.table.ticket')}</th>
+                    <th className="px-5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{t('wizard.step3.attendeesTab.table.status')}</th>
+                    <th className="px-5 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{t('wizard.step3.attendeesTab.table.checkedIn')}</th>
+                    <th className="px-5 py-3 text-right text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{t('wizard.step3.attendeesTab.table.actions')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/10">
+                <tbody className="divide-y divide-white/[0.06]">
                   {filteredAttendees.map((attendee) => (
-                    <tr key={attendee.id} className="hover:bg-white/5 transition-colors group">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                    <tr key={attendee.id} className="hover:bg-white/[0.03] transition-colors">
+                      <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                          <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-md shrink-0">
                             {attendee.name?.charAt(0).toUpperCase()}
                           </div>
-                          <div className="ml-1">
-                            <div className="text-sm font-medium text-white">{attendee.name}</div>
-                            <div className="text-sm text-gray-400">{attendee.email}</div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-white truncate">{attendee.name}</p>
+                            <p className="text-xs text-gray-500 truncate">{attendee.email}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2.5 py-1 text-xs font-medium rounded-md bg-white/10 text-gray-300 border border-white/5">
+                      <td className="px-5 py-3.5">
+                        <span className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-white/10 text-gray-300 border border-white/5">
                           {attendee.ticket_type}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-5 py-3.5">
                          {attendee.status === 'approved' ? (
-                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                             <CheckCircle size={12} /> {t('wizard.step3.attendeesTab.table.approved')}
+                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                             <CheckCircle size={11} /> {t('wizard.step3.attendeesTab.table.approved')}
                            </span>
                          ) : (
-                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                             <Clock size={12} /> {t('wizard.step3.attendeesTab.table.pending')}
+                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                             <Clock size={11} /> {t('wizard.step3.attendeesTab.table.pending')}
                            </span>
                          )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-5 py-3.5">
                         {attendee.checked_in ? (
-                          <span className="text-emerald-500 text-sm flex items-center gap-1.5 font-medium">
-                            <CheckCircle size={14} /> {t('wizard.step3.attendeesTab.table.yes')}
+                          <span className="text-emerald-400 text-xs flex items-center gap-1.5 font-medium">
+                            <CheckCircle size={13} /> {t('wizard.step3.attendeesTab.table.yes')}
                           </span>
                         ) : (
-                          <span className="text-gray-500 text-sm">{t('wizard.step3.attendeesTab.table.no')}</span>
+                          <span className="text-gray-600 text-xs">{t('wizard.step3.attendeesTab.table.no')}</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button className="text-gray-500 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg">
-                          <MoreVertical size={18} />
+                      <td className="px-5 py-3.5 text-right">
+                        <button className="text-gray-500 hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-lg">
+                          <MoreVertical size={16} />
                         </button>
                       </td>
                     </tr>
@@ -690,40 +725,135 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
                 </tbody>
               </table>
             </div>
-          )}
-        </div>
-      </section>
 
-      {/* SECTION 3: BADGES & CHECK-IN */}
-      {!isAdding && (
-        <section className="mt-12">
-          <div className="mb-4 flex items-end gap-2">
-             <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF' }}>
-               {t('wizard.step3.attendeesTab.badges.title')}
-             </h3>
-             <div className="h-px bg-white/10 flex-1 mb-2"></div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-             <div 
-               className="p-6 rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-transparent hover:from-white/10 hover:to-white/5 transition-all cursor-pointer relative overflow-hidden group shadow-lg"
-               onClick={() => setIsDesigningBadges(true)}
-             >
-                <div className="relative z-10 flex items-start justify-between">
-                   <div>
-                      <h4 className="text-lg font-bold text-white mb-2 group-hover:text-[#0684F5] transition-colors">{t('wizard.step3.attendeesTab.badges.designTitle')}</h4>
-                      <p className="text-sm text-gray-400 mb-4 max-w-[80%]">{t('wizard.step3.attendeesTab.badges.designDesc')}</p>
-                      <span className="text-[#0684F5] font-medium text-sm flex items-center gap-2 group-hover:gap-3 transition-all">
-                         <CreditCard size={16} /> {t('wizard.step3.attendeesTab.badges.openEditor')}
-                      </span>
-                   </div>
-                   <div className="p-3 bg-white/5 rounded-lg group-hover:bg-[#0684F5]/20 transition-colors">
-                      <BadgeCheck size={24} className="text-white group-hover:text-[#0684F5]" />
-                   </div>
+            {/* ─── Tablet View (md only) ─── */}
+            <div className="hidden md:block lg:hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-white/10 bg-white/[0.03]">
+                    <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{t('wizard.step3.attendeesTab.table.name')}</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{t('wizard.step3.attendeesTab.table.status')}</th>
+                    <th className="px-4 py-3 text-right text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{t('wizard.step3.attendeesTab.table.actions')}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/[0.06]">
+                  {filteredAttendees.map((attendee) => (
+                    <tr key={attendee.id} className="hover:bg-white/[0.03] transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-md shrink-0">
+                            {attendee.name?.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-white truncate">{attendee.name}</p>
+                            <p className="text-xs text-gray-500 truncate">{attendee.email}</p>
+                            <span className="inline-block mt-1 px-2 py-0.5 text-[10px] font-medium rounded bg-white/10 text-gray-400 border border-white/5">
+                              {attendee.ticket_type}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-1.5">
+                          {attendee.status === 'approved' ? (
+                            <span className="inline-flex items-center gap-1 w-fit px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              <CheckCircle size={10} /> {t('wizard.step3.attendeesTab.table.approved')}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 w-fit px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                              <Clock size={10} /> {t('wizard.step3.attendeesTab.table.pending')}
+                            </span>
+                          )}
+                          {attendee.checked_in && (
+                            <span className="text-emerald-400 text-[11px] flex items-center gap-1 font-medium w-fit">
+                              <ScanLine size={10} /> {t('wizard.step3.attendeesTab.table.checkedIn')}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button className="text-gray-500 hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-lg">
+                          <MoreVertical size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* ─── Mobile Card List ─── */}
+            <div className="md:hidden divide-y divide-white/[0.06]">
+              {filteredAttendees.map((attendee) => (
+                <div key={attendee.id} className="p-4 hover:bg-white/[0.02] transition-colors active:bg-white/[0.04]">
+                  <div className="flex items-start gap-3">
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md shrink-0">
+                      {attendee.name?.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-white truncate">{attendee.name}</p>
+                          <p className="text-xs text-gray-500 truncate mt-0.5">{attendee.email}</p>
+                        </div>
+                        <button className="text-gray-500 hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-lg shrink-0 -mt-0.5">
+                          <MoreVertical size={16} />
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+                        <span className="px-2 py-0.5 text-[10px] font-medium rounded bg-white/10 text-gray-400 border border-white/5">
+                          {attendee.ticket_type}
+                        </span>
+                        {attendee.status === 'approved' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <CheckCircle size={9} /> {t('wizard.step3.attendeesTab.table.approved')}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            <Clock size={9} /> {t('wizard.step3.attendeesTab.table.pending')}
+                          </span>
+                        )}
+                        {attendee.checked_in && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                            <ScanLine size={9} /> {t('wizard.step3.attendeesTab.table.checkedIn')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-             </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ─── BADGES & CHECK-IN ─── */}
+      {!isAdding && (
+        <div>
+          <div className="mb-4 flex items-center gap-3">
+             <h3 className="text-lg font-semibold text-white whitespace-nowrap">{t('wizard.step3.attendeesTab.badges.title')}</h3>
+             <div className="h-px bg-white/10 flex-1" />
           </div>
-        </section>
+
+          <div
+            className="p-5 sm:p-6 rounded-xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-transparent hover:from-white/[0.07] transition-all cursor-pointer group"
+            onClick={() => setIsDesigningBadges(true)}
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-[#0684F5]/10 group-hover:bg-[#0684F5]/20 transition-colors shrink-0">
+                <BadgeCheck size={22} className="text-[#0684F5]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-base font-bold text-white group-hover:text-[#0684F5] transition-colors">{t('wizard.step3.attendeesTab.badges.designTitle')}</h4>
+                <p className="text-sm text-gray-400 mt-0.5 line-clamp-1">{t('wizard.step3.attendeesTab.badges.designDesc')}</p>
+              </div>
+              <span className="text-[#0684F5] font-medium text-sm items-center gap-2 hidden sm:flex shrink-0">
+                <CreditCard size={16} /> {t('wizard.step3.attendeesTab.badges.openEditor')}
+              </span>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
