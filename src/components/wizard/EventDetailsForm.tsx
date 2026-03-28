@@ -113,6 +113,10 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
     { value: 'Bootcamp', label: t('wizard.details.eventTypes.bootcamp') },
     { value: 'Hackathon', label: t('wizard.details.eventTypes.hackathon') },
     { value: 'Award Ceremony', label: t('wizard.details.eventTypes.awardCeremony') },
+    { value: 'Outreach Campaign', label: t('wizard.details.eventTypes.outreachCampaign') },
+    { value: 'Event', label: t('wizard.details.eventTypes.event') },
+    { value: 'Trade Mission', label: t('wizard.details.eventTypes.tradeMission') },
+    { value: 'Pitching Event', label: t('wizard.details.eventTypes.pitchingEvent') },
     { value: 'Other', label: t('wizard.details.eventTypes.other') }
   ];
   const eventTypeValues = eventTypeOptions.map((option) => option.value);

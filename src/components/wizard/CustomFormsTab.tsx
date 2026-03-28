@@ -55,7 +55,9 @@ import {
   Lightbulb,
   Crown,
   BarChart3,
-  ClipboardCheck
+  ClipboardCheck,
+  Download,
+  Table
 } from 'lucide-react';
 import FieldPropertiesPanel from './FieldPropertiesPanel';
 import { IncludeInDashboardToggle } from './IncludeInDashboardToggle';
@@ -130,6 +132,15 @@ interface DbEventFormRow {
   schema: any;
   created_at?: string;
   updated_at?: string;
+}
+
+interface FormSubmission {
+  id: string;
+  created_at: string;
+  attendee_id?: string;
+  attendee_name?: string;
+  attendee_email?: string;
+  data: Record<string, any>;
 }
 
 const buildFieldSummary = (fields: CustomField[], fallbackLabel: string) => {
@@ -239,6 +250,13 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
   const [builderType, setBuilderType] = useState<FormCard['type']>('custom');
   const [builderStatus, setBuilderStatus] = useState<'active' | 'draft' | 'locked'>('draft');
 
+  // Responses tab state
+  const [activeTab, setActiveTab] = useState<'forms' | 'responses'>('forms');
+  const [responsesFormId, setResponsesFormId] = useState<string | null>(null);
+  const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
+  const [loadingSubmissions, setLoadingSubmissions] = useState(false);
+  const [submissionCounts, setSubmissionCounts] = useState<Record<string, number>>({});
+
   const lastFetchRef = useRef<string>('');
 
   useEffect(() => {
@@ -267,6 +285,107 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
       setFormsLoading(false);
     }
   };
+
+  const fetchSubmissionCounts = async () => {
+    if (!eventId || formsRows.length === 0) return;
+    try {
+      const counts: Record<string, number> = {};
+      for (const form of formsRows) {
+        const { count, error } = await supabase
+          .from('event_form_submissions')
+          .select('*', { count: 'exact', head: true })
+          .eq('form_id', form.id);
+        if (!error) counts[form.id] = count || 0;
+      }
+      setSubmissionCounts(counts);
+    } catch (e) {
+      console.error('Error fetching submission counts:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (formsRows.length > 0) fetchSubmissionCounts();
+  }, [formsRows]);
+
+  const fetchSubmissions = async (formId: string) => {
+    try {
+      setLoadingSubmissions(true);
+      const { data, error } = await supabase
+        .from('event_form_submissions')
+        .select(`
+          id,
+          created_at,
+          data,
+          attendee_id,
+          event_attendees (
+            name,
+            email
+          )
+        `)
+        .eq('form_id', formId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const formatted = (data || []).map((row: any) => ({
+        id: row.id,
+        created_at: row.created_at,
+        attendee_id: row.attendee_id,
+        attendee_name: row.event_attendees?.name || 'Anonymous',
+        attendee_email: row.event_attendees?.email || '',
+        data: row.data || {}
+      }));
+
+      setSubmissions(formatted);
+    } catch (error) {
+      console.error('Error loading submissions:', error);
+      toast.error('Failed to load submissions');
+    } finally {
+      setLoadingSubmissions(false);
+    }
+  };
+
+  useEffect(() => {
+    if (responsesFormId) fetchSubmissions(responsesFormId);
+    else setSubmissions([]);
+  }, [responsesFormId]);
+
+  const selectedResponseForm = useMemo(() => {
+    if (!responsesFormId) return null;
+    return formsRows.find(r => r.id === responsesFormId) || null;
+  }, [responsesFormId, formsRows]);
+
+  const handleExportCSV = () => {
+    if (!selectedResponseForm || submissions.length === 0) return;
+
+    const keys = Array.from(new Set(submissions.flatMap(s => Object.keys(s.data))));
+    const headers = ['Submitted At', 'Attendee Name', 'Attendee Email', ...keys];
+
+    const csvContent = [
+      headers.join(','),
+      ...submissions.map(s => {
+        const row = [
+          new Date(s.created_at).toLocaleString(),
+          `"${s.attendee_name || ''}"`,
+          `"${s.attendee_email || ''}"`,
+          ...keys.map(k => `"${(s.data[k] || '').toString().replace(/"/g, '""')}"`)
+        ];
+        return row.join(',');
+      })
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(selectedResponseForm.title || 'form').replace(/\s+/g, '_')}_submissions.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('CSV exported successfully');
+  };
+
+  const totalResponses = useMemo(() => Object.values(submissionCounts).reduce((a, b) => a + b, 0), [submissionCounts]);
+  const activeForms = useMemo(() => formsRows.filter(r => r.status === 'active').length, [formsRows]);
 
   const formsByKey = useMemo(() => {
     const map = new Map<string, DbEventFormRow>();
@@ -773,11 +892,13 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
     return (
       <div
         onClick={() => !isPROLocked && handleOpenFormBuilder(form)}
-        className="relative rounded-xl transition-all hover:shadow-lg cursor-pointer"
+        className="relative rounded-xl transition-all hover:shadow-lg cursor-pointer overflow-hidden"
         style={{
           padding: '28px',
+          paddingLeft: '32px',
           backgroundColor: 'rgba(255,255,255,0.05)',
-          border: form.isDefault ? '2px solid #0684F5' : '1px solid rgba(255,255,255,0.1)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderLeft: `4px solid ${form.iconColor || '#0684F5'}`,
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
           opacity: isPROLocked ? 0.7 : 1
         }}
@@ -1011,6 +1132,12 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
               <User size={12} />
               {t('wizard.step3.customForms.fieldsCount', { count: form.totalFields })}
             </div>
+            {form.dbId && (submissionCounts[form.dbId] || 0) > 0 && (
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(139,92,246,0.15)', color: '#A78BFA' }}>
+                <BarChart3 size={12} />
+                {submissionCounts[form.dbId]} responses
+              </div>
+            )}
           </div>
           {!isPROLocked && (
             <button
@@ -1517,12 +1644,26 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                       {formFields.map((field, index) => (
                         <div
                           key={field.id}
-                          className={`group relative flex items-start gap-3 p-5 rounded-lg border transition-all ${editingField?.id === field.id ? 'border-blue-500 bg-blue-500/5 ring-1 ring-blue-500/20' : 'border-white/10 bg-white/5 hover:border-blue-400'}`}
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.effectAllowed = 'move';
+                            e.dataTransfer.setData('text/plain', field.id);
+                            handleDragStart(field.id);
+                          }}
+                          onDragOver={(e) => handleDragOver(e, field.id)}
+                          onDragEnd={handleDragEnd}
+                          className={`group relative flex items-start gap-3 p-5 rounded-lg border transition-all ${
+                            draggedField === field.id
+                              ? 'opacity-40 border-blue-500/50 bg-blue-500/10'
+                              : editingField?.id === field.id
+                              ? 'border-blue-500 bg-blue-500/5 ring-1 ring-blue-500/20'
+                              : 'border-white/10 bg-white/5 hover:border-blue-400'
+                          }`}
+                          style={{ cursor: draggedField ? 'grabbing' : undefined }}
                         >
                           {/* Drag Handle (Left) */}
                           <div
-                            className="cursor-move mt-1 p-1 rounded hover:bg-white/10 text-slate-500 hover:text-white transition-colors"
-                            onMouseDown={() => handleDragStart(field.id)}
+                            className="cursor-grab active:cursor-grabbing mt-1 p-1 rounded hover:bg-white/10 text-slate-500 hover:text-white transition-colors"
                             title={t('wizard.step3.customForms.builder.fieldActions.dragToReorder')}
                           >
                             <GripVertical size={20} />
@@ -1902,6 +2043,11 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
     );
   }
 
+  const allCards = [...defaultCards, ...customCards];
+  const filteredCards = allCards.filter(form =>
+    !searchQuery || form.title.toLowerCase().includes(searchQuery.toLowerCase()) || form.description?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="forms-dashboard-container" style={{ backgroundColor: '#0B2641', paddingBottom: '160px', minHeight: 'calc(100vh - 300px)' }}>
       <style>{`
@@ -1912,11 +2058,16 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
           .search-bar-container { justify-content: flex-start !important; width: 100% !important; }
           .search-input-wrapper { width: 100% !important; }
           .search-input { width: 100% !important; }
+          .stat-cards-grid { grid-template-columns: 1fr !important; }
+          .responses-table-wrapper { overflow-x: auto; }
+        }
+        @media (min-width: 640px) and (max-width: 1024px) {
+          .stat-cards-grid { grid-template-columns: repeat(3, 1fr) !important; }
         }
       `}</style>
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px' }} className="dashboard-content">
         {/* Page Header */}
-        <div className="dashboard-header flex items-start justify-between mb-8">
+        <div className="dashboard-header flex items-start justify-between mb-6">
           <div>
             <h2 style={{ fontSize: '28px', fontWeight: 600, color: '#FFFFFF', marginBottom: '8px' }}>
               {t('wizard.step3.customForms.header.title')}
@@ -1925,119 +2076,10 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
               {t('wizard.step3.customForms.header.subtitle')}
             </p>
           </div>
-          <button
-            onClick={() => setShowTemplatesModal(true)}
-            className="dashboard-header-button h-11 px-6 rounded-lg flex items-center gap-2 transition-all hover:scale-105"
-            style={{
-              backgroundColor: '#0684F5',
-              color: '#FFFFFF',
-              fontWeight: 600
-            }}
-          >
-            <Plus size={20} />
-            {t('wizard.step3.customForms.header.createButton')}
-          </button>
-        </div>
-
-        {/* Filter & Search Bar */}
-        {/* Search Bar - Simplified */}
-        <div className="search-bar-container flex items-center justify-end mb-12">
-          <div className="search-input-wrapper relative">
-            <Search
-              size={18}
-              style={{
-                position: 'absolute',
-                left: '14px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: '#9CA3AF'
-              }}
-            />
-            <input
-              type="text"
-              placeholder={t('wizard.step3.customForms.searchPlaceholder')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="search-input h-11 pl-11 pr-4 rounded-lg border outline-none transition-colors focus:border-blue-400"
-              style={{
-                width: '320px',
-                borderColor: 'rgba(255,255,255,0.2)',
-                backgroundColor: 'rgba(255,255,255,0.05)',
-                color: '#FFFFFF'
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Default Forms Section */}
-        <div className="mb-16">
-          <div className="mb-6">
-            <p className="text-xs mb-1" style={{ color: '#94A3B8', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {t('wizard.step3.customForms.sections.defaultTitle')}
-            </p>
-            <p className="text-sm" style={{ color: '#94A3B8' }}>
-              {t('wizard.step3.customForms.sections.defaultSubtitle')}
-            </p>
-          </div>
-          <div className="space-y-8">
-            {defaultCards.map((form) => (
-              <FormCardComponent key={form.id} form={form} />
-            ))}
-          </div>
-        </div>
-
-        {/* Custom Forms Section */}
-        {customCards.length > 0 && (
-          <div className="mb-16">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <p className="text-xs" style={{ color: '#94A3B8', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  {t('wizard.step3.customForms.sections.customTitle')}
-                </p>
-                <span
-                  className="px-2.5 py-0.5 rounded-full text-xs"
-                  style={{
-                    backgroundColor: 'rgba(255,255,255,0.1)',
-                    color: '#94A3B8',
-                    fontWeight: 500
-                  }}
-                >
-                  {customCards.length}
-                </span>
-              </div>
-              {customCards.length > 6 && (
-                <button className="text-xs transition-colors hover:underline" style={{ color: '#0684F5', fontWeight: 500 }}>
-                  {t('wizard.step3.customForms.sections.viewAll')}
-                </button>
-              )}
-            </div>
-            <div className="space-y-8">
-              {customCards.map((form) => (
-                <FormCardComponent key={form.id} form={form} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Empty State (shown when no custom forms) */}
-        {customCards.length === 0 && (
-          <div
-            className="rounded-xl p-16 text-center mb-16"
-            style={{
-              border: '2px dashed rgba(255,255,255,0.2)',
-              backgroundColor: 'rgba(255,255,255,0.03)'
-            }}
-          >
-            <FileText size={80} style={{ color: '#94A3B8', margin: '0 auto 20px' }} />
-            <h3 className="text-2xl mb-3" style={{ fontWeight: 600, color: '#FFFFFF' }}>
-              {t('wizard.step3.customForms.emptyState.title')}
-            </h3>
-            <p className="text-base mb-6" style={{ color: '#94A3B8', maxWidth: '400px', margin: '0 auto 24px' }}>
-              {t('wizard.step3.customForms.emptyState.subtitle')}
-            </p>
+          {activeTab === 'forms' && (
             <button
               onClick={() => setShowTemplatesModal(true)}
-              className="h-12 px-6 rounded-lg flex items-center gap-2 transition-all hover:scale-105 mx-auto"
+              className="dashboard-header-button h-11 px-6 rounded-lg flex items-center gap-2 transition-all hover:scale-105"
               style={{
                 backgroundColor: '#0684F5',
                 color: '#FFFFFF',
@@ -2045,8 +2087,319 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
               }}
             >
               <Plus size={20} />
-              {t('wizard.step3.customForms.emptyState.cta')}
+              {t('wizard.step3.customForms.header.createButton')}
             </button>
+          )}
+        </div>
+
+        {/* Tab Switcher */}
+        <div className="flex items-center gap-2 mb-8 p-1 rounded-xl" style={{ backgroundColor: 'rgba(255,255,255,0.05)', display: 'inline-flex' }}>
+          <button
+            onClick={() => setActiveTab('forms')}
+            className="px-5 py-2.5 rounded-lg text-sm transition-all flex items-center gap-2"
+            style={{
+              backgroundColor: activeTab === 'forms' ? '#0684F5' : 'transparent',
+              color: activeTab === 'forms' ? '#FFFFFF' : '#94A3B8',
+              fontWeight: 600
+            }}
+          >
+            <ClipboardList size={16} />
+            Forms
+          </button>
+          <button
+            onClick={() => setActiveTab('responses')}
+            className="px-5 py-2.5 rounded-lg text-sm transition-all flex items-center gap-2"
+            style={{
+              backgroundColor: activeTab === 'responses' ? '#0684F5' : 'transparent',
+              color: activeTab === 'responses' ? '#FFFFFF' : '#94A3B8',
+              fontWeight: 600
+            }}
+          >
+            <Table size={16} />
+            Responses
+            {totalResponses > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-xs" style={{ backgroundColor: activeTab === 'responses' ? 'rgba(255,255,255,0.2)' : 'rgba(6,132,245,0.2)', color: activeTab === 'responses' ? '#FFFFFF' : '#0684F5' }}>
+                {totalResponses}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Stat Cards */}
+        <div className="stat-cards-grid grid grid-cols-3 gap-4 mb-8" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+          <div className="rounded-xl p-5" style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(6,132,245,0.15)' }}>
+                <ClipboardList size={20} style={{ color: '#0684F5' }} />
+              </div>
+              <span className="text-sm" style={{ color: '#94A3B8', fontWeight: 500 }}>Total Forms</span>
+            </div>
+            <p className="text-3xl" style={{ fontWeight: 700, color: '#FFFFFF' }}>{formsRows.length}</p>
+          </div>
+          <div className="rounded-xl p-5" style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(16,185,129,0.15)' }}>
+                <CheckCircle size={20} style={{ color: '#10B981' }} />
+              </div>
+              <span className="text-sm" style={{ color: '#94A3B8', fontWeight: 500 }}>Active Forms</span>
+            </div>
+            <p className="text-3xl" style={{ fontWeight: 700, color: '#FFFFFF' }}>{activeForms}</p>
+          </div>
+          <div className="rounded-xl p-5" style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(139,92,246,0.15)' }}>
+                <BarChart3 size={20} style={{ color: '#8B5CF6' }} />
+              </div>
+              <span className="text-sm" style={{ color: '#94A3B8', fontWeight: 500 }}>Total Responses</span>
+            </div>
+            <p className="text-3xl" style={{ fontWeight: 700, color: '#FFFFFF' }}>{totalResponses}</p>
+          </div>
+        </div>
+
+        {/* ========== FORMS TAB ========== */}
+        {activeTab === 'forms' && (
+          <>
+            {/* Search Bar */}
+            <div className="search-bar-container flex items-center justify-end mb-8">
+              <div className="search-input-wrapper relative">
+                <Search
+                  size={18}
+                  style={{
+                    position: 'absolute',
+                    left: '14px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#9CA3AF'
+                  }}
+                />
+                <input
+                  type="text"
+                  placeholder={t('wizard.step3.customForms.searchPlaceholder')}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="search-input h-11 pl-11 pr-4 rounded-lg border outline-none transition-colors focus:border-blue-400"
+                  style={{
+                    width: '320px',
+                    borderColor: 'rgba(255,255,255,0.2)',
+                    backgroundColor: 'rgba(255,255,255,0.05)',
+                    color: '#FFFFFF'
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Default Forms Section */}
+            {defaultCards.filter(f => !searchQuery || f.title.toLowerCase().includes(searchQuery.toLowerCase())).length > 0 && (
+              <div className="mb-12">
+                <div className="mb-6">
+                  <p className="text-xs mb-1" style={{ color: '#94A3B8', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {t('wizard.step3.customForms.sections.defaultTitle')}
+                  </p>
+                  <p className="text-sm" style={{ color: '#94A3B8' }}>
+                    {t('wizard.step3.customForms.sections.defaultSubtitle')}
+                  </p>
+                </div>
+                <div className="space-y-5">
+                  {defaultCards
+                    .filter(f => !searchQuery || f.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map((form) => (
+                      <FormCardComponent key={form.id} form={form} />
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Custom Forms Section */}
+            {customCards.filter(f => !searchQuery || f.title.toLowerCase().includes(searchQuery.toLowerCase())).length > 0 && (
+              <div className="mb-12">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <p className="text-xs" style={{ color: '#94A3B8', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      {t('wizard.step3.customForms.sections.customTitle')}
+                    </p>
+                    <span
+                      className="px-2.5 py-0.5 rounded-full text-xs"
+                      style={{
+                        backgroundColor: 'rgba(255,255,255,0.1)',
+                        color: '#94A3B8',
+                        fontWeight: 500
+                      }}
+                    >
+                      {customCards.length}
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-5">
+                  {customCards
+                    .filter(f => !searchQuery || f.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map((form) => (
+                      <FormCardComponent key={form.id} form={form} />
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {filteredCards.length === 0 && searchQuery && (
+              <div className="rounded-xl p-16 text-center mb-16" style={{ border: '2px dashed rgba(255,255,255,0.2)', backgroundColor: 'rgba(255,255,255,0.03)' }}>
+                <Search size={48} style={{ color: '#94A3B8', margin: '0 auto 16px' }} />
+                <h3 className="text-xl mb-2" style={{ fontWeight: 600, color: '#FFFFFF' }}>No forms found</h3>
+                <p className="text-sm" style={{ color: '#94A3B8' }}>Try adjusting your search query</p>
+              </div>
+            )}
+
+            {customCards.length === 0 && !searchQuery && (
+              <div
+                className="rounded-xl p-16 text-center mb-16"
+                style={{
+                  border: '2px dashed rgba(255,255,255,0.2)',
+                  backgroundColor: 'rgba(255,255,255,0.03)'
+                }}
+              >
+                <FileText size={80} style={{ color: '#94A3B8', margin: '0 auto 20px' }} />
+                <h3 className="text-2xl mb-3" style={{ fontWeight: 600, color: '#FFFFFF' }}>
+                  {t('wizard.step3.customForms.emptyState.title')}
+                </h3>
+                <p className="text-base mb-6" style={{ color: '#94A3B8', maxWidth: '400px', margin: '0 auto 24px' }}>
+                  {t('wizard.step3.customForms.emptyState.subtitle')}
+                </p>
+                <button
+                  onClick={() => setShowTemplatesModal(true)}
+                  className="h-12 px-6 rounded-lg flex items-center gap-2 transition-all hover:scale-105 mx-auto"
+                  style={{
+                    backgroundColor: '#0684F5',
+                    color: '#FFFFFF',
+                    fontWeight: 600
+                  }}
+                >
+                  <Plus size={20} />
+                  {t('wizard.step3.customForms.emptyState.cta')}
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ========== RESPONSES TAB ========== */}
+        {activeTab === 'responses' && (
+          <div>
+            {/* Form Selector + Export */}
+            <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+              <div className="flex items-center gap-3 flex-1 min-w-[250px]">
+                <label className="text-sm" style={{ color: '#94A3B8', fontWeight: 500, whiteSpace: 'nowrap' }}>Select Form:</label>
+                <select
+                  value={responsesFormId || ''}
+                  onChange={(e) => setResponsesFormId(e.target.value || null)}
+                  className="h-11 px-4 rounded-lg border outline-none flex-1"
+                  style={{
+                    borderColor: 'rgba(255,255,255,0.2)',
+                    backgroundColor: 'rgba(255,255,255,0.05)',
+                    color: '#FFFFFF',
+                    maxWidth: '400px'
+                  }}
+                >
+                  <option value="">-- Choose a form --</option>
+                  {formsRows.map(form => (
+                    <option key={form.id} value={form.id}>
+                      {form.title} ({submissionCounts[form.id] || 0} responses)
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {responsesFormId && submissions.length > 0 && (
+                <button
+                  onClick={handleExportCSV}
+                  className="h-11 px-5 rounded-lg flex items-center gap-2 transition-all hover:scale-105"
+                  style={{
+                    backgroundColor: '#0684F5',
+                    color: '#FFFFFF',
+                    fontWeight: 600
+                  }}
+                >
+                  <Download size={16} />
+                  Export CSV
+                </button>
+              )}
+            </div>
+
+            {/* No form selected */}
+            {!responsesFormId && (
+              <div className="rounded-xl p-16 text-center" style={{ border: '2px dashed rgba(255,255,255,0.15)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
+                <Table size={48} style={{ color: '#94A3B8', margin: '0 auto 16px' }} />
+                <h3 className="text-xl mb-2" style={{ fontWeight: 600, color: '#FFFFFF' }}>Select a form to view responses</h3>
+                <p className="text-sm" style={{ color: '#94A3B8' }}>Choose a form from the dropdown above to see its submissions</p>
+              </div>
+            )}
+
+            {/* Loading */}
+            {responsesFormId && loadingSubmissions && (
+              <div className="flex items-center justify-center py-20">
+                <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+
+            {/* No submissions */}
+            {responsesFormId && !loadingSubmissions && submissions.length === 0 && (
+              <div className="rounded-xl p-16 text-center" style={{ border: '2px dashed rgba(255,255,255,0.15)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
+                <FileText size={48} style={{ color: '#94A3B8', margin: '0 auto 16px' }} />
+                <h3 className="text-xl mb-2" style={{ fontWeight: 600, color: '#FFFFFF' }}>No submissions yet</h3>
+                <p className="text-sm" style={{ color: '#94A3B8' }}>This form has not received any responses</p>
+              </div>
+            )}
+
+            {/* Submissions Table */}
+            {responsesFormId && !loadingSubmissions && submissions.length > 0 && (
+              <div className="responses-table-wrapper rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+                <div className="px-6 py-4 flex items-center justify-between" style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                  <p className="text-sm" style={{ color: '#FFFFFF', fontWeight: 600 }}>
+                    {selectedResponseForm?.title} — {submissions.length} submission{submissions.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="w-full" style={{ minWidth: '600px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}>
+                        <th className="px-6 py-3 text-left text-xs font-medium uppercase" style={{ color: '#94A3B8', letterSpacing: '0.05em' }}>Submitted At</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium uppercase" style={{ color: '#94A3B8', letterSpacing: '0.05em' }}>Attendee</th>
+                        {selectedResponseForm?.schema?.fields?.map((f: any) => (
+                          <th key={f.id} className="px-6 py-3 text-left text-xs font-medium uppercase" style={{ color: '#94A3B8', letterSpacing: '0.05em' }}>{f.label}</th>
+                        )) || <th className="px-6 py-3 text-left text-xs font-medium uppercase" style={{ color: '#94A3B8', letterSpacing: '0.05em' }}>Data</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {submissions.map((sub, idx) => (
+                        <tr
+                          key={sub.id}
+                          style={{
+                            borderBottom: idx < submissions.length - 1 ? '1px solid rgba(255,255,255,0.06)' : undefined,
+                            backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)'
+                          }}
+                        >
+                          <td className="px-6 py-4 text-sm" style={{ color: '#94A3B8', whiteSpace: 'nowrap' }}>
+                            {new Date(sub.created_at).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div>
+                              <p className="text-sm" style={{ color: '#FFFFFF', fontWeight: 500 }}>{sub.attendee_name}</p>
+                              {sub.attendee_email && <p className="text-xs" style={{ color: '#94A3B8' }}>{sub.attendee_email}</p>}
+                            </div>
+                          </td>
+                          {selectedResponseForm?.schema?.fields?.map((f: any) => (
+                            <td key={f.id} className="px-6 py-4 text-sm max-w-xs truncate" style={{ color: '#FFFFFF' }} title={String(sub.data[f.label] || sub.data[f.id] || '')}>
+                              {sub.data[f.label] || sub.data[f.id] || '-'}
+                            </td>
+                          )) || (
+                            <td className="px-6 py-4">
+                              <pre className="text-xs" style={{ color: '#94A3B8' }}>{JSON.stringify(sub.data, null, 2)}</pre>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

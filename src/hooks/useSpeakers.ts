@@ -12,7 +12,7 @@ export interface Speaker {
   shortBio: string;
   email: string;
   photo?: string;
-  type: 'keynote' | 'panel' | 'workshop' | 'regular';
+  type: 'trainer' | 'coach' | 'expert' | 'lecture';
   status: 'confirmed' | 'pending' | 'declined';
   tags: string[];
   sessions: number;

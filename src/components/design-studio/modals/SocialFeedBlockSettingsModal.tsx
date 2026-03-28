@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Save, Share2, Loader2, Hash } from 'lucide-react';
 import { useI18n } from '../../../i18n/I18nContext';
 
@@ -23,13 +23,15 @@ export default function SocialFeedBlockSettingsModal({
     hashtag: ''
   });
 
+  const prevOpenRef = useRef(false);
   useEffect(() => {
-    if (settings && isOpen) {
+    if (isOpen && !prevOpenRef.current && settings) {
       setFormData({
         title: settings.title || '',
         hashtag: settings.hashtag || ''
       });
     }
+    prevOpenRef.current = isOpen;
   }, [settings, isOpen]);
 
   if (!isOpen) return null;

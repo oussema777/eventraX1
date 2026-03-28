@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Save, Building2, Plus, Link, Loader2 } from 'lucide-react';
 import { useI18n } from '../../../i18n/I18nContext';
 
@@ -26,8 +26,9 @@ export default function SponsorPackagesBlockSettingsModal({
     highlightedPackage: ''
   });
 
+  const prevOpenRef = useRef(false);
   useEffect(() => {
-    if (settings && isOpen) {
+    if (isOpen && !prevOpenRef.current && settings) {
       setFormData({
         title: settings.title || '',
         subtitle: settings.subtitle || '',
@@ -36,6 +37,7 @@ export default function SponsorPackagesBlockSettingsModal({
         highlightedPackage: settings.highlightedPackage || ''
       });
     }
+    prevOpenRef.current = isOpen;
   }, [settings, isOpen]);
 
   if (!isOpen) return null;

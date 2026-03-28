@@ -1472,7 +1472,7 @@ function AddSessionModal({
                             {/* Date & Time Selection - ENHANCED */}
                             <div>
                               <label style={{ fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '16px', display: 'block' }}>
-                                {t('wizard.step3.sessions.modal.scheduleTitle', 'Session Schedule')}
+                                {t('wizard.step3.sessions.modal.scheduleTitle', { defaultValue: 'Session Schedule' })}
                               </label>
                               
                               {/* Date Selection Cards */}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Loader2, Plus, Trash2, Link as LinkIcon, Facebook, Twitter, Linkedin, Instagram } from 'lucide-react';
 import { useI18n } from '../../../i18n/I18nContext';
 
@@ -39,14 +39,16 @@ export default function FooterBlockSettingsModal({
   const [newLinkLabel, setNewLinkLabel] = useState('');
   const [newLinkUrl, setNewLinkUrl] = useState('');
 
+  const prevOpenRef = useRef(false);
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevOpenRef.current) {
       setCopyrightText(settings.copyrightText || '');
       setContactEmail(settings.contactEmail || '');
       setContactPhone(settings.contactPhone || '');
       setSocialUrls(settings.socialUrls || {});
       setQuickLinks(settings.quickLinks || []);
     }
+    prevOpenRef.current = isOpen;
   }, [isOpen, settings]);
 
   if (!isOpen) return null;

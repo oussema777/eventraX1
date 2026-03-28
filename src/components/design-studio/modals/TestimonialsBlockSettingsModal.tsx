@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Save, MessageSquare, Loader2, Star } from 'lucide-react';
 import { useI18n } from '../../../i18n/I18nContext';
 
@@ -24,14 +24,16 @@ export default function TestimonialsBlockSettingsModal({
     showRating: true
   });
 
+  const prevOpenRef = useRef(false);
   useEffect(() => {
-    if (settings && isOpen) {
+    if (isOpen && !prevOpenRef.current && settings) {
       setFormData({
         title: settings.title || '',
         subtitle: settings.subtitle || '',
         showRating: settings.showRating !== false
       });
     }
+    prevOpenRef.current = isOpen;
   }, [settings, isOpen]);
 
   if (!isOpen) return null;

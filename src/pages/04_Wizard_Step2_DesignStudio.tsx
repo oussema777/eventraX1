@@ -16,6 +16,7 @@ import SponsorsBlock from '../components/design-studio/blocks/SponsorsBlock';
 import ExhibitorsBlock from '../components/design-studio/blocks/ExhibitorsBlock';
 import SponsorPackagesBlock from '../components/design-studio/blocks/SponsorPackagesBlock';
 import NetworkingBlock from '../components/design-studio/blocks/NetworkingBlock';
+import AttendeesBlock from '../components/design-studio/blocks/AttendeesBlock';
 import CountdownBlock from '../components/design-studio/blocks/CountdownBlock';
 import VideoHeroBlock from '../components/design-studio/blocks/VideoHeroBlock';
 import { ArrowLeft, ArrowRight, Save } from 'lucide-react';
@@ -37,6 +38,7 @@ import HeroBlockSettingsModal from '../components/design-studio/modals/HeroBlock
 import SponsorsBlockSettingsModal from '../components/design-studio/modals/SponsorsBlockSettingsModal';
 import SponsorPackagesBlockSettingsModal from '../components/design-studio/modals/SponsorPackagesBlockSettingsModal';
 import NetworkingBlockSettingsModal from '../components/design-studio/modals/NetworkingBlockSettingsModal';
+import AttendeesBlockSettingsModal from '../components/design-studio/modals/AttendeesBlockSettingsModal';
 import ExhibitorsBlockSettingsModal from '../components/design-studio/modals/ExhibitorsBlockSettingsModal';
 import CountdownBlockSettingsModal from '../components/design-studio/modals/CountdownBlockSettingsModal';
 import CustomHTMLBlockSettingsModal from '../components/design-studio/modals/CustomHTMLBlockSettingsModal';
@@ -470,7 +472,7 @@ export default function WizardStep2DesignStudio() {
 
     switch (block.type) {
       case 'hero':
-        return wrapWithLock(<HeroBlock isLocked={isLocked} event={eventData} brandColor={brandColor} brandColorSecondary={brandColorSecondary} buttonRadius={buttonRadius} logoUrl={logoUrl} logoSize={logoSize} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
+        return wrapWithLock(<HeroBlock isLocked={isLocked} event={eventData} brandColor={brandColor} brandColorSecondary={brandColorSecondary} buttonRadius={buttonRadius} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
       case 'custom-html':
         return wrapWithLock(<CustomHTMLBlock isLocked={isLocked} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
       case 'about':
@@ -508,6 +510,8 @@ export default function WizardStep2DesignStudio() {
         return wrapWithLock(<SponsorPackagesBlock packages={previewContent.sponsorPackages} brandColor={brandColor} buttonRadius={buttonRadius} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
       case 'networking':
         return wrapWithLock(<NetworkingBlock brandColor={brandColor} buttonRadius={buttonRadius} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} onNavigate={() => navigate(`/event/${eventData.id || eventId}/attendees`)} />);
+      case 'attendees':
+        return wrapWithLock(<AttendeesBlock brandColor={brandColor} buttonRadius={buttonRadius} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
       case 'exhibitors':
         return wrapWithLock(<ExhibitorsBlock exhibitors={mappedExhibitors} brandColor={brandColor} settings={block.settings} onEdit={() => handleOpenSettings(block.id)} />);
       case 'countdown':
@@ -763,6 +767,13 @@ export default function WizardStep2DesignStudio() {
         onClose={() => setSettingsBlockId(null)}
         settings={selectedBlock?.settings || {}}
         onSave={(data) => handleSaveBlockSettings('networking', data)}
+      />
+
+      <AttendeesBlockSettingsModal
+        isOpen={settingsBlockId === 'attendees'}
+        onClose={() => setSettingsBlockId(null)}
+        settings={selectedBlock?.settings || {}}
+        onSave={(data) => handleSaveBlockSettings('attendees', data)}
       />
 
       <ExhibitorsBlockSettingsModal

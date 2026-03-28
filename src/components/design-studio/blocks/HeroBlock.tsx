@@ -9,8 +9,6 @@ interface HeroBlockProps {
   showEditControls?: boolean;
   brandColor?: string;
   buttonRadius?: number;
-  logoUrl?: string;
-  logoSize?: number;
   event?: {
     name?: string;
     tagline?: string;
@@ -33,8 +31,6 @@ export default function HeroBlock({
   showEditControls = true,
   brandColor,
   buttonRadius,
-  logoUrl,
-  logoSize,
   event,
   settings,
   onRegister
@@ -115,40 +111,25 @@ export default function HeroBlock({
 
       {/* Content */}
       <div style={{ textAlign: 'center', position: 'relative', zIndex: 1, maxWidth: '800px' }}>
-        {/* Logo or Category Badge */}
-        {logoUrl ? (
-          <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'center' }}>
-            <img 
-              src={logoUrl} 
-              alt="Event Logo" 
-              style={{ 
-                maxHeight: `${logoSize || 80}px`, 
-                maxWidth: '100%',
-                objectFit: 'contain',
-                filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))'
-              }} 
-            />
-          </div>
-        ) : (
-          <div
-            style={{
-              height: '32px',
-              padding: '0 16px',
-              backgroundColor: 'rgba(255, 255, 255, 0.2)',
-              backdropFilter: 'blur(8px)',
-              borderRadius: '16px',
-              fontSize: '13px',
-              fontWeight: 600,
-              color: '#FFFFFF',
-              marginBottom: '20px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            {eventTypeLabel}
-          </div>
-        )}
+        {/* Category Badge */}
+        <div
+          style={{
+            height: '32px',
+            padding: '0 16px',
+            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+            backdropFilter: 'blur(8px)',
+            borderRadius: '16px',
+            fontSize: '13px',
+            fontWeight: 600,
+            color: '#FFFFFF',
+            marginBottom: '20px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          {eventTypeLabel}
+        </div>
 
         {/* Event Title */}
         <h1

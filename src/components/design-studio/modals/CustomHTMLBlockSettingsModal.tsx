@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Code, Palette, Save, AlertCircle, Loader2 } from 'lucide-react';
 import { useI18n } from '../../../i18n/I18nContext';
 
@@ -25,11 +25,13 @@ export default function CustomHTMLBlockSettingsModal({
   const [css, setCss] = useState(settings?.css || '');
   const [activeTab, setActiveTab] = useState<'html' | 'css'>('html');
 
+  const prevOpenRef = useRef(false);
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevOpenRef.current) {
       setHtml(settings?.html || '');
       setCss(settings?.css || '');
     }
+    prevOpenRef.current = isOpen;
   }, [isOpen, settings]);
 
   if (!isOpen) return null;

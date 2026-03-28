@@ -38,14 +38,16 @@ export default function AboutBlockSettingsModal({
   const [newFeature, setNewFeature] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
+  const prevOpenRef = useRef(false);
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevOpenRef.current) {
       setName(eventData.name || '');
       setTagline(eventData.tagline || '');
       setDescription(eventData.description || '');
       setFeatures(eventData.features || []);
       setImage(eventData.image || '');
     }
+    prevOpenRef.current = isOpen;
   }, [isOpen, eventData]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

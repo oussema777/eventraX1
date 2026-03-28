@@ -3,7 +3,6 @@ import {
   Search,
   MapPin,
   Calendar,
-  Clock,
   Heart,
   ChevronDown,
   SlidersHorizontal,
@@ -166,7 +165,7 @@ export default function BrowseEventsDiscovery() {
           const month = start ? start.toLocaleDateString('en-US', { month: 'short' }).toUpperCase() : t('browseEventsPage.event.tbd');
           const day = start ? start.getDate().toString().padStart(2, '0') : '--';
           const timeLabel = start
-            ? t('browseEventsPage.event.startsAt', { time: start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) })
+            ? start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
             : t('browseEventsPage.event.timeTbd');
           const ticketInfo = ticketMap.get(event.id);
           const fallbackPrice = event.event_status === 'free' ? 0 : ticketInfo?.minPrice ?? 0;
@@ -1028,7 +1027,7 @@ export default function BrowseEventsDiscovery() {
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Clock size={14} style={{ color: '#94A3B8', flexShrink: 0 }} />
+                        <Calendar size={14} style={{ color: '#94A3B8', flexShrink: 0 }} />
                         <span style={{ fontSize: '12px', color: '#94A3B8' }}>
                           {event.time}
                         </span>

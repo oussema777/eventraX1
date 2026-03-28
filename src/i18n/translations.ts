@@ -5,6 +5,12 @@ export const translations = {
     brand: {
       name: 'Eventra'
     },
+    common: {
+      pagination: {
+        previous: 'Previous',
+        next: 'Next'
+      }
+    },
     nav: {
       communities: {
         label: 'Communities',
@@ -56,7 +62,8 @@ export const translations = {
       language: {
         label: 'Language',
         en: 'English',
-        fr: 'French'
+        fr: 'French',
+        ar: 'Arabic'
       },
       userMenu: {
         myProfile: 'My Profile',
@@ -1091,8 +1098,8 @@ export const translations = {
         },
         stats: {
           total: 'Total Speakers',
-          keynoteCount: '{count} keynote',
-          regularCount: '{count} regular',
+          trainerCount: '{count} trainer',
+          lectureCount: '{count} lecture',
           pendingCount: '+{count} pending',
           confirmed: 'Confirmed',
           confirmedPct: '{percent}% confirmed',
@@ -1116,9 +1123,9 @@ export const translations = {
         allSpeakers: {
           filters: {
             all: 'All',
-            keynote: 'Keynote',
-            panel: 'Panel',
-            workshop: 'Workshop',
+            trainer: 'Trainer',
+            coach: 'Coach',
+            expert: 'Expert',
             confirmed: 'Confirmed',
             pending: 'Pending'
           },
@@ -1142,9 +1149,9 @@ export const translations = {
             email: 'Email'
           },
           badges: {
-            keynote: 'Keynote',
-            panel: 'Panel',
-            workshop: 'Workshop'
+            trainer: 'Trainer',
+            coach: 'Coach',
+            expert: 'Expert'
           },
           empty: {
             title: 'Add New Speaker',
@@ -2680,6 +2687,239 @@ export const translations = {
           broadcastSent: 'Broadcast sent to {count} attendees'
         }
       },
+      b2b: {
+        header: {
+          title: 'B2B Matchmaking Hub',
+          subtitle: 'AI-powered networking — connect the right people at the right time',
+          aiMatchmaker: 'AI Matchmaker',
+          createMeeting: 'Create Meeting'
+        },
+        tabs: {
+          aiMatchmaker: 'AI Matchmaker',
+          allMeetings: 'All Meetings',
+          logistics: 'Logistics',
+          analytics: 'Analytics',
+          suggestions: 'Suggestions'
+        },
+        stats: {
+          activeConnections: 'Active Connections',
+          totalMeetings: 'Total Meetings',
+          newThisWeek: '+{count} this week',
+          aiMatchSuccess: 'AI Match Success',
+          ofAiAccepted: 'of AI matches accepted',
+          pendingSuggestions: 'Pending Suggestions',
+          awaitingResponse: 'Awaiting response',
+          sendReminders: 'Send Reminders',
+          completed: 'Completed',
+          completionRate: '{percent}% completion rate',
+          networkingScore: 'Networking Score',
+          overallEngagement: 'Overall engagement'
+        },
+        toasts: {
+          suggestionsDismissed: 'Suggestion dismissed',
+          notificationsSent: 'Notifications sent successfully',
+          invitationsSent: 'Invitations sent successfully',
+          meetingUpdated: 'Meeting updated successfully',
+          meetingCreated: 'Meeting created successfully',
+          meetingCreateError: 'Failed to create meeting',
+          matchesSuccess: '{count} matches created successfully',
+          matchesComplete: 'Matching complete',
+          noSuggestionsExport: 'No suggestions to export',
+          suggestionsExported: 'Suggestions exported successfully',
+          noMeetingsExport: 'No meetings to export',
+          meetingsExported: 'Meetings exported successfully',
+          settingsSaved: 'Settings saved successfully',
+          noPendingRemind: 'No pending meetings to remind',
+          remindersSent: 'Reminders sent successfully',
+          selectMatchFirst: 'Select a match first',
+          matchNotifSent: 'Match notification sent',
+          selectSuggestion: 'Select a suggestion first',
+          notifSent: 'Notification sent',
+          addTwo: 'Add at least two attendees to use matchmaking'
+        },
+        aiMatchmaker: {
+          title: 'AI Matchmaker',
+          subtitle: 'Let our AI analyze attendee profiles and suggest the most valuable connections',
+          whoToMatch: 'Who should we match?',
+          options: {
+            all: {
+              label: 'All Attendees',
+              desc: 'Match across all registered attendees',
+              count: '{count} attendees available'
+            },
+            category: {
+              label: 'By Category',
+              desc: 'Match within specific attendee categories',
+              count: '{count} categories'
+            },
+            individuals: {
+              label: 'Specific Individuals',
+              desc: 'Select specific people to match',
+              count: '{count} opted in'
+            },
+            noAttendees: 'No attendees yet',
+            noCategories: 'No categories',
+            noOptIn: 'None opted in',
+            recommended: 'Recommended'
+          },
+          criteria: {
+            title: 'Matching Criteria',
+            industry: 'Industry Match',
+            industryDesc: 'Prioritize same or complementary industries',
+            role: 'Role Compatibility',
+            roleDesc: 'Match decision-makers with relevant counterparts',
+            stage: 'Company Stage',
+            stageDesc: 'Match startups with investors, etc.',
+            interests: 'Shared Interests',
+            interestsDesc: 'Find common professional interests',
+            goals: 'Networking Goals',
+            goalsDesc: 'Align based on stated objectives'
+          },
+          threshold: {
+            title: 'Minimum Match Score',
+            subtitle: 'Only suggest matches above {percent}% compatibility',
+            recommended: 'Recommended: 60-80%'
+          },
+          generate: {
+            info: '{total} attendees will be analyzed, approximately {count} matches expected',
+            time: 'Processing usually takes 15-30 seconds',
+            button: 'Generate AI Matches'
+          }
+        },
+        allMeetings: {
+          filters: {
+            all: 'All',
+            today: 'Today',
+            ai: 'AI Matched',
+            manual: 'Manual',
+            pending: 'Pending',
+            completed: 'Completed',
+            search: 'Search by name, company...',
+            allDates: 'All Dates',
+            thisWeek: 'This Week',
+            recent: 'Most Recent',
+            score: 'Match Score',
+            upcoming: 'Upcoming'
+          },
+          table: {
+            headers: {
+              id: 'ID',
+              participants: 'Participants',
+              score: 'Score',
+              dateTime: 'Date & Time',
+              status: 'Status',
+              actions: 'Actions'
+            },
+            manual: 'Manually created',
+            empty: 'No meetings found matching your filters'
+          }
+        },
+        logistics: {
+          venueCapacity: {
+            title: 'Venue Capacity',
+            subtitle: 'Configure your meeting space layout and table arrangement',
+            tableCount: 'Number of Tables',
+            tablePrefix: 'Table Prefix',
+            tablePrefixPlaceholder: 'e.g. Table, Desk, Booth',
+            slotDuration: 'Meeting Slot Duration'
+          },
+          capacityCalc: {
+            title: 'Capacity Overview',
+            tableSetup: 'Table Setup',
+            slotDuration: 'Slot Duration',
+            totalTimeSlots: 'Total Time Slots',
+            maxMeetings: 'Max Meetings'
+          },
+          schedule: {
+            title: 'Meeting Schedule',
+            subtitle: 'Set available dates and time blocks for B2B meetings',
+            addDate: 'Add Time Block',
+            to: 'to',
+            duplicateBlock: 'Duplicate this time block',
+            noDates: 'No time blocks configured',
+            noDatesHint: 'Add time blocks to define when meetings can be scheduled',
+            saving: 'Saving...',
+            saveConfig: 'Save Configuration'
+          }
+        },
+        analytics: {
+          title: 'Analytics Dashboard',
+          summary: '{total} meetings scheduled with {avg}% average match score and {rate}% success rate',
+          topIndustry: 'Top industry: {industry} — Top goal: {goal}'
+        },
+        suggestions: {
+          title: 'AI Suggestions',
+          subtitle: '{count} pending suggestions awaiting review',
+          empty: 'No suggestions available. Run the AI Matchmaker to generate matches.'
+        },
+        modals: {
+          processing: {
+            analyzing: {
+              title: 'Analyzing Profiles',
+              subtitle: 'Scanning {count} attendee profiles...'
+            },
+            generating: {
+              title: 'Generating Matches',
+              subtitle: 'Finding the best connections...'
+            },
+            complete: {
+              title: 'Matching Complete!',
+              subtitle: 'Here are the results of your AI matchmaking run',
+              stats: {
+                created: 'Matches Created',
+                avgScore: 'Average Score',
+                matched: 'Attendees Matched'
+              },
+              actions: {
+                viewAll: 'View All Matches',
+                sendNotif: 'Send Notifications'
+              }
+            },
+            progress: {
+              analyzing: 'Analyzing attendee profiles...',
+              generating: 'Generating smart matches...',
+              remaining: 'Estimated {count} seconds remaining'
+            }
+          },
+          details: {
+            title: 'Match Details',
+            score: '{percent}% Match Score',
+            breakdown: 'Score Breakdown',
+            noDetails: 'No breakdown available',
+            overall: 'Overall: {percent}%',
+            insights: 'Key Insights',
+            noInsights: 'No insights available',
+            topics: 'Suggested Discussion Topics',
+            noTopics: 'No topics suggested',
+            actions: {
+              schedule: 'Schedule Meeting',
+              sendBoth: 'Notify Both Parties'
+            }
+          },
+          create: {
+            title: 'Schedule Meeting',
+            matchInfo: '{percent}% match compatibility',
+            perfectMatch: 'Connecting people with shared interests in {tags}',
+            fields: {
+              dateTime: 'Date & Time',
+              duration: 'Duration',
+              location: 'Location / Table'
+            },
+            durations: {
+              m30: '30 minutes',
+              m45: '45 minutes',
+              m60: '60 minutes'
+            },
+            placeholders: {
+              location: 'e.g. Table A3, Meeting Room 2'
+            },
+            actions: {
+              cancel: 'Cancel',
+              create: 'Create Meeting'
+            }
+          }
+        }
+      }
     },
     registrationFlow: {
       help: 'Need help? Contact the event organizer.',
@@ -3333,16 +3573,16 @@ export const translations = {
           },
           filters: {
             all: 'All Speakers',
-            keynote: 'Keynote',
-            panel: 'Panel',
-            workshop: 'Workshop'
+            trainer: 'Trainer',
+            coach: 'Coach',
+            expert: 'Expert'
           },
           searchPlaceholder: 'Search speakers...',
           sortBy: 'Sort by: Name',
           badges: {
-            keynote: 'KEYNOTE',
-            panel: 'PANEL',
-            workshop: 'WORKSHOP'
+            trainer: 'TRAINER',
+            coach: 'COACH',
+            expert: 'EXPERT'
           },
           status: {
             confirmed: 'Confirmed',
@@ -3420,21 +3660,21 @@ export const translations = {
               }
             },
             types: {
-              keynote: {
-                label: 'Keynote Speaker',
-                desc: 'Main stage speaker, featured prominently'
+              trainer: {
+                label: 'Trainer',
+                desc: 'Delivers training sessions and skill-building programs'
               },
-              panel: {
-                label: 'Panelist',
-                desc: 'Part of panel discussions'
+              coach: {
+                label: 'Coach',
+                desc: 'Provides coaching and mentorship sessions'
               },
-              workshop: {
-                label: 'Workshop Leader',
-                desc: 'Leads hands-on workshops'
+              expert: {
+                label: 'Expert',
+                desc: 'Subject matter expert sharing deep knowledge'
               },
-              regular: {
-                label: 'Regular Speaker',
-                desc: 'Standard session speaker'
+              lecture: {
+                label: 'Lecture',
+                desc: 'Delivers academic or educational lectures'
               }
             },
             actions: {
@@ -4568,6 +4808,30 @@ export const translations = {
             cta: 'Upgrade to Pro - $49/month',
             viewAll: 'View all Pro features',
             maybeLater: 'Maybe Later'
+          },
+          fieldSettings: {
+            title: 'Field Settings',
+            labels: {
+              fieldLabel: 'Field Label',
+              helpText: 'Help Text',
+              placeholder: 'Placeholder Text',
+              options: 'Options',
+              newOption: 'Add new option...',
+              settings: 'Settings',
+              requiredField: 'Required Field',
+              requiredSystemNote: 'This is a system field and cannot be made optional',
+              showInDashboard: 'Show in Dashboard',
+              dashboardNote: 'This field will appear in the attendee data table'
+            },
+            placeholders: {
+              helpText: 'Add guidance for respondents...',
+              inputPlaceholder: 'Placeholder text...'
+            },
+            actions: {
+              deleteField: 'Delete Field',
+              cancel: 'Cancel',
+              saveChanges: 'Save Changes'
+            }
           }
         },
         marketingTools: {
@@ -4956,6 +5220,10 @@ export const translations = {
           bootcamp: 'Bootcamp',
           hackathon: 'Hackathon',
           awardCeremony: 'Award Ceremony',
+          outreachCampaign: 'Outreach Campaign',
+          event: 'Event',
+          tradeMission: 'Trade Mission',
+          pitchingEvent: 'Pitching Event',
           other: 'Other'
         },
         timezones: {
@@ -5135,6 +5403,18 @@ export const translations = {
           customHtml: {
             name: 'Custom HTML',
             description: 'Embed custom HTML or widgets.'
+          },
+          sponsorPackages: {
+            name: 'Sponsor Packages',
+            description: 'Display sponsorship tiers and offers.'
+          },
+          networking: {
+            name: 'B2B Networking',
+            description: 'Networking hub with matchmaking and meetings.'
+          },
+          attendees: {
+            name: 'Attendees',
+            description: 'Showcase event attendees in a slider.'
           }
         },
         branding: {
@@ -5580,6 +5860,30 @@ export const translations = {
               tagline: 'e.g., Connect with industry leaders',
               description: 'e.g., Describe networking opportunities...',
               ctaText: 'e.g., Start Networking'
+            },
+            actions: {
+              cancel: 'Cancel',
+              updating: 'Updating...',
+              updateSection: 'Update Section'
+            }
+          },
+          attendeesBlock: {
+            title: 'Attendees Section Settings',
+            subtitle: 'Configure the attendees showcase.',
+            sections: {
+              sectionContent: 'Section Content',
+              displayOptions: 'Display Options'
+            },
+            labels: {
+              mainTitle: 'Section Title',
+              subtitle: 'Subtitle',
+              showCount: 'Show Attendee Count',
+              cardsPerPage: 'Cards Per Page',
+              autoSlide: 'Auto Slide'
+            },
+            placeholders: {
+              title: 'e.g., Our Attendees',
+              subtitle: 'e.g., Meet the professionals joining this event'
             },
             actions: {
               cancel: 'Cancel',
@@ -6431,6 +6735,12 @@ export const translations = {
     brand: {
       name: 'Eventra'
     },
+    common: {
+      pagination: {
+        previous: 'Précédent',
+        next: 'Suivant'
+      }
+    },
     nav: {
       communities: {
         label: 'Communautes',
@@ -6472,7 +6782,8 @@ export const translations = {
       language: {
         label: 'Langue',
         en: 'Anglais',
-        fr: 'Francais'
+        fr: 'Francais',
+        ar: 'Arabe'
       },
       userMenu: {
         myProfile: 'Mon Profil',
@@ -8341,8 +8652,8 @@ export const translations = {
         },
         stats: {
           total: 'Total Intervenants',
-          keynoteCount: '{count} keynote',
-          regularCount: '{count} regulier',
+          trainerCount: '{count} formateur',
+          lectureCount: '{count} conferencier',
           pendingCount: '+{count} en attente',
           confirmed: 'Confirme',
           confirmedPct: '{percent}% confirme',
@@ -8366,9 +8677,9 @@ export const translations = {
         allSpeakers: {
           filters: {
             all: 'Tous',
-            keynote: 'Keynote',
-            panel: 'Panel',
-            workshop: 'Atelier',
+            trainer: 'Formateur',
+            coach: 'Coach',
+            expert: 'Expert',
             confirmed: 'Confirme',
             pending: 'En attente'
           },
@@ -8392,9 +8703,9 @@ export const translations = {
             email: 'Email'
           },
           badges: {
-            keynote: 'Keynote',
-            panel: 'Panel',
-            workshop: 'Atelier'
+            trainer: 'Formateur',
+            coach: 'Coach',
+            expert: 'Expert'
           },
           empty: {
             title: 'Ajouter Nouvel Intervenant',
@@ -9547,6 +9858,187 @@ export const translations = {
           broadcastSent: 'Diffusion envoyée à {count} participants'
         }
       },
+      b2b: {
+        header: {
+          title: 'Hub de Jumelage B2B',
+          subtitle: 'Réseautage propulsé par l\'IA — connectez les bonnes personnes au bon moment',
+          aiMatchmaker: 'IA Jumeleur',
+          createMeeting: 'Créer une réunion'
+        },
+        tabs: {
+          aiMatchmaker: 'IA Jumeleur',
+          allMeetings: 'Toutes les réunions',
+          logistics: 'Logistique',
+          analytics: 'Analytiques',
+          suggestions: 'Suggestions'
+        },
+        stats: {
+          activeConnections: 'Connexions actives',
+          totalMeetings: 'Total des réunions',
+          newThisWeek: '+{count} cette semaine',
+          aiMatchSuccess: 'Succès IA',
+          ofAiAccepted: 'des jumelages IA acceptés',
+          pendingSuggestions: 'Suggestions en attente',
+          awaitingResponse: 'En attente de réponse',
+          sendReminders: 'Envoyer des rappels',
+          completed: 'Terminées',
+          completionRate: 'Taux de complétion de {percent}%',
+          networkingScore: 'Score de réseautage',
+          overallEngagement: 'Engagement global'
+        },
+        toasts: {
+          suggestionsDismissed: 'Suggestion rejetée',
+          notificationsSent: 'Notifications envoyées',
+          invitationsSent: 'Invitations envoyées',
+          meetingUpdated: 'Réunion mise à jour',
+          meetingCreated: 'Réunion créée',
+          meetingCreateError: 'Erreur lors de la création',
+          matchesSuccess: '{count} jumelages créés',
+          matchesComplete: 'Jumelage terminé',
+          noSuggestionsExport: 'Aucune suggestion à exporter',
+          suggestionsExported: 'Suggestions exportées',
+          noMeetingsExport: 'Aucune réunion à exporter',
+          meetingsExported: 'Réunions exportées',
+          settingsSaved: 'Paramètres sauvegardés',
+          noPendingRemind: 'Aucune réunion en attente à rappeler',
+          remindersSent: 'Rappels envoyés',
+          selectMatchFirst: 'Sélectionnez un jumelage d\'abord',
+          matchNotifSent: 'Notification de jumelage envoyée',
+          selectSuggestion: 'Sélectionnez une suggestion d\'abord',
+          notifSent: 'Notification envoyée',
+          addTwo: 'Ajoutez au moins deux participants pour utiliser le jumelage'
+        },
+        aiMatchmaker: {
+          title: 'IA Jumeleur',
+          subtitle: 'Notre IA analyse les profils et suggère les connexions les plus pertinentes',
+          whoToMatch: 'Qui jumeler ?',
+          options: {
+            all: { label: 'Tous les participants', desc: 'Jumeler tous les inscrits', count: '{count} participants disponibles' },
+            category: { label: 'Par catégorie', desc: 'Jumeler par catégorie', count: '{count} catégories' },
+            individuals: { label: 'Individus spécifiques', desc: 'Sélectionner des personnes', count: '{count} inscrits' },
+            noAttendees: 'Aucun participant',
+            noCategories: 'Aucune catégorie',
+            noOptIn: 'Aucun inscrit',
+            recommended: 'Recommandé'
+          },
+          criteria: {
+            title: 'Critères de jumelage',
+            industry: 'Industrie',
+            industryDesc: 'Prioriser les industries similaires ou complémentaires',
+            role: 'Compatibilité des rôles',
+            roleDesc: 'Jumeler les décideurs avec les bons interlocuteurs',
+            stage: 'Stade de l\'entreprise',
+            stageDesc: 'Jumeler startups avec investisseurs, etc.',
+            interests: 'Intérêts communs',
+            interestsDesc: 'Trouver des intérêts professionnels communs',
+            goals: 'Objectifs de réseautage',
+            goalsDesc: 'Aligner selon les objectifs déclarés'
+          },
+          threshold: {
+            title: 'Score minimum de compatibilité',
+            subtitle: 'Suggérer uniquement les jumelages au-dessus de {percent}%',
+            recommended: 'Recommandé : 60-80%'
+          },
+          generate: {
+            info: '{total} participants seront analysés, environ {count} jumelages attendus',
+            time: 'Le traitement prend généralement 15-30 secondes',
+            button: 'Générer les jumelages IA'
+          }
+        },
+        allMeetings: {
+          filters: {
+            all: 'Toutes',
+            today: 'Aujourd\'hui',
+            ai: 'IA',
+            manual: 'Manuelles',
+            pending: 'En attente',
+            completed: 'Terminées',
+            search: 'Rechercher par nom, entreprise...',
+            allDates: 'Toutes les dates',
+            thisWeek: 'Cette semaine',
+            recent: 'Plus récentes',
+            score: 'Score de jumelage',
+            upcoming: 'À venir'
+          },
+          table: {
+            headers: { id: 'ID', participants: 'Participants', score: 'Score', dateTime: 'Date et heure', status: 'Statut', actions: 'Actions' },
+            manual: 'Créée manuellement',
+            empty: 'Aucune réunion ne correspond à vos filtres'
+          }
+        },
+        logistics: {
+          venueCapacity: {
+            title: 'Capacité du lieu',
+            subtitle: 'Configurez l\'agencement et la disposition des tables',
+            tableCount: 'Nombre de tables',
+            tablePrefix: 'Préfixe des tables',
+            tablePrefixPlaceholder: 'ex. Table, Bureau, Stand',
+            slotDuration: 'Durée des créneaux'
+          },
+          capacityCalc: {
+            title: 'Aperçu de la capacité',
+            tableSetup: 'Disposition des tables',
+            slotDuration: 'Durée des créneaux',
+            totalTimeSlots: 'Créneaux totaux',
+            maxMeetings: 'Réunions max.'
+          },
+          schedule: {
+            title: 'Planning des réunions',
+            subtitle: 'Définissez les dates et créneaux disponibles pour les réunions B2B',
+            addDate: 'Ajouter un créneau',
+            to: 'à',
+            duplicateBlock: 'Dupliquer ce créneau',
+            noDates: 'Aucun créneau configuré',
+            noDatesHint: 'Ajoutez des créneaux pour définir les horaires de réunion',
+            saving: 'Enregistrement...',
+            saveConfig: 'Sauvegarder la configuration'
+          }
+        },
+        analytics: {
+          title: 'Tableau de bord analytique',
+          summary: '{total} réunions avec un score moyen de {avg}% et un taux de succès de {rate}%',
+          topIndustry: 'Industrie principale : {industry} — Objectif principal : {goal}'
+        },
+        suggestions: {
+          title: 'Suggestions IA',
+          subtitle: '{count} suggestions en attente de validation',
+          empty: 'Aucune suggestion. Lancez le jumeleur IA pour générer des correspondances.'
+        },
+        modals: {
+          processing: {
+            analyzing: { title: 'Analyse des profils', subtitle: 'Scan de {count} profils...' },
+            generating: { title: 'Génération des jumelages', subtitle: 'Recherche des meilleures connexions...' },
+            complete: {
+              title: 'Jumelage terminé !',
+              subtitle: 'Voici les résultats',
+              stats: { created: 'Jumelages créés', avgScore: 'Score moyen', matched: 'Participants jumelés' },
+              actions: { viewAll: 'Voir tous les jumelages', sendNotif: 'Envoyer les notifications' }
+            },
+            progress: { analyzing: 'Analyse des profils...', generating: 'Génération des jumelages...', remaining: 'Environ {count} secondes restantes' }
+          },
+          details: {
+            title: 'Détails du jumelage',
+            score: 'Score de {percent}%',
+            breakdown: 'Détail du score',
+            noDetails: 'Aucun détail disponible',
+            overall: 'Global : {percent}%',
+            insights: 'Points clés',
+            noInsights: 'Aucun point clé',
+            topics: 'Sujets de discussion suggérés',
+            noTopics: 'Aucun sujet suggéré',
+            actions: { schedule: 'Planifier une réunion', sendBoth: 'Notifier les deux parties' }
+          },
+          create: {
+            title: 'Planifier une réunion',
+            matchInfo: 'Compatibilité de {percent}%',
+            perfectMatch: 'Connexion de personnes partageant des intérêts en {tags}',
+            fields: { dateTime: 'Date et heure', duration: 'Durée', location: 'Lieu / Table' },
+            durations: { m30: '30 minutes', m45: '45 minutes', m60: '60 minutes' },
+            placeholders: { location: 'ex. Table A3, Salle de réunion 2' },
+            actions: { cancel: 'Annuler', create: 'Créer la réunion' }
+          }
+        }
+      }
     },
     wizard: {
       common: {
@@ -9737,16 +10229,16 @@ export const translations = {
           },
           filters: {
             all: 'Tous les intervenants',
-            keynote: 'Keynote',
-            panel: 'Panel',
-            workshop: 'Atelier'
+            trainer: 'Formateur',
+            coach: 'Coach',
+            expert: 'Expert'
           },
           searchPlaceholder: 'Rechercher des intervenants...',
           sortBy: 'Trier par : Nom',
           badges: {
-            keynote: 'KEYNOTE',
-            panel: 'PANEL',
-            workshop: 'ATELIER'
+            trainer: 'FORMATEUR',
+            coach: 'COACH',
+            expert: 'EXPERT'
           },
           status: {
             confirmed: 'Confirme',
@@ -9824,21 +10316,21 @@ export const translations = {
               }
             },
             types: {
-              keynote: {
-                label: 'Keynote',
-                desc: 'Intervenant principal sur scene'
+              trainer: {
+                label: 'Formateur',
+                desc: 'Anime des sessions de formation et de perfectionnement'
               },
-              panel: {
-                label: 'Panel',
-                desc: 'Participant aux panels'
+              coach: {
+                label: 'Coach',
+                desc: 'Propose des sessions de coaching et de mentorat'
               },
-              workshop: {
-                label: 'Atelier',
-                desc: 'Anime des ateliers pratiques'
+              expert: {
+                label: 'Expert',
+                desc: 'Expert partageant des connaissances approfondies'
               },
-              regular: {
-                label: 'Intervenant standard',
-                desc: 'Intervenant de session classique'
+              lecture: {
+                label: 'Conferencier',
+                desc: 'Donne des conferences academiques ou educatives'
               }
             },
             actions: {
@@ -10972,6 +11464,30 @@ export const translations = {
             cta: 'Passer a Pro - $49/mois',
             viewAll: 'Voir toutes les fonctionnalites Pro',
             maybeLater: 'Peut-etre plus tard'
+          },
+          fieldSettings: {
+            title: 'Parametres du champ',
+            labels: {
+              fieldLabel: 'Libelle du champ',
+              helpText: 'Texte d\'aide',
+              placeholder: 'Texte indicatif',
+              options: 'Options',
+              newOption: 'Ajouter une option...',
+              settings: 'Parametres',
+              requiredField: 'Champ obligatoire',
+              requiredSystemNote: 'Ce champ systeme ne peut pas etre rendu optionnel',
+              showInDashboard: 'Afficher dans le tableau de bord',
+              dashboardNote: 'Ce champ apparaitra dans le tableau des participants'
+            },
+            placeholders: {
+              helpText: 'Ajouter des instructions pour les repondants...',
+              inputPlaceholder: 'Texte indicatif...'
+            },
+            actions: {
+              deleteField: 'Supprimer le champ',
+              cancel: 'Annuler',
+              saveChanges: 'Enregistrer'
+            }
           }
         },
         marketingTools: {
@@ -11334,6 +11850,10 @@ export const translations = {
           bootcamp: 'Bootcamp',
           hackathon: 'Hackathon',
           awardCeremony: 'Ceremonie de prix',
+          outreachCampaign: 'Campagne de prospection',
+          event: 'Evenement',
+          tradeMission: 'Mission commerciale',
+          pitchingEvent: 'Evenement de pitching',
           other: 'Autre'
         },
         timezones: {
@@ -11513,6 +12033,18 @@ export const translations = {
           customHtml: {
             name: 'HTML personnalise',
             description: 'Integrez du HTML ou des widgets.'
+          },
+          sponsorPackages: {
+            name: 'Forfaits Sponsors',
+            description: 'Affichez les niveaux et offres de parrainage.'
+          },
+          networking: {
+            name: 'Reseautage B2B',
+            description: 'Espace reseautage avec mise en relation et rendez-vous.'
+          },
+          attendees: {
+            name: 'Participants',
+            description: 'Presentez les participants dans un carrousel.'
           }
         },
         branding: {
@@ -11904,6 +12436,23 @@ export const translations = {
               tagline: 'ex: Connectez-vous avec les leaders du secteur',
               description: 'ex: Decrivez les opportunites de reseautage...',
               ctaText: 'ex: Commencer le reseautage'
+            },
+            actions: { cancel: 'Annuler', updating: 'Mise a jour...', updateSection: 'Mettre a jour' }
+          },
+          attendeesBlock: {
+            title: 'Parametres des participants',
+            subtitle: 'Configurez la section participants.',
+            sections: { sectionContent: 'Contenu de la section', displayOptions: 'Options d\'affichage' },
+            labels: {
+              mainTitle: 'Titre de la section',
+              subtitle: 'Sous-titre',
+              showCount: 'Afficher le nombre',
+              cardsPerPage: 'Cartes par page',
+              autoSlide: 'Defilement automatique'
+            },
+            placeholders: {
+              title: 'ex: Nos participants',
+              subtitle: 'ex: Decouvrez les professionnels qui participent'
             },
             actions: { cancel: 'Annuler', updating: 'Mise a jour...', updateSection: 'Mettre a jour' }
           },
@@ -13319,8 +13868,8 @@ export const translations = {
         },
         stats: {
           total: 'إجمالي المتحدثين',
-          keynoteCount: '{count} رئيسي',
-          regularCount: '{count} عادي',
+          trainerCount: '{count} مدرب',
+          lectureCount: '{count} محاضر',
           pendingCount: '+{count} قيد الانتظار',
           confirmed: 'مؤكد',
           confirmedPct: '{percent}% مؤكد',
@@ -13344,9 +13893,9 @@ export const translations = {
         allSpeakers: {
           filters: {
             all: 'الكل',
-            keynote: 'رئيسي',
-            panel: 'حوار',
-            workshop: 'ورشة عمل',
+            trainer: 'مدرب',
+            coach: 'كوتش',
+            expert: 'خبير',
             confirmed: 'مؤكد',
             pending: 'قيد الانتظار'
           },
@@ -13370,9 +13919,9 @@ export const translations = {
             email: 'البريد الإلكتروني'
           },
           badges: {
-            keynote: 'رئيسي',
-            panel: 'حوار',
-            workshop: 'ورشة عمل'
+            trainer: 'مدرب',
+            coach: 'كوتش',
+            expert: 'خبير'
           },
           empty: {
             title: 'إضافة متحدث جديد',
@@ -14568,6 +15117,187 @@ export const translations = {
           noAttendees: 'لا يوجد حضور للإرسال إليهم',
           broadcastSent: 'تم إرسال البث إلى {count} من الحضور'
         }
+      },
+      b2b: {
+        header: {
+          title: 'مركز التوفيق B2B',
+          subtitle: 'شبكات مدعومة بالذكاء الاصطناعي — اربط الأشخاص المناسبين في الوقت المناسب',
+          aiMatchmaker: 'التوفيق الذكي',
+          createMeeting: 'إنشاء اجتماع'
+        },
+        tabs: {
+          aiMatchmaker: 'التوفيق الذكي',
+          allMeetings: 'كل الاجتماعات',
+          logistics: 'اللوجستيات',
+          analytics: 'التحليلات',
+          suggestions: 'الاقتراحات'
+        },
+        stats: {
+          activeConnections: 'الاتصالات النشطة',
+          totalMeetings: 'إجمالي الاجتماعات',
+          newThisWeek: '+{count} هذا الأسبوع',
+          aiMatchSuccess: 'نجاح التوفيق الذكي',
+          ofAiAccepted: 'من التوفيقات المقبولة',
+          pendingSuggestions: 'اقتراحات معلقة',
+          awaitingResponse: 'بانتظار الرد',
+          sendReminders: 'إرسال تذكيرات',
+          completed: 'مكتملة',
+          completionRate: 'معدل الإنجاز {percent}%',
+          networkingScore: 'نقاط التواصل',
+          overallEngagement: 'المشاركة العامة'
+        },
+        toasts: {
+          suggestionsDismissed: 'تم رفض الاقتراح',
+          notificationsSent: 'تم إرسال الإشعارات',
+          invitationsSent: 'تم إرسال الدعوات',
+          meetingUpdated: 'تم تحديث الاجتماع',
+          meetingCreated: 'تم إنشاء الاجتماع',
+          meetingCreateError: 'فشل في إنشاء الاجتماع',
+          matchesSuccess: 'تم إنشاء {count} توفيقات',
+          matchesComplete: 'اكتمل التوفيق',
+          noSuggestionsExport: 'لا توجد اقتراحات للتصدير',
+          suggestionsExported: 'تم تصدير الاقتراحات',
+          noMeetingsExport: 'لا توجد اجتماعات للتصدير',
+          meetingsExported: 'تم تصدير الاجتماعات',
+          settingsSaved: 'تم حفظ الإعدادات',
+          noPendingRemind: 'لا توجد اجتماعات معلقة للتذكير',
+          remindersSent: 'تم إرسال التذكيرات',
+          selectMatchFirst: 'اختر توفيقاً أولاً',
+          matchNotifSent: 'تم إرسال إشعار التوفيق',
+          selectSuggestion: 'اختر اقتراحاً أولاً',
+          notifSent: 'تم إرسال الإشعار',
+          addTwo: 'أضف مشاركَين على الأقل لاستخدام التوفيق'
+        },
+        aiMatchmaker: {
+          title: 'التوفيق الذكي',
+          subtitle: 'يحلل الذكاء الاصطناعي الملفات الشخصية ويقترح أفضل الاتصالات',
+          whoToMatch: 'من نوفق بينهم؟',
+          options: {
+            all: { label: 'كل المشاركين', desc: 'التوفيق بين جميع المسجلين', count: '{count} مشارك متاح' },
+            category: { label: 'حسب الفئة', desc: 'التوفيق ضمن فئات محددة', count: '{count} فئة' },
+            individuals: { label: 'أفراد محددين', desc: 'اختيار أشخاص محددين', count: '{count} مشترك' },
+            noAttendees: 'لا يوجد مشاركين',
+            noCategories: 'لا توجد فئات',
+            noOptIn: 'لا يوجد مشتركين',
+            recommended: 'موصى به'
+          },
+          criteria: {
+            title: 'معايير التوفيق',
+            industry: 'تطابق الصناعة',
+            industryDesc: 'إعطاء الأولوية للصناعات المتشابهة أو المكملة',
+            role: 'توافق الأدوار',
+            roleDesc: 'ربط صانعي القرار مع الأطراف المناسبة',
+            stage: 'مرحلة الشركة',
+            stageDesc: 'ربط الشركات الناشئة بالمستثمرين',
+            interests: 'اهتمامات مشتركة',
+            interestsDesc: 'العثور على اهتمامات مهنية مشتركة',
+            goals: 'أهداف التواصل',
+            goalsDesc: 'المواءمة حسب الأهداف المعلنة'
+          },
+          threshold: {
+            title: 'الحد الأدنى لدرجة التوافق',
+            subtitle: 'اقتراح التوفيقات فوق {percent}% فقط',
+            recommended: 'موصى به: 60-80%'
+          },
+          generate: {
+            info: 'سيتم تحليل {total} مشارك، حوالي {count} توفيق متوقع',
+            time: 'يستغرق المعالجة عادة 15-30 ثانية',
+            button: 'توليد توفيقات ذكية'
+          }
+        },
+        allMeetings: {
+          filters: {
+            all: 'الكل',
+            today: 'اليوم',
+            ai: 'توفيق ذكي',
+            manual: 'يدوية',
+            pending: 'معلقة',
+            completed: 'مكتملة',
+            search: 'البحث بالاسم أو الشركة...',
+            allDates: 'كل التواريخ',
+            thisWeek: 'هذا الأسبوع',
+            recent: 'الأحدث',
+            score: 'درجة التوافق',
+            upcoming: 'القادمة'
+          },
+          table: {
+            headers: { id: 'رقم', participants: 'المشاركون', score: 'الدرجة', dateTime: 'التاريخ والوقت', status: 'الحالة', actions: 'إجراءات' },
+            manual: 'أُنشئ يدوياً',
+            empty: 'لا توجد اجتماعات تطابق الفلاتر'
+          }
+        },
+        logistics: {
+          venueCapacity: {
+            title: 'سعة المكان',
+            subtitle: 'اضبط تخطيط مساحة الاجتماعات وترتيب الطاولات',
+            tableCount: 'عدد الطاولات',
+            tablePrefix: 'بادئة الطاولة',
+            tablePrefixPlaceholder: 'مثال: طاولة، مكتب، جناح',
+            slotDuration: 'مدة الفترة الزمنية'
+          },
+          capacityCalc: {
+            title: 'نظرة عامة على السعة',
+            tableSetup: 'ترتيب الطاولات',
+            slotDuration: 'مدة الفترة',
+            totalTimeSlots: 'إجمالي الفترات',
+            maxMeetings: 'الحد الأقصى للاجتماعات'
+          },
+          schedule: {
+            title: 'جدول الاجتماعات',
+            subtitle: 'حدد التواريخ والفترات المتاحة لاجتماعات B2B',
+            addDate: 'إضافة فترة زمنية',
+            to: 'إلى',
+            duplicateBlock: 'تكرار هذه الفترة',
+            noDates: 'لم يتم تكوين فترات زمنية',
+            noDatesHint: 'أضف فترات زمنية لتحديد أوقات الاجتماعات',
+            saving: 'جاري الحفظ...',
+            saveConfig: 'حفظ الإعدادات'
+          }
+        },
+        analytics: {
+          title: 'لوحة التحليلات',
+          summary: '{total} اجتماع بمعدل توافق {avg}% ونسبة نجاح {rate}%',
+          topIndustry: 'الصناعة الرئيسية: {industry} — الهدف الرئيسي: {goal}'
+        },
+        suggestions: {
+          title: 'اقتراحات الذكاء الاصطناعي',
+          subtitle: '{count} اقتراح بانتظار المراجعة',
+          empty: 'لا توجد اقتراحات. شغّل التوفيق الذكي لتوليد التوافقات.'
+        },
+        modals: {
+          processing: {
+            analyzing: { title: 'تحليل الملفات', subtitle: 'فحص {count} ملف شخصي...' },
+            generating: { title: 'توليد التوفيقات', subtitle: 'البحث عن أفضل الاتصالات...' },
+            complete: {
+              title: 'اكتمل التوفيق!',
+              subtitle: 'إليك النتائج',
+              stats: { created: 'توفيقات تم إنشاؤها', avgScore: 'متوسط الدرجة', matched: 'مشاركين تم توفيقهم' },
+              actions: { viewAll: 'عرض كل التوفيقات', sendNotif: 'إرسال الإشعارات' }
+            },
+            progress: { analyzing: 'تحليل ملفات المشاركين...', generating: 'توليد التوفيقات الذكية...', remaining: 'حوالي {count} ثانية متبقية' }
+          },
+          details: {
+            title: 'تفاصيل التوفيق',
+            score: 'درجة التوافق {percent}%',
+            breakdown: 'تفصيل الدرجة',
+            noDetails: 'لا تفاصيل متاحة',
+            overall: 'الإجمالي: {percent}%',
+            insights: 'نقاط رئيسية',
+            noInsights: 'لا توجد نقاط رئيسية',
+            topics: 'مواضيع نقاش مقترحة',
+            noTopics: 'لا توجد مواضيع مقترحة',
+            actions: { schedule: 'جدولة اجتماع', sendBoth: 'إشعار الطرفين' }
+          },
+          create: {
+            title: 'جدولة اجتماع',
+            matchInfo: 'توافق {percent}%',
+            perfectMatch: 'ربط أشخاص يتشاركون اهتمامات في {tags}',
+            fields: { dateTime: 'التاريخ والوقت', duration: 'المدة', location: 'الموقع / الطاولة' },
+            durations: { m30: '30 دقيقة', m45: '45 دقيقة', m60: '60 دقيقة' },
+            placeholders: { location: 'مثال: طاولة أ3، غرفة اجتماعات 2' },
+            actions: { cancel: 'إلغاء', create: 'إنشاء الاجتماع' }
+          }
+        }
       }
     },
           userB2B: {
@@ -15468,6 +16198,10 @@ export const translations = {
           bootcamp: 'معسكر تدريبي',
           hackathon: 'هاكاثون',
           awardCeremony: 'حفل توزيع جوائز',
+          outreachCampaign: 'حملة تواصل',
+          event: 'فعالية',
+          tradeMission: 'بعثة تجارية',
+          pitchingEvent: 'فعالية عروض تقديمية',
           other: 'أخرى'
         },
         timezones: {
@@ -15956,16 +16690,16 @@ export const translations = {
           },
           filters: {
             all: 'جميع المتحدثين',
-            keynote: 'رئيسي',
-            panel: 'حوار',
-            workshop: 'ورشة عمل'
+            trainer: 'مدرب',
+            coach: 'كوتش',
+            expert: 'خبير'
           },
           searchPlaceholder: 'البحث في المتحدثين...',
           sortBy: 'ترتيب حسب: الاسم',
           badges: {
-            keynote: 'رئيسي',
-            panel: 'حوار',
-            workshop: 'ورشة عمل'
+            trainer: 'مدرب',
+            coach: 'كوتش',
+            expert: 'خبير'
           },
           status: {
             confirmed: 'مؤكد',
@@ -16052,21 +16786,21 @@ export const translations = {
               }
             },
             types: {
-              keynote: {
-                label: 'متحدث رئيسي',
-                desc: 'متحدث المسرح الرئيسي، يظهر بشكل بارز'
+              trainer: {
+                label: 'مدرب',
+                desc: 'يقدم جلسات تدريبية وبرامج تطوير المهارات'
               },
-              panel: {
-                label: 'عضو حوار',
-                desc: 'مشارك في جلسات النقاش'
+              coach: {
+                label: 'كوتش',
+                desc: 'يقدم جلسات تدريب وإرشاد'
               },
-              workshop: {
-                label: 'قائد ورشة عمل',
-                desc: 'يقود ورش العمل التطبيقية'
+              expert: {
+                label: 'خبير',
+                desc: 'خبير في الموضوع يشارك معرفة عميقة'
               },
-              regular: {
-                label: 'متحدث عادي',
-                desc: 'متحدث جلسات عادية'
+              lecture: {
+                label: 'محاضر',
+                desc: 'يقدم محاضرات أكاديمية أو تعليمية'
               }
             },
             actions: {
@@ -16949,6 +17683,10 @@ export const translations = {
           sponsorPackages: {
             name: 'باقات الرعاية',
             description: 'عرض باقات وعروض الرعاية.'
+          },
+          attendees: {
+            name: 'الحضور',
+            description: 'عرض الحضور في شريط تمرير.'
           }
         },
         branding: {
@@ -17271,6 +18009,23 @@ export const translations = {
               tagline: 'مثال: تواصل مع قادة القطاع',
               description: 'مثال: صِف فرص التواصل المتاحة...',
               ctaText: 'مثال: ابدأ التواصل'
+            },
+            actions: { cancel: 'إلغاء', updating: 'جارٍ التحديث...', updateSection: 'تحديث القسم' }
+          },
+          attendeesBlock: {
+            title: 'إعدادات قسم الحضور',
+            subtitle: 'تهيئة عرض الحضور.',
+            sections: { sectionContent: 'محتوى القسم', displayOptions: 'خيارات العرض' },
+            labels: {
+              mainTitle: 'عنوان القسم',
+              subtitle: 'العنوان الفرعي',
+              showCount: 'إظهار عدد الحضور',
+              cardsPerPage: 'البطاقات في كل صفحة',
+              autoSlide: 'التمرير التلقائي'
+            },
+            placeholders: {
+              title: 'مثال: الحضور',
+              subtitle: 'مثال: تعرّف على المحترفين المشاركين'
             },
             actions: { cancel: 'إلغاء', updating: 'جارٍ التحديث...', updateSection: 'تحديث القسم' }
           },

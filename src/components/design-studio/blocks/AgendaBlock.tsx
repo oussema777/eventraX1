@@ -14,6 +14,7 @@ interface SpeakerDetail {
   title?: string;
   company?: string;
   avatarUrl?: string;
+  type?: string;
 }
 
 interface AgendaSession {
@@ -252,7 +253,23 @@ export default function AgendaBlock({
                           )}
                         </div>
                         <div>
-                          <div style={{ fontSize: '14px', fontWeight: 600, color: '#1A1D1F' }}>{spk.name}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '14px', fontWeight: 600, color: '#1A1D1F' }}>{spk.name}</span>
+                            {spk.type && spk.type !== 'lecture' && (
+                              <span style={{
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px',
+                                color: '#FFF',
+                                backgroundColor: spk.type === 'trainer' ? '#F59E0B' : spk.type === 'coach' ? '#0684F5' : spk.type === 'expert' ? '#8B5CF6' : '#6B7280'
+                              }}>
+                                {spk.type}
+                              </span>
+                            )}
+                          </div>
                           <div style={{ fontSize: '12px', color: '#6F767E' }}>{spk.title} {spk.company ? `@ ${spk.company}` : ''}</div>
                         </div>
                       </div>

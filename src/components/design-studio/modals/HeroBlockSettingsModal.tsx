@@ -40,8 +40,9 @@ export default function HeroBlockSettingsModal({
   const [btn2Url, setBtn2Url] = useState(currentSettings.button2?.url || '#details');
   const [btn2Visible, setBtn2Visible] = useState(currentSettings.button2?.visible !== false);
 
+  const prevOpenRef = useRef(false);
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevOpenRef.current) {
       setTitle(currentSettings.title || '');
       setSubtitle(currentSettings.subtitle || '');
       setBackgroundImage(currentSettings.backgroundImage || '');
@@ -52,6 +53,7 @@ export default function HeroBlockSettingsModal({
       setBtn2Url(currentSettings.button2?.url || '#details');
       setBtn2Visible(currentSettings.button2?.visible !== false);
     }
+    prevOpenRef.current = isOpen;
   }, [isOpen, currentSettings]);
 
   if (!isOpen) return null;

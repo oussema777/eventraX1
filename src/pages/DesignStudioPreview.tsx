@@ -10,6 +10,7 @@ import FooterBlock from '../components/design-studio/blocks/FooterBlock';
 import SponsorsBlock from '../components/design-studio/blocks/SponsorsBlock';
 import SponsorPackagesBlock from '../components/design-studio/blocks/SponsorPackagesBlock';
 import NetworkingBlock from '../components/design-studio/blocks/NetworkingBlock';
+import AttendeesBlock from '../components/design-studio/blocks/AttendeesBlock';
 import ExhibitorsBlock from '../components/design-studio/blocks/ExhibitorsBlock';
 import CountdownBlock from '../components/design-studio/blocks/CountdownBlock';
 import TestimonialsBlock from '../components/design-studio/blocks/TestimonialsBlock';
@@ -73,7 +74,7 @@ export default function DesignStudioPreview() {
     const blockType = block.blockId || block.type;
     switch (blockType) {
       case 'hero':
-        return <HeroBlock key={block.id} {...blockProps} event={content?.event} settings={block.settings} logoUrl={previewData.logoUrl} />;
+        return <HeroBlock key={block.id} {...blockProps} event={content?.event} settings={block.settings} />;
       case 'about':
         // Apply settings overrides if present, otherwise use event data
         const aboutData = {
@@ -102,6 +103,8 @@ export default function DesignStudioPreview() {
         return <SponsorPackagesBlock key={block.id} {...blockProps} packages={content?.sponsorPackages} settings={block.settings} />;
       case 'networking':
         return <NetworkingBlock key={block.id} {...blockProps} settings={block.settings} />;
+      case 'attendees':
+        return <AttendeesBlock key={block.id} {...blockProps} settings={block.settings} />;
       case 'exhibitors':
         return <ExhibitorsBlock key={block.id} {...blockProps} exhibitors={content?.exhibitors} settings={block.settings} />;
       case 'countdown':

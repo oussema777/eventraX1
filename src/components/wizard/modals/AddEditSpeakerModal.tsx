@@ -190,28 +190,28 @@ export default function AddEditSpeakerModal({ isOpen, onClose, onSave, speaker }
 
   const speakerTypes = [
     {
-      value: 'keynote',
+      value: 'trainer',
       icon: Star,
-      label: t('wizard.step3.speakers.modal.types.keynote.label'),
-      desc: t('wizard.step3.speakers.modal.types.keynote.desc')
+      label: t('wizard.step3.speakers.modal.types.trainer.label'),
+      desc: t('wizard.step3.speakers.modal.types.trainer.desc')
     },
     {
-      value: 'panel',
+      value: 'coach',
       icon: UsersIcon,
-      label: t('wizard.step3.speakers.modal.types.panel.label'),
-      desc: t('wizard.step3.speakers.modal.types.panel.desc')
+      label: t('wizard.step3.speakers.modal.types.coach.label'),
+      desc: t('wizard.step3.speakers.modal.types.coach.desc')
     },
     {
-      value: 'workshop',
+      value: 'expert',
       icon: Settings,
-      label: t('wizard.step3.speakers.modal.types.workshop.label'),
-      desc: t('wizard.step3.speakers.modal.types.workshop.desc')
+      label: t('wizard.step3.speakers.modal.types.expert.label'),
+      desc: t('wizard.step3.speakers.modal.types.expert.desc')
     },
     {
-      value: 'regular',
+      value: 'lecture',
       icon: User,
-      label: t('wizard.step3.speakers.modal.types.regular.label'),
-      desc: t('wizard.step3.speakers.modal.types.regular.desc')
+      label: t('wizard.step3.speakers.modal.types.lecture.label'),
+      desc: t('wizard.step3.speakers.modal.types.lecture.desc')
     }
   ];
 

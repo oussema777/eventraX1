@@ -27,7 +27,7 @@ export default function SpeakersTab() {
   const { t } = useI18n();
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'keynote' | 'panel' | 'workshop'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'trainer' | 'coach' | 'expert'>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -101,10 +101,10 @@ export default function SpeakersTab() {
 
   const getTypeBadge = (type: string) => {
     const badges = {
-      keynote: { label: t('manageEvent.speakers.allSpeakers.filters.keynote').toUpperCase(), bg: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', icon: Star },
-      panel: { label: t('manageEvent.speakers.allSpeakers.filters.panel').toUpperCase(), bg: '#0684F5', icon: Users },
-      workshop: { label: t('manageEvent.speakers.allSpeakers.filters.workshop').toUpperCase(), bg: '#8B5CF6', icon: Calendar },
-      regular: null
+      trainer: { label: t('manageEvent.speakers.allSpeakers.filters.trainer').toUpperCase(), bg: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', icon: Star },
+      coach: { label: t('manageEvent.speakers.allSpeakers.filters.coach').toUpperCase(), bg: '#0684F5', icon: Users },
+      expert: { label: t('manageEvent.speakers.allSpeakers.filters.expert').toUpperCase(), bg: '#8B5CF6', icon: Calendar },
+      lecture: null
     };
     return badges[type as keyof typeof badges] || badges.regular;
   };
@@ -209,9 +209,9 @@ export default function SpeakersTab() {
         <div className="speakers-filter-tabs flex items-center gap-2">
           {[
             { id: 'all', icon: Layers, label: t('manageEvent.speakers.tabs.all') },
-            { id: 'keynote', icon: Star, label: t('manageEvent.speakers.allSpeakers.filters.keynote') },
-            { id: 'panel', icon: Mic, label: t('manageEvent.speakers.allSpeakers.filters.panel') },
-            { id: 'workshop', icon: Calendar, label: t('manageEvent.speakers.allSpeakers.filters.workshop') }
+            { id: 'trainer', icon: Star, label: t('manageEvent.speakers.allSpeakers.filters.trainer') },
+            { id: 'coach', icon: Mic, label: t('manageEvent.speakers.allSpeakers.filters.coach') },
+            { id: 'expert', icon: Calendar, label: t('manageEvent.speakers.allSpeakers.filters.expert') }
           ].map((filter) => {
             const Icon = filter.icon;
             return (

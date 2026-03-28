@@ -69,6 +69,8 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
       if (typeof value === 'string') return formatTranslation(value, vars);
       const fallbackValue = getTranslationValue('en', path);
       if (typeof fallbackValue === 'string') return formatTranslation(fallbackValue, vars);
+      if (vars && typeof vars === 'object' && 'defaultValue' in vars) return String(vars.defaultValue);
+      if (typeof vars === 'string') return vars;
       return path;
     },
     [locale]

@@ -11,6 +11,7 @@ import TicketsBlock from '../design-studio/blocks/TicketsBlock';
 import SponsorsBlock from '../design-studio/blocks/SponsorsBlock';
 import SponsorPackagesBlock from '../design-studio/blocks/SponsorPackagesBlock';
 import NetworkingBlock from '../design-studio/blocks/NetworkingBlock';
+import AttendeesBlock from '../design-studio/blocks/AttendeesBlock';
 import ExhibitorsBlock from '../design-studio/blocks/ExhibitorsBlock';
 import CountdownBlock from '../design-studio/blocks/CountdownBlock';
 import FooterBlock from '../design-studio/blocks/FooterBlock';
@@ -41,10 +42,12 @@ interface DesignStudioSettings {
 }
 
 interface SpeakerCard {
+  id?: string;
   name: string;
   title?: string;
   company?: string;
   avatarUrl?: string;
+  type?: string;
 }
 
 interface AgendaSession {
@@ -129,6 +132,7 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
   const [sponsorPackages, setSponsorPackages] = useState<any[]>([]);
   const [exhibitors, setExhibitors] = useState<any[]>([]);
   const [attendeesCount, setAttendeesCount] = useState(0);
+  const [attendeesList, setAttendeesList] = useState<{ id: string; name: string; company?: string; avatar?: string }[]>([]);
   const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
   const [attendeeId, setAttendeeId] = useState<string | null>(null);
 
@@ -229,9 +233,9 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
           supabase.from('event_speakers').select('*').eq('event_id', eventId),
           supabase.from('event_sessions').select('*').eq('event_id', eventId).order('starts_at', { ascending: true }),
           supabase.from('event_tickets').select('*').eq('event_id', eventId),
-          supabase.from('event_sponsors').select('*').eq('event_id', eventId),
+          supabase.from('event_sponsors').select('*').eq('event_id', eventId).order('sort_order', { ascending: true }),
           supabase.from('event_exhibitors').select('*').eq('event_id', eventId),
-          supabase.from('event_attendees').select('id', { count: 'exact', head: true }).eq('event_id', eventId)
+          supabase.from('event_attendees').select('id, name, company, avatar_url, photo_url, profile_id').eq('event_id', eventId)
         ]);
 
         if (exhibitorRes.data) {
@@ -244,7 +248,35 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
             website: e.website
           })));
         }
-        if (attendeeRes.count) setAttendeesCount(attendeeRes.count);
+
+        // Filter attendees to only those with profile images and enrich with profile avatar
+        if (attendeeRes.data) {
+          const attendeesRaw = attendeeRes.data as any[];
+          setAttendeesCount(attendeesRaw.length);
+
+          // Fetch profile avatars for attendees that have a profile_id
+          const profileIds = attendeesRaw.map((a: any) => a.profile_id).filter(Boolean);
+          let profileAvatars: Record<string, string> = {};
+          if (profileIds.length > 0) {
+            const { data: profiles } = await supabase
+              .from('profiles')
+              .select('id, avatar_url')
+              .in('id', profileIds);
+            if (profiles) {
+              profileAvatars = Object.fromEntries(profiles.map((p: any) => [p.id, p.avatar_url]));
+            }
+          }
+
+          // Build attendee list — only include those with a profile image
+          const withImages = attendeesRaw
+            .map((a: any) => {
+              const avatar = a.photo_url || a.avatar_url || (a.profile_id && profileAvatars[a.profile_id]) || '';
+              return { id: a.id, name: a.name || 'Attendee', company: a.company, avatar };
+            })
+            .filter((a) => a.avatar && a.avatar.length > 0);
+
+          setAttendeesList(withImages);
+        }
 
         if (speakerRes.error) console.warn('Failed to load speakers:', speakerRes.error);
         
@@ -254,7 +286,8 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
           name: row.full_name || row.name || 'Speaker',
           title: row.title || '',
           company: row.company || '',
-          avatarUrl: row.avatar_url || row.photo_url || ''
+          avatarUrl: row.avatar_url || row.photo_url || '',
+          type: row.type || ''
         }));
         setSpeakers(mappedSpeakers);
 
@@ -462,6 +495,8 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
         return <SponsorPackagesBlock key={block.id} {...sharedProps} packages={sponsorPackages} settings={block.settings} onSelectPackage={(pkg) => navigate(`/event/${eventId}/sponsor-inquiry/${pkg.id || pkg.name}`)} />;
       case 'networking':
         return <NetworkingBlock key={block.id} {...sharedProps} settings={block.settings} onNavigate={() => navigate(`/event/${eventId}/attendees`)} />;
+      case 'attendees':
+        return <AttendeesBlock key={block.id} {...sharedProps} settings={block.settings} attendees={attendeesList} />;
       case 'exhibitors':
         return <ExhibitorsBlock key={block.id} {...sharedProps} exhibitors={exhibitors} settings={block.settings} />;
       case 'countdown':
