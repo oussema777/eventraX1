@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { isValidRedirectUrl } from '../utils/security';
 
 export default function EventAuthBridge() {
   const location = useLocation();
@@ -8,7 +9,8 @@ export default function EventAuthBridge() {
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
   const params = new URLSearchParams(location.search);
-  const redirectUrl = params.get('redirect') || '';
+  const rawRedirect = params.get('redirect') || '';
+  const redirectUrl = isValidRedirectUrl(rawRedirect) ? rawRedirect : '';
 
   useEffect(() => {
     const autoStart = async () => {

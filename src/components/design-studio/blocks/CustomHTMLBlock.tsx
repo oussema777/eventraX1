@@ -1,5 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { Settings, Trash2 } from 'lucide-react';
+import DOMPurify from 'dompurify';
+import { sanitizeCSS } from '../../../utils/security';
 
 interface CustomHTMLBlockProps {
   settings?: {
@@ -14,13 +16,23 @@ export default function CustomHTMLBlock({ settings, onEdit, isLocked }: CustomHT
   const containerRef = useRef<HTMLDivElement>(null);
   const defaultHtml = '<div style="padding: 40px; text-align: center; background: #f8fafc; border: 2px dashed #cbd5e1; borderRadius: 12px;"><h2 style="color: #1e293b; marginBottom: 12px;">Custom HTML Block</h2><p style="color: #64748b;">Click "Edit" to add your own HTML and CSS.</p></div>';
 
+  const sanitizedHtml = useMemo(() => {
+    const raw = settings?.html || defaultHtml;
+    return DOMPurify.sanitize(raw, {
+      ADD_TAGS: ['style'],
+      ADD_ATTR: ['target', 'rel'],
+      FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'],
+      FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover'],
+    });
+  }, [settings?.html]);
+
   useEffect(() => {
     if (containerRef.current && settings?.css) {
-      // Create a style element for the custom CSS
+      const safeCSS = sanitizeCSS(settings.css);
       const styleId = `custom-style-${Math.random().toString(36).substr(2, 9)}`;
       const styleEl = document.createElement('style');
       styleEl.id = styleId;
-      styleEl.textContent = settings.css;
+      styleEl.textContent = safeCSS;
       document.head.appendChild(styleEl);
 
       return () => {
@@ -52,7 +64,7 @@ export default function CustomHTMLBlock({ settings, onEdit, isLocked }: CustomHT
       <div 
         ref={containerRef}
         className="custom-html-content"
-        dangerouslySetInnerHTML={{ __html: settings?.html || defaultHtml }}
+        dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
       />
     </div>
   );

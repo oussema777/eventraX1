@@ -1,14 +1,22 @@
 import { supabase } from '../lib/supabase';
+import { validateFileUpload, FILE_VALIDATION_PRESETS } from './security';
 
 /**
  * Uploads a file to a Supabase storage bucket and returns the public URL.
+ * Validates file type and size before uploading.
  */
 export async function uploadFile(
   bucket: string,
   path: string,
-  file: File
+  file: File,
+  preset: 'image' | 'submission' = 'image'
 ): Promise<string | null> {
   try {
+    const validationError = validateFileUpload(file, FILE_VALIDATION_PRESETS[preset]);
+    if (validationError) {
+      console.error('File validation failed:', validationError);
+      return null;
+    }
     const { data, error } = await supabase.storage
       .from(bucket)
       .upload(path, file, {
@@ -22,7 +30,8 @@ export async function uploadFile(
       .from(bucket)
       .getPublicUrl(data.path);
 
-    return publicUrl;
+    // Append cache-buster so browsers/CDN show the new file after replacement
+    return `${publicUrl}?t=${Date.now()}`;
   } catch (error) {
     console.error('Error uploading file:', error);
     return null;
@@ -51,8 +60,8 @@ export async function uploadEventCover(eventId: string, file: File) {
  * Helper for event logo uploads
  */
 export async function uploadEventLogo(eventId: string, file: File) {
-  const extension = file.name.split('.').pop();
-  const path = `events/${eventId}/logo.${extension}`;
+  // Always use the same path so upsert replaces the previous logo regardless of file extension
+  const path = `events/${eventId}/logo`;
   return uploadFile('profiles', path, file);
 }
 
@@ -82,5 +91,5 @@ export async function uploadFormSubmissionFile(eventId: string, attendeeId: stri
   const extension = file.name.split('.').pop();
   const timestamp = Date.now();
   const path = `events/${eventId}/submissions/${attendeeId}/${timestamp}_${file.name.replace(/[^a-zA-Z0-9]/g, '_')}.${extension}`;
-  return uploadFile('submissions', path, file);
+  return uploadFile('submissions', path, file, 'submission');
 }

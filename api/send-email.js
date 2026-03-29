@@ -1,14 +1,19 @@
 import { Resend } from 'resend';
 
+const ALLOWED_ORIGINS = [
+  'https://app.eventra.cloud',
+  'https://eventra.cloud',
+  'http://localhost:3000',
+];
+
 export default async function handler(req, res) {
-  // CORS Headers
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  );
+  const origin = req.headers.origin;
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();
@@ -20,11 +25,8 @@ export default async function handler(req, res) {
   }
 
   const { to, subject, html } = req.body;
-  
-  console.log(`[EMAIL_DEBUG] Sending email to: ${to} | Subject: ${subject}`);
 
-  // Using the provided test key directly for verification
-  const resend = new Resend('re_ZMze45ed_7J5Jut3C5REzRxzPmy64t2Ez');
+  const resend = new Resend(process.env.RESEND_API_KEY);
 
   try {
     const { data, error } = await resend.emails.send({
@@ -35,14 +37,11 @@ export default async function handler(req, res) {
     });
 
     if (error) {
-      console.error('[EMAIL_DEBUG] Resend Error:', JSON.stringify(error, null, 2));
       return res.status(400).json(error);
     }
 
-    console.log('[EMAIL_DEBUG] Success:', data.id);
     return res.status(200).json(data);
   } catch (error) {
-    console.error('[EMAIL_DEBUG] System Error:', error.message);
     return res.status(500).json({ error: error.message });
   }
 }

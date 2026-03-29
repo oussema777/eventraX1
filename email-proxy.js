@@ -2,11 +2,19 @@ import http from 'http';
 import https from 'https';
 
 const PORT = 5001;
-const RESEND_KEY = 're_ZMze45ed_7J5Jut3C5REzRxzPmy64t2Ez';
+const RESEND_KEY = process.env.RESEND_API_KEY || '';
+
+const ALLOWED_ORIGINS = [
+  'https://app.eventra.cloud',
+  'https://eventra.cloud',
+  'http://localhost:3000',
+];
 
 const server = http.createServer((req, res) => {
-  // Handle CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin;
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
@@ -22,8 +30,6 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       try {
         const payload = JSON.parse(body);
-        console.log(`[PROXY] Sending to: ${payload.to} | Subject: ${payload.subject}`);
-
         const resendReq = https.request('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
@@ -36,9 +42,8 @@ const server = http.createServer((req, res) => {
           resendRes.on('end', () => {
             res.writeHead(resendRes.statusCode, { 'Content-Type': 'application/json' });
             res.end(resendBody);
-            console.log(`[PROXY] Resend Response: ${resendRes.statusCode} ${resendRes.statusCode === 200 ? '✅' : '❌'}`);
             if (resendRes.statusCode !== 200) {
-              console.log(`[PROXY] Error Detail: ${resendBody}`);
+              console.error(`[PROXY] Error: ${resendRes.statusCode}`);
             }
           });
         });
@@ -70,7 +75,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log('\x1b[36m%s\x1b[0m', `\n🚀 EMAIL PROXY RUNNING ON http://localhost:${PORT}/send-email`);
-  console.log('Using Resend Domain: contact@eventra.cloud');
-  console.log('Press Ctrl+C to stop.\n');
+  console.log(`Email proxy running on http://localhost:${PORT}/send-email`);
 });

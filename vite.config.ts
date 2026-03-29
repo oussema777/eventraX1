@@ -50,9 +50,13 @@
         '@': path.resolve(__dirname, './src'),
       },
     },
+    esbuild: {
+      drop: ['console', 'debugger'],
+    },
     build: {
       target: ['es2017', 'safari12'],
       outDir: 'build',
+      sourcemap: false,
     },
     server: {
       port: 3000,
@@ -174,15 +178,11 @@
             req.on('end', async () => {
               try {
                 const { to, subject, html } = JSON.parse(body);
-                console.log(`[VITE_EMAIL_PROXY] Sending to: ${to} | Subject: ${subject}`);
-                
-                // We call the Resend API directly from the dev server middleware
-                // to avoid CORS and ensure emails actually arrive during dev.
                 const response = await fetch('https://api.resend.com/emails', {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': 'Bearer re_ZMze45ed_7J5Jut3C5REzRxzPmy64t2Ez'
+                    'Authorization': `Bearer ${process.env.RESEND_API_KEY}`
                   },
                   body: JSON.stringify({
                     from: 'Eventra <contact@eventra.cloud>',
@@ -195,17 +195,14 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                  console.log(`[VITE_EMAIL_PROXY] Success: ${data.id}`);
                   res.statusCode = 200;
                   res.setHeader('Content-Type', 'application/json');
                   res.end(JSON.stringify(data));
                 } else {
-                  console.error(`[VITE_EMAIL_PROXY] Error:`, data);
                   res.statusCode = response.status;
                   res.end(JSON.stringify(data));
                 }
               } catch (e) {
-                console.error(`[VITE_EMAIL_PROXY] System Error:`, e.message);
                 res.statusCode = 500;
                 res.end(JSON.stringify({ error: e.message }));
               }

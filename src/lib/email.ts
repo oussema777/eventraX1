@@ -1,5 +1,4 @@
-// Mock Email Service for Localhost Development
-// This simulates sending emails without requiring a backend or exposing API keys.
+import { escapeHTML } from '../utils/security';
 
 interface SendEmailParams {
   to: string;
@@ -11,9 +10,7 @@ export async function sendEmail({ to, subject, html }: SendEmailParams): Promise
   try {
     const isLocal = window.location.hostname === 'localhost';
     const endpoint = isLocal ? 'http://localhost:5001/send-email' : '/api/send-email';
-    
-    console.log(`[EMAIL_DEBUG] Sending request to ${endpoint} for: ${to}`);
-    
+
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 
@@ -23,32 +20,31 @@ export async function sendEmail({ to, subject, html }: SendEmailParams): Promise
     });
 
     if (!res.ok) {
-      const err = await res.json();
-      console.error('[EMAIL_DEBUG] Proxy Error:', err);
       return false;
     }
 
-    const data = await res.json();
-    console.log('[EMAIL_DEBUG] Proxy Success:', data);
+    await res.json();
     return true;
-  } catch (error) {
-    console.error('[EMAIL_DEBUG] Proxy Connection Failed:', error);
+  } catch {
     return false;
   }
 }
 
-export function generateRegistrationEmailHtml(eventName: string, attendeeName: string, qrCodeUrl: string, sessions: any[]) {
-  const sessionList = (sessions || []).map(s => 
+export function generateRegistrationEmailHtml(eventName: string, attendeeName: string, qrCodeUrl: string, sessions: any[], isAnonymous: boolean = false) {
+  const safeEventName = escapeHTML(eventName);
+  const safeAttendeeName = escapeHTML(attendeeName);
+
+  const sessionList = (sessions || []).map(s =>
     `<li style="margin-bottom: 8px;">
-       <strong>${s.title}</strong><br/>
-       <span style="font-size: 12px; color: #666;">${s.starts_at ? new Date(s.starts_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'TBD'} - ${s.location || 'Main Hall'}</span>
+       <strong>${escapeHTML(s.title)}</strong><br/>
+       <span style="font-size: 12px; color: #666;">${s.starts_at ? new Date(s.starts_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'TBD'} - ${escapeHTML(s.location || 'Main Hall')}</span>
      </li>`
   ).join('');
 
   return `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #000000; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
-      <h1 style="color: #0B2641;">You're going to ${eventName}!</h1>
-      <p>Hi ${attendeeName},</p>
+      <h1 style="color: #0B2641;">You're going to ${safeEventName}!</h1>
+      <p>Hi ${safeAttendeeName},</p>
       <p>Thanks for registering. Here is your recap and check-in details.</p>
       
       <div style="background: #F3F4F6; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0; border: 1px solid #E5E7EB;">
@@ -63,9 +59,27 @@ export function generateRegistrationEmailHtml(eventName: string, attendeeName: s
           ${sessionList}
         </ul>
       ` : ''}
-      
+
+      ${isAnonymous ? `
+      <div style="background: linear-gradient(135deg, #EFF6FF, #F0F9FF); padding: 24px; border-radius: 12px; margin: 24px 0; border: 1px solid #BFDBFE;">
+        <h3 style="margin-top: 0; margin-bottom: 12px; color: #0B2641; font-size: 16px;">Get more from this event</h3>
+        <p style="font-size: 14px; color: #4B5563; line-height: 1.6; margin: 0 0 16px 0;">
+          Create a free Eventra account to unlock powerful networking features:
+        </p>
+        <ul style="padding: 0; margin: 0 0 20px 0; list-style: none; font-size: 13px; color: #4B5563;">
+          <li style="margin-bottom: 8px;">&#x1f91d; <strong>B2B Networking</strong> — Connect with attendees & exhibitors</li>
+          <li style="margin-bottom: 8px;">&#x1f4c5; <strong>Meeting Scheduling</strong> — Book 1-on-1 meetings at the event</li>
+          <li style="margin-bottom: 8px;">&#x1f464; <strong>Professional Profile</strong> — Get discovered by other participants</li>
+          <li style="margin-bottom: 0;">&#x26a1; <strong>Smart Check-in</strong> — Your personal QR code for instant access</li>
+        </ul>
+        <div style="text-align: center;">
+          <a href="https://app.eventra.cloud/signup" style="display: inline-block; padding: 12px 28px; background-color: #0684F5; color: #FFFFFF; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">Create Your Free Account</a>
+        </div>
+      </div>
+      ` : ''}
+
       <p style="margin-top: 30px; font-size: 12px; color: #9CA3AF; text-align: center;">
-        Sent via Eventra Platform (Localhost Mode)
+        Sent via Eventra Platform
       </p>
     </div>
   `;
@@ -84,7 +98,7 @@ export function generateWelcomeEmailHtml(params: {
           <h2 style="color: #0684F5; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.025em;">Eventra</h2>
         </div>
 
-        <h1 style="color: #111827; font-size: 24px; font-weight: 700; text-align: center; margin-bottom: 16px;">Welcome to the community, ${params.userName}!</h1>
+        <h1 style="color: #111827; font-size: 24px; font-weight: 700; text-align: center; margin-bottom: 16px;">Welcome to the community, ${escapeHTML(params.userName)}!</h1>
         
         <p style="font-size: 16px; line-height: 1.6; color: #4B5563; text-align: center; margin-bottom: 32px;">
           We're excited to have you on board. Your professional profile is now live and ready for networking.
@@ -140,7 +154,7 @@ export async function sendWelcomeEmail(to: string, userName: string, userId: str
 
   return sendEmail({
     to,
-    subject: `Welcome to Eventra, ${userName}!`,
+    subject: `Welcome to Eventra, ${escapeHTML(userName)}!`,
     html
   });
 }
@@ -171,14 +185,16 @@ export async function sendMeetingConfirmationEmails(params: {
     status: params.status
   };
 
-  // Titles based on status
-  const orgSubject = params.status === 'pending' 
-    ? `Meeting Request: ${params.recipientName} at ${params.eventName}` 
-    : `Meeting Confirmed: ${params.recipientName} at ${params.eventName}`;
-    
-  const recSubject = params.status === 'pending' 
-    ? `New Meeting Request for ${params.eventName}` 
-    : `Meeting Confirmed for ${params.eventName}`;
+  const safeRecipientName = escapeHTML(params.recipientName);
+  const safeEventName = escapeHTML(params.eventName);
+
+  const orgSubject = params.status === 'pending'
+    ? `Meeting Request: ${safeRecipientName} at ${safeEventName}`
+    : `Meeting Confirmed: ${safeRecipientName} at ${safeEventName}`;
+
+  const recSubject = params.status === 'pending'
+    ? `New Meeting Request for ${safeEventName}`
+    : `Meeting Confirmed for ${safeEventName}`;
 
   // Send to Organizer
   const organizerHtml = generateMeetingConfirmationEmailHtml({ ...commonParams, role: 'organizer' });
@@ -212,18 +228,22 @@ export function generateMeetingConfirmationEmailHtml(params: {
 }) {
   const isConfirmed = params.status === 'confirmed';
   const title = isConfirmed ? 'Meeting Confirmed!' : 'New Meeting Request';
-  const accentColor = isConfirmed ? '#0684F5' : '#F59E0B'; // Blue for confirmed, Amber for pending
+  const accentColor = isConfirmed ? '#0684F5' : '#F59E0B';
+  const safeEventName = escapeHTML(params.eventName);
+  const safeOrganizerName = escapeHTML(params.organizerName);
+  const safeRecipientName = escapeHTML(params.recipientName);
+  const safeLocation = escapeHTML(params.location);
 
   return `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #000000; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
       <h1 style="color: ${accentColor};">${title}</h1>
       <p>Hello,</p>
       <p>
-        ${params.status === 'pending' 
-          ? (params.role === 'organizer' 
-              ? `Your meeting request for <strong>${params.eventName}</strong> has been sent.` 
-              : `You have received a new meeting request for <strong>${params.eventName}</strong>.`)
-          : `This is to confirm your B2B networking meeting for <strong>${params.eventName}</strong>.`
+        ${params.status === 'pending'
+          ? (params.role === 'organizer'
+              ? `Your meeting request for <strong>${safeEventName}</strong> has been sent.`
+              : `You have received a new meeting request for <strong>${safeEventName}</strong>.`)
+          : `This is to confirm your B2B networking meeting for <strong>${safeEventName}</strong>.`
         }
       </p>
       
@@ -244,11 +264,11 @@ export function generateMeetingConfirmationEmailHtml(params: {
           </tr>
           <tr>
             <td style="padding: 8px 0; color: #64748B;">Location:</td>
-            <td style="padding: 8px 0; font-weight: 600;">${params.location}</td>
+            <td style="padding: 8px 0; font-weight: 600;">${safeLocation}</td>
           </tr>
           <tr>
             <td style="padding: 8px 0; color: #64748B;">Participants:</td>
-            <td style="padding: 8px 0; font-weight: 600;">${params.organizerName} & ${params.recipientName}</td>
+            <td style="padding: 8px 0; font-weight: 600;">${safeOrganizerName} & ${safeRecipientName}</td>
           </tr>
         </table>
       </div>
