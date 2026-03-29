@@ -27,6 +27,10 @@ export interface EventDraft {
   status: 'draft' | 'published' | 'archived' | 'completed' | 'cancelled';
   is_public?: boolean;
   owner_id?: string;
+  seo_title?: string;
+  seo_description?: string;
+  seo_slug?: string;
+  seo_keywords?: string[];
 }
 
 export function useEventWizard(initialEventId?: string) {

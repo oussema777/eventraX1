@@ -168,7 +168,7 @@ export default function WizardStep4Launch() {
             <EventSummaryCard />
 
             {/* SEO Settings */}
-            <SEOSection />
+            <SEOSection draft={eventData} updateDraft={(updates) => saveDraft(updates)} />
 
             {/* Payment Gateway (PRO) */}
             <PaymentGatewaySection />

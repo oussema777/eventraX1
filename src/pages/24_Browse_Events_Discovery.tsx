@@ -6,6 +6,8 @@ import ModalLogin from '../components/modals/ModalLogin';
 import ModalRegistrationEntry from '../components/modals/ModalRegistrationEntry';
 import { useAuth } from '../contexts/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
+import SEOHead from '../components/SEOHead';
+import { canonicalUrl } from '../utils/seo';
 
 export default function BrowseEventsDiscoveryPage() {
   const { user, profile, signOut } = useAuth();
@@ -35,6 +37,12 @@ export default function BrowseEventsDiscoveryPage() {
 
   return (
     <>
+      <SEOHead
+        title="Explore Events — Conferences, Workshops & B2B Networking"
+        description="Discover and register for professional events, trade missions, conferences, and B2B networking events on Eventra."
+        canonicalUrl={canonicalUrl('/browse-events')}
+        keywords="browse events, find events, conferences, workshops, B2B events, trade missions"
+      />
       {user ? (
         <NavbarLoggedIn 
           userName={profile?.full_name || user.user_metadata?.full_name || t('nav.placeholders.userName')}

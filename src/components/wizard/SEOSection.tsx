@@ -1,24 +1,31 @@
 import { useState } from 'react';
 import { Check, X } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext';
+import type { EventDraft } from '../../hooks/useEventWizard';
 
-export default function SEOSection() {
-  const { t, tList } = useI18n();
-  const [metaTitle, setMetaTitle] = useState(() => t('wizard.step4.seo.defaults.title'));
-  const [metaDescription, setMetaDescription] = useState(() => t('wizard.step4.seo.defaults.description'));
-  const [urlSlug, setUrlSlug] = useState(() => t('wizard.step4.seo.defaults.slug'));
-  const [keywords, setKeywords] = useState(() => tList<string>('wizard.step4.seo.defaults.keywords', []));
+interface SEOSectionProps {
+  draft: EventDraft;
+  updateDraft: (updates: Partial<EventDraft>) => void;
+}
+
+export default function SEOSection({ draft, updateDraft }: SEOSectionProps) {
+  const { t } = useI18n();
   const [newKeyword, setNewKeyword] = useState('');
+
+  const metaTitle = draft.seo_title || '';
+  const metaDescription = draft.seo_description || '';
+  const urlSlug = draft.seo_slug || '';
+  const keywords = draft.seo_keywords || [];
 
   const addKeyword = () => {
     if (newKeyword.trim() && !keywords.includes(newKeyword.trim())) {
-      setKeywords([...keywords, newKeyword.trim()]);
+      updateDraft({ seo_keywords: [...keywords, newKeyword.trim()] });
       setNewKeyword('');
     }
   };
 
   const removeKeyword = (keyword: string) => {
-    setKeywords(keywords.filter(k => k !== keyword));
+    updateDraft({ seo_keywords: keywords.filter(k => k !== keyword) });
   };
 
   const getTitleColor = () => {
@@ -34,24 +41,24 @@ export default function SEOSection() {
   };
 
   return (
-    <div 
+    <div
       className="rounded-xl p-8 border"
       style={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' }}
     >
-      <h2 
+      <h2
         className="text-2xl mb-2"
         style={{ fontWeight: 600, color: '#0B2641' }}
       >
         {t('wizard.step4.seo.title')}
       </h2>
-      <p 
+      <p
         className="text-sm mb-5"
         style={{ color: '#6B7280' }}
       >
         {t('wizard.step4.seo.subtitle')}
       </p>
-      
-      <div 
+
+      <div
         className="w-full h-px mb-6"
         style={{ backgroundColor: '#E5E7EB' }}
       />
@@ -59,7 +66,7 @@ export default function SEOSection() {
       <div className="space-y-6">
         {/* Meta Title */}
         <div>
-          <label 
+          <label
             className="block text-sm mb-2"
             style={{ fontWeight: 500, color: '#6B7280' }}
           >
@@ -68,12 +75,12 @@ export default function SEOSection() {
           <input
             type="text"
             value={metaTitle}
-            onChange={(e) => setMetaTitle(e.target.value)}
+            onChange={(e) => updateDraft({ seo_title: e.target.value })}
             className="w-full h-11 px-4 rounded-lg border outline-none"
             style={{ borderColor: '#E5E7EB', color: '#0B2641' }}
           />
           <div className="flex justify-end mt-1">
-            <span 
+            <span
               className="text-xs"
               style={{ color: getTitleColor(), fontWeight: 500 }}
             >
@@ -84,7 +91,7 @@ export default function SEOSection() {
 
         {/* Meta Description */}
         <div>
-          <label 
+          <label
             className="block text-sm mb-2"
             style={{ fontWeight: 500, color: '#6B7280' }}
           >
@@ -92,12 +99,12 @@ export default function SEOSection() {
           </label>
           <textarea
             value={metaDescription}
-            onChange={(e) => setMetaDescription(e.target.value)}
+            onChange={(e) => updateDraft({ seo_description: e.target.value })}
             className="w-full h-[120px] px-4 py-3 rounded-lg border outline-none resize-none"
             style={{ borderColor: '#E5E7EB', color: '#0B2641' }}
           />
           <div className="flex justify-end mt-1">
-            <span 
+            <span
               className="text-xs"
               style={{ color: getDescriptionColor(), fontWeight: 500 }}
             >
@@ -108,7 +115,7 @@ export default function SEOSection() {
 
         {/* Custom URL Slug */}
         <div>
-          <label 
+          <label
             className="block text-sm mb-2"
             style={{ fontWeight: 500, color: '#6B7280' }}
           >
@@ -122,7 +129,7 @@ export default function SEOSection() {
               <input
                 type="text"
                 value={urlSlug}
-                onChange={(e) => setUrlSlug(e.target.value)}
+                onChange={(e) => updateDraft({ seo_slug: e.target.value })}
                 className="flex-1 outline-none text-sm"
                 style={{ color: '#0B2641' }}
               />
@@ -130,7 +137,7 @@ export default function SEOSection() {
             </div>
             <button
               className="px-4 h-11 rounded-lg border transition-colors hover:bg-gray-50"
-              style={{ 
+              style={{
                 borderColor: '#E5E7EB',
                 color: '#0B2641',
                 fontWeight: 500
@@ -143,7 +150,7 @@ export default function SEOSection() {
 
         {/* Keywords */}
         <div>
-          <label 
+          <label
             className="block text-sm mb-2"
             style={{ fontWeight: 500, color: '#6B7280' }}
           >
@@ -154,7 +161,7 @@ export default function SEOSection() {
               <div
                 key={keyword}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm"
-                style={{ 
+                style={{
                   backgroundColor: 'rgba(6, 132, 245, 0.1)',
                   color: 'var(--primary)',
                   fontWeight: 500

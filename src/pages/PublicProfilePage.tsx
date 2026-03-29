@@ -41,6 +41,8 @@ import ModalRegistrationEntry from '../components/modals/ModalRegistrationEntry'
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { useI18n } from '../i18n/I18nContext';
+import SEOHead from '../components/SEOHead';
+import { canonicalUrl } from '../utils/seo';
 
 export default function PublicProfilePage() {
   const { userId } = useParams();
@@ -191,8 +193,20 @@ export default function PublicProfilePage() {
     }
   };
 
+  const profileName = profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : '';
+  const profileTitle = profileName ? `${profileName} | Eventra` : 'Profile | Eventra';
+  const profileDesc = profile
+    ? `${profileName}${profile.headline ? ' — ' + profile.headline : ''}. Connect on Eventra.`
+    : 'View this professional profile on Eventra.';
+
   return (
     <div style={{ backgroundColor: '#0B2641', minHeight: '100vh' }}>
+      <SEOHead
+        title={profileTitle}
+        description={profileDesc}
+        canonicalUrl={canonicalUrl(`/profile/${userId}`)}
+        ogImage={profile?.avatar_url || undefined}
+      />
       <style>{`
         .profile-container {
           padding: 112px 40px 80px;

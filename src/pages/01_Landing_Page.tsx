@@ -15,6 +15,8 @@ import Footer from '../components/landing/Footer';
 import { ROUTES } from '../utils/navigation';
 import { useEventWizard } from '../hooks/useEventWizard';
 import { useI18n } from '../i18n/I18nContext';
+import SEOHead from '../components/SEOHead';
+import { generateOrganizationJsonLd, generateBreadcrumbJsonLd, canonicalUrl } from '../utils/seo';
 
 export default function LandingPage() {
   // Authentication state
@@ -109,6 +111,16 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title="Eventra — Professional Event Management & B2B Networking Platform"
+        description="Create and manage professional events, B2B networking meetings, and conference registrations. The all-in-one platform for event organizers in Tunisia, Africa, and beyond."
+        canonicalUrl={canonicalUrl('/')}
+        keywords="event management platform, B2B networking events, conference registration, event management Tunisia, professional events"
+        jsonLd={[
+          generateOrganizationJsonLd(),
+          generateBreadcrumbJsonLd([{ name: 'Home', url: canonicalUrl('/') }]),
+        ]}
+      />
       {/* Dynamic Navigation - Shows NavbarLoggedIn or NavbarLoggedOut based on auth state */}
       {user ? (
         <NavbarLoggedIn 

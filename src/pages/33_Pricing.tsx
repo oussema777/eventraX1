@@ -11,6 +11,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import { useI18n } from '../i18n/I18nContext';
+import SEOHead from '../components/SEOHead';
 
 type BillingPeriod = '3-months' | '6-months' | '1-year';
 
@@ -100,6 +101,7 @@ export default function PricingPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 100%)' }}>
+      <SEOHead title="Pricing — Eventra" description="" noindex />
       {user ? (
         <NavbarLoggedIn currentPage="pricing" onLogout={handleLogout} />
       ) : (

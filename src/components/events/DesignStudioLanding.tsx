@@ -17,6 +17,8 @@ import CountdownBlock from '../design-studio/blocks/CountdownBlock';
 import FooterBlock from '../design-studio/blocks/FooterBlock';
 import LandingPageNavbar from './LandingPageNavbar';
 import { useAuth } from '../../contexts/AuthContext';
+import SEOHead from '../SEOHead';
+import { generateEventJsonLd, generateBreadcrumbJsonLd, truncateDescription, canonicalUrl } from '../../utils/seo';
 
 interface EventRecord {
   id: string;
@@ -534,6 +536,32 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
 
   return (
     <div style={{ backgroundColor: '#FFFFFF', minHeight: '100vh', position: 'relative' }}>
+      {event && (
+        <SEOHead
+          title={`${event.name || 'Event'} | ${event.location_address || 'Eventra'}`}
+          description={truncateDescription(event.description || event.tagline || `Join ${event.name} on Eventra`, 160)}
+          ogImage={design.coverUrl || undefined}
+          canonicalUrl={canonicalUrl(`/event/${event.id}/landing`)}
+          keywords={`${event.name}, ${event.event_type || 'event'}, ${event.location_address || ''}`}
+          jsonLd={[
+            generateEventJsonLd({
+              id: event.id,
+              name: event.name,
+              description: event.description,
+              start_date: event.start_date,
+              end_date: event.end_date,
+              location_address: event.location_address,
+              event_format: event.event_format,
+              cover_image_url: design.coverUrl,
+            }),
+            generateBreadcrumbJsonLd([
+              { name: 'Home', url: canonicalUrl('/') },
+              { name: 'Events', url: canonicalUrl('/browse-events') },
+              { name: event.name || 'Event' },
+            ]),
+          ]}
+        />
+      )}
       <LandingPageNavbar 
         activeSections={{
           agenda: sessions.length > 0,

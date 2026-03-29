@@ -12,6 +12,8 @@ import BookMeetingModal from '../components/networking/BookMeetingModal';
 import { useMessageThread } from '../hooks/useMessageThread';
 import { toast } from 'sonner';
 import { useI18n } from '../i18n/I18nContext';
+import SEOHead from '../components/SEOHead';
+import { canonicalUrl } from '../utils/seo';
 
 type SectionType = 'agenda' | 'speakers' | 'exhibitors' | 'attendees' | 'sponsors' | 'packages' | 'tickets';
 
@@ -432,6 +434,13 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
 
   return (
     <div style={{ backgroundColor: '#0B2641', minHeight: '100vh', color: '#FFFFFF' }}>
+      {event && (
+        <SEOHead
+          title={`${type.charAt(0).toUpperCase() + type.slice(1)} — ${event.name || 'Event'}`}
+          description={`View the ${type} for ${event.name} on Eventra.`}
+          canonicalUrl={canonicalUrl(`/event/${eventId}/${type}`)}
+        />
+      )}
       <style>{`
         .agenda-card {
           display: grid;

@@ -24,6 +24,8 @@ import { sendEmail, generateRegistrationEmailHtml } from '../lib/email';
 import { countries } from '../data/countries';
 import { uploadFormSubmissionFile } from '../utils/storage';
 import { useI18n } from '../i18n/I18nContext';
+import SEOHead from '../components/SEOHead';
+import { truncateDescription, canonicalUrl } from '../utils/seo';
 
 const toFlagEmoji = (code: string) => {
   if (!code) return '';
@@ -617,6 +619,13 @@ export default function EventRegistrationFlow() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#0B2641', color: '#FFFFFF' }}>
+      {event && (
+        <SEOHead
+          title={`Register for ${event.name || 'Event'}`}
+          description={truncateDescription(`Register for ${event.name}. Secure your spot and select your sessions.`, 160)}
+          canonicalUrl={canonicalUrl(`/event/${eventId}/register`)}
+        />
+      )}
       <style>{`
         @media print {
           @page {

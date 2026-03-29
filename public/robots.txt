@@ -1,0 +1,23 @@
+User-agent: *
+Allow: /
+Allow: /browse-events
+Allow: /b2b-marketplace
+Allow: /communities
+Allow: /event/
+Allow: /profile/
+Allow: /business/
+
+Disallow: /dashboard
+Disallow: /my-events
+Disallow: /create/
+Disallow: /my-networking
+Disallow: /my-profile
+Disallow: /settings
+Disallow: /messages
+Disallow: /notifications
+Disallow: /admin
+Disallow: /business-profile-wizard
+Disallow: /business-management
+Disallow: /api/
+
+Sitemap: https://eventra.cloud/sitemap.xml

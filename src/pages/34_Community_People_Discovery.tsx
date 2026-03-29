@@ -16,6 +16,8 @@ import { toast } from 'sonner@2.0.3';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
+import SEOHead from '../components/SEOHead';
+import { canonicalUrl } from '../utils/seo';
 import { extractProfileSectors } from '../hooks/useCommunitySectors';
 
 interface Person {
@@ -291,6 +293,12 @@ export default function CommunityPeopleDiscovery() {
 
   return (
     <div className="community-page" style={{ backgroundColor: '#0B2641', minHeight: '100vh' }}>
+      <SEOHead
+        title="Find Professionals — B2B Networking & Community"
+        description="Connect with industry professionals, schedule B2B meetings, and grow your network on Eventra's community platform."
+        canonicalUrl={canonicalUrl('/communities')}
+        keywords="B2B networking, professional community, industry professionals, business networking"
+      />
       {currentUser ? (
         <NavbarLoggedIn
           isUserMenuOpen={isUserMenuOpen}

@@ -45,7 +45,9 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminRoute from './components/auth/AdminRoute';
 import { useEventWizard } from './hooks/useEventWizard';
 import { useEffect } from 'react';
+import { HelmetProvider } from 'react-helmet-async';
 import { I18nProvider, useI18n } from './i18n/I18nContext';
+import NotFound from './pages/NotFound';
 
 import FormResponsePage from './pages/FormResponsePage';
 
@@ -70,8 +72,9 @@ function RedirectLegacyWizard() {
 export default function App() {
   return (
     <I18nProvider>
-      <AuthProvider>
-        <Router>
+      <HelmetProvider>
+        <AuthProvider>
+          <Router>
           <Toaster position="top-right" richColors closeButton />
           <Routes>
             {/* Public Routes */}
@@ -140,9 +143,13 @@ export default function App() {
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/pricing" element={<PricingPage />} />
             </Route>
+
+            {/* 404 Catch-all */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
-        </Router>
-      </AuthProvider>
+          </Router>
+        </AuthProvider>
+      </HelmetProvider>
     </I18nProvider>
   );
 }
