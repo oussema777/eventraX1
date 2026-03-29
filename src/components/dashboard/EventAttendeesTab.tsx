@@ -33,7 +33,13 @@ import {
   Ticket,
   Save,
   ArrowLeft,
-  ChevronUp
+  ChevronUp,
+  FileSpreadsheet,
+  FileText,
+  Shield,
+  UserCheck,
+  BarChart3,
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import { supabase } from '../../lib/supabase';
@@ -67,7 +73,7 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
   const [selectedAttendees, setSelectedAttendees] = useState<string[]>([]);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  
+
   // View State
   const [isAdding, setIsAdding] = useState(false);
   const [selectedAttendee, setSelectedAttendee] = useState<any>(null);
@@ -79,7 +85,7 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [eventCapacity, setEventCapacity] = useState<number | null>(null);
   const [eventName, setEventName] = useState('');
-  
+
   // New Attendee Form State
   const [formFields, setFormFields] = useState<CustomField[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -90,6 +96,10 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
   const [registrationStatus, setRegistrationStatus] = useState('approved');
   const [showSessions, setShowSessions] = useState(false);
   const [importing, setImporting] = useState(false);
+
+  // Export state
+  const [exportType, setExportType] = useState<'attendees' | 'form_responses' | 'full'>('attendees');
+  const [exporting, setExporting] = useState(false);
 
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const listAnchorRef = useRef<HTMLDivElement | null>(null);
@@ -147,6 +157,7 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
         isVIP: !!row.is_vip,
         phone: row.phone || row.meta?.phone || '',
         country: row.meta?.country || '',
+        confirmationCode: row.confirmation_code || row.meta?.confirmationCode || '',
         meta: row.meta || {}
       };
     });
@@ -156,22 +167,21 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
 
   const loadEventMetadata = async () => {
     try {
-      // 1. Fetch Form Schema
       const { data: forms } = await supabase
         .from('event_forms')
         .select('*')
         .eq('event_id', eventId)
         .eq('status', 'active');
-      
+
       const registrationForm = forms?.find(f => f.form_type === 'registration') || forms?.find(f => f.is_default);
-      
+
       const defaultFields = [
         { id: 'full_name', type: 'text', label: 'Full Name', required: true },
         { id: 'email', type: 'email', label: 'Email Address', required: true }
       ];
 
       if (registrationForm?.schema?.fields) {
-        const custom = registrationForm.schema.fields.filter((f: any) => 
+        const custom = registrationForm.schema.fields.filter((f: any) =>
           f.label !== 'Full Name' && f.label !== 'Email Address'
         );
         setFormFields([...defaultFields, ...custom]);
@@ -179,7 +189,6 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
         setFormFields(defaultFields);
       }
 
-      // 2. Fetch Sessions
       const { data: sessionData } = await supabase
         .from('event_sessions')
         .select('*')
@@ -187,7 +196,6 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
         .order('starts_at', { ascending: true });
       setSessions(sessionData || []);
 
-      // 3. Fetch Tickets
       const { data: ticketData } = await supabase
         .from('event_tickets')
         .select('*')
@@ -197,7 +205,6 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
         setSelectedTicketId(ticketData[0].id);
       }
 
-      // 4. Load Event Info
       const { data: eventData } = await supabase
         .from('events')
         .select('capacity_limit,name')
@@ -325,6 +332,141 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
     return true;
   };
 
+  /* ──── EXPORT FUNCTIONS ──── */
+  const escapeCSV = (v: any) => {
+    const s = v === null || v === undefined ? '' : String(v);
+    const needs = /[",\n\r]/.test(s);
+    const out = s.replace(/"/g, '""');
+    return needs ? `"${out}"` : out;
+  };
+
+  const downloadCSV = (filename: string, header: string[], rows: string[][]) => {
+    const csv = [header.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const { data, error } = await supabase
+        .from('event_attendees')
+        .select('*')
+        .eq('event_id', eventId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      const rows = data || [];
+
+      if (exportType === 'attendees') {
+        const header = ['Name', 'Email', 'Company', 'Phone', 'Ticket Type', 'Price', 'Status', 'Checked In', 'Check-in Time', 'Confirmation Code', 'Registered At', 'VIP'];
+        const csvRows = rows.map(r => [
+          escapeCSV(r.name || r.meta?.name),
+          escapeCSV(r.email || r.meta?.email),
+          escapeCSV(r.company || r.meta?.company),
+          escapeCSV(r.phone || r.meta?.phone),
+          escapeCSV(r.ticket_type),
+          escapeCSV(r.price),
+          escapeCSV(r.status),
+          escapeCSV(r.checked_in ? 'Yes' : 'No'),
+          escapeCSV(r.check_in_at || ''),
+          escapeCSV(r.confirmation_code || r.meta?.confirmationCode),
+          escapeCSV(r.created_at),
+          escapeCSV(r.is_vip ? 'Yes' : 'No')
+        ]);
+        downloadCSV(`attendees-export-${new Date().toISOString().slice(0, 10)}.csv`, header, csvRows);
+        toast.success('Attendees exported successfully');
+
+      } else if (exportType === 'form_responses') {
+        // Collect all unique meta keys across all attendees
+        const allMetaKeys = new Set<string>();
+        const systemKeys = new Set([
+          'name', 'email', 'company', 'phone', 'ticketType', 'ticketColor', 'price',
+          'isNew', 'photo', 'photo_url', 'fullName'
+        ]);
+        rows.forEach(r => {
+          if (r.meta && typeof r.meta === 'object') {
+            Object.keys(r.meta).forEach(k => {
+              if (!systemKeys.has(k) && !k.startsWith('_')) {
+                allMetaKeys.add(k);
+              }
+            });
+          }
+        });
+        const metaKeysArr = Array.from(allMetaKeys).sort();
+        const header = ['Name', 'Email', 'Confirmation Code', ...metaKeysArr];
+        const csvRows = rows.map(r => {
+          const meta = r.meta || {};
+          return [
+            escapeCSV(r.name || meta.name),
+            escapeCSV(r.email || meta.email),
+            escapeCSV(r.confirmation_code || meta.confirmationCode || ''),
+            ...metaKeysArr.map(k => {
+              const val = meta[k];
+              if (val === null || val === undefined) return '';
+              if (typeof val === 'object') return escapeCSV(JSON.stringify(val));
+              return escapeCSV(val);
+            })
+          ];
+        });
+        downloadCSV(`form-responses-export-${new Date().toISOString().slice(0, 10)}.csv`, header, csvRows);
+        toast.success('Form responses exported successfully');
+
+      } else {
+        // Full export: attendee info + all meta
+        const allMetaKeys = new Set<string>();
+        rows.forEach(r => {
+          if (r.meta && typeof r.meta === 'object') {
+            Object.keys(r.meta).forEach(k => {
+              if (!k.startsWith('_')) allMetaKeys.add(k);
+            });
+          }
+        });
+        const metaKeysArr = Array.from(allMetaKeys).sort();
+        const header = ['Name', 'Email', 'Company', 'Phone', 'Ticket Type', 'Price', 'Status', 'Checked In', 'Check-in Time', 'Confirmation Code', 'Registered At', 'VIP', ...metaKeysArr];
+        const csvRows = rows.map(r => {
+          const meta = r.meta || {};
+          return [
+            escapeCSV(r.name || meta.name),
+            escapeCSV(r.email || meta.email),
+            escapeCSV(r.company || meta.company),
+            escapeCSV(r.phone || meta.phone),
+            escapeCSV(r.ticket_type),
+            escapeCSV(r.price),
+            escapeCSV(r.status),
+            escapeCSV(r.checked_in ? 'Yes' : 'No'),
+            escapeCSV(r.check_in_at || ''),
+            escapeCSV(r.confirmation_code || meta.confirmationCode),
+            escapeCSV(r.created_at),
+            escapeCSV(r.is_vip ? 'Yes' : 'No'),
+            ...metaKeysArr.map(k => {
+              const val = meta[k];
+              if (val === null || val === undefined) return '';
+              if (typeof val === 'object') return escapeCSV(JSON.stringify(val));
+              return escapeCSV(val);
+            })
+          ];
+        });
+        downloadCSV(`full-attendee-export-${new Date().toISOString().slice(0, 10)}.csv`, header, csvRows);
+        toast.success('Full data exported successfully');
+      }
+
+      setShowExportModal(false);
+    } catch (e) {
+      console.error('Export error:', e);
+      toast.error('Export failed. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const sortLabels: Record<string, string> = {
     recent: t('manageEvent.attendees.filters.sortOptions.recent'),
     name: t('manageEvent.attendees.filters.sortOptions.name'),
@@ -421,371 +563,614 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
   const startIndex = sortedAttendees.length ? (currentPage - 1) * pageSize + 1 : 0;
   const endIndex = Math.min(currentPage * pageSize, sortedAttendees.length);
   const attendanceRate = counts.total ? Math.round((counts.checkedIn / counts.total) * 100) : 0;
+  const capacityPercent = eventCapacity ? Math.min(Math.round((counts.total / eventCapacity) * 100), 100) : null;
+
+  // Collect unique form field count for stats
+  const formFieldCount = useMemo(() => {
+    const allKeys = new Set<string>();
+    const systemKeys = new Set(['name', 'email', 'company', 'phone', 'ticketType', 'ticketColor', 'price', 'isNew', 'photo', 'photo_url', 'fullName', 'confirmationCode', 'Full Name', 'Email Address']);
+    attendees.forEach(a => {
+      if (a.meta && typeof a.meta === 'object') {
+        Object.keys(a.meta).forEach(k => {
+          if (!systemKeys.has(k) && !k.startsWith('_') && typeof a.meta[k] !== 'object') allKeys.add(k);
+        });
+      }
+    });
+    return allKeys.size;
+  }, [attendees]);
 
   return (
     <div
-      className="event-attendees p-4 sm:p-6 lg:p-8"
-      style={{ backgroundColor: '#0B2641', paddingBottom: '80px' }}
+      className="event-attendees"
+      style={{ backgroundColor: '#0B2641', minHeight: '100vh' }}
       onClick={() => setOpenDropdownId(null)}
     >
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .att-animate { animation: fadeInUp 0.3s ease-out; }
+        .att-capacity-bar { transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
       `}</style>
 
-      <div className="w-full">
-        {/* ─── PAGE HEADER ─── */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
+      <div className="w-full" style={{ maxWidth: '1600px', margin: '0 auto', padding: '28px 24px 80px' }}>
+
+        {/* ═══════════════════ PAGE HEADER ═══════════════════ */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', marginBottom: '28px' }}>
           <div>
-            <h1 className="text-2xl sm:text-[32px] font-semibold text-white mb-1 sm:mb-2">
+            <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#FFFFFF', marginBottom: '6px', letterSpacing: '-0.02em' }}>
               {t('manageEvent.attendees.header.title')}
             </h1>
-            <p className="text-sm sm:text-base text-gray-400">
+            <p style={{ fontSize: '15px', color: '#64748B' }}>
               {t('manageEvent.attendees.header.subtitle')}
             </p>
           </div>
-          <button
-            onClick={() => setIsAdding(!isAdding)}
-            className={`flex items-center justify-center gap-2 px-5 h-11 rounded-lg text-sm font-bold transition-all shadow-lg active:scale-95 shrink-0 ${
-              isAdding
-                ? 'bg-white/5 border border-white/10 text-white hover:bg-white/10'
-                : 'bg-[#10B981] text-white hover:bg-[#0da06f] shadow-[#10B981]/20'
-            }`}
-          >
-            {isAdding ? <X size={18} /> : <Plus size={18} />}
-            <span>{isAdding ? 'Cancel' : 'Add Attendee'}</span>
-          </button>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            {/* Export Button */}
+            <button
+              onClick={() => setShowExportModal(true)}
+              style={{
+                height: '42px',
+                padding: '0 18px',
+                backgroundColor: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: '10px',
+                color: '#FFFFFF',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; }}
+              onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
+            >
+              <Download size={16} />
+              Export
+            </button>
+
+            {/* Refresh */}
+            <button
+              onClick={() => loadAttendees()}
+              style={{
+                width: '42px',
+                height: '42px',
+                backgroundColor: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: '10px',
+                color: '#94A3B8',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#FFFFFF'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = '#94A3B8'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'; }}
+            >
+              <RefreshCw size={16} />
+            </button>
+
+            {/* Add Attendee */}
+            <button
+              onClick={() => setIsAdding(!isAdding)}
+              style={{
+                height: '42px',
+                padding: '0 20px',
+                backgroundColor: isAdding ? 'rgba(255,255,255,0.06)' : '#10B981',
+                border: isAdding ? '1px solid rgba(255,255,255,0.12)' : 'none',
+                borderRadius: '10px',
+                color: '#FFFFFF',
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.2s',
+                boxShadow: isAdding ? 'none' : '0 4px 12px rgba(16,185,129,0.25)'
+              }}
+            >
+              {isAdding ? <X size={16} /> : <Plus size={16} />}
+              {isAdding ? 'Cancel' : 'Add Attendee'}
+            </button>
+          </div>
         </div>
 
-        {/* ─── INLINE ADD FORM ─── */}
+        {/* ═══════════════════ INLINE ADD FORM ═══════════════════ */}
         {isAdding && (
-          <div className="mb-8 sm:mb-10 bg-[#0D243B] border border-white/10 rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300 shadow-2xl">
-            <div className="px-4 sm:px-6 py-4 border-b border-white/10 bg-[#0B2236] flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-[#10B981]/10 text-[#10B981] shrink-0">
+          <div className="att-animate" style={{ marginBottom: '28px', backgroundColor: '#0D243B', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
+            <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)', backgroundColor: '#0B2236', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: 'rgba(16,185,129,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10B981' }}>
                 <Plus size={20} />
               </div>
-              <h3 className="text-base sm:text-lg font-bold text-white">Manual Registration</h3>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#FFFFFF' }}>Manual Registration</h3>
             </div>
 
-            <div className="p-4 sm:p-6 lg:p-8">
-              <div className="max-w-3xl mx-auto space-y-6">
-                 {/* Ticket & Status */}
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                       <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Ticket Type</label>
-                       <div className="relative group">
-                          <Ticket size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#0684F5] transition-colors" />
-                          <select
-                            className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-12 pr-10 py-3 text-white text-sm focus:outline-none focus:border-[#0684F5] transition-colors appearance-none cursor-pointer"
-                            value={selectedTicketId}
-                            onChange={(e) => setSelectedTicketId(e.target.value)}
-                          >
-                             {tickets.map(t => (
-                               <option key={t.id} value={t.id}>{t.name} • ${t.price}</option>
-                             ))}
-                             {tickets.length === 0 && <option value="">General Admission</option>}
-                          </select>
-                          <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
-                       </div>
+            <div style={{ padding: '24px' }}>
+              <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+                {/* Ticket & Status */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Ticket Type</label>
+                    <div style={{ position: 'relative' }}>
+                      <Ticket size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
+                      <select
+                        value={selectedTicketId}
+                        onChange={(e) => setSelectedTicketId(e.target.value)}
+                        style={{ width: '100%', height: '44px', backgroundColor: '#162C46', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', paddingLeft: '40px', paddingRight: '36px', color: '#FFFFFF', fontSize: '13px', appearance: 'none' as any, cursor: 'pointer', outline: 'none' }}
+                      >
+                        {tickets.map(t => (
+                          <option key={t.id} value={t.id}>{t.name} - ${t.price}</option>
+                        ))}
+                        {tickets.length === 0 && <option value="">General Admission</option>}
+                      </select>
+                      <ChevronDown size={14} style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: '#475569', pointerEvents: 'none' }} />
                     </div>
-                    <div className="space-y-2">
-                       <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">Initial Status</label>
-                       <div className="relative group">
-                          <CheckCircle size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#0684F5] transition-colors" />
-                          <select
-                            className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-12 pr-10 py-3 text-white text-sm focus:outline-none focus:border-[#0684F5] transition-colors appearance-none cursor-pointer"
-                            value={registrationStatus}
-                            onChange={(e) => setRegistrationStatus(e.target.value)}
-                          >
-                             <option value="approved">Approved</option>
-                             <option value="pending">Pending</option>
-                          </select>
-                          <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
-                       </div>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Initial Status</label>
+                    <div style={{ position: 'relative' }}>
+                      <CheckCircle size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
+                      <select
+                        value={registrationStatus}
+                        onChange={(e) => setRegistrationStatus(e.target.value)}
+                        style={{ width: '100%', height: '44px', backgroundColor: '#162C46', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', paddingLeft: '40px', paddingRight: '36px', color: '#FFFFFF', fontSize: '13px', appearance: 'none' as any, cursor: 'pointer', outline: 'none' }}
+                      >
+                        <option value="approved">Approved</option>
+                        <option value="pending">Pending</option>
+                      </select>
+                      <ChevronDown size={14} style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: '#475569', pointerEvents: 'none' }} />
                     </div>
-                 </div>
+                  </div>
+                </div>
 
-                 <div className="h-px bg-white/5 w-full" />
+                <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.05)', margin: '4px 0 20px' }} />
 
-                 {/* Form Fields */}
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                    {formFields.map((field) => (
-                      <div key={field.id} className={`space-y-2 ${field.type === 'textarea' ? 'sm:col-span-2' : ''}`}>
-                         <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">
-                           {field.label} {field.required && <span className="text-emerald-500">*</span>}
-                         </label>
-                         {field.type === 'textarea' ? (
-                           <textarea
-                             className="w-full bg-[#162C46] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#0684F5] transition-colors resize-none placeholder-gray-600 min-h-[100px]"
-                             placeholder={`Enter ${field.label.toLowerCase()}...`}
-                             value={formData[field.label] || ''}
-                             onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}
-                           />
-                         ) : field.type === 'dropdown' ? (
-                           <div className="relative">
-                              <select
-                                className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-4 pr-10 py-3 text-white text-sm focus:outline-none focus:border-[#0684F5] transition-colors appearance-none cursor-pointer"
-                                value={formData[field.label] || ''}
-                                onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}
-                              >
-                                <option value="">Select option...</option>
-                                {field.options?.map(opt => (
-                                  <option key={opt} value={opt}>{opt}</option>
-                                ))}
-                              </select>
-                              <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
-                           </div>
-                         ) : (
-                           <div className="relative group">
-                              <input
-                                type={field.type === 'email' ? 'email' : 'text'}
-                                className="w-full bg-[#162C46] border border-white/10 rounded-xl pl-11 pr-4 py-3 text-white text-sm focus:outline-none focus:border-[#0684F5] transition-colors placeholder-gray-600"
-                                placeholder={field.label}
-                                value={formData[field.label] || ''}
-                                onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}
-                              />
-                              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-[#0684F5] transition-colors pointer-events-none">
-                                 {field.type === 'email' ? <Mail size={16} /> : <User size={16} />}
-                              </div>
-                           </div>
-                         )}
-                      </div>
-                    ))}
-                 </div>
-
-                 {/* Sessions */}
-                 <div>
-                    <button
-                      onClick={() => setShowSessions(!showSessions)}
-                      className="flex items-center justify-between w-full p-3.5 rounded-xl bg-[#162C46] border border-white/5 hover:border-white/10 transition-all group"
-                    >
-                       <div className="flex items-center gap-3 min-w-0">
-                          <div className="p-2 rounded-lg bg-[#10B981]/10 text-[#10B981] shrink-0"><Calendar size={16} /></div>
-                          <div className="text-left min-w-0">
-                             <span className="block text-sm font-bold text-white truncate">Pre-assign Sessions</span>
-                             <span className="block text-xs text-gray-400 hidden sm:block">Optional: Choose sessions for this attendee</span>
+                {/* Form Fields */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+                  {formFields.map((field) => (
+                    <div key={field.id} style={field.type === 'textarea' ? { gridColumn: '1 / -1' } : {}}>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+                        {field.label} {field.required && <span style={{ color: '#10B981' }}>*</span>}
+                      </label>
+                      {field.type === 'textarea' ? (
+                        <textarea
+                          placeholder={`Enter ${field.label.toLowerCase()}...`}
+                          value={formData[field.label] || ''}
+                          onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}
+                          style={{ width: '100%', minHeight: '100px', backgroundColor: '#162C46', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px 14px', color: '#FFFFFF', fontSize: '13px', resize: 'none', outline: 'none' }}
+                        />
+                      ) : field.type === 'dropdown' ? (
+                        <div style={{ position: 'relative' }}>
+                          <select
+                            value={formData[field.label] || ''}
+                            onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}
+                            style={{ width: '100%', height: '44px', backgroundColor: '#162C46', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '0 36px 0 14px', color: '#FFFFFF', fontSize: '13px', appearance: 'none' as any, cursor: 'pointer', outline: 'none' }}
+                          >
+                            <option value="">Select option...</option>
+                            {field.options?.map(opt => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                          <ChevronDown size={14} style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: '#475569', pointerEvents: 'none' }} />
+                        </div>
+                      ) : (
+                        <div style={{ position: 'relative' }}>
+                          <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#475569', pointerEvents: 'none' }}>
+                            {field.type === 'email' ? <Mail size={15} /> : <User size={15} />}
                           </div>
-                       </div>
-                       <div className="flex items-center gap-2 shrink-0 ml-2">
-                          {selectedSessions.size > 0 && (
-                             <span className="text-[10px] bg-[#10B981] text-white px-2 py-0.5 rounded-full font-bold">{selectedSessions.size}</span>
-                          )}
-                          {showSessions ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
-                       </div>
-                    </button>
-                    {showSessions && (
-                       <div className="mt-2 border border-white/10 rounded-xl p-2.5 max-h-[250px] overflow-y-auto bg-[#0B2236] custom-scrollbar">
-                          {sessions.length === 0 ? (
-                             <p className="text-center text-xs text-gray-500 py-6">No sessions available.</p>
-                          ) : (
-                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                {sessions.map(session => {
-                                  const isSelected = selectedSessions.has(session.id);
-                                  return (
-                                    <div
-                                      key={session.id}
-                                      onClick={() => { const next = new Set(selectedSessions); if (isSelected) next.delete(session.id); else next.add(session.id); setSelectedSessions(next); }}
-                                      className={`p-3 rounded-lg border cursor-pointer transition-all flex items-start gap-3 ${isSelected ? 'bg-[#10B981]/10 border-[#10B981]/50' : 'bg-transparent border-white/5 hover:bg-white/5'}`}
-                                    >
-                                      <div className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${isSelected ? 'bg-[#10B981] border-[#10B981]' : 'border-gray-600'}`}>
-                                         {isSelected && <Check size={12} className="text-white stroke-[3]" />}
-                                      </div>
-                                      <div className="min-w-0">
-                                        <p className={`text-xs font-bold truncate ${isSelected ? 'text-white' : 'text-gray-300'}`}>{session.title}</p>
-                                        <p className="text-[10px] text-gray-500 mt-0.5">{new Date(session.starts_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                             </div>
-                          )}
-                       </div>
-                    )}
-                 </div>
+                          <input
+                            type={field.type === 'email' ? 'email' : 'text'}
+                            placeholder={field.label}
+                            value={formData[field.label] || ''}
+                            onChange={(e) => setFormData({...formData, [field.label]: e.target.value})}
+                            style={{ width: '100%', height: '44px', backgroundColor: '#162C46', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', paddingLeft: '40px', paddingRight: '14px', color: '#FFFFFF', fontSize: '13px', outline: 'none' }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Sessions */}
+                <div>
+                  <button
+                    onClick={() => setShowSessions(!showSessions)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      width: '100%',
+                      padding: '14px 16px',
+                      borderRadius: '12px',
+                      backgroundColor: '#162C46',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                      cursor: 'pointer',
+                      color: '#FFFFFF'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: 'rgba(16,185,129,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10B981' }}>
+                        <Calendar size={16} />
+                      </div>
+                      <div style={{ textAlign: 'left' }}>
+                        <span style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#FFFFFF' }}>Pre-assign Sessions</span>
+                        <span style={{ display: 'block', fontSize: '11px', color: '#64748B' }}>Optional: Choose sessions for this attendee</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {selectedSessions.size > 0 && (
+                        <span style={{ fontSize: '10px', backgroundColor: '#10B981', color: '#FFFFFF', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>{selectedSessions.size}</span>
+                      )}
+                      {showSessions ? <ChevronUp size={16} style={{ color: '#64748B' }} /> : <ChevronDown size={16} style={{ color: '#64748B' }} />}
+                    </div>
+                  </button>
+                  {showSessions && (
+                    <div className="custom-scrollbar" style={{ marginTop: '8px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '10px', maxHeight: '250px', overflowY: 'auto', backgroundColor: '#0B2236' }}>
+                      {sessions.length === 0 ? (
+                        <p style={{ textAlign: 'center', fontSize: '12px', color: '#475569', padding: '24px 0' }}>No sessions available.</p>
+                      ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '8px' }}>
+                          {sessions.map(session => {
+                            const isSelected = selectedSessions.has(session.id);
+                            return (
+                              <div
+                                key={session.id}
+                                onClick={() => { const next = new Set(selectedSessions); if (isSelected) next.delete(session.id); else next.add(session.id); setSelectedSessions(next); }}
+                                style={{
+                                  padding: '12px',
+                                  borderRadius: '10px',
+                                  border: isSelected ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(255,255,255,0.05)',
+                                  backgroundColor: isSelected ? 'rgba(16,185,129,0.08)' : 'transparent',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'flex-start',
+                                  gap: '10px',
+                                  transition: 'all 0.15s'
+                                }}
+                              >
+                                <div style={{
+                                  marginTop: '2px', width: '20px', height: '20px', borderRadius: '50%',
+                                  border: isSelected ? '2px solid #10B981' : '2px solid #475569',
+                                  backgroundColor: isSelected ? '#10B981' : 'transparent',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                                }}>
+                                  {isSelected && <Check size={12} style={{ color: '#FFFFFF', strokeWidth: 3 }} />}
+                                </div>
+                                <div style={{ minWidth: 0 }}>
+                                  <p style={{ fontSize: '12px', fontWeight: 700, color: isSelected ? '#FFFFFF' : '#CBD5E1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{session.title}</p>
+                                  <p style={{ fontSize: '10px', color: '#475569', marginTop: '2px' }}>{new Date(session.starts_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="px-4 sm:px-6 lg:px-8 py-4 border-t border-white/10 flex flex-col-reverse sm:flex-row justify-end gap-3 bg-[#0B2236]">
+            <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'flex-end', gap: '12px', backgroundColor: '#0B2236', flexWrap: 'wrap' }}>
               <button
                 onClick={() => setIsAdding(false)}
-                className="px-5 py-2.5 rounded-xl text-gray-400 font-medium hover:text-white hover:bg-white/5 transition-colors text-sm text-center"
+                style={{ padding: '0 20px', height: '40px', borderRadius: '10px', backgroundColor: 'transparent', border: 'none', color: '#64748B', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
               >
-                Discard Changes
+                Discard
               </button>
               <button
                 onClick={handleAddAttendee}
-                className="px-6 sm:px-10 py-2.5 bg-[#10B981] text-white rounded-xl font-bold hover:bg-[#0da06f] transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#10B981]/25 active:scale-95 text-sm"
+                style={{ padding: '0 28px', height: '40px', borderRadius: '10px', backgroundColor: '#10B981', border: 'none', color: '#FFFFFF', fontSize: '13px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(16,185,129,0.25)' }}
               >
-                <Save size={18} />
+                <Save size={16} />
                 Save Registration
               </button>
             </div>
           </div>
         )}
 
-        {/* ─── STATS ─── */}
+        {/* ═══════════════════ STATS GRID ═══════════════════ */}
         {!isAdding && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 sm:mb-8">
-            {[
-              { icon: Users, color: '#0684F5', bgColor: 'rgba(6,132,245,0.12)', value: counts.total, label: 'Total' },
-              { icon: Clock, color: '#F59E0B', bgColor: 'rgba(245,158,11,0.12)', value: counts.pending, label: 'Pending' },
-              { icon: CheckCircle, color: '#10B981', bgColor: 'rgba(16,185,129,0.12)', value: `${attendanceRate}%`, label: 'Attendance' },
-              { icon: TrendingUp, color: '#A855F7', bgColor: 'rgba(168,85,247,0.12)', value: `+${counts.thisWeek}`, label: 'This Week' },
-            ].map((stat) => (
-              <div key={stat.label} className="rounded-xl p-4 border border-white/[0.08] bg-[#0D243B] hover:bg-[#0F2A45] transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: stat.bgColor }}>
-                    <stat.icon size={18} style={{ color: stat.color }} />
-                  </div>
-                  <div>
-                    <p className="text-xl sm:text-2xl font-bold text-white leading-none">{stat.value}</p>
-                    <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider mt-0.5">{stat.label}</p>
-                  </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '24px' }}>
+            {/* Total Registrations */}
+            <div style={{ backgroundColor: '#0D243B', borderRadius: '14px', padding: '20px', border: '1px solid rgba(255,255,255,0.06)', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: 'rgba(6,132,245,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Users size={20} style={{ color: '#0684F5' }} />
+                </div>
+                {capacityPercent !== null && (
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: capacityPercent >= 90 ? '#EF4444' : capacityPercent >= 70 ? '#F59E0B' : '#10B981', padding: '3px 10px', borderRadius: '20px', backgroundColor: capacityPercent >= 90 ? 'rgba(239,68,68,0.12)' : capacityPercent >= 70 ? 'rgba(245,158,11,0.12)' : 'rgba(16,185,129,0.12)' }}>
+                    {capacityPercent}% capacity
+                  </span>
+                )}
+              </div>
+              <p style={{ fontSize: '32px', fontWeight: 800, color: '#FFFFFF', lineHeight: 1, marginBottom: '4px', letterSpacing: '-0.02em' }}>{counts.total}</p>
+              <p style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>Total Registrations</p>
+              {capacityPercent !== null && (
+                <div style={{ marginTop: '12px', height: '4px', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div className="att-capacity-bar" style={{ height: '100%', width: `${capacityPercent}%`, backgroundColor: capacityPercent >= 90 ? '#EF4444' : capacityPercent >= 70 ? '#F59E0B' : '#0684F5', borderRadius: '2px' }} />
+                </div>
+              )}
+            </div>
+
+            {/* Pending Review */}
+            <div
+              onClick={counts.pending > 0 ? handleReviewPending : undefined}
+              style={{ backgroundColor: '#0D243B', borderRadius: '14px', padding: '20px', border: '1px solid rgba(255,255,255,0.06)', cursor: counts.pending > 0 ? 'pointer' : 'default', transition: 'all 0.2s' }}
+              onMouseEnter={e => { if (counts.pending > 0) e.currentTarget.style.borderColor = 'rgba(245,158,11,0.3)'; }}
+              onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: 'rgba(245,158,11,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Clock size={20} style={{ color: '#F59E0B' }} />
+                </div>
+                {counts.pending > 0 && (
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#F59E0B' }}>Review</span>
+                )}
+              </div>
+              <p style={{ fontSize: '32px', fontWeight: 800, color: '#FFFFFF', lineHeight: 1, marginBottom: '4px', letterSpacing: '-0.02em' }}>{counts.pending}</p>
+              <p style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>Pending Review</p>
+            </div>
+
+            {/* Attendance Rate */}
+            <div style={{ backgroundColor: '#0D243B', borderRadius: '14px', padding: '20px', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: 'rgba(16,185,129,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <UserCheck size={20} style={{ color: '#10B981' }} />
                 </div>
               </div>
-            ))}
+              <p style={{ fontSize: '32px', fontWeight: 800, color: '#FFFFFF', lineHeight: 1, marginBottom: '4px', letterSpacing: '-0.02em' }}>{attendanceRate}%</p>
+              <p style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>{counts.checkedIn} Checked In</p>
+              <div style={{ marginTop: '12px', height: '4px', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
+                <div className="att-capacity-bar" style={{ height: '100%', width: `${attendanceRate}%`, backgroundColor: '#10B981', borderRadius: '2px' }} />
+              </div>
+            </div>
+
+            {/* This Week / VIP */}
+            <div style={{ backgroundColor: '#0D243B', borderRadius: '14px', padding: '20px', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: 'rgba(168,85,247,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <TrendingUp size={20} style={{ color: '#A855F7' }} />
+                </div>
+              </div>
+              <p style={{ fontSize: '32px', fontWeight: 800, color: '#FFFFFF', lineHeight: 1, marginBottom: '4px', letterSpacing: '-0.02em' }}>+{counts.thisWeek}</p>
+              <p style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>This Week</p>
+              {counts.vip > 0 && (
+                <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Star size={12} style={{ color: '#F59E0B' }} />
+                  <span style={{ fontSize: '11px', color: '#F59E0B', fontWeight: 700 }}>{counts.vip} VIP</span>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
-        {/* ─── FILTERS & SEARCH ─── */}
-        <div ref={listAnchorRef} className="rounded-xl p-3 sm:p-4 mb-5 border bg-white/[0.03] border-white/10">
-          <div className="flex flex-col gap-3">
-            {/* Filter tabs - horizontally scrollable on mobile */}
-            <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 no-scrollbar">
-              {['all', 'approved', 'pending', 'declined', 'checkedIn'].map((tab) => (
+        {/* ═══════════════════ FILTERS & SEARCH ═══════════════════ */}
+        <div ref={listAnchorRef} style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '14px', padding: '16px', marginBottom: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* Filter tabs */}
+            <div className="no-scrollbar" style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
+              {[
+                { key: 'all', label: 'All', count: counts.total },
+                { key: 'approved', label: 'Approved', count: counts.approved },
+                { key: 'pending', label: 'Pending', count: counts.pending },
+                { key: 'declined', label: 'Declined', count: counts.declined },
+                { key: 'checkedIn', label: 'Checked In', count: counts.checkedIn },
+                { key: 'vip', label: 'VIP', count: counts.vip }
+              ].map((tab) => (
                 <button
-                  key={tab}
-                  onClick={() => { setActiveFilterTab(tab); setCurrentPage(1); }}
-                  className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap shrink-0 ${
-                    activeFilterTab === tab ? 'bg-[#0684F5] text-white' : 'text-gray-400 hover:bg-white/5'
-                  }`}
+                  key={tab.key}
+                  onClick={() => { setActiveFilterTab(tab.key); setCurrentPage(1); }}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: activeFilterTab === tab.key ? 700 : 500,
+                    backgroundColor: activeFilterTab === tab.key ? '#0684F5' : 'transparent',
+                    color: activeFilterTab === tab.key ? '#FFFFFF' : '#64748B',
+                    border: 'none',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    transition: 'all 0.15s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
                 >
-                  {tab === 'checkedIn' ? 'Checked In' : tab.charAt(0).toUpperCase() + tab.slice(1)}
-                  {tab !== 'all' && (
-                    <span className="ml-1.5 text-[10px] opacity-70">
-                      {tab === 'approved' ? counts.approved : tab === 'pending' ? counts.pending : tab === 'declined' ? counts.declined : tab === 'checkedIn' ? counts.checkedIn : ''}
-                    </span>
+                  {tab.key === 'vip' && <Star size={12} />}
+                  {tab.label}
+                  {tab.key !== 'all' && (
+                    <span style={{ fontSize: '10px', opacity: 0.7 }}>{tab.count}</span>
                   )}
                 </button>
               ))}
             </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-              <div className="relative flex-1">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+            {/* Search + Sort */}
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
+                <Search size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
                 <input
                   type="text"
                   placeholder="Search by name, email, company..."
-                  className="w-full h-10 sm:h-11 bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 text-white text-sm outline-none focus:border-[#0684F5] transition-colors placeholder-gray-500"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{ width: '100%', height: '42px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', paddingLeft: '40px', paddingRight: searchTerm ? '36px' : '14px', color: '#FFFFFF', fontSize: '13px', outline: 'none' }}
                 />
                 {searchTerm && (
-                  <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"><X size={14} /></button>
+                  <button onClick={() => setSearchTerm('')} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#475569', cursor: 'pointer', padding: 0 }}>
+                    <X size={14} />
+                  </button>
                 )}
               </div>
               <button
                 onClick={handleSortClick}
-                className="h-10 sm:h-11 px-3 sm:px-4 bg-white/5 border border-white/10 rounded-lg text-white text-xs sm:text-sm flex items-center gap-2 shrink-0 justify-center"
+                style={{
+                  height: '42px',
+                  padding: '0 16px',
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: '10px',
+                  color: '#CBD5E1',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  whiteSpace: 'nowrap'
+                }}
               >
                 Sort: {sortLabels[sortOption]}
-                <ChevronDown size={14} />
+                <ChevronDown size={13} />
               </button>
             </div>
           </div>
         </div>
 
-        {/* ─── ATTENDEES LIST ─── */}
-        <div className="rounded-xl border border-white/10 bg-[#0D243B] overflow-hidden shadow-lg">
-          {visibleAttendees.length === 0 ? (
-            <div className="py-16 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white/5 flex items-center justify-center">
-                <Users size={28} className="text-gray-600" />
+        {/* ═══════════════════ ATTENDEES TABLE ═══════════════════ */}
+        <div style={{ borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)', backgroundColor: '#0D243B', overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.15)' }}>
+          {loading ? (
+            <div style={{ padding: '64px 0', textAlign: 'center' }}>
+              <Loader2 size={28} style={{ color: '#0684F5', margin: '0 auto 12px', animation: 'spin 1s linear infinite' }} />
+              <p style={{ color: '#64748B', fontSize: '13px' }}>Loading attendees...</p>
+              <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+            </div>
+          ) : visibleAttendees.length === 0 ? (
+            <div style={{ padding: '64px 24px', textAlign: 'center' }}>
+              <div style={{ width: '56px', height: '56px', margin: '0 auto 16px', borderRadius: '16px', backgroundColor: 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Users size={24} style={{ color: '#334155' }} />
               </div>
-              <p className="text-gray-400 text-sm font-medium">No attendees found</p>
-              <p className="text-gray-600 text-xs mt-1">Try adjusting your filters or add a new attendee</p>
+              <p style={{ color: '#64748B', fontSize: '14px', fontWeight: 600, marginBottom: '4px' }}>No attendees found</p>
+              <p style={{ color: '#334155', fontSize: '12px' }}>Try adjusting your filters or add a new attendee</p>
             </div>
           ) : (
             <>
-              {/* Desktop / Tablet Table (sm+) */}
-              <div className="hidden sm:block overflow-x-auto">
-                <table className="w-full min-w-[600px]">
+              {/* ── Desktop Table ── */}
+              <div className="hidden sm:block" style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', minWidth: '700px', borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr className="border-b border-white/[0.08]">
-                      <th className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Attendee</th>
-                      <th className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Ticket</th>
-                      <th className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Check-in</th>
-                      <th className="px-4 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      <th style={{ padding: '14px 20px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Attendee</th>
+                      <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Ticket</th>
+                      <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Status</th>
+                      <th style={{ padding: '14px 16px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Check-in</th>
+                      <th style={{ padding: '14px 20px', textAlign: 'right', fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleAttendees.map((attendee, idx) => {
-                      const statusConfig = getStatusBadge(attendee.status);
+                    {visibleAttendees.map((att, idx) => {
+                      const statusConfig = getStatusBadge(att.status);
                       return (
                         <tr
-                          key={attendee.id}
-                          className={`group cursor-pointer transition-colors hover:bg-white/[0.04] ${idx !== visibleAttendees.length - 1 ? 'border-b border-white/[0.05]' : ''}`}
-                          onClick={() => { setSelectedAttendee(attendee); setShowDetailModal(true); }}
+                          key={att.id}
+                          onClick={() => { setSelectedAttendee(att); setShowDetailModal(true); }}
+                          style={{ borderBottom: idx !== visibleAttendees.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', cursor: 'pointer', transition: 'background-color 0.15s' }}
+                          onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'}
+                          onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                         >
-                          <td className="px-4 py-3.5">
-                            <div className="flex items-center gap-3">
-                              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#0684F5] to-[#0B5FCC] flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm">
-                                {attendee.name?.charAt(0)?.toUpperCase() || '?'}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="text-sm font-semibold text-white truncate max-w-[180px]">{attendee.name}</div>
-                                <div className="text-[11px] text-gray-500 truncate max-w-[180px]">{attendee.email}</div>
+                          <td style={{ padding: '14px 20px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              {att.photo ? (
+                                <img
+                                  src={att.photo}
+                                  alt={att.name}
+                                  style={{ width: '38px', height: '38px', borderRadius: '10px', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.08)', flexShrink: 0 }}
+                                />
+                              ) : (
+                                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'linear-gradient(135deg, #0684F5, #0B5FCC)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFFFFF', fontWeight: 700, fontSize: '14px', flexShrink: 0 }}>
+                                  {att.name?.charAt(0)?.toUpperCase() || '?'}
+                                </div>
+                              )}
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px', display: 'block' }}>{att.name}</span>
+                                  {att.isVIP && <Star size={12} style={{ color: '#F59E0B', flexShrink: 0 }} fill="#F59E0B" />}
+                                </div>
+                                <div style={{ fontSize: '12px', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }}>{att.email}</div>
+                                {att.company && (
+                                  <div style={{ fontSize: '11px', color: '#334155', marginTop: '2px' }}>{att.company}</div>
+                                )}
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3.5">
-                            <span className="text-xs font-medium text-gray-300">{attendee.ticketType}</span>
-                            <div className="text-[10px] text-gray-600 mt-0.5">{attendee.regDate}</div>
+                          <td style={{ padding: '14px 16px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: att.ticketColor, flexShrink: 0 }} />
+                              <div>
+                                <span style={{ fontSize: '13px', fontWeight: 500, color: '#CBD5E1' }}>{att.ticketType}</span>
+                                <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px' }}>{att.regDate}</div>
+                              </div>
+                            </div>
                           </td>
-                          <td className="px-4 py-3.5">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold" style={{ backgroundColor: statusConfig.bg, color: statusConfig.color, border: `1px solid ${statusConfig.border}` }}>
+                          <td style={{ padding: '14px 16px' }}>
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '5px',
+                              padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700,
+                              backgroundColor: statusConfig.bg, color: statusConfig.color, border: `1px solid ${statusConfig.border}`
+                            }}>
                               <statusConfig.icon size={11} /> {statusConfig.label}
                             </span>
                           </td>
-                          <td className="px-4 py-3.5">
-                            {attendee.checkedIn ? (
-                              <span className="inline-flex items-center gap-1.5 text-emerald-400 text-xs font-bold"><Check size={13} strokeWidth={3} /> Yes</span>
+                          <td style={{ padding: '14px 16px' }}>
+                            {att.checkedIn ? (
+                              <div>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#10B981', fontSize: '12px', fontWeight: 700 }}>
+                                  <Check size={13} strokeWidth={3} /> Yes
+                                </span>
+                                {att.checkInTime && (
+                                  <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px' }}>{att.checkInTime}</div>
+                                )}
+                              </div>
                             ) : (
-                              <span className="text-gray-600 text-xs">—</span>
+                              <span style={{ color: '#334155', fontSize: '12px' }}>&mdash;</span>
                             )}
                           </td>
-                          <td className="px-4 py-3.5">
-                            <div className="flex items-center justify-end gap-1.5">
-                              {attendee.status !== 'approved' && (
-                                <button onClick={(e) => { e.stopPropagation(); updateAttendee(attendee.id, { status: 'approved' }); toast.success('Attendee approved'); }}
-                                  className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 text-[11px] font-bold transition-all active:scale-95 border border-emerald-500/20">
+                          <td style={{ padding: '14px 20px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                              {att.status !== 'approved' && (
+                                <button onClick={(e) => { e.stopPropagation(); updateAttendee(att.id, { status: 'approved' }); toast.success('Attendee approved'); }}
+                                  style={{ padding: '4px 10px', borderRadius: '8px', backgroundColor: 'rgba(16,185,129,0.12)', color: '#10B981', border: '1px solid rgba(16,185,129,0.2)', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>
                                   Approve
                                 </button>
                               )}
-                              {attendee.status !== 'declined' && (
-                                <button onClick={(e) => { e.stopPropagation(); updateAttendee(attendee.id, { status: 'declined' }); toast.error('Registration declined'); }}
-                                  className="px-2.5 py-1 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 text-[11px] font-bold transition-all active:scale-95 border border-rose-500/20">
+                              {att.status !== 'declined' && (
+                                <button onClick={(e) => { e.stopPropagation(); updateAttendee(att.id, { status: 'declined' }); toast.error('Registration declined'); }}
+                                  style={{ padding: '4px 10px', borderRadius: '8px', backgroundColor: 'rgba(239,68,68,0.12)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.2)', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>
                                   Decline
                                 </button>
                               )}
-                              <div className="relative">
+                              <div style={{ position: 'relative' }}>
                                 <button
-                                  className={`p-1.5 rounded-lg transition-colors ${openDropdownId === attendee.id ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-white hover:bg-white/10'}`}
-                                  onClick={(e) => { e.stopPropagation(); setOpenDropdownId(openDropdownId === attendee.id ? null : attendee.id); }}
+                                  onClick={(e) => { e.stopPropagation(); setOpenDropdownId(openDropdownId === att.id ? null : att.id); }}
+                                  style={{ width: '30px', height: '30px', borderRadius: '8px', backgroundColor: openDropdownId === att.id ? 'rgba(255,255,255,0.1)' : 'transparent', border: 'none', color: openDropdownId === att.id ? '#FFFFFF' : '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                 >
                                   <MoreVertical size={15} />
                                 </button>
-                                {openDropdownId === attendee.id && (
-                                  <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                                    <button onClick={() => { updateAttendee(attendee.id, { checkedIn: !attendee.checkedIn }); toast.success(attendee.checkedIn ? 'Check-in cancelled' : 'Attendee checked in'); setOpenDropdownId(null); }}
-                                      style={{ color: '#0F172A' }} className="w-full px-4 py-3 text-left text-sm font-bold hover:bg-emerald-50 flex items-center gap-2">
-                                      <QrCode size={16} className="text-emerald-600" /> {attendee.checkedIn ? 'Cancel Check-in' : 'Manual Check-in'}
+                                {openDropdownId === att.id && (
+                                  <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', right: 0, top: '100%', marginTop: '6px', width: '192px', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', boxShadow: '0 12px 40px rgba(0,0,0,0.3)', zIndex: 50, overflow: 'hidden' }}>
+                                    <button onClick={() => { updateAttendee(att.id, { checkedIn: !att.checkedIn }); toast.success(att.checkedIn ? 'Check-in cancelled' : 'Attendee checked in'); setOpenDropdownId(null); }}
+                                      style={{ width: '100%', padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: 600, backgroundColor: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', color: '#0F172A' }}
+                                      onMouseEnter={e => e.currentTarget.style.backgroundColor = '#F0FDF4'}
+                                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                                    >
+                                      <QrCode size={16} style={{ color: '#10B981' }} /> {att.checkedIn ? 'Cancel Check-in' : 'Manual Check-in'}
                                     </button>
-                                    <button onClick={() => { if (confirm('Remove this attendee?')) { deleteAttendee(attendee.id); toast.success('Attendee removed'); } setOpenDropdownId(null); }}
-                                      style={{ color: '#0F172A' }} className="w-full px-4 py-3 text-left text-sm font-bold hover:bg-rose-50 flex items-center gap-2 border-t border-gray-100">
-                                      <Trash size={16} className="text-rose-600" /> Delete Attendee
+                                    <button onClick={() => { if (confirm('Remove this attendee?')) { deleteAttendee(att.id); toast.success('Attendee removed'); } setOpenDropdownId(null); }}
+                                      style={{ width: '100%', padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: 600, backgroundColor: 'transparent', border: 'none', borderTop: '1px solid #F1F5F9', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', color: '#0F172A' }}
+                                      onMouseEnter={e => e.currentTarget.style.backgroundColor = '#FEF2F2'}
+                                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                                    >
+                                      <Trash size={16} style={{ color: '#EF4444' }} /> Delete Attendee
                                     </button>
                                   </div>
                                 )}
@@ -799,65 +1184,75 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
                 </table>
               </div>
 
-              {/* ─── Mobile Card List (phone only) ─── */}
-              <div className="sm:hidden divide-y divide-white/[0.05]">
-                {visibleAttendees.map((attendee) => {
-                  const statusConfig = getStatusBadge(attendee.status);
+              {/* ── Mobile Card List ── */}
+              <div className="sm:hidden">
+                {visibleAttendees.map((att, idx) => {
+                  const statusConfig = getStatusBadge(att.status);
                   return (
                     <div
-                      key={attendee.id}
-                      className="p-4 hover:bg-white/[0.02] transition-colors active:bg-white/[0.04] cursor-pointer"
-                      onClick={() => { setSelectedAttendee(attendee); setShowDetailModal(true); }}
+                      key={att.id}
+                      onClick={() => { setSelectedAttendee(att); setShowDetailModal(true); }}
+                      style={{ padding: '16px', borderBottom: idx !== visibleAttendees.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', cursor: 'pointer' }}
                     >
-                      <div className="flex items-start gap-3">
-                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#0684F5] to-[#0B5FCC] flex items-center justify-center text-white font-bold text-sm shadow-md shrink-0">
-                          {attendee.name?.charAt(0)?.toUpperCase() || '?'}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-white truncate">{attendee.name}</p>
-                              <p className="text-xs text-gray-500 truncate">{attendee.email}</p>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                        {att.photo ? (
+                          <img src={att.photo} alt={att.name} style={{ width: '42px', height: '42px', borderRadius: '12px', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.08)', flexShrink: 0 }} />
+                        ) : (
+                          <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'linear-gradient(135deg, #0684F5, #0B5FCC)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFFFFF', fontWeight: 700, fontSize: '15px', flexShrink: 0 }}>
+                            {att.name?.charAt(0)?.toUpperCase() || '?'}
+                          </div>
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <p style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.name}</p>
+                                {att.isVIP && <Star size={11} fill="#F59E0B" style={{ color: '#F59E0B', flexShrink: 0 }} />}
+                              </div>
+                              <p style={{ fontSize: '12px', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.email}</p>
                             </div>
-                            <div className="relative shrink-0">
+                            <div style={{ position: 'relative', flexShrink: 0 }}>
                               <button
-                                className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                                onClick={(e) => { e.stopPropagation(); setOpenDropdownId(openDropdownId === attendee.id ? null : attendee.id); }}
+                                onClick={(e) => { e.stopPropagation(); setOpenDropdownId(openDropdownId === att.id ? null : att.id); }}
+                                style={{ width: '30px', height: '30px', borderRadius: '8px', backgroundColor: 'transparent', border: 'none', color: '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                               >
                                 <MoreVertical size={16} />
                               </button>
-                              {openDropdownId === attendee.id && (
-                                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                                  <button onClick={() => { updateAttendee(attendee.id, { status: attendee.status === 'approved' ? 'pending' : 'approved' }); setOpenDropdownId(null); }}
-                                    style={{ color: '#0F172A' }} className="w-full px-4 py-3 text-left text-sm font-bold hover:bg-emerald-50 flex items-center gap-2">
-                                    <CheckCircle size={16} className="text-emerald-600" /> {attendee.status === 'approved' ? 'Set Pending' : 'Approve'}
+                              {openDropdownId === att.id && (
+                                <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', right: 0, top: '100%', marginTop: '4px', width: '192px', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', boxShadow: '0 12px 40px rgba(0,0,0,0.3)', zIndex: 50, overflow: 'hidden' }}>
+                                  <button onClick={() => { updateAttendee(att.id, { status: att.status === 'approved' ? 'pending' : 'approved' }); setOpenDropdownId(null); }}
+                                    style={{ width: '100%', padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: 600, backgroundColor: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', color: '#0F172A' }}>
+                                    <CheckCircle size={16} style={{ color: '#10B981' }} /> {att.status === 'approved' ? 'Set Pending' : 'Approve'}
                                   </button>
-                                  <button onClick={() => { updateAttendee(attendee.id, { checkedIn: !attendee.checkedIn }); setOpenDropdownId(null); }}
-                                    style={{ color: '#0F172A' }} className="w-full px-4 py-3 text-left text-sm font-bold hover:bg-blue-50 flex items-center gap-2 border-t border-gray-100">
-                                    <QrCode size={16} className="text-blue-600" /> {attendee.checkedIn ? 'Cancel Check-in' : 'Check In'}
+                                  <button onClick={() => { updateAttendee(att.id, { checkedIn: !att.checkedIn }); setOpenDropdownId(null); }}
+                                    style={{ width: '100%', padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: 600, backgroundColor: 'transparent', border: 'none', borderTop: '1px solid #F1F5F9', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', color: '#0F172A' }}>
+                                    <QrCode size={16} style={{ color: '#0684F5' }} /> {att.checkedIn ? 'Cancel Check-in' : 'Check In'}
                                   </button>
-                                  <button onClick={() => { if (confirm('Remove this attendee?')) { deleteAttendee(attendee.id); } setOpenDropdownId(null); }}
-                                    style={{ color: '#0F172A' }} className="w-full px-4 py-3 text-left text-sm font-bold hover:bg-rose-50 flex items-center gap-2 border-t border-gray-100">
-                                    <Trash size={16} className="text-rose-600" /> Delete
+                                  <button onClick={() => { if (confirm('Remove this attendee?')) { deleteAttendee(att.id); } setOpenDropdownId(null); }}
+                                    style={{ width: '100%', padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: 600, backgroundColor: 'transparent', border: 'none', borderTop: '1px solid #F1F5F9', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', color: '#0F172A' }}>
+                                    <Trash size={16} style={{ color: '#EF4444' }} /> Delete
                                   </button>
                                 </div>
                               )}
                             </div>
                           </div>
-                          <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                            <span className="px-2 py-0.5 text-[10px] font-medium rounded bg-white/10 text-gray-400 border border-white/5">
-                              {attendee.ticketType}
+                          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '3px 8px', fontSize: '10px', fontWeight: 600, borderRadius: '6px', backgroundColor: 'rgba(255,255,255,0.06)', color: '#94A3B8', border: '1px solid rgba(255,255,255,0.05)' }}>
+                              <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: att.ticketColor }} />
+                              {att.ticketType}
                             </span>
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ backgroundColor: statusConfig.bg, color: statusConfig.color, border: `1px solid ${statusConfig.border}` }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: 700, backgroundColor: statusConfig.bg, color: statusConfig.color, border: `1px solid ${statusConfig.border}` }}>
                               <statusConfig.icon size={9} /> {statusConfig.label}
                             </span>
-                            {attendee.checkedIn && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            {att.checkedIn && (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: 700, backgroundColor: 'rgba(16,185,129,0.12)', color: '#10B981', border: '1px solid rgba(16,185,129,0.2)' }}>
                                 <Check size={9} strokeWidth={3} /> Checked In
                               </span>
                             )}
                           </div>
-                          <p className="text-[10px] text-gray-600 mt-1.5">{attendee.regDate} {attendee.regTime && `• ${attendee.regTime}`}</p>
+                          {att.company && (
+                            <p style={{ fontSize: '11px', color: '#334155', marginTop: '6px' }}>{att.company} {att.regDate && `· ${att.regDate}`}</p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -868,94 +1263,99 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
           )}
         </div>
 
-        {/* ─── PAGINATION ─── */}
-        <div className="flex flex-col sm:flex-row items-center justify-between mt-4 sm:mt-6 gap-3">
-          <p className="text-xs sm:text-sm text-gray-400 order-2 sm:order-1">
+        {/* ═══════════════════ PAGINATION ═══════════════════ */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px', gap: '12px' }}>
+          <p style={{ fontSize: '13px', color: '#64748B' }}>
             {startIndex}–{endIndex} of {sortedAttendees.length}
           </p>
-          <div className="flex items-center gap-2 order-1 sm:order-2">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}
-              className="p-2 bg-white/5 border border-white/10 rounded-lg text-white disabled:opacity-30 disabled:cursor-not-allowed">
+              style={{ padding: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#FFFFFF', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.3 : 1 }}>
               <ChevronLeft size={18} />
             </button>
-            <span className="px-3.5 py-1.5 bg-[#0684F5] text-white rounded-lg font-bold text-sm">{currentPage}</span>
+            <span style={{ padding: '6px 14px', backgroundColor: '#0684F5', color: '#FFFFFF', borderRadius: '8px', fontWeight: 700, fontSize: '13px' }}>{currentPage}</span>
             <button disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)}
-              className="p-2 bg-white/5 border border-white/10 rounded-lg text-white disabled:opacity-30 disabled:cursor-not-allowed">
+              style={{ padding: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#FFFFFF', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer', opacity: currentPage >= totalPages ? 0.3 : 1 }}>
               <ChevronRight size={18} />
             </button>
           </div>
         </div>
 
-        {/* ─── ATTENDEE DETAIL MODAL ─── */}
+        {/* ═══════════════════ DETAIL MODAL ═══════════════════ */}
         {showDetailModal && selectedAttendee && (
           <div
-            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300"
+            style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}
             onClick={() => setShowDetailModal(false)}
           >
             <div
-              className="bg-[#0B2641] border border-white/10 sm:rounded-2xl rounded-t-2xl w-full sm:max-w-2xl max-h-[92vh] sm:max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
               onClick={(e) => e.stopPropagation()}
+              className="custom-scrollbar"
+              style={{ backgroundColor: '#0B2641', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', width: '100%', maxWidth: '640px', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 25px 60px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column' }}
             >
               {/* Header */}
-              <div className="p-4 sm:p-6 border-b border-white/10 flex items-center justify-between bg-white/5 shrink-0">
-                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-[#0684F5]/20 flex items-center justify-center text-[#0684F5] shrink-0">
-                    <User size={22} />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="text-lg sm:text-xl font-bold text-white truncate">{selectedAttendee.name}</h3>
-                    <p className="text-xs sm:text-sm text-gray-400 truncate">{selectedAttendee.ticketType}</p>
+              <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(255,255,255,0.03)', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+                  {selectedAttendee.photo ? (
+                    <img src={selectedAttendee.photo} alt={selectedAttendee.name} style={{ width: '48px', height: '48px', borderRadius: '14px', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.1)', flexShrink: 0 }} />
+                  ) : (
+                    <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'linear-gradient(135deg, #0684F5, #0B5FCC)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFFFFF', fontWeight: 700, fontSize: '18px', flexShrink: 0 }}>
+                      {selectedAttendee.name?.charAt(0)?.toUpperCase() || '?'}
+                    </div>
+                  )}
+                  <div style={{ minWidth: 0 }}>
+                    <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedAttendee.name}</h3>
+                    <p style={{ fontSize: '13px', color: '#64748B' }}>{selectedAttendee.ticketType}</p>
                   </div>
                 </div>
-                <button onClick={() => setShowDetailModal(false)} className="p-2 text-gray-400 hover:text-white transition-colors shrink-0">
-                  <X size={22} />
+                <button onClick={() => setShowDetailModal(false)} style={{ padding: '8px', color: '#64748B', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', borderRadius: '8px', flexShrink: 0 }}>
+                  <X size={20} />
                 </button>
               </div>
 
               {/* Content */}
-              <div className="p-4 sm:p-6 lg:p-8 overflow-y-auto custom-scrollbar flex-1">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
-                  <div className="space-y-5">
-                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest border-b border-white/5 pb-2">Core Information</h4>
-                    <div className="space-y-3">
+              <div className="custom-scrollbar" style={{ padding: '24px', flex: 1, overflowY: 'auto' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '24px' }}>
+                  <div>
+                    <h4 style={{ fontSize: '10px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.1em', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px', marginBottom: '16px' }}>Core Information</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Email</label>
-                        <div className="text-white text-sm font-medium flex items-center gap-2 break-all">
-                          <Mail size={14} className="text-[#0684F5] shrink-0" /> {selectedAttendee.email}
+                        <label style={{ display: 'block', fontSize: '11px', color: '#475569', marginBottom: '4px', fontWeight: 600 }}>Email</label>
+                        <div style={{ color: '#FFFFFF', fontSize: '14px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px', wordBreak: 'break-all' }}>
+                          <Mail size={14} style={{ color: '#0684F5', flexShrink: 0 }} /> {selectedAttendee.email}
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Company</label>
-                        <div className="text-white text-sm font-medium">{selectedAttendee.company || 'Not provided'}</div>
+                        <label style={{ display: 'block', fontSize: '11px', color: '#475569', marginBottom: '4px', fontWeight: 600 }}>Company</label>
+                        <div style={{ color: '#FFFFFF', fontSize: '14px', fontWeight: 500 }}>{selectedAttendee.company || 'Not provided'}</div>
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Phone</label>
-                        <div className="text-white text-sm font-medium flex items-center gap-2">
-                          <Phone size={14} className="text-[#0684F5] shrink-0" /> {selectedAttendee.phone || 'Not provided'}
+                        <label style={{ display: 'block', fontSize: '11px', color: '#475569', marginBottom: '4px', fontWeight: 600 }}>Phone</label>
+                        <div style={{ color: '#FFFFFF', fontSize: '14px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Phone size={14} style={{ color: '#0684F5', flexShrink: 0 }} /> {selectedAttendee.phone || 'Not provided'}
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div className="space-y-5">
-                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest border-b border-white/5 pb-2">Additional Data</h4>
-                    <div className="space-y-3">
+                  <div>
+                    <h4 style={{ fontSize: '10px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.1em', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px', marginBottom: '16px' }}>Additional Data</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                       {Object.entries(selectedAttendee.meta || {}).map(([key, value]) => {
                         if (['name', 'email', 'company', 'phone', 'confirmationCode', 'ticketType', 'ticketColor', 'price'].includes(key)) return null;
                         const isUrl = typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'));
                         const isFile = isUrl && ((value as string).includes('/submissions/') || (value as string).match(/\.(pdf|jpg|jpeg|png|doc|docx)$/i));
                         return (
                           <div key={key}>
-                            <label className="block text-xs text-gray-500 mb-1">{key}</label>
+                            <label style={{ display: 'block', fontSize: '11px', color: '#475569', marginBottom: '4px', fontWeight: 600 }}>{key}</label>
                             {isFile ? (
-                              <a href={value as string} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-[#0684F5] text-sm font-bold hover:underline">
+                              <a href={value as string} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#0684F5', fontSize: '13px', fontWeight: 700, textDecoration: 'none' }}>
                                 <Download size={14} /> View Attachment
                               </a>
                             ) : isUrl ? (
-                              <a href={value as string} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-[#0684F5] text-sm font-bold hover:underline">
+                              <a href={value as string} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#0684F5', fontSize: '13px', fontWeight: 700, textDecoration: 'none' }}>
                                 View Link
                               </a>
                             ) : (
-                              <div className="text-white text-sm font-medium whitespace-pre-wrap break-words">{String(value)}</div>
+                              <div style={{ color: '#FFFFFF', fontSize: '14px', fontWeight: 500, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{String(value)}</div>
                             )}
                           </div>
                         );
@@ -965,39 +1365,207 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
                 </div>
 
                 {/* Status Row */}
-                <div className="mt-8 pt-6 border-t border-white/10 grid grid-cols-3 gap-2 sm:gap-4">
-                  <div className="bg-white/5 p-3 sm:p-4 rounded-xl text-center">
-                    <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Status</p>
-                    <p className={`text-xs sm:text-sm font-bold ${selectedAttendee.status === 'approved' ? 'text-emerald-400' : selectedAttendee.status === 'declined' ? 'text-rose-400' : 'text-amber-400'}`}>
+                <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                  <div style={{ backgroundColor: 'rgba(255,255,255,0.04)', padding: '14px', borderRadius: '12px', textAlign: 'center' }}>
+                    <p style={{ fontSize: '10px', color: '#475569', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px' }}>Status</p>
+                    <p style={{ fontSize: '14px', fontWeight: 700, color: selectedAttendee.status === 'approved' ? '#10B981' : selectedAttendee.status === 'declined' ? '#EF4444' : '#F59E0B' }}>
                       {selectedAttendee.status.toUpperCase()}
                     </p>
                   </div>
-                  <div className="bg-white/5 p-3 sm:p-4 rounded-xl text-center">
-                    <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Check-In</p>
-                    <p className={`text-xs sm:text-sm font-bold ${selectedAttendee.checkedIn ? 'text-emerald-400' : 'text-gray-500'}`}>
+                  <div style={{ backgroundColor: 'rgba(255,255,255,0.04)', padding: '14px', borderRadius: '12px', textAlign: 'center' }}>
+                    <p style={{ fontSize: '10px', color: '#475569', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px' }}>Check-In</p>
+                    <p style={{ fontSize: '14px', fontWeight: 700, color: selectedAttendee.checkedIn ? '#10B981' : '#475569' }}>
                       {selectedAttendee.checkedIn ? 'YES' : 'NO'}
                     </p>
                   </div>
-                  <div className="bg-white/5 p-3 sm:p-4 rounded-xl text-center">
-                    <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Registered</p>
-                    <p className="text-white text-[11px] sm:text-xs font-bold">{selectedAttendee.regDate}</p>
+                  <div style={{ backgroundColor: 'rgba(255,255,255,0.04)', padding: '14px', borderRadius: '12px', textAlign: 'center' }}>
+                    <p style={{ fontSize: '10px', color: '#475569', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px' }}>Registered</p>
+                    <p style={{ fontSize: '12px', fontWeight: 700, color: '#FFFFFF' }}>{selectedAttendee.regDate}</p>
                   </div>
                 </div>
               </div>
 
               {/* Footer */}
-              <div className="p-4 sm:p-6 border-t border-white/10 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 bg-white/5 shrink-0">
+              <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'flex-end', gap: '10px', backgroundColor: 'rgba(255,255,255,0.03)', flexShrink: 0, flexWrap: 'wrap' }}>
                 <button
                   onClick={() => { updateAttendee(selectedAttendee.id, { checkedIn: !selectedAttendee.checkedIn }); setShowDetailModal(false); }}
-                  className="px-5 py-2.5 rounded-xl border border-white/10 text-white text-sm font-bold hover:bg-white/10 transition-all text-center"
+                  style={{ padding: '0 18px', height: '40px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'transparent', color: '#FFFFFF', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
                 >
                   {selectedAttendee.checkedIn ? 'Uncheck Attendee' : 'Manual Check-in'}
                 </button>
                 <button
-                  className="px-6 py-2.5 bg-[#0684F5] text-white rounded-xl text-sm font-bold hover:bg-blue-600 transition-all text-center"
                   onClick={() => setShowDetailModal(false)}
+                  style={{ padding: '0 24px', height: '40px', backgroundColor: '#0684F5', border: 'none', borderRadius: '10px', color: '#FFFFFF', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════════════ EXPORT MODAL ═══════════════════ */}
+        {showExportModal && (
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}
+            onClick={() => setShowExportModal(false)}
+          >
+            <div
+              className="att-animate"
+              onClick={(e) => e.stopPropagation()}
+              style={{ backgroundColor: '#0D243B', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '16px', width: '100%', maxWidth: '520px', overflow: 'hidden', boxShadow: '0 25px 60px rgba(0,0,0,0.5)' }}
+            >
+              {/* Header */}
+              <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: 'rgba(6,132,245,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Download size={20} style={{ color: '#0684F5' }} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF' }}>Export Data</h3>
+                    <p style={{ fontSize: '13px', color: '#64748B' }}>{counts.total} attendees available</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowExportModal(false)} style={{ padding: '8px', color: '#64748B', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', borderRadius: '8px' }}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Export Options */}
+              <div style={{ padding: '24px' }}>
+                <p style={{ fontSize: '12px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '14px' }}>Choose export type</p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {/* Attendees Basic */}
+                  <div
+                    onClick={() => setExportType('attendees')}
+                    style={{
+                      padding: '16px',
+                      borderRadius: '12px',
+                      border: exportType === 'attendees' ? '2px solid #0684F5' : '1px solid rgba(255,255,255,0.08)',
+                      backgroundColor: exportType === 'attendees' ? 'rgba(6,132,245,0.08)' : 'rgba(255,255,255,0.03)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '14px'
+                    }}
+                  >
+                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: 'rgba(6,132,245,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Users size={18} style={{ color: '#0684F5' }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>Attendee List</p>
+                      <p style={{ fontSize: '12px', color: '#64748B', lineHeight: '1.4' }}>Names, emails, companies, tickets, status, check-in data</p>
+                    </div>
+                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: exportType === 'attendees' ? '2px solid #0684F5' : '2px solid #334155', backgroundColor: exportType === 'attendees' ? '#0684F5' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '2px' }}>
+                      {exportType === 'attendees' && <Check size={12} style={{ color: '#FFFFFF', strokeWidth: 3 }} />}
+                    </div>
+                  </div>
+
+                  {/* Form Responses */}
+                  <div
+                    onClick={() => setExportType('form_responses')}
+                    style={{
+                      padding: '16px',
+                      borderRadius: '12px',
+                      border: exportType === 'form_responses' ? '2px solid #8B5CF6' : '1px solid rgba(255,255,255,0.08)',
+                      backgroundColor: exportType === 'form_responses' ? 'rgba(139,92,246,0.08)' : 'rgba(255,255,255,0.03)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '14px'
+                    }}
+                  >
+                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: 'rgba(139,92,246,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <FileText size={18} style={{ color: '#8B5CF6' }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>Registration Form Responses</p>
+                      <p style={{ fontSize: '12px', color: '#64748B', lineHeight: '1.4' }}>All custom form field answers from registration{formFieldCount > 0 ? ` (${formFieldCount} custom fields detected)` : ''}</p>
+                    </div>
+                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: exportType === 'form_responses' ? '2px solid #8B5CF6' : '2px solid #334155', backgroundColor: exportType === 'form_responses' ? '#8B5CF6' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '2px' }}>
+                      {exportType === 'form_responses' && <Check size={12} style={{ color: '#FFFFFF', strokeWidth: 3 }} />}
+                    </div>
+                  </div>
+
+                  {/* Full Export */}
+                  <div
+                    onClick={() => setExportType('full')}
+                    style={{
+                      padding: '16px',
+                      borderRadius: '12px',
+                      border: exportType === 'full' ? '2px solid #10B981' : '1px solid rgba(255,255,255,0.08)',
+                      backgroundColor: exportType === 'full' ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.03)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '14px'
+                    }}
+                  >
+                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: 'rgba(16,185,129,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <FileSpreadsheet size={18} style={{ color: '#10B981' }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>Full Export</p>
+                      <p style={{ fontSize: '12px', color: '#64748B', lineHeight: '1.4' }}>Everything: attendee info + all form responses + metadata</p>
+                    </div>
+                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: exportType === 'full' ? '2px solid #10B981' : '2px solid #334155', backgroundColor: exportType === 'full' ? '#10B981' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '2px' }}>
+                      {exportType === 'full' && <Check size={12} style={{ color: '#FFFFFF', strokeWidth: 3 }} />}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Format info */}
+                <div style={{ marginTop: '16px', padding: '12px 14px', borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <FileSpreadsheet size={16} style={{ color: '#64748B', flexShrink: 0 }} />
+                  <p style={{ fontSize: '12px', color: '#64748B' }}>
+                    Exports as <strong style={{ color: '#94A3B8' }}>CSV</strong> format — compatible with Excel, Google Sheets, and other spreadsheet tools
+                  </p>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => setShowExportModal(false)}
+                  style={{ padding: '0 18px', height: '42px', borderRadius: '10px', backgroundColor: 'transparent', border: 'none', color: '#64748B', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleExport}
+                  disabled={exporting}
+                  style={{
+                    padding: '0 24px',
+                    height: '42px',
+                    borderRadius: '10px',
+                    backgroundColor: exportType === 'form_responses' ? '#8B5CF6' : exportType === 'full' ? '#10B981' : '#0684F5',
+                    border: 'none',
+                    color: '#FFFFFF',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: exporting ? 'default' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    opacity: exporting ? 0.7 : 1,
+                    boxShadow: `0 4px 12px ${exportType === 'form_responses' ? 'rgba(139,92,246,0.25)' : exportType === 'full' ? 'rgba(16,185,129,0.25)' : 'rgba(6,132,245,0.25)'}`
+                  }}
+                >
+                  {exporting ? (
+                    <>
+                      <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                      Exporting...
+                    </>
+                  ) : (
+                    <>
+                      <Download size={16} />
+                      Export CSV
+                    </>
+                  )}
                 </button>
               </div>
             </div>

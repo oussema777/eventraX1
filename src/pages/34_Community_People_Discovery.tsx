@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Search,
@@ -16,7 +16,7 @@ import { toast } from 'sonner@2.0.3';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
-import { extractProfileSectors, useCommunitySectors } from '../hooks/useCommunitySectors';
+import { extractProfileSectors } from '../hooks/useCommunitySectors';
 
 interface Person {
   id: string;
@@ -59,8 +59,13 @@ export default function CommunityPeopleDiscovery() {
   const [selectedIndustries, setSelectedIndustries] = useState<string[]>([]);
   const [onlineOnly, setOnlineOnly] = useState(false);
   const [openToMeetingsOnly, setOpenToMeetingsOnly] = useState(false);
-  const fallbackCommunities = tList<string>('nav.communities.items');
-  const { sectors: sectorOptions } = useCommunitySectors(fallbackCommunities);
+
+  // Derive sector options directly from loaded people to guarantee string consistency
+  const sectorOptions = useMemo(() => {
+    const allSectors = new Set<string>();
+    people.forEach(person => person.sectors.forEach(s => allSectors.add(s)));
+    return Array.from(allSectors).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  }, [people]);
 
   useEffect(() => {
     setPage(1);
@@ -102,8 +107,8 @@ export default function CommunityPeopleDiscovery() {
           matchScore: Math.floor(Math.random() * (100 - 70 + 1)) + 70, 
           bio: profile.bio || t('communityPage.defaults.bio'),
           tags: Array.isArray(profData.skills) ? profData.skills.slice(0, 3) : [t('communityPage.defaults.tag')],
-          isOnline: Math.random() > 0.5,
-          openToMeetings: b2b.enabled !== false,
+          isOnline: b2b.enabled === true,
+          openToMeetings: b2b.enabled === true,
           role: profile.industry || sectors[0] || t('communityPage.defaults.role'),
           industry: profile.industry || sectors[0] || t('communityPage.defaults.industry'),
           sectors
@@ -230,7 +235,11 @@ export default function CommunityPeopleDiscovery() {
 
     if (selectedSector) {
       const normalizedSelectedSector = selectedSector.trim().toLowerCase();
-      if (!normalizedPersonSectors.includes(normalizedSelectedSector)) {
+      // Use partial matching: URL sector "Technology & Software" should match DB value "Technology"
+      const sectorMatches = normalizedPersonSectors.some(ps =>
+        ps.includes(normalizedSelectedSector) || normalizedSelectedSector.includes(ps)
+      );
+      if (!sectorMatches) {
         return false;
       }
     }

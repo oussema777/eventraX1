@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Award, 
-  LayoutGrid, 
-  List, 
-  Plus, 
-  Search, 
-  Filter, 
-  ChevronDown, 
+import {
+  Award,
+  LayoutGrid,
+  List,
+  Plus,
+  Search,
+  Filter,
+  ChevronDown,
   Download,
   Globe,
   ExternalLink,
@@ -24,8 +24,12 @@ import {
   Settings,
   Crown,
   Users,
-  Loader2
+  Loader2,
+  GripVertical
 } from 'lucide-react';
+import { DndProvider, useDrag, useDrop } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
+import type { Identifier, XYCoord } from 'dnd-core';
 import { useSponsors, Sponsor, SponsorPackage } from '../../hooks/useSponsors';
 import { toast } from 'sonner';
 import { usePlan } from '../../hooks/usePlan';
@@ -37,7 +41,7 @@ type TierFilter = 'all' | string;
 export default function SponsorsTab() {
   const { t } = useI18n();
   const navigate = useNavigate();
-  const { sponsors, packages, isLoading, createSponsor, updateSponsor, deleteSponsor, updatePackages } = useSponsors();
+  const { sponsors, setSponsors, packages, isLoading, createSponsor, updateSponsor, deleteSponsor, updatePackages, reorderSponsors } = useSponsors();
   
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [tierFilter, setTierFilter] = useState<TierFilter>('all');
@@ -124,6 +128,20 @@ export default function SponsorsTab() {
     await updatePackages(nextPackages);
     setEditingPackage(null);
   };
+
+  const moveSponsor = useCallback((dragIndex: number, hoverIndex: number) => {
+    setSponsors((prev: Sponsor[]) => {
+      const updated = [...prev];
+      const [removed] = updated.splice(dragIndex, 1);
+      updated.splice(hoverIndex, 0, removed);
+      return updated;
+    });
+  }, [setSponsors]);
+
+  const handleDragEnd = useCallback(() => {
+    const orderedIds = sponsors.map(s => s.id);
+    reorderSponsors(orderedIds);
+  }, [sponsors, reorderSponsors]);
 
   if (isLoading) {
       return <div className="flex items-center justify-center h-64"><Loader2 className="animate-spin text-white" size={32} /></div>;
@@ -503,153 +521,80 @@ export default function SponsorsTab() {
 
         {/* Grid View */}
         {viewMode === 'grid' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '20px' }}>
-            {filteredSponsors.map(sponsor => (
-              <SponsorCard 
-                key={sponsor.id} 
-                sponsor={sponsor}
-                packages={packages}
-                onEdit={() => {
-                  setSelectedSponsor(sponsor);
-                  setShowAddModal(true);
-                }}
-              />
-            ))}
-          </div>
+          <DndProvider backend={HTML5Backend}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '20px' }}>
+              {filteredSponsors.map((sponsor, index) => (
+                <DraggableSponsorCard
+                  key={sponsor.id}
+                  index={sponsors.indexOf(sponsor)}
+                  sponsor={sponsor}
+                  packages={packages}
+                  onEdit={() => {
+                    setSelectedSponsor(sponsor);
+                    setShowAddModal(true);
+                  }}
+                  moveSponsor={moveSponsor}
+                  onDragEnd={handleDragEnd}
+                />
+              ))}
+            </div>
+          </DndProvider>
         )}
 
         {/* List View */}
         {viewMode === 'list' && (
-          <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden' }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                    <th style={{ padding: '16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>
-                      {t('wizard.step3.sponsors.table.sponsor')}
-                    </th>
-                    <th style={{ padding: '16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>
-                      {t('wizard.step3.sponsors.table.tier')}
-                    </th>
-                    <th style={{ padding: '16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>
-                      {t('wizard.step3.sponsors.table.packageValue')}
-                    </th>
-                    <th style={{ padding: '16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>
-                      {t('wizard.step3.sponsors.table.website')}
-                    </th>
-                    <th style={{ padding: '16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>
-                      {t('wizard.step3.sponsors.table.status')}
-                    </th>
-                    <th style={{ padding: '16px', textAlign: 'center', fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>
-                      {t('wizard.step3.sponsors.table.actions')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredSponsors.map((sponsor, index) => {
-                    const tierStyle = getTierBadgeStyle(sponsor.tier);
-                    const statusStyle = getStatusBadgeStyle(sponsor.status);
-                    const pkgName = packages.find(p => p.id === sponsor.tier)?.name || sponsor.tier;
-
-                    return (
-                      <tr key={sponsor.id} style={{ borderBottom: index < filteredSponsors.length - 1 ? '1px solid rgba(255,255,255,0.1)' : 'none' }}>
-                        <td style={{ padding: '16px' }}>
-                          <div className="flex items-center gap-3">
-                            <div style={{
-                              width: '40px',
-                              height: '40px',
-                              borderRadius: '8px',
-                              background: tierStyle.bg,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}>
-                              {sponsor.logoUrl ? (
-                                <img src={sponsor.logoUrl} alt={sponsor.name} style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '8px' }} />
-                              ) : (
-                                <Award size={20} style={{ color: tierStyle.text }} />
-                              )}
-                            </div>
-                            <p style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF' }}>
-                              {sponsor.name}
-                            </p>
-                          </div>
-                        </td>
-                        <td style={{ padding: '16px' }}>
-                          <div style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            padding: '6px 12px',
-                            background: tierStyle.bg,
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            fontWeight: 600,
-                            color: tierStyle.text,
-                            textTransform: 'capitalize'
-                          }}>
-                            {pkgName}
-                          </div>
-                        </td>
-                        <td style={{ padding: '16px' }}>
-                          <p style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF' }}>
-                            ${sponsor.contributionAmount.toLocaleString()}
-                          </p>
-                        </td>
-                        <td style={{ padding: '16px' }}>
-                          {sponsor.websiteUrl && (
-                            <a
-                              href={sponsor.websiteUrl.startsWith('http') ? sponsor.websiteUrl : `https://${sponsor.websiteUrl}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ fontSize: '14px', color: '#0684F5', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
-                            >
-                              {sponsor.websiteUrl.replace(/^https?:\/\//, '')}
-                              <ExternalLink size={12} />
-                            </a>
-                          )}
-                        </td>
-                        <td style={{ padding: '16px' }}>
-                          <div style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            padding: '4px 12px',
-                            backgroundColor: statusStyle.bg,
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            fontWeight: 500,
-                            color: statusStyle.text
-                          }}>
-                            <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: statusStyle.dot }} />
-                            {statusLabels[sponsor.status] || sponsor.status}
-                          </div>
-                        </td>
-                        <td style={{ padding: '16px', textAlign: 'center' }}>
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => {
-                                setSelectedSponsor(sponsor);
-                                setShowAddModal(true);
-                              }}
-                              className="p-2 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-                            >
-                              <Edit size={16} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteSponsor(sponsor.id)}
-                              className="p-2 rounded hover:bg-red-500/10 text-slate-400 hover:text-red-500 transition-colors"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+          <DndProvider backend={HTML5Backend}>
+            <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                      <th style={{ padding: '16px', width: '40px' }}></th>
+                      <th style={{ padding: '16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>
+                        {t('wizard.step3.sponsors.table.sponsor')}
+                      </th>
+                      <th style={{ padding: '16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>
+                        {t('wizard.step3.sponsors.table.tier')}
+                      </th>
+                      <th style={{ padding: '16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>
+                        {t('wizard.step3.sponsors.table.packageValue')}
+                      </th>
+                      <th style={{ padding: '16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>
+                        {t('wizard.step3.sponsors.table.website')}
+                      </th>
+                      <th style={{ padding: '16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>
+                        {t('wizard.step3.sponsors.table.status')}
+                      </th>
+                      <th style={{ padding: '16px', textAlign: 'center', fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>
+                        {t('wizard.step3.sponsors.table.actions')}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredSponsors.map((sponsor, index) => (
+                      <DraggableSponsorRow
+                        key={sponsor.id}
+                        index={sponsors.indexOf(sponsor)}
+                        sponsor={sponsor}
+                        packages={packages}
+                        isLast={index === filteredSponsors.length - 1}
+                        getTierBadgeStyle={getTierBadgeStyle}
+                        getStatusBadgeStyle={getStatusBadgeStyle}
+                        statusLabels={statusLabels}
+                        onEdit={() => {
+                          setSelectedSponsor(sponsor);
+                          setShowAddModal(true);
+                        }}
+                        onDelete={() => handleDeleteSponsor(sponsor.id)}
+                        moveSponsor={moveSponsor}
+                        onDragEnd={handleDragEnd}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          </DndProvider>
         )}
 
         {/* Modals */}
@@ -689,12 +634,249 @@ export default function SponsorsTab() {
         {editingPackage && (
           <EditPackageModal
             pkg={editingPackage}
+            canDelete={packages.length > 1}
             onClose={() => setEditingPackage(null)}
             onSave={handleSaveSinglePackage}
+            onDelete={async () => {
+              const nextPackages = packages.filter(p => p.id !== editingPackage.id);
+              await updatePackages(nextPackages);
+              setEditingPackage(null);
+            }}
           />
         )}
       </div>
     </div>
+  );
+}
+
+// DnD type constant
+const SPONSOR_DND_TYPE = 'sponsor-item';
+
+interface DragItem {
+  index: number;
+  id: string;
+  type: string;
+}
+
+// Draggable Sponsor Card (Grid View)
+function DraggableSponsorCard({ index, sponsor, packages, onEdit, moveSponsor, onDragEnd }: {
+  index: number;
+  sponsor: Sponsor;
+  packages: SponsorPackage[];
+  onEdit: () => void;
+  moveSponsor: (dragIndex: number, hoverIndex: number) => void;
+  onDragEnd: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  const [{ handlerId }, drop] = useDrop<DragItem, void, { handlerId: Identifier | null }>({
+    accept: SPONSOR_DND_TYPE,
+    collect(monitor) {
+      return { handlerId: monitor.getHandlerId() };
+    },
+    hover(item: DragItem, monitor) {
+      if (!ref.current) return;
+      const dragIndex = item.index;
+      const hoverIndex = index;
+      if (dragIndex === hoverIndex) return;
+      const hoverBoundingRect = ref.current.getBoundingClientRect();
+      const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
+      const clientOffset = monitor.getClientOffset();
+      const hoverClientY = (clientOffset as XYCoord).y - hoverBoundingRect.top;
+      if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) return;
+      if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) return;
+      moveSponsor(dragIndex, hoverIndex);
+      item.index = hoverIndex;
+    },
+  });
+
+  const [{ isDragging }, drag, preview] = useDrag({
+    type: SPONSOR_DND_TYPE,
+    item: () => ({ id: sponsor.id, index }),
+    collect: (monitor: any) => ({ isDragging: monitor.isDragging() }),
+    end: () => onDragEnd(),
+  });
+
+  preview(drop(ref));
+
+  return (
+    <div ref={ref} data-handler-id={handlerId} style={{ position: 'relative', opacity: isDragging ? 0.4 : 1 }}>
+      <div
+        ref={(node) => { drag(node); }}
+        style={{
+          position: 'absolute',
+          top: '12px',
+          left: '12px',
+          zIndex: 10,
+          cursor: 'grab',
+          padding: '4px',
+          borderRadius: '6px',
+          backgroundColor: 'rgba(0,0,0,0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <GripVertical size={16} style={{ color: 'rgba(255,255,255,0.7)' }} />
+      </div>
+      <SponsorCard sponsor={sponsor} packages={packages} onEdit={onEdit} />
+    </div>
+  );
+}
+
+// Draggable Sponsor Row (List View)
+function DraggableSponsorRow({ index, sponsor, packages, isLast, getTierBadgeStyle, getStatusBadgeStyle, statusLabels, onEdit, onDelete, moveSponsor, onDragEnd }: {
+  index: number;
+  sponsor: Sponsor;
+  packages: SponsorPackage[];
+  isLast: boolean;
+  getTierBadgeStyle: (tier: string) => any;
+  getStatusBadgeStyle: (status: string) => any;
+  statusLabels: Record<string, string>;
+  onEdit: () => void;
+  onDelete: () => void;
+  moveSponsor: (dragIndex: number, hoverIndex: number) => void;
+  onDragEnd: () => void;
+}) {
+  const ref = useRef<HTMLTableRowElement>(null);
+  const dragHandleRef = useRef<HTMLDivElement>(null);
+  const tierStyle = getTierBadgeStyle(sponsor.tier);
+  const statusStyle = getStatusBadgeStyle(sponsor.status);
+  const pkgName = packages.find(p => p.id === sponsor.tier)?.name || sponsor.tier;
+
+  const [{ handlerId }, drop] = useDrop<DragItem, void, { handlerId: Identifier | null }>({
+    accept: SPONSOR_DND_TYPE,
+    collect(monitor) {
+      return { handlerId: monitor.getHandlerId() };
+    },
+    hover(item: DragItem, monitor) {
+      if (!ref.current) return;
+      const dragIndex = item.index;
+      const hoverIndex = index;
+      if (dragIndex === hoverIndex) return;
+      const hoverBoundingRect = ref.current.getBoundingClientRect();
+      const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
+      const clientOffset = monitor.getClientOffset();
+      const hoverClientY = (clientOffset as XYCoord).y - hoverBoundingRect.top;
+      if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) return;
+      if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) return;
+      moveSponsor(dragIndex, hoverIndex);
+      item.index = hoverIndex;
+    },
+  });
+
+  const [{ isDragging }, drag] = useDrag({
+    type: SPONSOR_DND_TYPE,
+    item: () => ({ id: sponsor.id, index }),
+    collect: (monitor: any) => ({ isDragging: monitor.isDragging() }),
+    end: () => onDragEnd(),
+  });
+
+  drop(ref);
+  drag(dragHandleRef);
+
+  return (
+    <tr
+      ref={ref}
+      data-handler-id={handlerId}
+      style={{
+        borderBottom: !isLast ? '1px solid rgba(255,255,255,0.1)' : 'none',
+        opacity: isDragging ? 0.4 : 1,
+      }}
+    >
+      <td style={{ padding: '16px 8px 16px 16px', width: '40px' }}>
+        <div ref={dragHandleRef} style={{ cursor: 'grab', display: 'flex', alignItems: 'center' }}>
+          <GripVertical size={18} style={{ color: 'rgba(255,255,255,0.4)' }} />
+        </div>
+      </td>
+      <td style={{ padding: '16px' }}>
+        <div className="flex items-center gap-3">
+          <div style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '8px',
+            background: tierStyle.bg,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            {sponsor.logoUrl ? (
+              <img src={sponsor.logoUrl} alt={sponsor.name} style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '8px' }} />
+            ) : (
+              <Award size={20} style={{ color: tierStyle.text }} />
+            )}
+          </div>
+          <p style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF' }}>
+            {sponsor.name}
+          </p>
+        </div>
+      </td>
+      <td style={{ padding: '16px' }}>
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          padding: '6px 12px',
+          background: tierStyle.bg,
+          borderRadius: '6px',
+          fontSize: '12px',
+          fontWeight: 600,
+          color: tierStyle.text,
+          textTransform: 'capitalize'
+        }}>
+          {pkgName}
+        </div>
+      </td>
+      <td style={{ padding: '16px' }}>
+        <p style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF' }}>
+          ${sponsor.contributionAmount.toLocaleString()}
+        </p>
+      </td>
+      <td style={{ padding: '16px' }}>
+        {sponsor.websiteUrl && (
+          <a
+            href={sponsor.websiteUrl.startsWith('http') ? sponsor.websiteUrl : `https://${sponsor.websiteUrl}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontSize: '14px', color: '#0684F5', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
+          >
+            {sponsor.websiteUrl.replace(/^https?:\/\//, '')}
+            <ExternalLink size={12} />
+          </a>
+        )}
+      </td>
+      <td style={{ padding: '16px' }}>
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '4px 12px',
+          backgroundColor: statusStyle.bg,
+          borderRadius: '6px',
+          fontSize: '12px',
+          fontWeight: 500,
+          color: statusStyle.text
+        }}>
+          <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: statusStyle.dot }} />
+          {statusLabels[sponsor.status] || sponsor.status}
+        </div>
+      </td>
+      <td style={{ padding: '16px', textAlign: 'center' }}>
+        <div className="flex items-center justify-center gap-2">
+          <button
+            onClick={onEdit}
+            className="p-2 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+          >
+            <Edit size={16} />
+          </button>
+          <button
+            onClick={onDelete}
+            className="p-2 rounded hover:bg-red-500/10 text-slate-400 hover:text-red-500 transition-colors"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      </td>
+    </tr>
   );
 }
 
@@ -1197,14 +1379,18 @@ function SponsorFormPreviewModal({ onClose, onSend }: any) {
 }
 
 // Modal for editing a single package
-function EditPackageModal({ 
-  pkg, 
-  onClose, 
-  onSave 
-}: { 
+function EditPackageModal({
+  pkg,
+  canDelete,
+  onClose,
+  onSave,
+  onDelete
+}: {
   pkg: SponsorPackage;
+  canDelete: boolean;
   onClose: () => void;
   onSave: (updatedPackage: SponsorPackage) => void;
+  onDelete: () => void;
 }) {
   const { t } = useI18n();
   const [formData, setFormData] = useState<SponsorPackage>({ ...pkg });
@@ -1424,36 +1610,62 @@ function EditPackageModal({
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px' }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: 'transparent',
-              border: '1px solid rgba(255,255,255,0.2)',
-              borderRadius: '8px',
-              color: '#FFFFFF',
-              fontSize: '14px',
-              cursor: 'pointer'
-            }}
-          >
-            {t('wizard.step3.sponsors.form.cancel')}
-          </button>
-          <button
-            onClick={() => onSave(formData)}
-            style={{
-              padding: '10px 24px',
-              backgroundColor: '#0684F5',
-              border: 'none',
-              borderRadius: '8px',
-              color: '#FFFFFF',
-              fontSize: '14px',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
-          >
-            {t('wizard.step3.sponsors.packages.savePackages', 'Save Changes')}
-          </button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '32px' }}>
+          {canDelete ? (
+            <button
+              onClick={onDelete}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: 'rgba(239,68,68,0.15)',
+                border: '1px solid rgba(239,68,68,0.3)',
+                borderRadius: '8px',
+                color: '#EF4444',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.25)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.15)'}
+            >
+              <Trash2 size={16} />
+              {t('wizard.step3.sponsors.packages.deletePackage', 'Delete')}
+            </button>
+          ) : <div />}
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button
+              onClick={onClose}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: 'transparent',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '8px',
+                color: '#FFFFFF',
+                fontSize: '14px',
+                cursor: 'pointer'
+              }}
+            >
+              {t('wizard.step3.sponsors.form.cancel')}
+            </button>
+            <button
+              onClick={() => onSave(formData)}
+              style={{
+                padding: '10px 24px',
+                backgroundColor: '#0684F5',
+                border: 'none',
+                borderRadius: '8px',
+                color: '#FFFFFF',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              {t('wizard.step3.sponsors.packages.savePackages', 'Save Changes')}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1603,8 +1815,8 @@ function ManagePackagesModal({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {formData.map((pkg, index) => (
               <div key={pkg.id} style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '24px', position: 'relative', border: '1px solid rgba(255,255,255,0.1)' }}>
-                {/* Delete Button for Custom Packages */}
-                {pkg.id.startsWith('custom-') && (
+                {/* Delete Button — available when more than 1 package exists */}
+                {formData.length > 1 && (
                   <button
                     onClick={() => handleRemovePackage(index)}
                     style={{

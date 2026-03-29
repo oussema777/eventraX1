@@ -43,26 +43,13 @@ export default function StatsRow() {
 
         let totalAttendees = 0;
         if (eventIds.length) {
-          let attendeeError = null;
-          let attendeeCount = 0;
-          let result = await supabase
-            .from('event_registrations')
+          const { count, error: attendeeError } = await supabase
+            .from('event_attendees')
             .select('id', { count: 'exact', head: true })
             .in('event_id', eventIds);
-          attendeeError = result.error;
-          attendeeCount = result.count || 0;
-
-          if (attendeeError && attendeeError.code === 'PGRST205') {
-            result = await supabase
-              .from('event_attendees')
-              .select('id', { count: 'exact', head: true })
-              .in('event_id', eventIds);
-            attendeeError = result.error;
-            attendeeCount = result.count || 0;
-          }
 
           if (!attendeeError) {
-            totalAttendees = attendeeCount;
+            totalAttendees = count || 0;
           }
         }
 

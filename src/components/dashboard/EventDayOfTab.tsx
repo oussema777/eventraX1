@@ -75,6 +75,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
   const [torchEnabled, setTorchEnabled] = useState(false);
   const [lastScanDetails, setLastScanDetails] = useState<any>(null);
   const [pendingDuplicate, setPendingDuplicate] = useState<any>(null);
+  const [sessionCheckinCount, setSessionCheckinCount] = useState(0);
   // Live stats
   const [stats, setStats] = useState({
     checkedIn: 0,
@@ -382,6 +383,20 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
     }
   };
 
+  const fetchSessionCheckinCount = async (sessionId?: string) => {
+    const sid = sessionId || selectedSession;
+    if (!eventId || !sid) { setSessionCheckinCount(0); return; }
+    try {
+      const { count } = await supabase
+        .from('event_checkins')
+        .select('id', { head: true, count: 'exact' })
+        .eq('event_id', eventId)
+        .eq('type', 'session')
+        .eq('session_id', sid);
+      setSessionCheckinCount(count || 0);
+    } catch { setSessionCheckinCount(0); }
+  };
+
   useEffect(() => {
     refreshDayOfData();
     loadScannerSettings();
@@ -396,6 +411,12 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
       setSelectedSession(sessions[0].id);
     }
   }, [sessions, selectedSession]);
+
+  useEffect(() => {
+    if (selectedSession && showScanner === 'session') {
+      fetchSessionCheckinCount(selectedSession);
+    }
+  }, [selectedSession, showScanner]);
 
   useEffect(() => {
     if (!meetings?.length) {
@@ -850,6 +871,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
       setLastScanDetails(details);
       setPendingDuplicate(null);
       toast.success(hasDuplicate ? t('manageEvent.dayOf.toasts.reentryLogged') : t('manageEvent.dayOf.toasts.checkInSuccess'));
+      if (kind === 'session') setSessionCheckinCount((prev) => prev + 1);
       refreshDayOfData();
     } catch (e) {
       console.error('Check-in error', e);
@@ -945,6 +967,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
     setPendingDuplicate(null);
     setManualCode('');
     toast.success(t('manageEvent.dayOf.toasts.reentryLogged'));
+    if (kind === 'session') setSessionCheckinCount((prev) => prev + 1);
     refreshDayOfData();
   };
 
@@ -979,14 +1002,32 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
   return (
     <div className="event-dayof" style={{ padding: '32px 40px 80px', backgroundColor: '#0B2641', minHeight: '100vh' }}>
       <style>{`
+        @media (max-width: 900px) {
+          .event-dayof {
+            padding: 24px 20px 80px !important;
+          }
+          .event-dayof__stats {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 20px !important;
+            padding: 20px 24px !important;
+          }
+          .event-dayof__divider {
+            display: none !important;
+          }
+          .event-dayof__scanner-grid {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+          }
+        }
+
         @media (max-width: 600px) {
           .event-dayof {
-            padding: 24px 16px 80px;
+            padding: 20px 16px 80px !important;
           }
 
           .event-dayof__header {
             flex-direction: column;
-            align-items: flex-start;
+            align-items: flex-start !important;
             gap: 12px;
           }
 
@@ -997,27 +1038,28 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
           }
 
           .event-dayof__actions > * {
-            width: 100%;
+            flex: 1;
+            min-width: 0;
             justify-content: center;
           }
 
           .event-dayof__stats {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-            gap: 16px;
+            gap: 16px !important;
+            padding: 16px !important;
           }
-
-          .event-dayof__divider {
-            display: none !important;
+          .event-dayof__stats p[style*="42px"] {
+            font-size: 28px !important;
           }
 
           .event-dayof__scanner-grid {
             grid-template-columns: 1fr !important;
-            gap: 16px;
+            gap: 16px !important;
           }
 
           .event-dayof__recent-header {
             flex-direction: column;
-            align-items: flex-start;
+            align-items: flex-start !important;
             gap: 12px;
           }
 
@@ -1025,27 +1067,13 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
             flex-direction: column;
             align-items: flex-start !important;
             gap: 12px;
+            padding: 12px 16px !important;
           }
 
           .event-dayof__recent-actions {
             width: 100%;
             justify-content: flex-start !important;
             flex-wrap: wrap;
-          }
-
-          .event-dayof__modal-grid {
-            grid-template-columns: 1fr !important;
-            padding: 20px !important;
-          }
-
-          .event-dayof__modal-actions {
-            flex-direction: column;
-            width: 100%;
-          }
-
-          .event-dayof__modal-actions > * {
-            width: 100%;
-            justify-content: center;
           }
 
           .event-dayof__settings-footer {
@@ -1058,18 +1086,75 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
             justify-content: center;
           }
 
-          .event-dayof [style*="gridTemplateColumns"]:not(.event-dayof__stats) {
-            grid-template-columns: 1fr !important;
+          .event-dayof__scanner-card-icon {
+            width: 80px !important;
+            height: 80px !important;
+          }
+          .event-dayof__scanner-card-icon svg {
+            width: 48px !important;
+            height: 48px !important;
+          }
+
+          /* Settings & Download modals responsive */
+          .event-dayof__modal-settings {
+            width: 100% !important;
+            max-width: 100% !important;
+            height: 100vh !important;
+            max-height: 100vh !important;
+            border-radius: 0 !important;
+            border: none !important;
           }
         }
 
         @media (max-width: 400px) {
           .event-dayof {
-            padding: 20px 12px 72px;
+            padding: 16px 12px 72px !important;
           }
 
           .event-dayof__stats {
             grid-template-columns: 1fr !important;
+          }
+        }
+
+        /* Scanner modal responsive */
+        @media (max-width: 768px) {
+          .event-dayof__scanner-overlay {
+            padding: 0 !important;
+          }
+          .event-dayof__scanner-modal {
+            width: 100% !important;
+            max-width: 100% !important;
+            max-height: 100vh !important;
+            border-radius: 0 !important;
+            border: none !important;
+          }
+          .event-dayof__scanner-modal-header {
+            padding: 12px 16px !important;
+          }
+          .event-dayof__scanner-modal-header h2 {
+            font-size: 18px !important;
+          }
+          .event-dayof__scanner-modal-header select {
+            max-width: 200px !important;
+          }
+          .event-dayof__modal-grid {
+            grid-template-columns: 1fr !important;
+            padding: 16px !important;
+            gap: 16px !important;
+          }
+          .event-dayof__camera-area {
+            height: 260px !important;
+          }
+          .event-dayof__modal-actions {
+            flex-direction: column;
+            width: 100%;
+          }
+          .event-dayof__modal-actions > * {
+            width: 100%;
+            justify-content: center;
+          }
+          .event-dayof__scanner-status-badge {
+            display: none !important;
           }
         }
       `}</style>
@@ -1276,6 +1361,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
               }}
             >
               <div
+                className="event-dayof__scanner-card-icon"
                 style={{
                   width: '120px',
                   height: '120px',
@@ -1356,6 +1442,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
               }}
             >
               <div
+                className="event-dayof__scanner-card-icon"
                 style={{
                   width: '120px',
                   height: '120px',
@@ -1436,6 +1523,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
               }}
             >
               <div
+                className="event-dayof__scanner-card-icon"
                 style={{
                   width: '120px',
                   height: '120px',
@@ -1612,6 +1700,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
       {/* SCANNER MODAL */}
       {showScanner && (
         <div
+          className="event-dayof__scanner-overlay"
           style={{
             position: 'fixed',
             top: 0,
@@ -1623,31 +1712,33 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 200,
-            padding: window.innerWidth <= 768 ? '0' : '40px',
+            padding: '40px',
             overflow: 'auto'
           }}
           onClick={handleCloseScanner}
         >
           <div
+            className="event-dayof__scanner-modal"
             onClick={(e) => e.stopPropagation()}
             style={{
-              width: window.innerWidth <= 768 ? '100%' : '900px',
+              width: '900px',
               maxWidth: '100%',
-              maxHeight: window.innerWidth <= 768 ? '100vh' : 'calc(100vh - 80px)',
+              maxHeight: 'calc(100vh - 80px)',
               backgroundColor: '#1E3A5F',
-              borderRadius: window.innerWidth <= 768 ? '0' : '16px',
-              border: window.innerWidth <= 768 ? 'none' : '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '16px',
+              border: '1px solid rgba(255,255,255,0.2)',
               boxShadow: '0px 8px 32px rgba(0,0,0,0.5)',
               overflow: 'auto'
             }}
           >
             {/* Modal Header */}
             <div
+              className="event-dayof__scanner-modal-header"
               style={{
-                backgroundColor: showScanner === 'event' ? 'rgba(6,132,245,0.15)' : 
-                               showScanner === 'session' ? 'rgba(139,92,246,0.15)' : 
+                backgroundColor: showScanner === 'event' ? 'rgba(6,132,245,0.15)' :
+                               showScanner === 'session' ? 'rgba(139,92,246,0.15)' :
                                'rgba(245,158,11,0.15)',
-                padding: window.innerWidth <= 768 ? '16px' : '24px 32px',
+                padding: '24px 32px',
                 borderBottom: '1px solid rgba(255,255,255,0.15)',
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -1715,7 +1806,26 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
                     </select>
                   )}
                 </div>
+                {showScanner === 'session' && selectedSession && (
+                  <div
+                    style={{
+                      padding: '4px 12px',
+                      backgroundColor: 'rgba(139,92,246,0.15)',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      color: '#8B5CF6',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <Users size={14} />
+                    {sessionCheckinCount} {t('manageEvent.dayOf.stats.checkedIn')}
+                  </div>
+                )}
                 <div
+                  className="event-dayof__scanner-status-badge"
                   style={{
                     padding: '4px 12px',
                     backgroundColor: 'rgba(16,185,129,0.15)',
@@ -1768,14 +1878,15 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
             </div>
 
             {/* Modal Content */}
-            <div className="event-dayof__modal-grid" style={{ padding: window.innerWidth <= 768 ? '16px' : '32px', display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '60% 40%', gap: window.innerWidth <= 768 ? '16px' : '32px' }}>
+            <div className="event-dayof__modal-grid" style={{ padding: '32px', display: 'grid', gridTemplateColumns: '60% 40%', gap: '32px' }}>
               
               {/* Left: Scanner Area */}
               <div>
                 <div
+                  className="event-dayof__camera-area"
                   style={{
                     width: '100%',
-                    height: window.innerWidth <= 768 ? '280px' : '400px',
+                    height: '400px',
                     backgroundColor: '#000000',
                     borderRadius: '12px',
                     border: '2px solid rgba(255,255,255,0.2)',
@@ -1935,7 +2046,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
                 {!scanResult && (
                   <div
                     style={{
-                      height: window.innerWidth <= 768 ? '200px' : '400px',
+                      minHeight: '200px',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
@@ -2224,18 +2335,22 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 200
+            zIndex: 200,
+            padding: '16px'
           }}
           onClick={() => setShowSettings(false)}
         >
           <div
+            className="event-dayof__modal-settings"
             onClick={(e) => e.stopPropagation()}
             style={{
               width: '600px',
+              maxWidth: '100%',
+              maxHeight: '90vh',
               backgroundColor: '#1E3A5F',
               borderRadius: '12px',
               border: '1px solid rgba(255,255,255,0.15)',
-              overflow: 'hidden'
+              overflow: 'auto'
             }}
           >
             <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -2378,18 +2493,22 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 200
+            zIndex: 200,
+            padding: '16px'
           }}
           onClick={() => setShowDownload(false)}
         >
           <div
+            className="event-dayof__modal-settings"
             onClick={(e) => e.stopPropagation()}
             style={{
               width: '600px',
+              maxWidth: '100%',
+              maxHeight: '90vh',
               backgroundColor: '#1E3A5F',
               borderRadius: '12px',
               border: '1px solid rgba(255,255,255,0.15)',
-              overflow: 'hidden'
+              overflow: 'auto'
             }}
           >
             <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

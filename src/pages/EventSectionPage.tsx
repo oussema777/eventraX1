@@ -92,7 +92,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
             .from('event_sponsors')
             .select('*')
             .eq('event_id', eventId)
-            .order('tier', { ascending: true });
+            .order('sort_order', { ascending: true });
           
           setData(sponsorRows);
         } else if (type === 'speakers') {
@@ -1054,15 +1054,13 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                             <img 
                               src={s.logo_url} 
                               alt={s.name} 
-                              style={{ 
-                                maxWidth: '100%', 
-                                maxHeight: tier === 'Diamond' ? '100px' : '70px', 
+                              style={{
+                                maxWidth: '100%',
+                                maxHeight: tier === 'Diamond' ? '100px' : '70px',
                                 objectFit: 'contain',
-                                filter: 'brightness(0) invert(1) contrast(1.2)',
-                                opacity: 0.7,
                                 transition: 'all 0.4s ease'
-                              }} 
-                              className="group-hover:opacity-100 group-hover:scale-110"
+                              }}
+                              className="group-hover:scale-110"
                             />
                           ) : (
                             <span style={{ 
@@ -1184,32 +1182,91 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                         <span style={{ fontSize: '10px', fontWeight: 700, color: '#10B981', padding: '4px 8px', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '6px' }}>High Compatibility</span>
                       </div>
 
-                      <div style={{ width: '100%', display: 'flex', gap: '10px' }}>
-                        <button 
-                          onClick={(e) => { 
-                            e.stopPropagation(); 
+                      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <button
+                          onPointerUp={(e) => {
+                            e.stopPropagation();
+                            if (a.profile_id) navigate(`/profile/${a.profile_id}`);
+                          }}
+                          style={{
+                            width: '100%',
+                            height: '36px',
+                            backgroundColor: 'transparent',
+                            color: '#FFFFFF',
+                            border: '1px solid rgba(255,255,255,0.2)',
+                            borderRadius: '8px',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            cursor: a.profile_id ? 'pointer' : 'not-allowed',
+                            transition: 'all 0.2s',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (a.profile_id) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
+                          }}
+                          onMouseLeave={(e) => {
+                            if (a.profile_id) e.currentTarget.style.backgroundColor = 'transparent';
+                          }}
+                        >
+                          <User size={14} />
+                          View Profile
+                        </button>
+                        <button
+                          onPointerUp={(e) => {
+                            e.stopPropagation();
                             if (!user) {
                               toast.info(t('networking.auth.bookingPrompt') || 'Please sign in or create an account to book meetings.');
                               setShowLoginModal(true);
                               return;
                             }
-                            if (a.profile_id) setSelectedAttendee({ id: a.profile_id, name: a.name }); 
-                          }} 
-                          style={{ flex: 1, height: '40px', backgroundColor: brandColor, color: '#FFFFFF', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
-                        >Book</button>
-                        <button 
-                          onClick={(e) => { 
-                            e.stopPropagation(); 
+                            if (a.profile_id) setSelectedAttendee({ id: a.profile_id, name: a.name });
+                          }}
+                          style={{
+                            width: '100%',
+                            height: '36px',
+                            backgroundColor: a.profile_id ? brandColor : 'rgba(255,255,255,0.1)',
+                            color: a.profile_id ? '#FFFFFF' : 'rgba(255,255,255,0.4)',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            cursor: a.profile_id ? 'pointer' : 'not-allowed',
+                            transition: 'all 0.2s',
+                            touchAction: 'none'
+                          }}
+                        >
+                          {a.profile_id ? 'Book Meeting' : 'Guest User'}
+                        </button>
+                        <button
+                          disabled={isMessageLoading || !a.profile_id}
+                          onPointerUp={(e) => {
+                            e.stopPropagation();
                             if (!user) {
                               toast.info(t('networking.auth.messagePrompt') || 'Please sign in to send messages.');
                               setShowLoginModal(true);
                               return;
                             }
-                            if (a.profile_id) handleMessage(a.profile_id); 
-                          }} 
-                          style={{ width: '40px', height: '40px', backgroundColor: 'rgba(255,255,255,0.05)', color: '#FFFFFF', border: 'none', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                            if (a.profile_id) handleMessage(a.profile_id);
+                          }}
+                          style={{
+                            width: '100%',
+                            height: '36px',
+                            backgroundColor: 'rgba(255,255,255,0.1)',
+                            color: a.profile_id ? '#FFFFFF' : 'rgba(255,255,255,0.4)',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            cursor: (isMessageLoading || !a.profile_id) ? 'not-allowed' : 'pointer',
+                            transition: 'all 0.2s',
+                            opacity: isMessageLoading ? 0.7 : 1,
+                            touchAction: 'none'
+                          }}
                         >
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                          {isMessageLoading ? 'Loading...' : 'Message'}
                         </button>
                       </div>
                     </div>

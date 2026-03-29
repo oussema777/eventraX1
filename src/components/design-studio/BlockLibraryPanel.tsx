@@ -195,6 +195,15 @@ export default function BlockLibraryPanel({
       tier: 'PRO',
       thumbnail: 'grid',
       icon: '🤝'
+    },
+    {
+      id: 'attendees',
+      name: t('wizard.designStudio.blocks.attendees.name'),
+      type: 'attendees',
+      description: t('wizard.designStudio.blocks.attendees.description'),
+      tier: 'FREE',
+      thumbnail: 'avatar-grid',
+      icon: '👥'
     }
   ];
 

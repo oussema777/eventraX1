@@ -16,6 +16,7 @@ export interface Sponsor {
   contributionAmount: number;
   benefits: string[];
   notes?: string;
+  sortOrder: number;
 }
 
 export interface SponsorPackage {
@@ -41,7 +42,8 @@ export function useSponsors() {
       const { data: sponsorsData, error: sponsorsError } = await supabase
         .from('event_sponsors')
         .select('*')
-        .eq('event_id', eventId);
+        .eq('event_id', eventId)
+        .order('sort_order', { ascending: true });
 
       if (sponsorsError) throw sponsorsError;
 
@@ -56,7 +58,8 @@ export function useSponsors() {
         status: s.status || 'confirmed',
         contributionAmount: s.contribution_amount || 0,
         benefits: s.benefits || [],
-        notes: s.notes
+        notes: s.notes,
+        sortOrder: s.sort_order ?? 0
       }));
 
       setSponsors(mappedSponsors);
@@ -133,13 +136,14 @@ export function useSponsors() {
           status: sponsor.status,
           contribution_amount: sponsor.contributionAmount,
           benefits: sponsor.benefits,
-          notes: sponsor.notes
+          notes: sponsor.notes,
+          sort_order: sponsors.length
         })
         .select()
         .single();
 
       if (error) throw error;
-      
+
       await loadSponsors();
       toast.success('Sponsor created');
       return data;
@@ -214,14 +218,32 @@ export function useSponsors() {
     }
   };
 
+  const reorderSponsors = async (orderedIds: string[]) => {
+    try {
+      const updates = orderedIds.map((id, index) =>
+        supabase
+          .from('event_sponsors')
+          .update({ sort_order: index })
+          .eq('id', id)
+      );
+      await Promise.all(updates);
+      await loadSponsors();
+    } catch (error) {
+      console.error('Error reordering sponsors:', error);
+      toast.error('Failed to reorder sponsors');
+    }
+  };
+
   return {
     sponsors,
+    setSponsors,
     packages,
     isLoading,
     createSponsor,
     updateSponsor,
     deleteSponsor,
     updatePackages,
+    reorderSponsors,
     refreshSponsors: loadSponsors
   };
 }
