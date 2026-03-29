@@ -95,14 +95,27 @@ ${jsonLd ? `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script
 // Route handlers
 async function handleEventPage(eventId, section) {
   try {
-    const rows = await supabaseGet('events', `id=eq.${eventId}&select=id,name,description,tagline,cover_image_url,start_date,end_date,location_address,event_format`);
+    const rows = await supabaseGet('events', `id=eq.${eventId}&select=id,name,description,tagline,cover_image_url,start_date,end_date,location_address,event_format,branding_settings`);
     const event = Array.isArray(rows) ? rows[0] : null;
     if (!event) return null;
 
     const path = section ? `/event/${eventId}/${section}` : `/event/${eventId}/landing`;
     const title = `${event.name || 'Event'} | Eventra`;
     const desc = event.description || event.tagline || `Join ${event.name || 'this event'} on Eventra`;
-    const image = event.cover_image_url || `${BASE_URL}/favicon.png`;
+
+    // Extract image: cover_image_url > hero background > logo > fallback
+    let image = event.cover_image_url;
+    if (!image) {
+      try {
+        const blocks = event.branding_settings?.design_studio?.activeBlocks || [];
+        const hero = blocks.find(b => b.type === 'hero');
+        image = hero?.settings?.backgroundImage;
+        if (!image) {
+          image = event.branding_settings?.design_studio?.logoUrl;
+        }
+      } catch {}
+    }
+    if (!image) image = `${BASE_URL}/favicon.png`;
 
     const jsonLd = {
       '@context': 'https://schema.org',
