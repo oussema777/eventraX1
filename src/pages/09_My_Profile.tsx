@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Upload, Linkedin, Twitter, Globe, 
+import {
+  Upload, Linkedin, Twitter, Globe,
   Calendar, Handshake, Users, Star, Mail, Phone, MapPin, Building2,
   Eye, Check, X, Lock, Trash2, Plus, Edit2, Crown, ChevronDown
 } from 'lucide-react';
@@ -12,8 +12,17 @@ import { useProfile } from '../hooks/useProfile';
 import { uploadFile } from '../utils/storage';
 import { supabase } from '../lib/supabase';
 import { useI18n } from '../i18n/I18nContext';
-import DOMPurify from 'dompurify';
 import { sanitizeError } from '../utils/errorHandler';
+import type { ProfileOption, EducationDraft } from '../components/profile/types';
+import { buildFallbackAvatar, getDefaultOptionValue } from '../components/profile/types';
+import {
+  EducationModal,
+  PasswordModal,
+  TwoFactorModal,
+  DeleteConfirmModal,
+  PreviewModal,
+  CropModal
+} from '../components/profile/ProfileModals';
 
 // Default user data (no mock values)
 const userData = {
@@ -51,19 +60,8 @@ const industriesOfInterest: string[] = [];
 const educationEntries: any[] = [];
 const certifications: any[] = [];
 
-const buildFallbackAvatar = (name: string) => (
-  `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0684F5&color=fff&size=256`
-);
-
-type ProfileOption = {
-  value: string;
-  label: string;
-  helper?: string;
-  checked?: boolean;
-};
-
-const getDefaultOptionValue = (options: ProfileOption[]) =>
-  options.find((option) => option.checked)?.value ?? options[0]?.value ?? '';
+// Types (ProfileOption, EducationDraft) and helpers (buildFallbackAvatar, getDefaultOptionValue)
+// are imported from ../components/profile/types
 
 export default function MyProfile() {
   const navigate = useNavigate();
@@ -93,7 +91,7 @@ export default function MyProfile() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showEducationModal, setShowEducationModal] = useState(false);
-  const [educationDraft, setEducationDraft] = useState({ id: '', degree: '', institution: '', years: '' });
+  const [educationDraft, setEducationDraft] = useState<EducationDraft>({ id: '', degree: '', institution: '', years: '' });
   const [isEducationSaving, setIsEducationSaving] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -3002,807 +3000,83 @@ export default function MyProfile() {
 
       {/* EDUCATION MODAL */}
       {showEducationModal && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(11,38,65,0.90)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 200
-          }}
-          onClick={() => setShowEducationModal(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: '520px',
-              maxWidth: '90vw',
-              backgroundColor: '#1E3A5F',
-              borderRadius: '12px',
-              border: '1px solid rgba(255,255,255,0.15)',
-              overflow: 'hidden'
-            }}
-          >
-            <div
-              style={{
-                padding: '24px',
-                borderBottom: '1px solid rgba(255,255,255,0.1)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}
-            >
-              <h2 style={{ fontSize: '22px', fontWeight: 600, color: '#FFFFFF' }}>
-                {educationDraft.id ? t('profile.modals.education.editTitle') : t('profile.modals.education.addTitle')}
-              </h2>
-              <button
-                onClick={() => setShowEducationModal(false)}
-                style={{ background: 'none', border: 'none', color: '#FFFFFF', cursor: 'pointer' }}
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#94A3B8', marginBottom: '8px' }}>
-                  {t('profile.modals.education.degree')}
-                </label>
-                <input
-                  type="text"
-                  value={educationDraft.degree}
-                  onChange={(e) => setEducationDraft((prev) => ({ ...prev, degree: e.target.value }))}
-                  style={{
-                    width: '100%',
-                    height: '48px',
-                    padding: '0 16px',
-                    backgroundColor: 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    borderRadius: '8px',
-                    color: '#FFFFFF',
-                    fontSize: '15px'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#94A3B8', marginBottom: '8px' }}>
-                  {t('profile.modals.education.institution')}
-                </label>
-                <input
-                  type="text"
-                  value={educationDraft.institution}
-                  onChange={(e) => setEducationDraft((prev) => ({ ...prev, institution: e.target.value }))}
-                  style={{
-                    width: '100%',
-                    height: '48px',
-                    padding: '0 16px',
-                    backgroundColor: 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    borderRadius: '8px',
-                    color: '#FFFFFF',
-                    fontSize: '15px'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#94A3B8', marginBottom: '8px' }}>
-                  {t('profile.modals.education.years')}
-                </label>
-                <input
-                  type="text"
-                  value={educationDraft.years}
-                  onChange={(e) => setEducationDraft((prev) => ({ ...prev, years: e.target.value }))}
-                  placeholder={t('profile.modals.education.yearsPlaceholder')}
-                  style={{
-                    width: '100%',
-                    height: '48px',
-                    padding: '0 16px',
-                    backgroundColor: 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    borderRadius: '8px',
-                    color: '#FFFFFF',
-                    fontSize: '15px'
-                  }}
-                />
-              </div>
-            </div>
-
-            <div style={{ padding: '24px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => setShowEducationModal(false)}
-                style={{
-                  height: '40px',
-                  padding: '0 20px',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#FFFFFF',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                {t('profile.modals.common.cancel')}
-              </button>
-              <button
-                onClick={handleEducationSave}
-                disabled={isEducationSaving}
-                style={{
-                  height: '40px',
-                  padding: '0 20px',
-                  backgroundColor: isEducationSaving ? '#2A4B6D' : '#0684F5',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#FFFFFF',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: isEducationSaving ? 'not-allowed' : 'pointer',
-                  opacity: isEducationSaving ? 0.7 : 1
-                }}
-              >
-                {isEducationSaving ? t('profile.modals.common.saving') : t('profile.modals.common.save')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <EducationModal
+          draft={educationDraft}
+          onDraftChange={setEducationDraft}
+          isSaving={isEducationSaving}
+          onSave={handleEducationSave}
+          onClose={() => setShowEducationModal(false)}
+        />
       )}
 
       {/* CHANGE PASSWORD MODAL */}
       {showPasswordModal && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(11,38,65,0.90)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 200
-          }}
-          onClick={() => setShowPasswordModal(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: '500px',
-              maxWidth: '90vw',
-              backgroundColor: '#1E3A5F',
-              borderRadius: '12px',
-              border: '1px solid rgba(255,255,255,0.15)',
-              overflow: 'hidden'
-            }}
-          >
-            <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: '22px', fontWeight: 600, color: '#FFFFFF' }}>{t('profile.modals.password.title')}</h2>
-              <button
-                onClick={() => setShowPasswordModal(false)}
-                style={{ background: 'none', border: 'none', color: '#FFFFFF', cursor: 'pointer' }}
-              >
-                <X size={24} />
-              </button>
-            </div>
-            
-            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#94A3B8', marginBottom: '8px' }}>
-                  {t('profile.modals.password.current')}
-                </label>
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  style={{
-                    width: '100%',
-                    height: '48px',
-                    padding: '0 16px',
-                    backgroundColor: 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    borderRadius: '8px',
-                    color: '#FFFFFF',
-                    fontSize: '15px'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#94A3B8', marginBottom: '8px' }}>
-                  {t('profile.modals.password.new')}
-                </label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  style={{
-                    width: '100%',
-                    height: '48px',
-                    padding: '0 16px',
-                    backgroundColor: 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    borderRadius: '8px',
-                    color: '#FFFFFF',
-                    fontSize: '15px'
-                  }}
-                />
-                <div style={{ marginTop: '8px', fontSize: '12px', color: '#6B7280' }}>
-                  <div style={{ color: '#10B981' }}>✓ {t('profile.modals.password.requirements.length')}</div>
-                  <div style={{ color: '#EF4444' }}>✗ {t('profile.modals.password.requirements.uppercase')}</div>
-                  <div style={{ color: '#10B981' }}>✓ {t('profile.modals.password.requirements.number')}</div>
-                  <div style={{ color: '#10B981' }}>✓ {t('profile.modals.password.requirements.special')}</div>
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#94A3B8', marginBottom: '8px' }}>
-                  {t('profile.modals.password.confirm')}
-                </label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  style={{
-                    width: '100%',
-                    height: '48px',
-                    padding: '0 16px',
-                    backgroundColor: 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    borderRadius: '8px',
-                    color: '#FFFFFF',
-                    fontSize: '15px'
-                  }}
-                />
-              </div>
-            </div>
-
-            <div style={{ padding: '24px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => setShowPasswordModal(false)}
-                style={{
-                  height: '40px',
-                  padding: '0 20px',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#FFFFFF',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                {t('profile.modals.common.cancel')}
-              </button>
-              <button
-                onClick={handlePasswordUpdate}
-                disabled={isUpdatingPassword}
-                style={{
-                  height: '40px',
-                  padding: '0 20px',
-                  backgroundColor: isUpdatingPassword ? '#2A4B6D' : '#0684F5',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#FFFFFF',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: isUpdatingPassword ? 'not-allowed' : 'pointer',
-                  opacity: isUpdatingPassword ? 0.7 : 1
-                }}
-              >
-                {isUpdatingPassword ? t('profile.modals.password.updating') : t('profile.modals.password.update')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <PasswordModal
+          currentPassword={currentPassword}
+          newPassword={newPassword}
+          confirmPassword={confirmPassword}
+          onCurrentPasswordChange={setCurrentPassword}
+          onNewPasswordChange={setNewPassword}
+          onConfirmPasswordChange={setConfirmPassword}
+          isUpdating={isUpdatingPassword}
+          onUpdate={handlePasswordUpdate}
+          onClose={() => setShowPasswordModal(false)}
+        />
       )}
 
       {/* TWO-FACTOR SETUP MODAL */}
       {showTwoFactorModal && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(11,38,65,0.90)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 200
-          }}
-          onClick={() => setShowTwoFactorModal(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: '520px',
-              maxWidth: '90vw',
-              backgroundColor: '#1E3A5F',
-              borderRadius: '12px',
-              border: '1px solid rgba(255,255,255,0.15)',
-              overflow: 'hidden'
-            }}
-          >
-            <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: '22px', fontWeight: 600, color: '#FFFFFF' }}>{t('profile.modals.twoFactor.title')}</h2>
-              <button
-                onClick={() => setShowTwoFactorModal(false)}
-                style={{ background: 'none', border: 'none', color: '#FFFFFF', cursor: 'pointer' }}
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <p style={{ fontSize: '14px', color: '#94A3B8', marginBottom: '8px' }}>
-                {t('profile.modals.twoFactor.instructions')}
-              </p>
-              <div
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  padding: '16px',
-                  borderRadius: '12px',
-                  display: 'flex',
-                  justifyContent: 'center'
-                }}
-              >
-                {twoFactorQr ? (
-                  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(twoFactorQr, { USE_PROFILES: { svg: true } }) }} />
-                ) : (
-                  <span style={{ color: '#111827', fontSize: '14px' }}>{t('profile.modals.twoFactor.qrUnavailable')}</span>
-                )}
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#94A3B8', marginBottom: '8px' }}>
-                  {t('profile.modals.twoFactor.codeLabel')}
-                </label>
-                <input
-                  type="text"
-                  value={twoFactorCode}
-                  onChange={(e) => setTwoFactorCode(e.target.value)}
-                  placeholder={t('profile.modals.twoFactor.codePlaceholder')}
-                  style={{
-                    width: '100%',
-                    height: '48px',
-                    padding: '0 16px',
-                    backgroundColor: 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    borderRadius: '8px',
-                    color: '#FFFFFF',
-                    fontSize: '15px'
-                  }}
-                />
-              </div>
-            </div>
-
-            <div style={{ padding: '24px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => setShowTwoFactorModal(false)}
-                style={{
-                  height: '40px',
-                  padding: '0 20px',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#FFFFFF',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                {t('profile.modals.common.cancel')}
-              </button>
-              <button
-                onClick={handleTwoFactorVerify}
-                disabled={isTwoFactorSaving}
-                style={{
-                  height: '40px',
-                  padding: '0 20px',
-                  backgroundColor: isTwoFactorSaving ? '#2A4B6D' : '#0684F5',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#FFFFFF',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: isTwoFactorSaving ? 'not-allowed' : 'pointer',
-                  opacity: isTwoFactorSaving ? 0.7 : 1
-                }}
-              >
-                {isTwoFactorSaving ? t('profile.modals.twoFactor.verifying') : t('profile.modals.twoFactor.verify')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <TwoFactorModal
+          qrCode={twoFactorQr}
+          code={twoFactorCode}
+          onCodeChange={setTwoFactorCode}
+          isSaving={isTwoFactorSaving}
+          onVerify={handleTwoFactorVerify}
+          onClose={() => setShowTwoFactorModal(false)}
+        />
       )}
 
       {/* DELETE CONFIRM MODAL */}
       {showDeleteConfirmModal && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(11,38,65,0.90)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 210
-          }}
-          onClick={() => setShowDeleteConfirmModal(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: '540px',
-              maxWidth: '90vw',
-              backgroundColor: '#1E3A5F',
-              borderRadius: '12px',
-              border: '1px solid rgba(255,255,255,0.15)',
-              overflow: 'hidden'
-            }}
-          >
-            <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF' }}>{t('profile.modals.deleteConfirm.title')}</h2>
-              <button
-                onClick={() => setShowDeleteConfirmModal(false)}
-                style={{ background: 'none', border: 'none', color: '#FFFFFF', cursor: 'pointer' }}
-              >
-                <X size={22} />
-              </button>
-            </div>
-
-            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <p style={{ fontSize: '14px', color: '#94A3B8' }}>
-                {t('profile.modals.deleteConfirm.message')}
-              </p>
-              <div style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '10px', padding: '12px' }}>
-                {pendingDeleteFields.map((field) => (
-                  <div key={field} style={{ fontSize: '13px', color: '#FFFFFF', marginBottom: '6px' }}>
-                    - {field}
-                  </div>
-                ))}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <input
-                  type="checkbox"
-                  checked={isDeleteAccepted}
-                  onChange={(e) => setIsDeleteAccepted(e.target.checked)}
-                  style={{ width: '16px', height: '16px' }}
-                />
-                <span style={{ fontSize: '13px', color: '#E2E8F0' }}>
-                  {t('profile.modals.deleteConfirm.accept')}
-                </span>
-              </div>
-            </div>
-
-            <div style={{ padding: '20px 24px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => {
-                  setIsDeleteAccepted(false);
-                  setShowDeleteConfirmModal(false);
-                }}
-                style={{
-                  height: '40px',
-                  padding: '0 20px',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#FFFFFF',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                {t('profile.modals.common.cancel')}
-              </button>
-              <button
-                onClick={() => handleSaveChanges(true)}
-                disabled={!isDeleteAccepted}
-                style={{
-                  height: '40px',
-                  padding: '0 20px',
-                  backgroundColor: isDeleteAccepted ? '#0684F5' : '#2A4B6D',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#FFFFFF',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: isDeleteAccepted ? 'pointer' : 'not-allowed',
-                  opacity: isDeleteAccepted ? 1 : 0.7
-                }}
-              >
-                {t('profile.modals.deleteConfirm.confirm')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <DeleteConfirmModal
+          fields={pendingDeleteFields}
+          isAccepted={isDeleteAccepted}
+          onAcceptChange={setIsDeleteAccepted}
+          onConfirm={() => handleSaveChanges(true)}
+          onClose={() => setShowDeleteConfirmModal(false)}
+        />
       )}
 
       {/* PUBLIC PROFILE PREVIEW MODAL */}
       {showPreviewModal && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(11,38,65,0.90)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 200,
-            padding: '40px'
-          }}
-          onClick={() => setShowPreviewModal(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: '800px',
-              maxWidth: '90vw',
-              maxHeight: '90vh',
-              backgroundColor: '#FFFFFF',
-              borderRadius: '16px',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column'
-            }}
-          >
-            {/* Cover & Profile Photo */}
-            <div style={{ position: 'relative' }}>
-              <div
-                style={{
-                  height: '200px',
-                  background: 'linear-gradient(135deg, #0684F5 0%, #4A7C6D 100%)'
-                }}
-              />
-              <button
-                  onClick={() => setShowPreviewModal(false)}
-                  style={{
-                    position: 'absolute',
-                  top: '16px',
-                  right: '16px',
-                  width: '40px',
-                  height: '40px',
-                  backgroundColor: 'rgba(0,0,0,0.5)',
-                  border: 'none',
-                  borderRadius: '50%',
-                  color: '#FFFFFF',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <X size={20} />
-              </button>
-              <div style={{ position: 'absolute', bottom: '-60px', left: '40px' }}>
-                <img
-                  src={avatarUrl}
-                  alt={t('profile.preview.avatarAlt')}
-                  style={{
-                    width: '120px',
-                    height: '120px',
-                    borderRadius: '50%',
-                    border: '4px solid #FFFFFF',
-                    objectFit: 'cover'
-                  }}
-                />
-              </div>
-            </div>
-
-            <div style={{ padding: '80px 40px 40px', overflowY: 'auto' }}>
-              <h2 style={{ fontSize: '28px', fontWeight: 600, color: '#1F2937', marginBottom: '8px' }}>
-                {firstName} {lastName}
-              </h2>
-              <p style={{ fontSize: '16px', color: '#6B7280', marginBottom: '4px' }}>
-                {jobTitle}
-              </p>
-              <p style={{ fontSize: '16px', color: '#6B7280', marginBottom: '24px' }}>
-                {company}
-              </p>
-
-              <div style={{ marginBottom: '24px' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#1F2937', marginBottom: '12px' }}>{t('profile.preview.about')}</h3>
-                <p style={{ fontSize: '15px', color: '#4B5563', lineHeight: '1.6' }}>
-                  {bio}
-                </p>
-              </div>
-
-              <div style={{ marginBottom: '24px' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#1F2937', marginBottom: '12px' }}>{t('profile.preview.skills')}</h3>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {skillsState.map(skill => (
-                    <div
-                      key={skill}
-                      style={{
-                        padding: '6px 14px',
-                        backgroundColor: '#E0F2FE',
-                        color: '#0284C7',
-                        borderRadius: '16px',
-                        fontSize: '13px',
-                        fontWeight: 500
-                      }}
-                    >
-                      {skill}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '24px' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#1F2937', marginBottom: '12px' }}>{t('profile.preview.interests')}</h3>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {interestsState.map(interest => (
-                    <div
-                      key={interest}
-                      style={{
-                        padding: '6px 14px',
-                        backgroundColor: '#D1FAE5',
-                        color: '#059669',
-                        borderRadius: '16px',
-                        fontSize: '13px',
-                        fontWeight: 500
-                      }}
-                    >
-                      {interest}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <p style={{ fontSize: '13px', color: '#9CA3AF', fontStyle: 'italic', textAlign: 'center', marginTop: '32px' }}>
-                {t('profile.preview.hint')}
-              </p>
-            </div>
-
-            <div style={{ padding: '20px 40px', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'center' }}>
-              <button
-                onClick={() => setShowPreviewModal(false)}
-                style={{
-                  height: '44px',
-                  padding: '0 32px',
-                  backgroundColor: '#0684F5',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#FFFFFF',
-                  fontSize: '15px',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                {t('profile.preview.close')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <PreviewModal
+          avatarUrl={avatarUrl}
+          firstName={firstName}
+          lastName={lastName}
+          jobTitle={jobTitle}
+          company={company}
+          bio={bio}
+          skills={skillsState}
+          interests={interestsState}
+          onClose={() => setShowPreviewModal(false)}
+        />
       )}
 
       {/* CROP PHOTO MODAL */}
       {showCropModal && cropImageUrl && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(11,38,65,0.90)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 220,
-            padding: '40px'
-          }}
-          onClick={closeCropModal}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: '520px',
-              maxWidth: '90vw',
-              backgroundColor: '#1E3A5F',
-              borderRadius: '16px',
-              border: '1px solid rgba(255,255,255,0.15)',
-              overflow: 'hidden'
-            }}
-          >
-            <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: '22px', fontWeight: 600, color: '#FFFFFF' }}>{t('profile.crop.title')}</h2>
-              <button
-                onClick={closeCropModal}
-                style={{ background: 'none', border: 'none', color: '#FFFFFF', cursor: 'pointer' }}
-              >
-                <X size={22} />
-              </button>
-            </div>
-            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
-              <div
-                style={{
-                  width: `${cropContainerSize}px`,
-                  height: `${cropContainerSize}px`,
-                  borderRadius: '12px',
-                  backgroundColor: 'rgba(255,255,255,0.08)',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  overflow: 'hidden',
-                  position: 'relative',
-                  cursor: isDraggingCrop ? 'grabbing' : 'grab'
-                }}
-                onPointerDown={handleCropPointerDown}
-                onPointerMove={handleCropPointerMove}
-                onPointerUp={handleCropPointerUp}
-                onPointerLeave={handleCropPointerUp}
-              >
-                <canvas
-                  ref={cropCanvasRef}
-                  width={cropContainerSize}
-                  height={cropContainerSize}
-                  style={{ display: 'block' }}
-                />
-              </div>
-              <div style={{ width: '100%' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#94A3B8', marginBottom: '8px' }}>
-                  {t('profile.crop.zoom')}
-                </label>
-                <input
-                  type="range"
-                  min={1}
-                  max={3}
-                  step={0.01}
-                  value={cropZoom}
-                  onChange={(e) => setCropZoom(parseFloat(e.target.value))}
-                  style={{ width: '100%' }}
-                />
-              </div>
-            </div>
-            <div style={{ padding: '20px 24px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button
-                onClick={closeCropModal}
-                style={{
-                  height: '40px',
-                  padding: '0 20px',
-                  backgroundColor: 'transparent',
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  borderRadius: '8px',
-                  color: '#FFFFFF',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                {t('profile.modals.common.cancel')}
-              </button>
-              <button
-                onClick={handleApplyCrop}
-                style={{
-                  height: '40px',
-                  padding: '0 20px',
-                  backgroundColor: '#0684F5',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#FFFFFF',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                {t('profile.crop.apply')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <CropModal
+          cropContainerSize={cropContainerSize}
+          cropImageUrl={cropImageUrl}
+          isDraggingCrop={isDraggingCrop}
+          cropCanvasRef={cropCanvasRef}
+          cropZoom={cropZoom}
+          onCropZoomChange={setCropZoom}
+          onPointerDown={handleCropPointerDown}
+          onPointerMove={handleCropPointerMove}
+          onPointerUp={handleCropPointerUp}
+          onApply={handleApplyCrop}
+          onClose={closeCropModal}
+        />
       )}
     </div>
   );
