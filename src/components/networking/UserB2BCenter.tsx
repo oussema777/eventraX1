@@ -176,8 +176,6 @@ export default function UserB2BCenter() {
   const loadNetworkingData = async () => {
     if (!user?.id) return;
     try {
-      console.log('[Networking] START LOAD - User:', user.id);
-
       // 1. Get user's attendee IDs
       let myAttendeeIds: string[] = [];
       const { data: myAttendees } = await supabase
@@ -186,7 +184,6 @@ export default function UserB2BCenter() {
         .eq('profile_id', user.id);
       
       myAttendeeIds = (myAttendees || []).map(a => a.id);
-      console.log('[Networking] Attendee IDs:', myAttendeeIds);
 
       // 2. Fetch all networking data in parallel
       const [
@@ -203,7 +200,7 @@ export default function UserB2BCenter() {
         supabase.from(REQUESTS_TABLE).select('*').eq('recipient_id', user.id),
         supabase.from(REQUESTS_TABLE).select('*').eq('sender_id', user.id),
         supabase.from(CONNECTIONS_TABLE).select('*').or(`profile_a_id.eq.${user.id},profile_b_id.eq.${user.id}`),
-        supabase.from(MEETINGS_TABLE).select('*'),
+        supabase.from(MEETINGS_TABLE).select('*').or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`),
         supabase.from('b2b_meetings').select('*').then(r => r, () => ({ data: [] }))
       ]);
 
@@ -213,16 +210,12 @@ export default function UserB2BCenter() {
         ...(legacyResult?.data || [])
       ];
       
-      console.log('[Networking] Total raw meetings from DB:', allRawMeetings.length);
-
       const meetingsData = allRawMeetings.filter(m => {
         const isA = m.profile_a_id === user.id || (m.attendee_a_id && myAttendeeIds.includes(m.attendee_a_id));
         const isB = m.profile_b_id === user.id || (m.attendee_b_id && myAttendeeIds.includes(m.attendee_b_id));
         const isOrg = m.organizer_id === user.id;
         return isA || isB || isOrg;
       }).filter((m, i, self) => self.findIndex(x => x.id === m.id) === i);
-
-      console.log('[Networking] Meetings after user filter:', meetingsData.length);
 
       if (profileResult.data?.full_name) {
         setCurrentUserName(profileResult.data.full_name);
@@ -400,8 +393,6 @@ export default function UserB2BCenter() {
           qrCodeUrl: row.status === 'confirmed' ? qrCodeUrl : undefined
         };
       }));
-
-      console.log('[Networking] LOAD COMPLETE');
 
     } catch (error: any) {
       console.error('[Networking] CRITICAL ERROR:', error);
@@ -981,9 +972,21 @@ export default function UserB2BCenter() {
 
   useEffect(() => {
     if (!user?.id) return;
-    const interval = window.setInterval(loadNetworkingData, 15000);
-    return () => window.clearInterval(interval);
-  }, [user?.id, t]);
+
+    const channel = supabase
+      .channel(`b2b:${user.id}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: MATCHES_TABLE,
+        filter: `profile_id=eq.${user.id}`
+      }, () => loadNetworkingData())
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: REQUESTS_TABLE,
+        filter: `recipient_id=eq.${user.id}`
+      }, () => loadNetworkingData())
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id]);
 
   const filteredMeetings = useMemo(() => {
     const now = new Date();

@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -30,8 +30,28 @@ export function useNotifications() {
     queryKey,
     queryFn: () => fetchNotifications(user!.id),
     enabled: !!user?.id,
-    refetchInterval: 10000, // Poll every 10 seconds (replaces manual setInterval)
   });
+
+  // Realtime subscription for new notifications
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`notifications:${user.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notifications',
+        filter: `recipient_id=eq.${user.id}`
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, queryClient]);
 
   const error = queryError ? (queryError as Error).message : null;
 

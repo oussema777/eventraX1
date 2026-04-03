@@ -66,7 +66,6 @@ export default function UserMessagesCenter() {
   const [newMessageResults, setNewMessageResults] = useState<Array<{ id: string; name: string; title?: string }>>([]);
   const [suggestedUsers, setSuggestedUsers] = useState<Array<{ id: string; name: string; title?: string }>>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
-  const conversationPollRef = useRef<number | null>(null);
   const requestedThreadId = (location.state as any)?.threadId as string | undefined;
 
   const activeConversation = conversations.find(c => c.id === activeConversationId);
@@ -369,24 +368,15 @@ export default function UserMessagesCenter() {
     }
   }, [requestedThreadId, conversations]);
 
-  useEffect(() => {
-    if (!user?.id) return;
-    if (conversationPollRef.current) {
-      window.clearInterval(conversationPollRef.current);
-    }
-    conversationPollRef.current = window.setInterval(fetchConversations, 10000);
-    return () => {
-      if (conversationPollRef.current) {
-        window.clearInterval(conversationPollRef.current);
-      }
-    };
-  }, [user?.id, t]);
+  // Keep a ref to conversations for use in the global channel callback (avoids stale closures)
+  const conversationsRef = useRef(conversations);
+  useEffect(() => { conversationsRef.current = conversations; }, [conversations]);
 
   useEffect(() => {
     if (!user?.id) return;
-    
+
     // Subscribe to all messages in threads I am part of
-    // Since we don't have a direct "my_threads" filter easily in JS client for INSERTs 
+    // Since we don't have a direct "my_threads" filter easily in JS client for INSERTs
     // across multiple IDs without complex logic, we'll listen to all inserts
     // and filter in the callback.
     const globalChannel = supabase
@@ -396,9 +386,9 @@ export default function UserMessagesCenter() {
         { event: 'INSERT', schema: 'public', table: MESSAGES_TABLE },
         async (payload) => {
           const data: any = payload.new;
-          
+
           // Check if this thread is one of mine
-          const isMyThread = conversations.some(c => c.id === data.thread_id);
+          const isMyThread = conversationsRef.current.some(c => c.id === data.thread_id);
           if (!isMyThread) {
             // Might be a brand new thread, refresh list
             fetchConversations();
@@ -409,9 +399,9 @@ export default function UserMessagesCenter() {
           setConversations((prev) => {
             const updated = prev.map((conv) =>
               conv.id === data.thread_id
-                ? { 
-                    ...conv, 
-                    lastMessage: data.body, 
+                ? {
+                    ...conv,
+                    lastMessage: data.body,
                     lastMessageTime: new Date(data.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
                     rawLastMessageTime: data.created_at,
                     unreadCount: conv.id === activeConversationId ? 0 : conv.unreadCount + 1
@@ -427,7 +417,7 @@ export default function UserMessagesCenter() {
     return () => {
       supabase.removeChannel(globalChannel);
     };
-  }, [user?.id, conversations.length, activeConversationId]);
+  }, [user?.id, activeConversationId]);
 
   useEffect(() => {
     if (!activeConversationId) return;
