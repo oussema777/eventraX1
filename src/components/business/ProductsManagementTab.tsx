@@ -352,7 +352,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
                         {t(`constants.sectors.${product.sector.replace(/\s+/g, '')}`, { defaultValue: product.sector })}
                       </span>
                     </div>
-                    <p style={{ fontSize: '13px', color: '#0684F5', marginBottom: '8px' }}>
+                    <p style={{ fontSize: '13px', color: '#3B9EFF', marginBottom: '8px' }}>
                       {/* Translate Subsector Display */}
                       {t(`constants.subsectors.${product.subsector}`, { defaultValue: product.subsector })}
                     </p>
@@ -415,7 +415,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
                       className="px-2 py-1 rounded"
                       style={{
                         backgroundColor: 'rgba(6, 132, 245, 0.1)',
-                        color: '#0684F5',
+                        color: '#3B9EFF',
                         fontSize: '11px',
                         fontWeight: 600
                       }}
@@ -677,7 +677,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
                       style={{
                         backgroundColor: 'rgba(6, 132, 245, 0.1)',
                         border: '1px solid #0684F5',
-                        color: '#0684F5',
+                        color: '#3B9EFF',
                         fontSize: '12px',
                         fontWeight: 600
                       }}
@@ -685,10 +685,11 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
                       {tag}
                       <button
                         onClick={() => handleRemoveTag(tag)}
+                        aria-label={`Remove tag ${tag}`}
                         style={{
                           background: 'none',
                           border: 'none',
-                          color: '#0684F5',
+                          color: '#3B9EFF',
                           cursor: 'pointer',
                           padding: 0
                         }}

@@ -518,10 +518,10 @@ export default function UserMessagesCenter() {
   }, [user?.id, t]);
 
   return (
-    <div 
+    <main
       className={`messages-center flex ${isSidebarOpen ? 'messages-center--sidebar-open' : ''}`}
-      style={{ 
-        backgroundColor: '#0B2641', 
+      style={{
+        backgroundColor: '#0B2641',
         height: '100vh',
         width: '100%',
         maxWidth: '1440px',
@@ -555,6 +555,7 @@ export default function UserMessagesCenter() {
             <button
               onClick={() => setShowNewMessageModal(true)}
               className="p-2 rounded-lg transition-colors"
+              aria-label="New message"
               style={{
                 backgroundColor: 'rgba(255,255,255,0.1)',
                 color: '#FFFFFF'
@@ -843,6 +844,7 @@ export default function UserMessagesCenter() {
                 <button
                   onClick={() => setIsSidebarOpen(true)}
                   className="messages-center__mobile-toggle p-2 rounded-lg transition-colors flex-shrink-0"
+                  aria-label="Back to conversations"
                   style={{
                     backgroundColor: 'rgba(255,255,255,0.1)',
                     color: '#FFFFFF'
@@ -891,6 +893,7 @@ export default function UserMessagesCenter() {
                 </button>
                 <button
                   className="p-2 rounded-lg transition-colors"
+                  aria-label="More options"
                   style={{
                     backgroundColor: 'transparent',
                     color: '#94A3B8'
@@ -924,7 +927,7 @@ export default function UserMessagesCenter() {
               </div>
 
               {/* Messages */}
-              <div className="space-y-4">
+              <div className="space-y-4" aria-live="polite">
                 {isLoadingMessages && (
                   <div className="text-center" style={{ color: '#94A3B8' }}>
                     {t('messages.loading.messages')}
@@ -1014,6 +1017,7 @@ export default function UserMessagesCenter() {
                 {/* Attachment Icon */}
                 <button
                   className="transition-colors flex-shrink-0"
+                  aria-label="Attach file"
                   style={{ color: '#94A3B8' }}
                 >
                   <Paperclip size={20} />
@@ -1037,6 +1041,7 @@ export default function UserMessagesCenter() {
                 {/* Emoji Icon - Hidden on small mobile */}
                 <button
                   className="hidden sm:flex transition-colors flex-shrink-0"
+                  aria-label="Insert emoji"
                   style={{ color: '#94A3B8' }}
                 >
                   <Smile size={20} />
@@ -1046,6 +1051,7 @@ export default function UserMessagesCenter() {
                 <button
                   onClick={handleSendMessage}
                   disabled={!messageInput.trim()}
+                  aria-label="Send message"
                   className="flex items-center justify-center rounded-full transition-colors flex-shrink-0"
                   style={{
                     width: '36px',
@@ -1121,9 +1127,10 @@ export default function UserMessagesCenter() {
               <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF' }}>
                 {t('messages.newMessage.title')}
               </h3>
-              <button 
+              <button
                 onClick={() => setShowNewMessageModal(false)}
                 className="transition-colors"
+                aria-label="Close dialog"
                 style={{ color: '#94A3B8' }}
                 onMouseEnter={(e) => e.currentTarget.style.color = '#FFFFFF'}
                 onMouseLeave={(e) => e.currentTarget.style.color = '#94A3B8'}
@@ -1245,6 +1252,6 @@ export default function UserMessagesCenter() {
           }
         }
       `}</style>
-    </div>
+    </main>
   );
 }

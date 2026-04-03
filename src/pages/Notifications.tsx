@@ -9,7 +9,7 @@ export default function NotificationsPage() {
   const { t } = useI18n();
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#0B2641', paddingTop: '90px' }}>
+    <main style={{ minHeight: '100vh', backgroundColor: '#0B2641', paddingTop: '90px' }}>
       <div className="max-w-3xl mx-auto px-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -24,7 +24,7 @@ export default function NotificationsPage() {
             style={{
               backgroundColor: 'rgba(6, 132, 245, 0.15)',
               border: '1px solid rgba(6, 132, 245, 0.4)',
-              color: '#0684F5'
+              color: '#3B9EFF'
             }}
           >
             {t('notifications.page.markAllRead', { count: String(unreadCount) })}
@@ -91,7 +91,7 @@ export default function NotificationsPage() {
             ))}
         </div>
       </div>
-    </div>
+    </main>
   );
 }
 

@@ -660,7 +660,7 @@ export default function BrowseEventsDiscovery() {
                     className="transition-colors"
                     style={{
                       fontSize: '14px',
-                      color: '#0684F5',
+                      color: '#3B9EFF',
                       background: 'none',
                       border: 'none',
                       cursor: 'pointer'
@@ -876,7 +876,7 @@ export default function BrowseEventsDiscovery() {
                   style={{
                     backgroundColor: 'rgba(6, 132, 245, 0.1)',
                     border: '1px solid #0684F5',
-                    color: '#0684F5',
+                    color: '#3B9EFF',
                     fontSize: '14px',
                     fontWeight: 600
                   }}
@@ -1036,7 +1036,7 @@ export default function BrowseEventsDiscovery() {
 
                     {/* Footer */}
                     <div className="flex items-center justify-between">
-                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#0684F5' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#3B9EFF' }}>
                         {event.price}
                       </span>
                       <span

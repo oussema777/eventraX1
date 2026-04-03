@@ -46,7 +46,7 @@ export default function DashboardChartWidget({
             </p>
           )}
         </div>
-        <button className="text-slate-400 hover:text-white transition-colors">
+        <button className="text-slate-400 hover:text-white transition-colors" aria-label="Chart options">
           <MoreVertical size={18} />
         </button>
       </div>

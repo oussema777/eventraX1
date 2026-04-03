@@ -3691,7 +3691,7 @@ function ImportExcelModal({ type, eventId, onClose, onImported }: {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#0B2641' }}>Import {type === 'exhibitors' ? 'Exhibitors' : 'Sponsors'}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+          <button onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
             <X size={24} style={{ color: '#6B7280' }} />
           </button>
         </div>

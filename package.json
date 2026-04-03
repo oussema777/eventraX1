@@ -59,7 +59,13 @@
             "@playwright/test": "^1.57.0",
             "@types/dompurify": "^3.0.5",
             "@types/node": "^20.10.0",
+            "@typescript-eslint/eslint-plugin": "^8.58.0",
+            "@typescript-eslint/parser": "^8.58.0",
             "@vitejs/plugin-react-swc": "^3.10.2",
+            "eslint": "^9.39.4",
+            "eslint-plugin-jsx-a11y": "^6.10.2",
+            "eslint-plugin-react-hooks": "^7.0.1",
+            "prettier": "^3.8.1",
             "vite": "6.3.5"
       },
       "scripts": {
@@ -68,6 +74,7 @@
             "test:e2e": "playwright test",
             "test:e2e:ui": "playwright test --ui",
             "test:e2e:report": "playwright show-report",
-            "generate-sitemap": "node --env-file=.env scripts/generate-sitemap.js"
+            "lint": "eslint src/",
+    "generate-sitemap": "node --env-file=.env scripts/generate-sitemap.js"
       }
 }

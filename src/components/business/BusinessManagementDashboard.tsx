@@ -862,7 +862,7 @@ export default function BusinessManagementDashboard() {
         className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all"
         style={{
           backgroundColor: 'rgba(6, 132, 245, 0.15)',
-          color: '#0684F5',
+          color: '#3B9EFF',
           fontSize: '14px',
           fontWeight: 600,
           border: '1px solid rgba(6, 132, 245, 0.4)',
@@ -1805,7 +1805,7 @@ export default function BusinessManagementDashboard() {
                             border: '1px solid #0684F5'
                           }}
                         >
-                          <span style={{ fontSize: '10px', color: '#0684F5', fontWeight: 700 }}>
+                          <span style={{ fontSize: '10px', color: '#3B9EFF', fontWeight: 700 }}>
                             +5
                           </span>
                         </div>
@@ -2094,7 +2094,7 @@ export default function BusinessManagementDashboard() {
                           <img src={member.avatar} className="w-full h-full object-cover" alt={member.name} />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0684F5]/20 to-[#0684F5]/5">
-                            <span style={{ fontSize: '18px', fontWeight: 700, color: '#0684F5' }}>
+                            <span style={{ fontSize: '18px', fontWeight: 700, color: '#3B9EFF' }}>
                               {member.name.charAt(0)}
                             </span>
                           </div>

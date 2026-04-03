@@ -104,6 +104,9 @@
   --transition-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   
   /* Chart colors */
+  /* WCAG-accessible blue for text on dark backgrounds (4.5:1 contrast ratio) */
+  --accent-blue: #3B9EFF;
+
   --chart-1: #0684F5;
   --chart-2: #4A7C6D;
   --chart-3: #10B981;

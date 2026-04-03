@@ -570,7 +570,7 @@ export default function NavbarLoggedIn({
                   </p>
                 </div>
                 {/* Notification Badge */}
-                <button className="relative p-2">
+                <button className="relative p-2" aria-label="Notifications">
                   <Bell size={20} style={{ color: 'var(--foreground)' }} />
                   {hasUnreadNotifications && (
                     <div 
