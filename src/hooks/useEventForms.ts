@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner@2.0.3';
+import { sanitizeError } from '../utils/errorHandler';
 import { useParams } from 'react-router-dom';
 
 export interface FormField {
@@ -94,7 +95,7 @@ export function useEventForms() {
       return result.data;
     } catch (error: any) {
       console.error('Error saving form:', error);
-      toast.error(error.message || 'Failed to save form');
+      toast.error(sanitizeError(error, 'Failed to save form'));
       return null;
     } finally {
       setIsSaving(false);

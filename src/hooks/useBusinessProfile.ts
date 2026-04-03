@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner@2.0.3';
+import { sanitizeError } from '../utils/errorHandler';
 
 export interface BusinessProfile {
   id: string;
@@ -109,7 +110,7 @@ export function useBusinessProfile() {
       return result.data;
     } catch (error: any) {
       console.error('Error updating business profile:', error);
-      toast.error(error.message);
+      toast.error(sanitizeError(error, 'Failed to update business profile'));
       return null;
     } finally {
       setIsSaving(false);
@@ -160,7 +161,7 @@ export function useBusinessProfile() {
       queryClient.invalidateQueries({ queryKey });
       return data;
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(sanitizeError(error, 'Failed to upload document'));
       return null;
     } finally {
       setIsSaving(false);

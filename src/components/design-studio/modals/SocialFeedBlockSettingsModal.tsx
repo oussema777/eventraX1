@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Save, Share2, Loader2, Hash } from 'lucide-react';
 import { useI18n } from '../../../i18n/I18nContext';
+import DOMPurify from 'dompurify';
 
 interface SocialFeedBlockSettingsModalProps {
   isOpen: boolean;
@@ -155,7 +156,7 @@ export default function SocialFeedBlockSettingsModal({
 
           <div style={{ padding: '16px', backgroundColor: '#F0FDF4', borderRadius: '12px', border: '1px solid #BBF7D0', display: 'flex', gap: '12px', marginBottom: '24px' }}>
             <Share2 size={20} style={{ color: '#16A34A', shrink: 0, marginTop: '2px' }} />
-            <p style={{ fontSize: '12px', color: '#15803D', lineHeight: '1.5' }} dangerouslySetInnerHTML={{__html: t('wizard.designStudio.modals.socialFeedBlock.apiNotice')}} />
+            <p style={{ fontSize: '12px', color: '#15803D', lineHeight: '1.5' }} dangerouslySetInnerHTML={{__html: DOMPurify.sanitize(t('wizard.designStudio.modals.socialFeedBlock.apiNotice'))}} />
           </div>
 
           {/* Footer Actions */}

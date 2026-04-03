@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Save, MapPin, Loader2, Navigation, Info } from 'lucide-react';
 import { useI18n } from '../../../i18n/I18nContext';
+import DOMPurify from 'dompurify';
 
 interface MapBlockSettingsModalProps {
   isOpen: boolean;
@@ -220,7 +221,7 @@ export default function MapBlockSettingsModal({
             
             <div style={{ padding: '12px', backgroundColor: '#EFF6FF', borderRadius: '8px', border: '1px solid #DBEAFE', display: 'flex', gap: '10px' }}>
               <Info size={16} style={{ color: '#2563EB', marginTop: '2px', flexShrink: 0 }} />
-              <p style={{ fontSize: '11px', color: '#1E40AF', lineHeight: '1.5' }} dangerouslySetInnerHTML={{__html: t('wizard.designStudio.modals.mapBlock.labels.mapHint')}} />
+              <p style={{ fontSize: '11px', color: '#1E40AF', lineHeight: '1.5' }} dangerouslySetInnerHTML={{__html: DOMPurify.sanitize(t('wizard.designStudio.modals.mapBlock.labels.mapHint'))}} />
             </div>
           </div>
 

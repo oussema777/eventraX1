@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner@2.0.3';
+import { sanitizeError } from '../utils/errorHandler';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';
 import ModalLogin from '../components/modals/ModalLogin';
@@ -118,7 +119,7 @@ export default function FreightCalculatorPage() {
       }
       setQuoteResult(data?.data || data);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to calculate freight');
+      toast.error(sanitizeError(error, 'Failed to calculate freight'));
     } finally {
       setIsSubmitting(false);
     }

@@ -17,6 +17,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner@2.0.3';
+import { sanitizeError } from '../../utils/errorHandler';
 import { useI18n } from '../../i18n/I18nContext';
 
 interface Message {
@@ -169,7 +170,7 @@ export default function UserMessagesCenter() {
         setActiveConversationId(mapped[0].id);
       }
     } catch (error: any) {
-      toast.error(error.message || t('messages.errors.loadConversations'));
+      toast.error(sanitizeError(error, t('messages.errors.loadConversations')));
     } finally {
       setIsLoadingConversations(false);
     }
@@ -204,7 +205,7 @@ export default function UserMessagesCenter() {
       setMessages(mapped);
       await markThreadRead(threadId);
     } catch (error: any) {
-      toast.error(error.message || t('messages.errors.loadMessages'));
+      toast.error(sanitizeError(error, t('messages.errors.loadMessages')));
     } finally {
       setIsLoadingMessages(false);
     }
@@ -517,7 +518,7 @@ export default function UserMessagesCenter() {
           })) || [];
         setSuggestedUsers(mapped);
       } catch (error: any) {
-        toast.error(error.message || t('messages.errors.loadSuggestions'));
+        toast.error(sanitizeError(error, t('messages.errors.loadSuggestions')));
       } finally {
         setIsLoadingSuggestions(false);
       }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Save, Timer, Loader2, Link, Calendar } from 'lucide-react';
 import { useI18n } from '../../../i18n/I18nContext';
+import DOMPurify from 'dompurify';
 
 interface CountdownBlockSettingsModalProps {
   isOpen: boolean;
@@ -208,7 +209,7 @@ export default function CountdownBlockSettingsModal({
 
           <div style={{ padding: '16px', backgroundColor: '#F0F9FF', borderRadius: '12px', border: '1px solid #BAE6FD', display: 'flex', gap: '12px', marginBottom: '24px' }}>
             <Calendar size={20} style={{ color: '#0284C7', shrink: 0, marginTop: '2px' }} />
-            <p style={{ fontSize: '12px', color: '#0369A1', lineHeight: '1.5' }} dangerouslySetInnerHTML={{__html: t('wizard.designStudio.modals.countdownBlock.autoSync')}} />
+            <p style={{ fontSize: '12px', color: '#0369A1', lineHeight: '1.5' }} dangerouslySetInnerHTML={{__html: DOMPurify.sanitize(t('wizard.designStudio.modals.countdownBlock.autoSync'))}} />
           </div>
 
           {/* Footer Actions */}

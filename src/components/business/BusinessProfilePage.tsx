@@ -29,6 +29,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner@2.0.3';
+import { sanitizeError } from '../../utils/errorHandler';
 import { createNotification } from '../../lib/notifications';
 import { useI18n } from '../../i18n/I18nContext';
 import { useMessageThread } from '../../hooks/useMessageThread';
@@ -287,7 +288,7 @@ export default function BusinessProfilePage() {
       setSearchResults([]);
       setShowAddMemberModal(false);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to add member.');
+      toast.error(sanitizeError(error, 'Failed to add member'));
     } finally {
       setIsLoading(false);
     }
@@ -388,7 +389,7 @@ export default function BusinessProfilePage() {
       setIsEditMode(false);
       fetchBusinessData();
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(sanitizeError(error, 'Failed to update business profile'));
     }
   };
 
@@ -469,7 +470,7 @@ export default function BusinessProfilePage() {
       setSearchEmail('');
       setShowAddMemberModal(false);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to add member.');
+      toast.error(sanitizeError(error, 'Failed to add member'));
     } finally {
       setIsLoading(false);
     }

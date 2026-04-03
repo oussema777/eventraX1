@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner@2.0.3';
+import { sanitizeError } from '../../utils/errorHandler';
 import { uploadFile } from '../../utils/storage';
 import { useI18n } from '../../i18n/I18nContext';
 
@@ -133,7 +134,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
       setProducts(products.filter(p => p.id !== id));
       toast.success(t('productsManagement.toasts.offeringRemoved'));
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(sanitizeError(error, 'Failed to delete offering'));
     }
   };
 
@@ -165,7 +166,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
       setShowProductModal(false);
       fetchOfferings();
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(sanitizeError(error, 'Failed to save offering'));
     } finally {
       setIsSaving(false);
     }

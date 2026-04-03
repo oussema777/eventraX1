@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { toast } from 'sonner@2.0.3';
+import { sanitizeError } from '../utils/errorHandler';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';
 import ModalLogin from '../components/modals/ModalLogin';
@@ -75,7 +76,7 @@ export default function ContainerShippingCostsPage() {
       if (!res.ok || data?.ok === false) throw new Error(data?.error || 'Failed to load ports');
       setter(data?.data || []);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to load ports');
+      toast.error(sanitizeError(error, 'Failed to load ports'));
       setter([]);
     }
   };
@@ -169,7 +170,7 @@ export default function ContainerShippingCostsPage() {
       }
       setQuoteResult(data?.data || data);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to calculate quote');
+      toast.error(sanitizeError(error, 'Failed to calculate quote'));
     } finally {
       setIsSubmitting(false);
     }

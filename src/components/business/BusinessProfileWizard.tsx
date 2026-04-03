@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner@2.0.3';
+import { sanitizeError } from '../../utils/errorHandler';
 import { uploadBusinessLogo, uploadFile } from '../../utils/storage';
 import { useBusinessProfile } from '../../hooks/useBusinessProfile';
 import { useBusinessOfferings } from '../../hooks/useBusinessOfferings';
@@ -145,7 +146,7 @@ export default function BusinessProfileWizard() {
         toast.success('File uploaded');
       }
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(sanitizeError(error, 'Failed to upload file'));
     }
   };
 
@@ -237,7 +238,7 @@ export default function BusinessProfileWizard() {
         toast.success('Image uploaded');
       }
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(sanitizeError(error, 'Failed to upload image'));
     }
   };
 

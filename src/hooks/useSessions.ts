@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
+import { sanitizeError } from '../utils/errorHandler';
 import { useParams } from 'react-router-dom';
 
 export interface Session {
@@ -145,7 +146,7 @@ export function useSessions(manualEventId?: string) {
       return data;
     } catch (error: any) {
       console.error('Error creating session:', error);
-      toast.error(error.message || 'Failed to create session');
+      toast.error(sanitizeError(error, 'Failed to create session'));
     }
   };
 
@@ -183,7 +184,7 @@ export function useSessions(manualEventId?: string) {
       return data;
     } catch (error: any) {
       console.error('Error updating session:', error);
-      toast.error(error.message || 'Failed to update session');
+      toast.error(sanitizeError(error, 'Failed to update session'));
     }
   };
 

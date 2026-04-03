@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Code, Palette, Save, AlertCircle, Loader2 } from 'lucide-react';
 import { useI18n } from '../../../i18n/I18nContext';
+import DOMPurify from 'dompurify';
 
 interface CustomHTMLBlockSettingsModalProps {
   isOpen: boolean;
@@ -199,7 +200,7 @@ export default function CustomHTMLBlockSettingsModal({
                 />
                 <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#FFF7ED', borderRadius: '10px', border: '1px solid #FFEDD5', display: 'flex', gap: '10px' }}>
                   <AlertCircle size={18} style={{ color: '#F97316', flexShrink: 0 }} />
-                  <p style={{ fontSize: '12px', color: '#9A3412', lineHeight: '1.5' }} dangerouslySetInnerHTML={{__html: t('wizard.designStudio.modals.customHtmlBlock.cssWarning')}} />
+                  <p style={{ fontSize: '12px', color: '#9A3412', lineHeight: '1.5' }} dangerouslySetInnerHTML={{__html: DOMPurify.sanitize(t('wizard.designStudio.modals.customHtmlBlock.cssWarning'))}} />
                 </div>
               </div>
             )}

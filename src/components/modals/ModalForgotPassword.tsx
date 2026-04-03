@@ -3,6 +3,7 @@ import { X, ArrowLeft, Loader2 } from 'lucide-react';
 import ModalPasswordResetSent from './ModalPasswordResetSent';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner@2.0.3';
+import { sanitizeError } from '../../utils/errorHandler';
 import { useI18n } from '../../i18n/I18nContext';
 
 interface ModalForgotPasswordProps {
@@ -54,7 +55,7 @@ export default function ModalForgotPassword({
       toast.success(t('auth.forgotPassword.toastSuccess'));
     } catch (error: any) {
       console.error('Password reset error:', error);
-      toast.error(error.message || t('auth.forgotPassword.toastError'));
+      toast.error(sanitizeError(error, t('auth.forgotPassword.toastError')));
     } finally {
       setIsSending(false);
     }

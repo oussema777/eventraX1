@@ -35,6 +35,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import ProductsManagementTab from './ProductsManagementTab';
 import { toast } from 'sonner@2.0.3';
+import { sanitizeError } from '../../utils/errorHandler';
 import { uploadBusinessLogo, uploadFile } from '../../utils/storage';
 import { createNotification } from '../../lib/notifications';
 import { useI18n } from '../../i18n/I18nContext';
@@ -480,7 +481,7 @@ export default function BusinessManagementDashboard() {
         setDashboardCounts((prev) => ({ ...prev, documents: prev.documents + 1 }));
       }
     } catch (error: any) {
-      toast.error(error.message || 'Upload failed');
+      toast.error(sanitizeError(error, 'Upload failed'));
     } finally {
       event.target.value = '';
     }
@@ -493,7 +494,7 @@ export default function BusinessManagementDashboard() {
       setUploadedFiles((prev) => prev.filter((file) => file.id !== docId));
       setDashboardCounts((prev) => ({ ...prev, documents: Math.max(0, prev.documents - 1) }));
     } catch (error: any) {
-      toast.error(error.message || 'Failed to delete document');
+      toast.error(sanitizeError(error, 'Failed to delete document'));
     }
   };
 
@@ -628,7 +629,7 @@ export default function BusinessManagementDashboard() {
       }
       toast.success('Member role updated');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to update member');
+      toast.error(sanitizeError(error, 'Failed to update member'));
     } finally {
       setMemberActionId(null);
       setOpenMemberMenuId(null);
@@ -661,7 +662,7 @@ export default function BusinessManagementDashboard() {
       }
       toast.success('Member removed');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to remove member');
+      toast.error(sanitizeError(error, 'Failed to remove member'));
     } finally {
       setMemberActionId(null);
       setOpenMemberMenuId(null);
@@ -719,7 +720,7 @@ export default function BusinessManagementDashboard() {
       setSearchResults([]);
       setShowAddMemberModal(false);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to add member.');
+      toast.error(sanitizeError(error, 'Failed to add member'));
     } finally {
       setIsSaving(false);
     }
@@ -789,7 +790,7 @@ export default function BusinessManagementDashboard() {
       setSearchEmail('');
       setShowAddMemberModal(false);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to add member.');
+      toast.error(sanitizeError(error, 'Failed to add member'));
     } finally {
       setIsSaving(false);
     }
@@ -803,7 +804,7 @@ export default function BusinessManagementDashboard() {
       setBusiness({ ...business, ...updates });
       toast.success('Updated');
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(sanitizeError(error, 'Failed to update business'));
     } finally {
       setIsSaving(false);
     }

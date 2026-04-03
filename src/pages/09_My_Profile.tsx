@@ -12,6 +12,8 @@ import { useProfile } from '../hooks/useProfile';
 import { uploadFile } from '../utils/storage';
 import { supabase } from '../lib/supabase';
 import { useI18n } from '../i18n/I18nContext';
+import DOMPurify from 'dompurify';
+import { sanitizeError } from '../utils/errorHandler';
 
 // Default user data (no mock values)
 const userData = {
@@ -637,7 +639,7 @@ export default function MyProfile() {
       setNewPassword('');
       setConfirmPassword('');
     } catch (error: any) {
-      toast.error(error.message || t('profile.toasts.passwordFailed'));
+      toast.error(sanitizeError(error, t('profile.toasts.passwordFailed')));
     } finally {
       setIsUpdatingPassword(false);
     }
@@ -672,7 +674,7 @@ export default function MyProfile() {
         setShowTwoFactorModal(true);
       }
     } catch (error: any) {
-      toast.error(error.message || t('profile.toasts.twoFactorFailed'));
+      toast.error(sanitizeError(error, t('profile.toasts.twoFactorFailed')));
     } finally {
       setIsTwoFactorSaving(false);
     }
@@ -700,7 +702,7 @@ export default function MyProfile() {
       setShowTwoFactorModal(false);
       toast.success(t('profile.toasts.twoFactorEnabled'));
     } catch (error: any) {
-      toast.error(error.message || t('profile.toasts.twoFactorVerifyFailed'));
+      toast.error(sanitizeError(error, t('profile.toasts.twoFactorVerifyFailed')));
     } finally {
       setIsTwoFactorSaving(false);
     }
@@ -3353,7 +3355,7 @@ export default function MyProfile() {
                 }}
               >
                 {twoFactorQr ? (
-                  <div dangerouslySetInnerHTML={{ __html: twoFactorQr }} />
+                  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(twoFactorQr, { USE_PROFILES: { svg: true } }) }} />
                 ) : (
                   <span style={{ color: '#111827', fontSize: '14px' }}>{t('profile.modals.twoFactor.qrUnavailable')}</span>
                 )}

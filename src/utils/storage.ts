@@ -1,6 +1,18 @@
 import { supabase } from '../lib/supabase';
 import { validateFileUpload, FILE_VALIDATION_PRESETS } from './security';
 
+function getExtensionFromMime(file: File): string {
+  const mimeMap: Record<string, string> = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/gif': 'gif',
+    'image/webp': 'webp',
+    'image/svg+xml': 'svg',
+    'application/pdf': 'pdf',
+  };
+  return mimeMap[file.type] || file.name.split('.').pop() || 'bin';
+}
+
 /**
  * Compresses an image file using canvas.
  * Resizes to maxWidth, converts to JPEG at given quality.
@@ -89,7 +101,7 @@ export async function uploadFile(
  * Helper for business logo uploads
  */
 export async function uploadBusinessLogo(businessId: string, file: File) {
-  const extension = file.name.split('.').pop();
+  const extension = getExtensionFromMime(file);
   const path = `${businessId}/logo.${extension}`;
   return uploadFile('business-logos', path, file);
 }
@@ -98,7 +110,7 @@ export async function uploadBusinessLogo(businessId: string, file: File) {
  * Helper for event cover uploads
  */
 export async function uploadEventCover(eventId: string, file: File) {
-  const extension = file.name.split('.').pop();
+  const extension = getExtensionFromMime(file);
   const path = `events/${eventId}/cover.${extension}`;
   return uploadFile('profiles', path, file);
 }
@@ -116,7 +128,7 @@ export async function uploadEventLogo(eventId: string, file: File) {
  * Helper for exhibitor logo uploads
  */
 export async function uploadExhibitorLogo(eventId: string, exhibitorId: string, file: File) {
-  const extension = file.name.split('.').pop();
+  const extension = getExtensionFromMime(file);
   const path = `events/${eventId}/exhibitors/${exhibitorId}/logo.${extension}`;
   return uploadFile('profiles', path, file);
 }
@@ -125,7 +137,7 @@ export async function uploadExhibitorLogo(eventId: string, exhibitorId: string, 
  * Helper for generic event asset uploads (e.g., block images)
  */
 export async function uploadEventAsset(eventId: string, file: File) {
-  const extension = file.name.split('.').pop();
+  const extension = getExtensionFromMime(file);
   const timestamp = Date.now();
   const path = `events/${eventId}/assets/${timestamp}_${file.name.replace(/[^a-zA-Z0-9]/g, '_')}.${extension}`;
   return uploadFile('profiles', path, file);
@@ -135,7 +147,7 @@ export async function uploadEventAsset(eventId: string, file: File) {
  * Helper for form submission file uploads
  */
 export async function uploadFormSubmissionFile(eventId: string, attendeeId: string, file: File) {
-  const extension = file.name.split('.').pop();
+  const extension = getExtensionFromMime(file);
   const timestamp = Date.now();
   const path = `events/${eventId}/submissions/${attendeeId}/${timestamp}_${file.name.replace(/[^a-zA-Z0-9]/g, '_')}.${extension}`;
   return uploadFile('submissions', path, file, 'submission');

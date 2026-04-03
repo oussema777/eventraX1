@@ -14,33 +14,40 @@ interface CustomHTMLBlockProps {
 
 export default function CustomHTMLBlock({ settings, onEdit, isLocked }: CustomHTMLBlockProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const containerId = useMemo(() => `custom-html-${crypto.randomUUID?.() || Math.random().toString(36).substr(2, 12)}`, []);
   const defaultHtml = '<div style="padding: 40px; text-align: center; background: #f8fafc; border: 2px dashed #cbd5e1; borderRadius: 12px;"><h2 style="color: #1e293b; marginBottom: 12px;">Custom HTML Block</h2><p style="color: #64748b;">Click "Edit" to add your own HTML and CSS.</p></div>';
 
   const sanitizedHtml = useMemo(() => {
     const raw = settings?.html || defaultHtml;
     return DOMPurify.sanitize(raw, {
-      ADD_TAGS: ['style'],
       ADD_ATTR: ['target', 'rel'],
       FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'],
-      FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover'],
+      ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'id', 'target', 'rel', 'width', 'height', 'style'],
     });
   }, [settings?.html]);
 
   useEffect(() => {
     if (containerRef.current && settings?.css) {
       const safeCSS = sanitizeCSS(settings.css);
-      const styleId = `custom-style-${Math.random().toString(36).substr(2, 9)}`;
+      // Scope all CSS selectors to this container
+      const scopedCSS = safeCSS.replace(/([^\r\n,{}]+)(,(?=[^}]*{)|\s*{)/g, (match, selector, suffix) => {
+        const trimmed = selector.trim();
+        if (!trimmed || trimmed.startsWith('@') || trimmed.startsWith('from') || trimmed.startsWith('to') || /^\d+%$/.test(trimmed)) {
+          return match;
+        }
+        return `#${containerId} ${trimmed}${suffix}`;
+      });
       const styleEl = document.createElement('style');
-      styleEl.id = styleId;
-      styleEl.textContent = safeCSS;
+      styleEl.id = containerId;
+      styleEl.textContent = scopedCSS;
       document.head.appendChild(styleEl);
 
       return () => {
-        const el = document.getElementById(styleId);
+        const el = document.getElementById(containerId);
         if (el) el.remove();
       };
     }
-  }, [settings?.css]);
+  }, [settings?.css, containerId]);
 
   return (
     <div className="group relative w-full overflow-hidden">
@@ -61,7 +68,8 @@ export default function CustomHTMLBlock({ settings, onEdit, isLocked }: CustomHT
         </div>
       )}
 
-      <div 
+      <div
+        id={containerId}
         ref={containerRef}
         className="custom-html-content"
         dangerouslySetInnerHTML={{ __html: sanitizedHtml }}

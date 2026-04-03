@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner@2.0.3';
+import { sanitizeError } from '../utils/errorHandler';
 import { useParams } from 'react-router-dom';
 
 export interface AttendeeCategory {
@@ -72,7 +73,7 @@ export function useAttendeeCategories() {
       toast.success('Category saved');
       return result.data;
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(sanitizeError(error, 'Failed to save category'));
       return null;
     }
   };

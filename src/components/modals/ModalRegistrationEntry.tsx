@@ -5,6 +5,7 @@ import ModalEmailVerification from './ModalEmailVerification';
 import ModalProfileSetup, { ProfileData } from './ModalProfileSetup';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner@2.0.3';
+import { sanitizeError } from '../../utils/errorHandler';
 import { useAuth } from '../../contexts/AuthContext';
 import { useI18n } from '../../i18n/I18nContext';
 import { sendWelcomeEmail } from '../../lib/email';
@@ -84,7 +85,7 @@ export default function ModalRegistrationEntry({
       if (error) throw error;
     } catch (error: any) {
       setIsGoogleLoading(false);
-      toast.error(error.message || t('auth.registrationEntry.errors.googleSignupFailed'));
+      toast.error(sanitizeError(error, t('auth.registrationEntry.errors.googleSignupFailed')));
     }
   };
 
@@ -165,7 +166,7 @@ export default function ModalRegistrationEntry({
       setShowProfileSetup(true);
 
     } catch (error: any) {
-      toast.error(error.message || t('auth.registrationEntry.errors.registrationFailed'));
+      toast.error(sanitizeError(error, t('auth.registrationEntry.errors.registrationFailed')));
       // Don't re-throw to keep modal open on generic errors
     }
   };
@@ -219,7 +220,7 @@ export default function ModalRegistrationEntry({
       );
 
     if (error) {
-      toast.error(error.message || t('auth.registrationEntry.errors.saveProfileFailed'));
+      toast.error(sanitizeError(error, t('auth.registrationEntry.errors.saveProfileFailed')));
       return;
     }
 

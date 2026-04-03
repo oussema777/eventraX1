@@ -18,6 +18,7 @@ import {
 import Logo from '../components/ui/Logo';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner@2.0.3';
+import { sanitizeError } from '../utils/errorHandler';
 import { createNotification } from '../lib/notifications';
 import { useAuth } from '../contexts/AuthContext';
 import { sendEmail, generateRegistrationEmailHtml } from '../lib/email';
@@ -528,7 +529,7 @@ export default function EventRegistrationFlow() {
       setCurrentStep(3);
     } catch (error: any) {
       console.error('Registration failed:', error);
-      toast.error(error.message || t('registrationFlow.toasts.registrationFailed'));
+      toast.error(sanitizeError(error, t('registrationFlow.toasts.registrationFailed')));
     } finally {
       setIsSubmitting(false);
     }

@@ -23,6 +23,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner@2.0.3';
+import { sanitizeError } from '../../utils/errorHandler';
 import { createNotification } from '../../lib/notifications';
 import { useI18n } from '../../i18n/I18nContext';
 import { useMessageThread } from '../../hooks/useMessageThread';
@@ -404,7 +405,7 @@ export default function UserB2BCenter() {
 
     } catch (error: any) {
       console.error('[Networking] CRITICAL ERROR:', error);
-      toast.error(error.message || t('networking.errors.loadData'));
+      toast.error(sanitizeError(error, t('networking.errors.loadData')));
     }
   };
 
@@ -676,7 +677,7 @@ export default function UserB2BCenter() {
       .insert(topMatches)
       .select('id, matched_profile_id, event_id, score, reason, tags, status, created_at');
     if (error) {
-      toast.error(error.message || t('networking.errors.generateMatches'));
+      toast.error(sanitizeError(error, t('networking.errors.generateMatches')));
       return [];
     }
     didGenerateMatchesRef.current = true;
@@ -815,7 +816,7 @@ export default function UserB2BCenter() {
       await loadNetworkingData();
     } catch (error: any) {
       console.error('Error confirming meeting:', error);
-      toast.error(error.message || 'Failed to confirm meeting');
+      toast.error(sanitizeError(error, 'Failed to confirm meeting'));
     }
   };
 

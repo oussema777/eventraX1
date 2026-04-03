@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner@2.0.3';
+import { sanitizeError } from '../utils/errorHandler';
 
 export interface BusinessOffering {
   id: string;
@@ -34,7 +35,7 @@ async function fetchOfferingsData(businessId: string): Promise<{ offerings: Busi
     throw error;
   }
 
-  window.localStorage.setItem(`eventra_business_offerings_${businessId}`, JSON.stringify(data || []));
+  window.sessionStorage.setItem(`eventra_business_offerings_${businessId}`, JSON.stringify(data || []));
   return { offerings: data || [], localOnly: false };
 }
 
@@ -99,7 +100,7 @@ export function useBusinessOfferings(businessId: string | null) {
       return data;
     } catch (error: any) {
       console.error('Error adding offering:', error);
-      toast.error(error.message);
+      toast.error(sanitizeError(error, 'Failed to save offering'));
       return null;
     } finally {
       setIsSaving(false);

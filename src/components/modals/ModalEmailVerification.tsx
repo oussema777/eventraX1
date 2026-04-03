@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Mail, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner@2.0.3';
+import { sanitizeError } from '../../utils/errorHandler';
 import { useI18n } from '../../i18n/I18nContext';
 
 interface ModalEmailVerificationProps {
@@ -57,7 +58,7 @@ export default function ModalEmailVerification({
       setResendTimer(60); // 60 seconds cooldown
     } catch (error: any) {
       console.error('Error resending verification:', error);
-      toast.error(error.message || t('auth.emailVerification.resendError'));
+      toast.error(sanitizeError(error, t('auth.emailVerification.resendError')));
     } finally {
       setIsResending(false);
     }
