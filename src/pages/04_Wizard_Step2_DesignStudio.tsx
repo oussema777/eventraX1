@@ -21,7 +21,7 @@ import CountdownBlock from '../components/design-studio/blocks/CountdownBlock';
 import VideoHeroBlock from '../components/design-studio/blocks/VideoHeroBlock';
 import { ArrowLeft, ArrowRight, Save } from 'lucide-react';
 import { type WizardStep } from '../utils/wizardNavigation';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { useEventWizard } from '../hooks/useEventWizard';
 import { uploadEventLogo, uploadEventAsset } from '../utils/storage';

@@ -13,7 +13,7 @@ import LaunchFooterActionBar from '../components/wizard/LaunchFooterActionBar';
 
 import { useAuth } from '../contexts/AuthContext';
 import { useEventWizard } from '../hooks/useEventWizard';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { createNotification } from '../lib/notifications';
 import { useI18n } from '../i18n/I18nContext';
 

@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { sanitizeError } from '../utils/errorHandler';
 import { useParams } from 'react-router-dom';
 

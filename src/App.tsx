@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { Toaster } from 'sonner@2.0.3';
+import { Toaster } from 'sonner';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/navigation/ProtectedRoute';
 import AdminRoute from './components/auth/AdminRoute';
@@ -8,6 +8,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { HelmetProvider } from 'react-helmet-async';
 import { I18nProvider } from './i18n/I18nContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // ─── React Query Client ─────────────────────────────────────────
 const queryClient = new QueryClient({
@@ -123,6 +124,7 @@ export default function App() {
         <AuthProvider>
           <Router>
           <Toaster position="top-right" richColors closeButton />
+          <ErrorBoundary>
           <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Public Routes */}
@@ -196,6 +198,7 @@ export default function App() {
             <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>
+          </ErrorBoundary>
           </Router>
         </AuthProvider>
       </HelmetProvider>

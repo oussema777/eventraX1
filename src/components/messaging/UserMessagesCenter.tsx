@@ -16,7 +16,7 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { sanitizeError } from '../../utils/errorHandler';
 import { useI18n } from '../../i18n/I18nContext';
 

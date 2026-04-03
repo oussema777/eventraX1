@@ -1,11 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { User, Session } from '@supabase/supabase-js';
+import type { Profile } from '../types/profile';
+
+const PROFILE_COLUMNS = 'id, email, full_name, avatar_url, role, plan, language, job_title, company, location, bio, phone, website, linkedin_url, professional_data, b2b_profile, industry, interests, created_at, updated_at';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  profile: any | null;
+  profile: Profile | null;
   isLoading: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -16,7 +19,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<any | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const buildFallbackProfile = (authUser: User) => ({
@@ -33,12 +36,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select(PROFILE_COLUMNS)
         .eq('id', authUser.id)
-        .single();
-      
+        .maybeSingle();
+
       if (!error && data) {
-        setProfile(data);
+        setProfile(data as Profile);
       } else {
         const fallbackProfile = buildFallbackProfile(authUser);
         const { data: createdProfile, error: createError } = await supabase
@@ -54,9 +57,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .single();
 
         if (!createError && createdProfile) {
-          setProfile(createdProfile);
+          setProfile(createdProfile as Profile);
         } else {
-          setProfile(fallbackProfile);
+          setProfile(fallbackProfile as Profile);
         }
       }
     } catch (error) {
@@ -77,10 +80,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
+
+      if (event === 'TOKEN_REFRESHED') return;
+
       if (session?.user) {
         fetchProfile(session.user);
       } else {

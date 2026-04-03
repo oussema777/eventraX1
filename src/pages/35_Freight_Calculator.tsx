@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { sanitizeError } from '../utils/errorHandler';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';

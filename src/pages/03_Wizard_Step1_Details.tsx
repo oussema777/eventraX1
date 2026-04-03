@@ -6,7 +6,7 @@ import EventDetailsForm from '../components/wizard/EventDetailsForm';
 import FooterActionBar from '../components/wizard/FooterActionBar';
 import { useAuth } from '../contexts/AuthContext';
 import { useEventWizard } from '../hooks/useEventWizard';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { getEventBasicDetails } from '../utils/eventStorage';
 import { createNotification } from '../lib/notifications';
 import { useI18n } from '../i18n/I18nContext';

@@ -23,7 +23,7 @@ import {
   X,
   Send
 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';
 import ModalLogin from '../components/modals/ModalLogin';

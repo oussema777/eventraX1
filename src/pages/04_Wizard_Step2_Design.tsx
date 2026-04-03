@@ -8,7 +8,7 @@ import DesignFooterActionBar from '../components/wizard/DesignFooterActionBar';
 import SuccessToast from '../components/wizard/SuccessToast';
 import { useEventWizard } from '../hooks/useEventWizard';
 import { useAuth } from '../contexts/AuthContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export default function WizardStep2Design() {
   const navigate = useNavigate();

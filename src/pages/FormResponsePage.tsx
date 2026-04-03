@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Loader2, CheckCircle, AlertCircle, ChevronDown } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext';
 

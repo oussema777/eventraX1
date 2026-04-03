@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { X, ArrowLeft, Loader2 } from 'lucide-react';
 import ModalPasswordResetSent from './ModalPasswordResetSent';
 import { supabase } from '../../lib/supabase';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { sanitizeError } from '../../utils/errorHandler';
 import { useI18n } from '../../i18n/I18nContext';
 

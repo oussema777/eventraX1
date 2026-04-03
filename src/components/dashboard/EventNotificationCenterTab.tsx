@@ -3,7 +3,7 @@ import { Bell, Mail, Send, Filter, CheckCircle, XCircle, Loader2, ChevronDown, C
 import { supabase } from '../../lib/supabase';
 import { createNotification } from '../../lib/notifications';
 import { sendEmail } from '../../lib/email';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useI18n } from '../../i18n/I18nContext';
 
 interface Props {

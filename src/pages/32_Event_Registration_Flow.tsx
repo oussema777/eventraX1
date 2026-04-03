@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import Logo from '../components/ui/Logo';
 import { supabase } from '../lib/supabase';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { sanitizeError } from '../utils/errorHandler';
 import { createNotification } from '../lib/notifications';
 import { useAuth } from '../contexts/AuthContext';

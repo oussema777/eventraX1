@@ -19,7 +19,7 @@ import {
   Medal,
   Award
 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useI18n } from '../../i18n/I18nContext';
 import SmartKpiGrid from './SmartKpiGrid';
 

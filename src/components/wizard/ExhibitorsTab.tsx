@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { uploadExhibitorLogo } from '../../utils/storage';
 import { useExhibitors, Exhibitor } from '../../hooks/useExhibitors';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useI18n } from '../../i18n/I18nContext';
 
 type ViewMode = 'grid' | 'list';

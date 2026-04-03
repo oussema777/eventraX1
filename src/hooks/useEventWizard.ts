@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useParams } from 'react-router-dom';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { clearEventWizardState } from '../utils/eventStorage';
 import { DEFAULT_BRANDING_SETTINGS } from '../utils/wizardConstants';
 

@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useI18n } from '../../i18n/I18nContext';
 
 interface EventScheduleTabProps {

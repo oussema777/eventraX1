@@ -34,7 +34,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import ProductsManagementTab from './ProductsManagementTab';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { sanitizeError } from '../../utils/errorHandler';
 import { uploadBusinessLogo, uploadFile } from '../../utils/storage';
 import { createNotification } from '../../lib/notifications';

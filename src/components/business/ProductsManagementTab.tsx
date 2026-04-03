@@ -14,7 +14,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { sanitizeError } from '../../utils/errorHandler';
 import { uploadFile } from '../../utils/storage';
 import { useI18n } from '../../i18n/I18nContext';

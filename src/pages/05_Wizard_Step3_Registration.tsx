@@ -17,7 +17,7 @@ import { type WizardStep } from '../utils/wizardNavigation';
 import { useAuth } from '../contexts/AuthContext';
 import { useEventWizard } from '../hooks/useEventWizard';
 import { getEventBasicDetails } from '../utils/eventStorage';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { useI18n } from '../i18n/I18nContext';
 
 type SubStep = '3.1' | '3.2' | '3.3' | '3.4' | '3.5' | '3.6' | '3.7' | '3.8' | '3.9';

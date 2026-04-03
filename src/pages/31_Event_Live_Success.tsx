@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import { useEventStats } from '../hooks/useEventStats';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 // Confetti component for celebration effect
 function ConfettiAnimation() {

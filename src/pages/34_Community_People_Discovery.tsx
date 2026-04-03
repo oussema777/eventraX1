@@ -12,7 +12,7 @@ import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';
 import ModalLogin from '../components/modals/ModalLogin';
 import ModalRegistrationEntry from '../components/modals/ModalRegistrationEntry';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useI18n } from '../i18n/I18nContext';

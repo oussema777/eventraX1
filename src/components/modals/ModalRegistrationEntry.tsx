@@ -4,7 +4,7 @@ import ModalEmailRegistration from './ModalEmailRegistration';
 import ModalEmailVerification from './ModalEmailVerification';
 import ModalProfileSetup, { ProfileData } from './ModalProfileSetup';
 import { supabase } from '../../lib/supabase';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { sanitizeError } from '../../utils/errorHandler';
 import { useAuth } from '../../contexts/AuthContext';
 import { useI18n } from '../../i18n/I18nContext';
