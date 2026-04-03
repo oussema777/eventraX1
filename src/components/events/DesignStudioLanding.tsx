@@ -104,15 +104,21 @@ const formatDuration = (start?: string, end?: string) => {
   return `${minutes} minutes`;
 };
 
+const priceFormatters = new Map<string, Intl.NumberFormat>();
 const formatPrice = (price?: number, currency?: string) => {
   if (typeof price !== 'number') return 'Free';
   const safeCurrency = currency || 'USD';
   try {
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: safeCurrency,
-      maximumFractionDigits: 0
-    }).format(price);
+    let formatter = priceFormatters.get(safeCurrency);
+    if (!formatter) {
+      formatter = new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: safeCurrency,
+        maximumFractionDigits: 0
+      });
+      priceFormatters.set(safeCurrency, formatter);
+    }
+    return formatter.format(price);
   } catch {
     return `${price} ${safeCurrency}`;
   }

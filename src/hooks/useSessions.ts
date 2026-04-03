@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import { useParams } from 'react-router-dom';
@@ -18,70 +18,93 @@ export interface Session {
   tags: string[];
   type: string;      // keynote, workshop, etc.
   status: 'confirmed' | 'tentative';
-  
+
   // Pro features
   enableCheckIn: boolean;
   showInPublicSchedule: boolean;
   customFormId?: string;
 }
 
+const SESSIONS_COLUMNS = 'id, event_id, title, description, starts_at, ends_at, location, capacity, registered_count, speaker_ids, tags, type, status, enable_check_in, is_public, custom_form_id';
+
+// Shared conflict check helper — DB-level date range filtering
+async function checkVenueConflict(
+  eventId: string,
+  venue: string,
+  startTime: string,
+  endTime: string,
+  excludeSessionId?: string
+): Promise<string | null> {
+  if (!venue || venue === 'TBD' || venue === '') return null;
+
+  const { data: conflicts } = await supabase
+    .from('event_sessions')
+    .select('id, title, starts_at, ends_at')
+    .eq('event_id', eventId)
+    .eq('location', venue)
+    .neq('status', 'cancelled')
+    .lt('starts_at', endTime)   // DB-level: starts before our end
+    .gt('ends_at', startTime);  // DB-level: ends after our start
+
+  if (!conflicts || conflicts.length === 0) return null;
+
+  const conflict = conflicts.find(s => excludeSessionId ? s.id !== excludeSessionId : true);
+  if (!conflict) return null;
+
+  return `Schedule Conflict: The session "${conflict.title}" is already booked in "${venue}" during this time slot.`;
+}
+
+function mapSession(s: any): Session {
+  const start = new Date(s.starts_at);
+  const end = new Date(s.ends_at);
+  const duration = Math.round((end.getTime() - start.getTime()) / (1000 * 60));
+
+  return {
+    id: s.id,
+    event_id: s.event_id,
+    title: s.title,
+    description: s.description || '',
+    startTime: s.starts_at,
+    endTime: s.ends_at,
+    duration: isNaN(duration) ? 0 : duration,
+    venue: s.location || '',
+    capacity: s.capacity || 0,
+    registered: s.registered_count || 0,
+    speakers: s.speaker_ids || [],
+    tags: s.tags || [],
+    type: s.type || 'presentation',
+    status: s.status || 'confirmed',
+    enableCheckIn: s.enable_check_in || false,
+    showInPublicSchedule: s.is_public !== false, // default true
+    customFormId: s.custom_form_id
+  };
+}
+
+async function fetchSessions(eventId: string): Promise<Session[]> {
+  const { data, error } = await supabase
+    .from('event_sessions')
+    .select(SESSIONS_COLUMNS)
+    .eq('event_id', eventId)
+    .order('starts_at', { ascending: true });
+
+  if (error) {
+    if (error.code === 'PGRST204' || error.code === '42P01') return [];
+    throw error;
+  }
+  return (data || []).map(mapSession);
+}
+
 export function useSessions(manualEventId?: string) {
   const { eventId: urlEventId } = useParams<{ eventId: string }>();
   const eventId = manualEventId || urlEventId;
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
+  const queryKey = ['sessions', eventId];
 
-  const loadSessions = useCallback(async () => {
-    if (!eventId || eventId === 'new') return;
-    
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('event_sessions')
-        .select('*')
-        .eq('event_id', eventId)
-        .order('starts_at', { ascending: true });
-
-      if (error) throw error;
-
-      const mapped: Session[] = (data || []).map(s => {
-        const start = new Date(s.starts_at);
-        const end = new Date(s.ends_at);
-        const duration = Math.round((end.getTime() - start.getTime()) / (1000 * 60));
-
-        return {
-          id: s.id,
-          event_id: s.event_id,
-          title: s.title,
-          description: s.description || '',
-          startTime: s.starts_at, 
-          endTime: s.ends_at,
-          duration: isNaN(duration) ? 0 : duration,
-          venue: s.location || '',
-          capacity: s.capacity || 0,
-          registered: s.registered_count || 0,
-          speakers: s.speaker_ids || [],
-          tags: s.tags || [],
-          type: s.type || 'presentation',
-          status: s.status || 'confirmed',
-          enableCheckIn: s.enable_check_in || false,
-          showInPublicSchedule: s.is_public !== false, // default true
-          customFormId: s.custom_form_id
-        };
-      });
-
-      setSessions(mapped);
-    } catch (error) {
-      console.error('Error loading sessions:', error);
-      toast.error('Failed to load sessions');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [eventId]);
-
-  useEffect(() => {
-    loadSessions();
-  }, [loadSessions]);
+  const { data: sessions = [], isLoading } = useQuery({
+    queryKey,
+    queryFn: () => fetchSessions(eventId!),
+    enabled: !!eventId && eventId !== 'new',
+  });
 
   const createSession = async (session: Partial<Session>) => {
     if (!eventId || eventId === 'new') {
@@ -89,30 +112,12 @@ export function useSessions(manualEventId?: string) {
       return;
     }
     try {
-      // Conflict Check
-      if (session.venue && session.venue !== 'TBD' && session.venue !== '' && session.startTime && session.endTime) {
-        const start = new Date(session.startTime).getTime();
-        const end = new Date(session.endTime).getTime();
-
-        const { data: conflicts } = await supabase
-          .from('event_sessions')
-          .select('id, title, starts_at, ends_at')
-          .eq('event_id', eventId)
-          .eq('location', session.venue)
-          .neq('status', 'cancelled');
-
-        const conflictingSession = conflicts?.find(s => {
-          const sStart = new Date(s.starts_at).getTime();
-          const sEnd = new Date(s.ends_at).getTime();
-          return (start < sEnd && end > sStart);
-        });
-
-        if (conflictingSession) {
-          throw new Error(`Schedule Conflict: The session "${conflictingSession.title}" is already booked in "${session.venue}" during this time slot.`);
-        }
+      // Conflict Check — uses DB-level date filtering
+      if (session.venue && session.startTime && session.endTime) {
+        const conflictMsg = await checkVenueConflict(eventId, session.venue, session.startTime, session.endTime);
+        if (conflictMsg) throw new Error(conflictMsg);
       }
 
-      // Convert frontend model to DB model
       const dbPayload: any = {
         event_id: eventId,
         title: session.title,
@@ -134,8 +139,8 @@ export function useSessions(manualEventId?: string) {
         .single();
 
       if (error) throw error;
-      
-      await loadSessions();
+
+      queryClient.invalidateQueries({ queryKey });
       toast.success('Session created');
       return data;
     } catch (error: any) {
@@ -146,31 +151,10 @@ export function useSessions(manualEventId?: string) {
 
   const updateSession = async (id: string, session: Partial<Session>) => {
     try {
-      // Conflict Check (if venue or time is being updated)
-      if ((session.venue || session.startTime || session.endTime) && (session.venue !== 'TBD' && session.venue !== '')) {
-        // For simple update logic, we ensure we have all fields for check or skip
-        if (session.startTime && session.endTime && session.venue) {
-           const start = new Date(session.startTime).getTime();
-           const end = new Date(session.endTime).getTime();
-
-           const { data: conflicts } = await supabase
-            .from('event_sessions')
-            .select('id, title, starts_at, ends_at')
-            .eq('event_id', eventId!)
-            .eq('location', session.venue)
-            .neq('status', 'cancelled');
-
-           const conflictingSession = conflicts?.find(s => {
-            if (s.id === id) return false; // Ignore self
-            const sStart = new Date(s.starts_at).getTime();
-            const sEnd = new Date(s.ends_at).getTime();
-            return (start < sEnd && end > sStart);
-           });
-
-           if (conflictingSession) {
-             throw new Error(`Schedule Conflict: The session "${conflictingSession.title}" is already booked in "${session.venue}" during this time slot.`);
-           }
-        }
+      // Conflict Check — uses shared helper with DB-level filtering, excludes self
+      if (session.startTime && session.endTime && session.venue) {
+        const conflictMsg = await checkVenueConflict(eventId!, session.venue, session.startTime, session.endTime, id);
+        if (conflictMsg) throw new Error(conflictMsg);
       }
 
       const dbPayload: any = {};
@@ -193,8 +177,8 @@ export function useSessions(manualEventId?: string) {
         .single();
 
       if (error) throw error;
-      
-      await loadSessions();
+
+      queryClient.invalidateQueries({ queryKey });
       toast.success('Session updated');
       return data;
     } catch (error: any) {
@@ -211,8 +195,8 @@ export function useSessions(manualEventId?: string) {
         .eq('id', id);
 
       if (error) throw error;
-      
-      await loadSessions();
+
+      queryClient.invalidateQueries({ queryKey });
       toast.success('Session deleted');
     } catch (error) {
       console.error('Error deleting session:', error);
@@ -226,6 +210,6 @@ export function useSessions(manualEventId?: string) {
     createSession,
     updateSession,
     deleteSession,
-    refreshSessions: loadSessions
+    refreshSessions: () => queryClient.invalidateQueries({ queryKey })
   };
 }

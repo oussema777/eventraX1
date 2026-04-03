@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner@2.0.3';
 import { useParams } from 'react-router-dom';
@@ -26,88 +26,72 @@ export interface TicketType {
   earlyBirdEndDate?: string;
 }
 
+const TICKETS_COLUMNS = 'id, event_id, name, price, currency, status, quantity_sold, quantity_total, is_vip, sales_start, sales_end, max_per_person, includes, description, tier, visibility, is_early_bird, early_bird_price, early_bird_end_date';
+
+function mapTicket(t: any): TicketType {
+  const price = t.price || 0;
+  const earlyBirdPrice = t.early_bird_price || 0;
+  let discount = 0;
+  if (t.is_early_bird && price > 0 && earlyBirdPrice > 0) {
+    discount = Math.round(((price - earlyBirdPrice) / price) * 100);
+  }
+
+  return {
+    id: t.id,
+    name: t.name,
+    price,
+    currency: t.currency || 'USD',
+    status: (t.status as any) || 'active',
+    sold: t.quantity_sold || 0,
+    total: t.quantity_total || 0,
+    revenue: price * (t.quantity_sold || 0),
+    isPro: t.is_vip,
+    endDate: t.sales_end ? new Date(t.sales_end).toISOString().slice(0, 16) : '',
+    startDate: t.sales_start ? new Date(t.sales_start).toISOString().slice(0, 16) : '',
+    maxPerPerson: t.max_per_person || 10,
+    includes: Array.isArray(t.includes) ? t.includes : [],
+    description: t.description,
+    event_id: t.event_id,
+    tier: t.tier === 'vip' || t.is_vip ? 'vip' : 'standard',
+    visibility: t.visibility === 'link_only' ? 'hidden' : (t.visibility as any) || 'public',
+    isEarlyBird: t.is_early_bird || false,
+    earlyBirdDiscount: discount,
+    earlyBirdEndDate: t.early_bird_end_date ? new Date(t.early_bird_end_date).toISOString().slice(0, 16) : ''
+  };
+}
+
+async function fetchTickets(eventId: string): Promise<TicketType[]> {
+  const { data, error } = await supabase
+    .from('event_tickets')
+    .select(TICKETS_COLUMNS)
+    .eq('event_id', eventId);
+
+  if (error) {
+    if (error.code === 'PGRST204' || error.code === '42P01') return [];
+    throw error;
+  }
+  return (data || []).map(mapTicket);
+}
+
 export function useTickets(eventIdOverride?: string) {
   const params = useParams<{ eventId: string }>();
   const eventId = eventIdOverride || params.eventId;
-  const [tickets, setTickets] = useState<TicketType[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
+  const queryKey = ['tickets', eventId];
 
-  useEffect(() => {
-    if (eventId) {
-      loadTickets(eventId);
-    }
-  }, [eventId]);
-
-  const loadTickets = async (id: string) => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('event_tickets')
-        .select('*')
-        .eq('event_id', id);
-
-      if (error) {
-        if (error.code === 'PGRST204' || error.code === '42P01') {
-          console.warn('event_tickets table not found');
-          setTickets([]);
-          return;
-        }
-        throw error;
-      }
-
-      // Map DB fields to UI fields
-      const mappedTickets: TicketType[] = (data || []).map(t => {
-        const price = t.price || 0;
-        const earlyBirdPrice = t.early_bird_price || 0;
-        let discount = 0;
-        if (t.is_early_bird && price > 0 && earlyBirdPrice > 0) {
-          discount = Math.round(((price - earlyBirdPrice) / price) * 100);
-        }
-
-        return {
-          id: t.id,
-          name: t.name,
-          price: price,
-          currency: t.currency || 'USD',
-          status: (t.status as any) || 'active',
-          sold: t.quantity_sold || 0,
-          total: t.quantity_total || 0,
-          revenue: price * (t.quantity_sold || 0),
-          isPro: t.is_vip,
-          endDate: t.sales_end ? new Date(t.sales_end).toISOString().slice(0, 16) : '',
-          startDate: t.sales_start ? new Date(t.sales_start).toISOString().slice(0, 16) : '',
-          maxPerPerson: t.max_per_person || 10,
-          includes: Array.isArray(t.includes) ? t.includes : [],
-          description: t.description,
-          event_id: t.event_id,
-          tier: t.tier === 'vip' || t.is_vip ? 'vip' : 'standard',
-          visibility: t.visibility === 'link_only' ? 'hidden' : (t.visibility as any) || 'public',
-          isEarlyBird: t.is_early_bird || false,
-          earlyBirdDiscount: discount,
-          earlyBirdEndDate: t.early_bird_end_date ? new Date(t.early_bird_end_date).toISOString().slice(0, 16) : ''
-        };
-      });
-
-      setTickets(mappedTickets);
-    } catch (error) {
-      console.error('Error loading tickets:', error);
-      toast.error('Failed to load tickets');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { data: tickets = [], isLoading } = useQuery({
+    queryKey,
+    queryFn: () => fetchTickets(eventId!),
+    enabled: !!eventId,
+  });
 
   const createTicket = async (ticket: Partial<TicketType>) => {
     if (!eventId) {
-      console.error('createTicket: Missing eventId');
       toast.error('Event ID is missing. Please save the event first.');
       return null;
     }
-    
-    console.log('Creating ticket for event:', eventId, ticket);
 
     try {
-      // Calculate early bird price if discount is present
       let earlyBirdPrice = 0;
       if (ticket.isEarlyBird && ticket.price && ticket.earlyBirdDiscount) {
         earlyBirdPrice = ticket.price * (1 - ticket.earlyBirdDiscount / 100);
@@ -133,8 +117,6 @@ export function useTickets(eventIdOverride?: string) {
         tier: ticket.isPro || ticket.tier === 'vip' ? 'vip' : 'standard'
       };
 
-      console.log('Ticket Payload:', payload);
-
       const { data, error } = await supabase
         .from('event_tickets')
         .insert(payload)
@@ -142,8 +124,8 @@ export function useTickets(eventIdOverride?: string) {
         .single();
 
       if (error) throw error;
-      
-      await loadTickets(eventId);
+
+      queryClient.invalidateQueries({ queryKey });
       toast.success('Ticket created');
       return data;
     } catch (error) {
@@ -155,16 +137,9 @@ export function useTickets(eventIdOverride?: string) {
 
   const updateTicket = async (id: string, ticket: Partial<TicketType>) => {
     try {
-      // Calculate early bird price if discount is present
       let earlyBirdPrice = 0;
       if (ticket.isEarlyBird && ticket.price !== undefined && ticket.earlyBirdDiscount !== undefined) {
-         earlyBirdPrice = ticket.price * (1 - ticket.earlyBirdDiscount / 100);
-      } else if (ticket.isEarlyBird && ticket.earlyBirdDiscount !== undefined) {
-         // If price is not in update payload, we might need it to calculate. 
-         // But usually update sends full object or we need to rely on existing.
-         // For now, assuming price is available or we handle it. 
-         // If we don't have price, we can't recalculate correctly without fetching.
-         // However, in TicketsTab we usually have the full object.
+        earlyBirdPrice = ticket.price * (1 - ticket.earlyBirdDiscount / 100);
       }
 
       const { data, error } = await supabase
@@ -183,7 +158,7 @@ export function useTickets(eventIdOverride?: string) {
           currency: ticket.currency,
           visibility: ticket.visibility === 'hidden' ? 'link_only' : ticket.visibility,
           is_early_bird: ticket.isEarlyBird,
-          early_bird_price: earlyBirdPrice > 0 ? earlyBirdPrice : undefined, // Only update if calculated
+          early_bird_price: earlyBirdPrice > 0 ? earlyBirdPrice : undefined,
           early_bird_end_date: ticket.earlyBirdEndDate ? new Date(ticket.earlyBirdEndDate).toISOString() : null,
           tier: ticket.isPro || ticket.tier === 'vip' ? 'vip' : 'standard'
         })
@@ -192,8 +167,8 @@ export function useTickets(eventIdOverride?: string) {
         .single();
 
       if (error) throw error;
-      
-      if (eventId) await loadTickets(eventId);
+
+      queryClient.invalidateQueries({ queryKey });
       toast.success('Ticket updated');
       return data;
     } catch (error) {
@@ -210,8 +185,8 @@ export function useTickets(eventIdOverride?: string) {
         .eq('id', id);
 
       if (error) throw error;
-      
-      if (eventId) await loadTickets(eventId);
+
+      queryClient.invalidateQueries({ queryKey });
       toast.success('Ticket deleted');
     } catch (error) {
       console.error('Error deleting ticket:', error);
@@ -225,6 +200,6 @@ export function useTickets(eventIdOverride?: string) {
     createTicket,
     updateTicket,
     deleteTicket,
-    loadTickets
+    loadTickets: () => queryClient.invalidateQueries({ queryKey })
   };
 }

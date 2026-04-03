@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { toast } from 'sonner@2.0.3';
 
 export interface Education {
   id: string;
@@ -55,104 +54,86 @@ export interface UserProfile {
   profile_certifications?: Certification[];
 }
 
-export function useProfile(targetUserId?: string) {
-  const { user: currentUser } = useAuth();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const extractMissingColumn = (error: any) => {
+  if (!error) return '';
+  const message = String(error.message || '');
+  const match = message.match(/'([^']+)' column/i);
+  return match ? match[1] : '';
+};
 
-  const extractMissingColumn = (error: any) => {
-    if (!error) return '';
-    const message = String(error.message || '');
-    const match = message.match(/'([^']+)' column/i);
-    return match ? match[1] : '';
-  };
+const stripUnsupportedColumn = (payload: Record<string, any>, error: any) => {
+  const column = extractMissingColumn(error);
+  if (!column || !(column in payload)) return payload;
+  const { [column]: _removed, ...rest } = payload;
+  return rest;
+};
 
-  const stripUnsupportedColumn = (payload: Record<string, any>, error: any) => {
-    const column = extractMissingColumn(error);
-    if (!column || !(column in payload)) return payload;
-    const { [column]: _removed, ...rest } = payload;
-    return rest;
-  };
+async function fetchProfileData(userId: string, currentUser: any): Promise<UserProfile | null> {
+  // 1. Main Profile
+  const { data: profileData, error: profileError } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .maybeSingle();
 
-  const fetchProfile = async (userId: string) => {
+  if (profileError) throw profileError;
+
+  if (!profileData && currentUser?.id === userId) {
     try {
-      setIsLoading(true);
-      setError(null);
-
-      // 1. Main Profile
-      const { data: profileData, error: profileError } = await supabase
+      await supabase
+        .from('profiles')
+        .upsert(
+          {
+            id: currentUser.id,
+            email: currentUser.email,
+            full_name:
+              currentUser.user_metadata?.full_name ||
+              currentUser.user_metadata?.name ||
+              currentUser.email?.split('@')[0] ||
+              'New User'
+          },
+          { onConflict: 'id' }
+        );
+      const created = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
-
-      if (profileError) throw profileError;
-
-      if (!profileData && currentUser?.id === userId) {
-        try {
-          await supabase
-            .from('profiles')
-            .upsert(
-              {
-                id: currentUser.id,
-                email: currentUser.email,
-                full_name:
-                  currentUser.user_metadata?.full_name ||
-                  currentUser.user_metadata?.name ||
-                  currentUser.email?.split('@')[0] ||
-                  'New User'
-              },
-              { onConflict: 'id' }
-            );
-          const created = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', userId)
-            .maybeSingle();
-          if (!created.error && created.data) {
-            await fetchProfile(userId);
-            return;
-          }
-        } catch (_error) {
-          // ignore - profile creation may be blocked by RLS or missing table.
-        }
+      if (!created.error && created.data) {
+        // Recursively fetch with the created profile
+        return fetchProfileData(userId, currentUser);
       }
-
-      // 2. Education
-      const { data: eduData } = await supabase
-        .from('profile_education')
-        .select('*')
-        .eq('profile_id', userId);
-
-      // 3. Certs
-      const { data: certData } = await supabase
-        .from('profile_certifications')
-        .select('*')
-        .eq('profile_id', userId);
-
-      setProfile({
-        ...profileData,
-        profile_education: eduData || [],
-        profile_certifications: certData || []
-      });
-
-    } catch (err: any) {
-      console.error('useProfile: Fetch error:', err);
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
+    } catch (_error) {
+      // ignore - profile creation may be blocked by RLS or missing table.
     }
+  }
+
+  // 2. Education & Certs in parallel
+  const [eduRes, certRes] = await Promise.all([
+    supabase.from('profile_education').select('*').eq('profile_id', userId),
+    supabase.from('profile_certifications').select('*').eq('profile_id', userId)
+  ]);
+
+  return {
+    ...profileData,
+    profile_education: eduRes.data || [],
+    profile_certifications: certRes.data || []
   };
+}
 
-  useEffect(() => {
-    const idToFetch = targetUserId || currentUser?.id;
-    if (idToFetch) {
-      fetchProfile(idToFetch);
-    } else if (!targetUserId && !currentUser) {
-      setIsLoading(false);
-    }
-  }, [targetUserId, currentUser]);
+export function useProfile(targetUserId?: string) {
+  const { user: currentUser } = useAuth();
+  const queryClient = useQueryClient();
+  const userId = targetUserId || currentUser?.id;
+  const queryKey = ['profile', userId];
+
+  const { data: profile = null, isLoading, error: queryError } = useQuery({
+    queryKey,
+    queryFn: () => fetchProfileData(userId!, currentUser),
+    enabled: !!userId,
+  });
+
+  const error = queryError ? (queryError as Error).message : null;
 
   const updateProfile = async (updates: Partial<UserProfile>) => {
     if (!currentUser) return;
@@ -172,9 +153,7 @@ export function useProfile(targetUserId?: string) {
           .maybeSingle();
 
         if (!error) {
-          if (data) {
-            setProfile((prev) => (prev ? { ...prev, ...data } : data));
-          }
+          queryClient.invalidateQueries({ queryKey });
           return data;
         }
 
@@ -199,7 +178,7 @@ export function useProfile(targetUserId?: string) {
     if (!currentUser) return;
     const { error } = await supabase.from('profile_education').insert([{ ...edu, profile_id: currentUser.id }]);
     if (error) throw error;
-    await fetchProfile(currentUser.id);
+    queryClient.invalidateQueries({ queryKey });
   };
 
   const updateEducation = async (id: string, updates: Partial<Education>) => {
@@ -208,20 +187,20 @@ export function useProfile(targetUserId?: string) {
       .update(updates)
       .eq('id', id);
     if (error) throw error;
-    if (currentUser) await fetchProfile(currentUser.id);
+    queryClient.invalidateQueries({ queryKey });
   };
 
   const deleteEducation = async (id: string) => {
     const { error } = await supabase.from('profile_education').delete().eq('id', id);
     if (error) throw error;
-    if (currentUser) await fetchProfile(currentUser.id);
+    queryClient.invalidateQueries({ queryKey });
   };
 
   const addCertification = async (cert: Omit<Certification, 'id' | 'profile_id'>) => {
     if (!currentUser) return;
     const { error } = await supabase.from('profile_certifications').insert([{ ...cert, profile_id: currentUser.id }]);
     if (error) throw error;
-    await fetchProfile(currentUser.id);
+    queryClient.invalidateQueries({ queryKey });
   };
 
   const updateCertification = async (id: string, updates: Partial<Certification>) => {
@@ -230,13 +209,13 @@ export function useProfile(targetUserId?: string) {
       .update(updates)
       .eq('id', id);
     if (error) throw error;
-    if (currentUser) await fetchProfile(currentUser.id);
+    queryClient.invalidateQueries({ queryKey });
   };
 
   const deleteCertification = async (id: string) => {
     const { error } = await supabase.from('profile_certifications').delete().eq('id', id);
     if (error) throw error;
-    if (currentUser) await fetchProfile(currentUser.id);
+    queryClient.invalidateQueries({ queryKey });
   };
 
   return {
@@ -250,9 +229,6 @@ export function useProfile(targetUserId?: string) {
     addCertification,
     updateCertification,
     deleteCertification,
-    refetch: () => {
-      const id = targetUserId || currentUser?.id;
-      if (id) fetchProfile(id);
-    }
+    refetch: () => queryClient.invalidateQueries({ queryKey })
   };
 }

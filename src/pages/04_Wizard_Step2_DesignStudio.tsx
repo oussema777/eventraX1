@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import WizardSidebar from '../components/wizard/WizardSidebar';
@@ -32,17 +32,18 @@ import { useSessions } from '../hooks/useSessions';
 import { useTickets } from '../hooks/useTickets';
 import { useExhibitors } from '../hooks/useExhibitors';
 import { useSponsors } from '../hooks/useSponsors';
-import AboutBlockSettingsModal from '../components/design-studio/modals/AboutBlockSettingsModal';
-import FooterBlockSettingsModal from '../components/design-studio/modals/FooterBlockSettingsModal';
-import HeroBlockSettingsModal from '../components/design-studio/modals/HeroBlockSettingsModal';
-import SponsorsBlockSettingsModal from '../components/design-studio/modals/SponsorsBlockSettingsModal';
-import SponsorPackagesBlockSettingsModal from '../components/design-studio/modals/SponsorPackagesBlockSettingsModal';
-import NetworkingBlockSettingsModal from '../components/design-studio/modals/NetworkingBlockSettingsModal';
-import AttendeesBlockSettingsModal from '../components/design-studio/modals/AttendeesBlockSettingsModal';
-import ExhibitorsBlockSettingsModal from '../components/design-studio/modals/ExhibitorsBlockSettingsModal';
-import CountdownBlockSettingsModal from '../components/design-studio/modals/CountdownBlockSettingsModal';
-import CustomHTMLBlockSettingsModal from '../components/design-studio/modals/CustomHTMLBlockSettingsModal';
-import VideoHeroBlockSettingsModal from '../components/design-studio/modals/VideoHeroBlockSettingsModal';
+// Lazy-loaded modals — only loaded when user opens a block's settings
+const AboutBlockSettingsModal = lazy(() => import('../components/design-studio/modals/AboutBlockSettingsModal'));
+const FooterBlockSettingsModal = lazy(() => import('../components/design-studio/modals/FooterBlockSettingsModal'));
+const HeroBlockSettingsModal = lazy(() => import('../components/design-studio/modals/HeroBlockSettingsModal'));
+const SponsorsBlockSettingsModal = lazy(() => import('../components/design-studio/modals/SponsorsBlockSettingsModal'));
+const SponsorPackagesBlockSettingsModal = lazy(() => import('../components/design-studio/modals/SponsorPackagesBlockSettingsModal'));
+const NetworkingBlockSettingsModal = lazy(() => import('../components/design-studio/modals/NetworkingBlockSettingsModal'));
+const AttendeesBlockSettingsModal = lazy(() => import('../components/design-studio/modals/AttendeesBlockSettingsModal'));
+const ExhibitorsBlockSettingsModal = lazy(() => import('../components/design-studio/modals/ExhibitorsBlockSettingsModal'));
+const CountdownBlockSettingsModal = lazy(() => import('../components/design-studio/modals/CountdownBlockSettingsModal'));
+const CustomHTMLBlockSettingsModal = lazy(() => import('../components/design-studio/modals/CustomHTMLBlockSettingsModal'));
+const VideoHeroBlockSettingsModal = lazy(() => import('../components/design-studio/modals/VideoHeroBlockSettingsModal'));
 
 interface Block {
   id: string;
@@ -705,6 +706,7 @@ export default function WizardStep2DesignStudio() {
         </div>
       </div>
 
+      <Suspense fallback={null}>
       <AboutBlockSettingsModal
         isOpen={settingsBlockId === 'about'}
         onClose={() => setSettingsBlockId(null)}
@@ -715,9 +717,9 @@ export default function WizardStep2DesignStudio() {
           features: selectedBlock?.settings?.features,
           image: selectedBlock?.settings?.image
         }}
-        onSave={(data) => handleSaveBlockSettings('about', { 
-          title: data.name, 
-          subtitle: data.tagline, 
+        onSave={(data) => handleSaveBlockSettings('about', {
+          title: data.name,
+          subtitle: data.tagline,
           description: data.description,
           features: data.features,
           image: data.image
@@ -796,6 +798,7 @@ export default function WizardStep2DesignStudio() {
         settings={selectedBlock?.settings || {}}
         onSave={(data) => handleSaveBlockSettings('video-hero', data)}
       />
+      </Suspense>
     </div>
   );
 }

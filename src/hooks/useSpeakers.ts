@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner@2.0.3';
 import { useParams } from 'react-router-dom';
@@ -24,63 +24,55 @@ export interface Speaker {
   website_url?: string;
 }
 
+const SPEAKERS_COLUMNS = 'id, event_id, name, full_name, title, company, bio, email, avatar_url, type, status, tags, linkedin_url, twitter_url, website_url, phone';
+
+function mapSpeaker(s: any): Speaker {
+  return {
+    id: s.id,
+    full_name: s.name || s.full_name,
+    title: s.title || '',
+    company: s.company || '',
+    bio: s.bio || '',
+    shortBio: (s.bio || '').substring(0, 100) + '...',
+    email: s.email || '',
+    photo: s.avatar_url,
+    type: (s.type as any) || 'regular',
+    status: (s.status as any) || 'confirmed',
+    tags: s.tags || [],
+    sessions: 0,
+    expectedAttendees: '',
+    linkedin_url: s.linkedin_url,
+    twitter_url: s.twitter_url,
+    website_url: s.website_url,
+    phone: s.phone,
+    event_id: s.event_id
+  };
+}
+
+async function fetchSpeakers(eventId: string): Promise<Speaker[]> {
+  const { data, error } = await supabase
+    .from('event_speakers')
+    .select(SPEAKERS_COLUMNS)
+    .eq('event_id', eventId);
+
+  if (error) {
+    if (error.code === 'PGRST204' || error.code === '42P01') return [];
+    throw error;
+  }
+  return (data || []).map(mapSpeaker);
+}
+
 export function useSpeakers(manualEventId?: string) {
   const { eventId: urlEventId } = useParams<{ eventId: string }>();
   const eventId = manualEventId || urlEventId;
-  const [speakers, setSpeakers] = useState<Speaker[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
+  const queryKey = ['speakers', eventId];
 
-  useEffect(() => {
-    if (eventId && eventId !== 'new') {
-      loadSpeakers(eventId);
-    }
-  }, [eventId]);
-
-  const loadSpeakers = async (id: string) => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('event_speakers')
-        .select('*')
-        .eq('event_id', id)
-      if (error) {
-        if (error.code === 'PGRST204' || error.code === '42P01') {
-          console.warn('event_speakers table not found');
-          setSpeakers([]);
-          return;
-        }
-        throw error;
-      }
-
-      const mappedSpeakers: Speaker[] = (data || []).map(s => ({
-        id: s.id,
-        full_name: s.name || s.full_name, // Support both for now
-        title: s.title || '',
-        company: s.company || '',
-        bio: s.bio || '',
-        shortBio: (s.bio || '').substring(0, 100) + '...',
-        email: s.email || '',
-        photo: s.avatar_url,
-        type: (s.type as any) || 'regular',
-        status: (s.status as any) || 'confirmed',
-        tags: s.tags || [],
-        sessions: 0,
-        expectedAttendees: '',
-        linkedin_url: s.linkedin_url,
-        twitter_url: s.twitter_url,
-        website_url: s.website_url,
-        phone: s.phone,
-        event_id: s.event_id
-      }));
-
-      setSpeakers(mappedSpeakers);
-    } catch (error) {
-      console.error('Error loading speakers:', error);
-      toast.error('Failed to load speakers');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { data: speakers = [], isLoading } = useQuery({
+    queryKey,
+    queryFn: () => fetchSpeakers(eventId!),
+    enabled: !!eventId && eventId !== 'new',
+  });
 
   const createSpeaker = async (speaker: Partial<Speaker>) => {
     if (!eventId || eventId === 'new') return;
@@ -107,8 +99,8 @@ export function useSpeakers(manualEventId?: string) {
         .single();
 
       if (error) throw error;
-      
-      await loadSpeakers(eventId);
+
+      queryClient.invalidateQueries({ queryKey });
       toast.success('Speaker created');
       return data;
     } catch (error) {
@@ -141,8 +133,8 @@ export function useSpeakers(manualEventId?: string) {
         .single();
 
       if (error) throw error;
-      
-      if (eventId && eventId !== 'new') await loadSpeakers(eventId);
+
+      queryClient.invalidateQueries({ queryKey });
       toast.success('Speaker updated');
       return data;
     } catch (error) {
@@ -159,8 +151,8 @@ export function useSpeakers(manualEventId?: string) {
         .eq('id', id);
 
       if (error) throw error;
-      
-      if (eventId && eventId !== 'new') await loadSpeakers(eventId);
+
+      queryClient.invalidateQueries({ queryKey });
       toast.success('Speaker deleted');
     } catch (error) {
       console.error('Error deleting speaker:', error);
@@ -174,6 +166,6 @@ export function useSpeakers(manualEventId?: string) {
     createSpeaker,
     updateSpeaker,
     deleteSpeaker,
-    loadSpeakers
+    loadSpeakers: () => queryClient.invalidateQueries({ queryKey })
   };
 }

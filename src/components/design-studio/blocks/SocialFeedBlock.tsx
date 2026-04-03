@@ -167,7 +167,7 @@ export default function SocialFeedBlock({
             >
               <div style={{ display: 'flex', alignItems: 'center', justifySelf: 'space-between', marginBottom: '20px', width: '100%' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-                  <img src={post.avatar} alt={post.user} style={{ width: '44px', height: '44px', borderRadius: '50%', border: '2px solid #FFFFFF', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }} />
+                  <img src={post.avatar} alt={post.user} loading="lazy" style={{ width: '44px', height: '44px', borderRadius: '50%', border: '2px solid #FFFFFF', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }} />
                   <div style={{ minWidth: 0 }}>
                     <h4 style={{ fontSize: '14px', fontWeight: 800, color: '#111827', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{post.user}</h4>
                     <p style={{ fontSize: '12px', color: '#6B7280', margin: 0 }}>{post.handle}</p>
@@ -182,7 +182,7 @@ export default function SocialFeedBlock({
 
               {post.image && (
                 <div style={{ borderRadius: '16px', overflow: 'hidden', marginBottom: '20px', aspectRatio: '16/9' }}>
-                  <img src={post.image} alt="Post content" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={post.image} alt="Post content" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 </div>
               )}
 

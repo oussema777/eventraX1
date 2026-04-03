@@ -125,9 +125,10 @@ export default function ExhibitorsBlock({
                   />
                   
                   {exhibitor.logo ? (
-                    <img 
-                      src={exhibitor.logo} 
-                      alt={exhibitor.name} 
+                    <img
+                      src={exhibitor.logo}
+                      alt={exhibitor.name}
+                      loading="lazy"
                       style={{ 
                         maxHeight: '100%', 
                         maxWidth: '100%', 

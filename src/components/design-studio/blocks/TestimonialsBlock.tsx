@@ -125,7 +125,7 @@ export default function TestimonialsBlock({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingTop: '24px', borderTop: '1px solid #F9FAFB' }}>
                   <div style={{ width: '56px', height: '56px', borderRadius: '100px', backgroundColor: '#F3F4F6', overflow: 'hidden', border: '2px solid #FFFFFF', boxShadow: '0 0 0 1px #F3F4F6' }}>
                     {item.avatar ? (
-                      <img src={item.avatar} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img src={item.avatar} alt={item.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
                       <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', fontWeight: 700, fontSize: '20px' }}>
                         {item.name.charAt(0)}

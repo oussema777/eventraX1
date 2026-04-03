@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(npx vite:*)",
+      "Bash(npm run:*)",
+      "Bash(node:*)",
+      "Bash(grep:*)",
+      "Bash(awk NR == 5079 || NR == 5080:*)",
+      "Bash(git checkout:*)",
+      "Bash(git:*)",
+      "Bash(npm install:*)",
+      "Bash(pushd:*)",
+      "Bash(mkdir:*)"
+    ]
+  }
+}

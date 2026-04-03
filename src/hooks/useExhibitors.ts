@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useParams } from 'react-router-dom';
 import { toast } from 'sonner@2.0.3';
@@ -17,53 +17,49 @@ export interface Exhibitor {
   boothLocation?: string; // db: booth_location
 }
 
+const EXHIBITORS_COLUMNS = 'id, company_name, industry, status, contact_email, contact_phone, website_url, description, logo_url, notes, booth_location';
+
+function mapExhibitor(item: any): Exhibitor {
+  return {
+    id: item.id,
+    company: item.company_name,
+    industry: item.industry || '',
+    status: item.status as any,
+    email: item.contact_email || '',
+    phone: item.contact_phone || '',
+    website: item.website_url || '',
+    description: item.description || '',
+    logo_url: item.logo_url,
+    note: item.notes,
+    boothLocation: item.booth_location
+  };
+}
+
+async function fetchExhibitors(eventId: string): Promise<Exhibitor[]> {
+  const { data, error } = await supabase
+    .from('event_exhibitors')
+    .select(EXHIBITORS_COLUMNS)
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    if (error.code === 'PGRST204' || error.code === '42P01') return [];
+    throw error;
+  }
+  return (data || []).map(mapExhibitor);
+}
+
 export function useExhibitors(propsEventId?: string) {
   const { eventId: paramEventId } = useParams();
   const eventId = propsEventId || paramEventId;
-  const [exhibitors, setExhibitors] = useState<Exhibitor[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const queryKey = ['exhibitors', eventId];
 
-  const fetchExhibitors = useCallback(async () => {
-    if (!eventId || eventId === 'new') {
-      setExhibitors([]);
-      setIsLoading(false);
-      return;
-    }
-    try {
-      const { data, error } = await supabase
-        .from('event_exhibitors')
-        .select('*')
-        .eq('event_id', eventId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      if (data) {
-        setExhibitors(data.map(item => ({
-          id: item.id,
-          company: item.company_name,
-          industry: item.industry || '',
-          status: item.status as any,
-          email: item.contact_email || '',
-          phone: item.contact_phone || '',
-          website: item.website_url || '',
-          description: item.description || '',
-          logo_url: item.logo_url,
-          note: item.notes,
-          boothLocation: item.booth_location
-        })));
-      }
-    } catch (err) {
-      console.error('Error fetching exhibitors:', err);
-      toast.error('Failed to load exhibitors');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [eventId]);
-
-  useEffect(() => {
-    fetchExhibitors();
-  }, [fetchExhibitors]);
+  const { data: exhibitors = [], isLoading } = useQuery({
+    queryKey,
+    queryFn: () => fetchExhibitors(eventId!),
+    enabled: !!eventId && eventId !== 'new',
+  });
 
   const createExhibitor = async (exhibitor: Omit<Exhibitor, 'id'>) => {
     if (!eventId || eventId === 'new') {
@@ -93,23 +89,8 @@ export function useExhibitors(propsEventId?: string) {
 
       if (error) throw error;
 
-      if (data) {
-        const newExhibitor: Exhibitor = {
-          id: data.id,
-          company: data.company_name,
-          industry: data.industry || '',
-          status: data.status as any,
-          email: data.contact_email || '',
-          phone: data.contact_phone || '',
-          website: data.website_url || '',
-          description: data.description || '',
-          logo_url: data.logo_url,
-          note: data.notes,
-          boothLocation: data.booth_location
-        };
-        setExhibitors(prev => [newExhibitor, ...prev]);
-        return newExhibitor;
-      }
+      queryClient.invalidateQueries({ queryKey });
+      return data ? mapExhibitor(data) : undefined;
     } catch (err) {
       console.error('Error creating exhibitor:', err);
       throw err;
@@ -137,7 +118,7 @@ export function useExhibitors(propsEventId?: string) {
 
       if (error) throw error;
 
-      setExhibitors(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
+      queryClient.invalidateQueries({ queryKey });
     } catch (err) {
       console.error('Error updating exhibitor:', err);
       throw err;
@@ -153,7 +134,7 @@ export function useExhibitors(propsEventId?: string) {
 
       if (error) throw error;
 
-      setExhibitors(prev => prev.filter(item => item.id !== id));
+      queryClient.invalidateQueries({ queryKey });
     } catch (err) {
       console.error('Error deleting exhibitor:', err);
       throw err;

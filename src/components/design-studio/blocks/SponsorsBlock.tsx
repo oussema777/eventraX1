@@ -111,9 +111,10 @@ export default function SponsorsBlock({
             }}
           >
             {sponsor.logo ? (
-              <img 
-                src={sponsor.logo} 
-                alt={sponsor.name} 
+              <img
+                src={sponsor.logo}
+                alt={sponsor.name}
+                loading="lazy"
                 style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain', transition: 'all 0.3s' }}
                 onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}

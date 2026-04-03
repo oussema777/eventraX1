@@ -279,6 +279,7 @@ export default function AttendeesBlock({
                     <img
                       src={attendee.avatar}
                       alt={attendee.name}
+                      loading="lazy"
                       className="attendees-block__avatar"
                       style={{ objectFit: 'cover' }}
                     />

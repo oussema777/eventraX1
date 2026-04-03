@@ -117,7 +117,7 @@ export default function SpeakersBlock({ showEditControls = true, brandColor, onE
                 }}
               >
                 {speaker.avatarUrl ? (
-                  <img src={speaker.avatarUrl} alt={speaker.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={speaker.avatarUrl} alt={speaker.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   (speaker as any).avatar || getInitials(speaker.name, t('wizard.designStudio.speakers.initialsFallback'))
                 )}

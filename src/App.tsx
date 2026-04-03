@@ -2,55 +2,101 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useParam
 import { Toaster } from 'sonner@2.0.3';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/navigation/ProtectedRoute';
-import AuthFlowDemo from './pages/00_Auth_Flow_Demo';
-import LandingPage from './pages/01_Landing_Page';
-import MyEventsDashboard from './pages/02_My_Events_Dashboard';
-import WizardStep1Details from './pages/03_Wizard_Step1_Details';
-import WizardStep2Design from './pages/04_Wizard_Step2_Design';
-import WizardStep2DesignStudio from './pages/04_Wizard_Step2_DesignStudio';
-import WizardStep3Registration from './pages/05_Wizard_Step3_Registration';
-import WizardStep4Launch from './pages/06_Wizard_Step4_Launch';
-import CreateEventWizardStep4 from './pages/30_Create_Event_Wizard_Step4';
-import SuccessPublished from './pages/07_Success_Published';
-import EventLiveSuccess from './pages/31_Event_Live_Success';
-import DraftSaved from './pages/08_Draft_Saved';
-import EventManagementDashboard from './pages/06_Event_Management_Dashboard';
-import MyProfile from './pages/09_My_Profile';
-import BusinessProfileWizardPage from './pages/20_Business_Profile_Wizard';
-import BusinessProductPage from './pages/BusinessProductPage';
-
-import BusinessProfilePageRoute from './pages/21_Business_Profile_Page';
-import UserB2BCenterPage from './pages/22_User_B2B_Center';
-import UserMessagesCenterPage from './pages/23_User_Messages_Center';
-import BrowseEventsDiscoveryPage from './pages/24_Browse_Events_Discovery';
-import SingleEventLandingPage from './pages/25_Single_Event_Landing_Page';
-import BusinessManagementDashboardPage from './pages/26_Business_Management_Dashboard';
-import B2BMarketplaceDiscoveryPage from './pages/27_B2B_Marketplace_Discovery';
-import CommunityPeopleDiscovery from './pages/34_Community_People_Discovery';
-import ViewCreatedEvent from './pages/28_View_Created_Event';
-import EventRegistrationFlow from './pages/32_Event_Registration_Flow';
-import EventSectionPage from './pages/EventSectionPage';
-import EventCreationWizard from './pages/EventCreationWizard';
-import PublicProfilePage from './pages/PublicProfilePage';
-import NotificationsPage from './pages/Notifications';
-import AuthCallback from './pages/99_Auth_Callback'; 
-import DesignStudioPreview from './pages/DesignStudioPreview';
-import EventAuthBridge from './pages/98_Event_Auth_Bridge';
-import PricingPage from './pages/33_Pricing';
-import FreightCalculatorPage from './pages/35_Freight_Calculator';
-import LoadCalculatorPage from './pages/36_Load_Calculator';
-import ContainerShippingCostsPage from './pages/37_Container_Shipping_Costs';
-import SponsorshipInquiryPage from './pages/38_Sponsorship_Inquiry_Page';
-import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminRoute from './components/auth/AdminRoute';
 import { useEventWizard } from './hooks/useEventWizard';
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { HelmetProvider } from 'react-helmet-async';
-import { I18nProvider, useI18n } from './i18n/I18nContext';
-import NotFound from './pages/NotFound';
+import { I18nProvider } from './i18n/I18nContext';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-import FormResponsePage from './pages/FormResponsePage';
+// ─── React Query Client ─────────────────────────────────────────
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,     // 5 minutes — data considered fresh
+      gcTime: 30 * 60 * 1000,        // 30 minutes — cache kept in memory
+      retry: 1,                       // Retry failed queries once
+      refetchOnWindowFocus: false,    // Don't refetch on tab switch
+    },
+  },
+});
 
+// ─── Lazy-loaded Pages ──────────────────────────────────────────
+// Public pages
+const LandingPage = lazy(() => import('./pages/01_Landing_Page'));
+const AuthFlowDemo = lazy(() => import('./pages/00_Auth_Flow_Demo'));
+const AuthCallback = lazy(() => import('./pages/99_Auth_Callback'));
+const EventAuthBridge = lazy(() => import('./pages/98_Event_Auth_Bridge'));
+const FormResponsePage = lazy(() => import('./pages/FormResponsePage'));
+const BrowseEventsDiscoveryPage = lazy(() => import('./pages/24_Browse_Events_Discovery'));
+const B2BMarketplaceDiscoveryPage = lazy(() => import('./pages/27_B2B_Marketplace_Discovery'));
+const CommunityPeopleDiscovery = lazy(() => import('./pages/34_Community_People_Discovery'));
+const FreightCalculatorPage = lazy(() => import('./pages/35_Freight_Calculator'));
+const LoadCalculatorPage = lazy(() => import('./pages/36_Load_Calculator'));
+const ContainerShippingCostsPage = lazy(() => import('./pages/37_Container_Shipping_Costs'));
+const BusinessProductPage = lazy(() => import('./pages/BusinessProductPage'));
+const BusinessProfilePageRoute = lazy(() => import('./pages/21_Business_Profile_Page'));
+const SingleEventLandingPage = lazy(() => import('./pages/25_Single_Event_Landing_Page'));
+const EventSectionPage = lazy(() => import('./pages/EventSectionPage'));
+const SponsorshipInquiryPage = lazy(() => import('./pages/38_Sponsorship_Inquiry_Page'));
+const EventRegistrationFlow = lazy(() => import('./pages/32_Event_Registration_Flow'));
+const PublicProfilePage = lazy(() => import('./pages/PublicProfilePage'));
+
+// Protected pages — Dashboard
+const MyEventsDashboard = lazy(() => import('./pages/02_My_Events_Dashboard'));
+const EventManagementDashboard = lazy(() => import('./pages/06_Event_Management_Dashboard'));
+const ViewCreatedEvent = lazy(() => import('./pages/28_View_Created_Event'));
+const NotificationsPage = lazy(() => import('./pages/Notifications'));
+const MyProfile = lazy(() => import('./pages/09_My_Profile'));
+const PricingPage = lazy(() => import('./pages/33_Pricing'));
+
+// Protected pages — Wizard
+const WizardStep1Details = lazy(() => import('./pages/03_Wizard_Step1_Details'));
+const WizardStep2DesignStudio = lazy(() => import('./pages/04_Wizard_Step2_DesignStudio'));
+const DesignStudioPreview = lazy(() => import('./pages/DesignStudioPreview'));
+const WizardStep3Registration = lazy(() => import('./pages/05_Wizard_Step3_Registration'));
+const WizardStep4Launch = lazy(() => import('./pages/06_Wizard_Step4_Launch'));
+const CreateEventWizardStep4 = lazy(() => import('./pages/30_Create_Event_Wizard_Step4'));
+const SuccessPublished = lazy(() => import('./pages/07_Success_Published'));
+const EventLiveSuccess = lazy(() => import('./pages/31_Event_Live_Success'));
+const DraftSaved = lazy(() => import('./pages/08_Draft_Saved'));
+
+// Protected pages — Business
+const BusinessProfileWizardPage = lazy(() => import('./pages/20_Business_Profile_Wizard'));
+const BusinessManagementDashboardPage = lazy(() => import('./pages/26_Business_Management_Dashboard'));
+const UserB2BCenterPage = lazy(() => import('./pages/22_User_B2B_Center'));
+const UserMessagesCenterPage = lazy(() => import('./pages/23_User_Messages_Center'));
+
+// Admin
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+
+// 404
+const NotFound = lazy(() => import('./pages/NotFound'));
+
+// ─── Loading Fallback ───────────────────────────────────────────
+function PageLoader() {
+  return (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'var(--background, #0B2641)'
+    }}>
+      <div style={{
+        width: '36px',
+        height: '36px',
+        border: '3px solid rgba(255,255,255,0.1)',
+        borderTopColor: '#0684F5',
+        borderRadius: '50%',
+        animation: 'spin 0.8s linear infinite'
+      }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+// ─── Legacy Redirect ────────────────────────────────────────────
 function RedirectLegacyWizard() {
   const navigate = useNavigate();
   const { eventId } = useParams();
@@ -71,11 +117,13 @@ function RedirectLegacyWizard() {
 
 export default function App() {
   return (
+    <QueryClientProvider client={queryClient}>
     <I18nProvider>
       <HelmetProvider>
         <AuthProvider>
           <Router>
           <Toaster position="top-right" richColors closeButton />
+          <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<LandingPage />} />
@@ -105,7 +153,7 @@ export default function App() {
             <Route path="/event/:eventId/attendees" element={<EventSectionPage type="attendees" />} />
             <Route path="/event/:eventId/register" element={<EventRegistrationFlow />} />
             <Route path="/profile/:userId" element={<PublicProfilePage />} />
-            
+
             {/* Protected Routes */}
             <Route element={<ProtectedRoute />}>
               {/* Admin Routes */}
@@ -117,14 +165,14 @@ export default function App() {
               <Route path="/my-events" element={<MyEventsDashboard />} />
               <Route path="/event/:eventId" element={<EventManagementDashboard />} />
               <Route path="/event/:eventId/preview" element={<ViewCreatedEvent />} />
-              
+
               {/* New Event Creation Wizard with Sidebar Navigation */}
               <Route path="/create-event" element={<RedirectLegacyWizard />} />
               <Route path="/create-event/:eventId" element={<RedirectLegacyWizard />} />
-              
+
               {/* Redirect old route to correct route */}
               <Route path="/event-management-dashboard" element={<Navigate to="/event/saas-summit-2024" replace />} />
-              
+
               <Route path="/create/details/:eventId" element={<WizardStep1Details />} />
               <Route path="/create/design/:eventId" element={<WizardStep2DesignStudio />} />
               <Route path="/design-studio-preview" element={<DesignStudioPreview />} />
@@ -147,9 +195,11 @@ export default function App() {
             {/* 404 Catch-all */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </Suspense>
           </Router>
         </AuthProvider>
       </HelmetProvider>
     </I18nProvider>
+    </QueryClientProvider>
   );
 }

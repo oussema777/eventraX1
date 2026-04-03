@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import { useParams } from 'react-router-dom';
@@ -27,99 +27,104 @@ export interface SponsorPackage {
   color: string;
 }
 
+const SPONSORS_COLUMNS = 'id, name, tier, website_url, logo_url, description, event_id, status, contribution_amount, benefits, notes, sort_order';
+
+const DEFAULT_PACKAGES: SponsorPackage[] = [
+  {
+    id: 'platinum',
+    name: 'Platinum',
+    value: 25000,
+    color: '#C0C0C0',
+    benefits: ['Logo on Website', '3 Speaking Slots', 'VIP Dinner Access', 'Social Media Mentions', 'Premium Placement']
+  },
+  {
+    id: 'gold',
+    name: 'Gold',
+    value: 15000,
+    color: '#FFD700',
+    benefits: ['Logo Placement', '2 Speaking Slots', 'Attendee List Access', 'Marketing Materials']
+  },
+  {
+    id: 'silver',
+    name: 'Silver',
+    value: 10000,
+    color: '#A8A8A8',
+    benefits: ['Logo Placement', 'Marketing Materials', 'Social Media Mention']
+  },
+  {
+    id: 'bronze',
+    name: 'Bronze',
+    value: 5000,
+    color: '#CD7F32',
+    benefits: ['Logo on Website', '1 Speaking Slot']
+  }
+];
+
+function mapSponsor(s: any): Sponsor {
+  return {
+    id: s.id,
+    name: s.name,
+    tier: s.tier || 'gold',
+    websiteUrl: s.website_url,
+    logoUrl: s.logo_url,
+    description: s.description,
+    event_id: s.event_id,
+    status: s.status || 'confirmed',
+    contributionAmount: s.contribution_amount || 0,
+    benefits: s.benefits || [],
+    notes: s.notes,
+    sortOrder: s.sort_order ?? 0
+  };
+}
+
+async function fetchSponsors(eventId: string): Promise<Sponsor[]> {
+  const { data, error } = await supabase
+    .from('event_sponsors')
+    .select(SPONSORS_COLUMNS)
+    .eq('event_id', eventId)
+    .order('sort_order', { ascending: true });
+
+  if (error) {
+    if (error.code === 'PGRST204' || error.code === '42P01') return [];
+    throw error;
+  }
+  return (data || []).map(mapSponsor);
+}
+
+async function fetchPackages(eventId: string): Promise<SponsorPackage[]> {
+  const { data, error } = await supabase
+    .from('events')
+    .select('sponsorship_settings')
+    .eq('id', eventId)
+    .single();
+
+  if (error) return DEFAULT_PACKAGES;
+
+  if (data?.sponsorship_settings && Array.isArray(data.sponsorship_settings) && data.sponsorship_settings.length > 0) {
+    return data.sponsorship_settings;
+  }
+  return DEFAULT_PACKAGES;
+}
+
 export function useSponsors() {
   const { eventId } = useParams<{ eventId: string }>();
-  const [sponsors, setSponsors] = useState<Sponsor[]>([]);
-  const [packages, setPackages] = useState<SponsorPackage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
+  const sponsorsKey = ['sponsors', eventId];
+  const packagesKey = ['sponsor-packages', eventId];
 
-  const loadSponsors = useCallback(async () => {
-    if (!eventId) return;
-    
-    setIsLoading(true);
-    try {
-      // Load Sponsors
-      const { data: sponsorsData, error: sponsorsError } = await supabase
-        .from('event_sponsors')
-        .select('*')
-        .eq('event_id', eventId)
-        .order('sort_order', { ascending: true });
+  const { data: sponsors = [], isLoading: sponsorsLoading } = useQuery({
+    queryKey: sponsorsKey,
+    queryFn: () => fetchSponsors(eventId!),
+    enabled: !!eventId,
+  });
 
-      if (sponsorsError) throw sponsorsError;
+  const { data: packages = DEFAULT_PACKAGES, isLoading: packagesLoading } = useQuery({
+    queryKey: packagesKey,
+    queryFn: () => fetchPackages(eventId!),
+    enabled: !!eventId,
+  });
 
-      const mappedSponsors: Sponsor[] = (sponsorsData || []).map(s => ({
-        id: s.id,
-        name: s.name,
-        tier: s.tier || 'gold',
-        websiteUrl: s.website_url,
-        logoUrl: s.logo_url,
-        description: s.description,
-        event_id: s.event_id,
-        status: s.status || 'confirmed',
-        contributionAmount: s.contribution_amount || 0,
-        benefits: s.benefits || [],
-        notes: s.notes,
-        sortOrder: s.sort_order ?? 0
-      }));
-
-      setSponsors(mappedSponsors);
-
-      // Load Packages (from events table)
-      const { data: eventData, error: eventError } = await supabase
-        .from('events')
-        .select('sponsorship_settings')
-        .eq('id', eventId)
-        .single();
-
-      if (eventError) throw eventError;
-
-      if (eventData?.sponsorship_settings && Array.isArray(eventData.sponsorship_settings) && eventData.sponsorship_settings.length > 0) {
-        setPackages(eventData.sponsorship_settings);
-      } else {
-        // Default packages if none exist
-        setPackages([
-          {
-            id: 'platinum',
-            name: 'Platinum',
-            value: 25000,
-            color: '#C0C0C0',
-            benefits: ['Logo on Website', '3 Speaking Slots', 'VIP Dinner Access', 'Social Media Mentions', 'Premium Placement']
-          },
-          {
-            id: 'gold',
-            name: 'Gold',
-            value: 15000,
-            color: '#FFD700',
-            benefits: ['Logo Placement', '2 Speaking Slots', 'Attendee List Access', 'Marketing Materials']
-          },
-          {
-            id: 'silver',
-            name: 'Silver',
-            value: 10000,
-            color: '#A8A8A8',
-            benefits: ['Logo Placement', 'Marketing Materials', 'Social Media Mention']
-          },
-          {
-            id: 'bronze',
-            name: 'Bronze',
-            value: 5000,
-            color: '#CD7F32',
-            benefits: ['Logo on Website', '1 Speaking Slot']
-          }
-        ]);
-      }
-
-    } catch (error) {
-      console.error('Error loading sponsors data:', error);
-      toast.error('Failed to load sponsors');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [eventId]);
-
-  useEffect(() => {
-    loadSponsors();
-  }, [loadSponsors]);
+  const isLoading = sponsorsLoading || packagesLoading;
 
   const createSponsor = async (sponsor: Partial<Sponsor>) => {
     if (!eventId) return;
@@ -144,7 +149,7 @@ export function useSponsors() {
 
       if (error) throw error;
 
-      await loadSponsors();
+      queryClient.invalidateQueries({ queryKey: sponsorsKey });
       toast.success('Sponsor created');
       return data;
     } catch (error) {
@@ -173,8 +178,8 @@ export function useSponsors() {
         .single();
 
       if (error) throw error;
-      
-      await loadSponsors();
+
+      queryClient.invalidateQueries({ queryKey: sponsorsKey });
       toast.success('Sponsor updated');
       return data;
     } catch (error) {
@@ -191,8 +196,8 @@ export function useSponsors() {
         .eq('id', id);
 
       if (error) throw error;
-      
-      await loadSponsors();
+
+      queryClient.invalidateQueries({ queryKey: sponsorsKey });
       toast.success('Sponsor deleted');
     } catch (error) {
       console.error('Error deleting sponsor:', error);
@@ -209,8 +214,8 @@ export function useSponsors() {
         .eq('id', eventId);
 
       if (error) throw error;
-      
-      setPackages(newPackages);
+
+      queryClient.setQueryData(packagesKey, newPackages);
       toast.success('Packages updated');
     } catch (error) {
       console.error('Error updating packages:', error);
@@ -219,19 +224,38 @@ export function useSponsors() {
   };
 
   const reorderSponsors = async (orderedIds: string[]) => {
+    // Optimistic update: reorder locally first for instant UI feedback
+    const previousSponsors = sponsors;
+    const reordered = orderedIds
+      .map((id, index) => {
+        const sponsor = sponsors.find(s => s.id === id);
+        return sponsor ? { ...sponsor, sortOrder: index } : null;
+      })
+      .filter(Boolean) as Sponsor[];
+    queryClient.setQueryData(sponsorsKey, reordered);
+
     try {
-      const updates = orderedIds.map((id, index) =>
-        supabase
-          .from('event_sponsors')
-          .update({ sort_order: index })
-          .eq('id', id)
+      await Promise.all(
+        orderedIds.map((id, index) =>
+          supabase
+            .from('event_sponsors')
+            .update({ sort_order: index })
+            .eq('id', id)
+        )
       );
-      await Promise.all(updates);
-      await loadSponsors();
     } catch (error) {
+      // Rollback on failure
+      queryClient.setQueryData(sponsorsKey, previousSponsors);
       console.error('Error reordering sponsors:', error);
       toast.error('Failed to reorder sponsors');
     }
+  };
+
+  const setSponsors = (updater: Sponsor[] | ((prev: Sponsor[]) => Sponsor[])) => {
+    queryClient.setQueryData(sponsorsKey, (old: Sponsor[] | undefined) => {
+      if (typeof updater === 'function') return updater(old || []);
+      return updater;
+    });
   };
 
   return {
@@ -244,6 +268,6 @@ export function useSponsors() {
     deleteSponsor,
     updatePackages,
     reorderSponsors,
-    refreshSponsors: loadSponsors
+    refreshSponsors: () => queryClient.invalidateQueries({ queryKey: sponsorsKey })
   };
 }

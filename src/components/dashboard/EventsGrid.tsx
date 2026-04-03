@@ -1,7 +1,7 @@
 import EventCard from './EventCard';
 import { Plus, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEventWizard } from '../../hooks/useEventWizard';
@@ -30,7 +30,7 @@ export default function EventsGrid({ events, isLoading, refreshEvents }: EventsG
     return event?.cover_image_url || logoUrl || fallbackCover;
   };
 
-  const handleCreateEvent = async () => {
+  const handleCreateEvent = useCallback(async () => {
     setIsCreating(true);
     try {
       resetWizard();
@@ -40,22 +40,21 @@ export default function EventsGrid({ events, isLoading, refreshEvents }: EventsG
     } finally {
       setIsCreating(false);
     }
-  };
+  }, [resetWizard, navigate]);
 
-  const handleDeleteEvent = async (eventId: string | number) => {
+  const handleDeleteEvent = useCallback(async (eventId: string | number) => {
     try {
-      // Optimistic update or wait for refresh
       const { error } = await supabase
         .from('events')
         .delete()
         .eq('id', eventId);
-      
+
       if (error) throw error;
       await refreshEvents();
     } catch (error) {
       console.error('Failed to delete event:', error);
     }
-  };
+  }, [refreshEvents]);
 
   if (isLoading) {
     return (

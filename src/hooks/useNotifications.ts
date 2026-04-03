@@ -1,40 +1,39 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { NotificationItem } from '../lib/notifications';
 
-const POLL_INTERVAL_MS = 10000;
+const NOTIFICATIONS_COLUMNS = 'id, recipient_id, type, title, message, read_at, created_at, metadata';
+
+async function fetchNotifications(userId: string): Promise<NotificationItem[]> {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select(NOTIFICATIONS_COLUMNS)
+    .eq('recipient_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (error) {
+    if (error.code === 'PGRST204' || error.code === '42P01') return [];
+    throw error;
+  }
+  return (data || []) as NotificationItem[];
+}
 
 export function useNotifications() {
   const { user } = useAuth();
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const pollRef = useRef<number | null>(null);
+  const queryClient = useQueryClient();
+  const queryKey = ['notifications', user?.id];
 
-  const fetchNotifications = useCallback(async () => {
-    if (!user?.id) {
-      setNotifications([]);
-      return;
-    }
-    try {
-      setIsLoading(true);
-      setError(null);
-      const { data, error: fetchError } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('recipient_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(20);
+  const { data: notifications = [], isLoading, error: queryError } = useQuery({
+    queryKey,
+    queryFn: () => fetchNotifications(user!.id),
+    enabled: !!user?.id,
+    refetchInterval: 10000, // Poll every 10 seconds (replaces manual setInterval)
+  });
 
-      if (fetchError) throw fetchError;
-      setNotifications((data || []) as NotificationItem[]);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load notifications');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user?.id]);
+  const error = queryError ? (queryError as Error).message : null;
 
   const markAsRead = useCallback(
     async (notificationId: string) => {
@@ -46,11 +45,12 @@ export function useNotifications() {
         .eq('id', notificationId)
         .eq('recipient_id', user.id);
       if (updateError) throw updateError;
-      setNotifications((prev) =>
-        prev.map((item) => (item.id === notificationId ? { ...item, read_at: now } : item))
+      // Optimistic update
+      queryClient.setQueryData(queryKey, (old: NotificationItem[] | undefined) =>
+        (old || []).map((item) => (item.id === notificationId ? { ...item, read_at: now } : item))
       );
     },
-    [user?.id]
+    [user?.id, queryClient, queryKey]
   );
 
   const markAllAsRead = useCallback(async () => {
@@ -62,22 +62,11 @@ export function useNotifications() {
       .eq('recipient_id', user.id)
       .is('read_at', null);
     if (updateError) throw updateError;
-    setNotifications((prev) => prev.map((item) => ({ ...item, read_at: now })));
-  }, [user?.id]);
-
-  useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    pollRef.current = window.setInterval(fetchNotifications, POLL_INTERVAL_MS);
-    return () => {
-      if (pollRef.current) {
-        window.clearInterval(pollRef.current);
-      }
-    };
-  }, [fetchNotifications, user?.id]);
+    // Optimistic update
+    queryClient.setQueryData(queryKey, (old: NotificationItem[] | undefined) =>
+      (old || []).map((item) => ({ ...item, read_at: now }))
+    );
+  }, [user?.id, queryClient, queryKey]);
 
   const unreadCount = notifications.filter((item) => !item.read_at).length;
 
@@ -86,9 +75,8 @@ export function useNotifications() {
     unreadCount,
     isLoading,
     error,
-    fetchNotifications,
+    fetchNotifications: () => queryClient.invalidateQueries({ queryKey }),
     markAsRead,
     markAllAsRead
   };
 }
-

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useParams } from 'react-router-dom';
 import { toast } from 'sonner@2.0.3';
@@ -105,73 +105,70 @@ const DEFAULT_SETTINGS: AttendeeSettings = {
   }
 };
 
+function mapCategory(cat: any): Category {
+  return {
+    id: cat.id,
+    name: cat.name,
+    description: cat.description || '',
+    color: cat.color,
+    icon: cat.icon || 'Users',
+    isDefault: cat.is_default || false,
+    isActive: cat.is_active !== false,
+    assignmentCriteria: cat.assignment_criteria || 'manual',
+    assignmentValue: cat.assignment_value
+  };
+}
+
+const CATEGORIES_COLUMNS = 'id, name, description, color, icon, is_default, is_active, assignment_criteria, assignment_value';
+
+async function fetchCategories(eventId: string): Promise<Category[]> {
+  const { data, error } = await supabase
+    .from('event_attendee_categories')
+    .select(CATEGORIES_COLUMNS)
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    if (error.code === 'PGRST204' || error.code === '42P01') return [];
+    throw error;
+  }
+  return (data || []).map(mapCategory);
+}
+
+async function fetchSettings(eventId: string): Promise<AttendeeSettings> {
+  const { data, error } = await supabase
+    .from('events')
+    .select('attendee_settings')
+    .eq('id', eventId)
+    .maybeSingle();
+
+  if (error) return DEFAULT_SETTINGS;
+  if (data?.attendee_settings) {
+    return { ...DEFAULT_SETTINGS, ...data.attendee_settings };
+  }
+  return DEFAULT_SETTINGS;
+}
+
 export function useAttendees(propsEventId?: string) {
   const { eventId: paramEventId } = useParams();
   const eventId = propsEventId || paramEventId;
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [settings, setSettings] = useState<AttendeeSettings>(DEFAULT_SETTINGS);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const categoriesKey = ['attendee-categories', eventId];
+  const settingsKey = ['attendee-settings', eventId];
 
-  const fetchCategories = useCallback(async () => {
-    if (!eventId) return;
-    try {
-      const { data, error } = await supabase
-        .from('event_attendee_categories')
-        .select('*')
-        .eq('event_id', eventId)
-        .order('created_at', { ascending: true });
+  const { data: categories = [], isLoading: catLoading } = useQuery({
+    queryKey: categoriesKey,
+    queryFn: () => fetchCategories(eventId!),
+    enabled: !!eventId,
+  });
 
-      if (error) throw error;
+  const { data: settings = DEFAULT_SETTINGS, isLoading: settingsLoading } = useQuery({
+    queryKey: settingsKey,
+    queryFn: () => fetchSettings(eventId!),
+    enabled: !!eventId,
+  });
 
-      if (data) {
-        setCategories(data.map(cat => ({
-          id: cat.id,
-          name: cat.name,
-          description: cat.description || '',
-          color: cat.color,
-          icon: cat.icon || 'Users',
-          isDefault: cat.is_default || false,
-          isActive: cat.is_active !== false,
-          assignmentCriteria: cat.assignment_criteria || 'manual',
-          assignmentValue: cat.assignment_value
-        })));
-      }
-    } catch (err) {
-      console.error('Error fetching categories:', err);
-      toast.error('Failed to load attendee categories');
-    }
-  }, [eventId]);
-
-  const fetchSettings = useCallback(async () => {
-    if (!eventId) return;
-    try {
-      const { data, error } = await supabase
-        .from('events')
-        .select('attendee_settings')
-        .eq('id', eventId)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (data?.attendee_settings) {
-        // Merge with defaults to handle new fields
-        setSettings({ ...DEFAULT_SETTINGS, ...data.attendee_settings });
-      }
-    } catch (err) {
-      console.error('Error fetching settings:', err);
-    }
-  }, [eventId]);
-
-  const init = useCallback(async () => {
-    if (!eventId) return;
-    setIsLoading(true);
-    await Promise.all([fetchCategories(), fetchSettings()]);
-    setIsLoading(false);
-  }, [eventId, fetchCategories, fetchSettings]);
-
-  useEffect(() => {
-    init();
-  }, [init]);
+  const isLoading = catLoading || settingsLoading;
 
   const createCategory = async (category: Omit<Category, 'id'>) => {
     if (!eventId) return;
@@ -196,21 +193,8 @@ export function useAttendees(propsEventId?: string) {
 
       if (error) throw error;
 
-      if (data) {
-        const newCat: Category = {
-          id: data.id,
-          name: data.name,
-          description: data.description || '',
-          color: data.color,
-          icon: data.icon || 'Users',
-          isDefault: data.is_default || false,
-          isActive: data.is_active !== false,
-          assignmentCriteria: data.assignment_criteria || 'manual',
-          assignmentValue: data.assignment_value
-        };
-        setCategories(prev => [...prev, newCat]);
-        return newCat;
-      }
+      queryClient.invalidateQueries({ queryKey: categoriesKey });
+      return data ? mapCategory(data) : undefined;
     } catch (err) {
       console.error('Error creating category:', err);
       throw err;
@@ -236,7 +220,7 @@ export function useAttendees(propsEventId?: string) {
 
       if (error) throw error;
 
-      setCategories(prev => prev.map(cat => cat.id === id ? { ...cat, ...updates } : cat));
+      queryClient.invalidateQueries({ queryKey: categoriesKey });
     } catch (err) {
       console.error('Error updating category:', err);
       throw err;
@@ -252,7 +236,7 @@ export function useAttendees(propsEventId?: string) {
 
       if (error) throw error;
 
-      setCategories(prev => prev.filter(cat => cat.id !== id));
+      queryClient.invalidateQueries({ queryKey: categoriesKey });
     } catch (err) {
       console.error('Error deleting category:', err);
       throw err;
@@ -262,7 +246,8 @@ export function useAttendees(propsEventId?: string) {
   const updateSettings = async (newSettings: Partial<AttendeeSettings>) => {
     if (!eventId) return;
     const mergedSettings = { ...settings, ...newSettings };
-    setSettings(mergedSettings); // Optimistic update
+    // Optimistic update
+    queryClient.setQueryData(settingsKey, mergedSettings);
 
     try {
       const { error } = await supabase
@@ -274,7 +259,8 @@ export function useAttendees(propsEventId?: string) {
     } catch (err) {
       console.error('Error updating settings:', err);
       toast.error('Failed to save settings');
-      setSettings(settings); // Revert on error
+      // Revert on error
+      queryClient.setQueryData(settingsKey, settings);
     }
   };
 

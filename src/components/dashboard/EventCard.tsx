@@ -1,5 +1,5 @@
 import { Calendar, MapPin, Users, Eye, Ticket, Edit, Copy, MoreVertical, Star, Crown, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../i18n/I18nContext';
 
@@ -26,7 +26,7 @@ interface EventCardProps {
   onDelete?: (id: string | number) => void;
 }
 
-export default function EventCard({ event, onDuplicate, onMoreActions, onDelete }: EventCardProps) {
+export default memo(function EventCard({ event, onDuplicate, onMoreActions, onDelete }: EventCardProps) {
   const [isFavorite, setIsFavorite] = useState(event.isFavorite);
   const navigate = useNavigate();
   const { t } = useI18n();
@@ -247,4 +247,4 @@ export default function EventCard({ event, onDuplicate, onMoreActions, onDelete 
       </div>
     </div>
   );
-}
+});

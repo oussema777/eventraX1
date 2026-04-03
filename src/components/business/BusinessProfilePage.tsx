@@ -301,7 +301,7 @@ export default function BusinessProfilePage() {
     try {
       setIsLoading(true);
       
-      let query = supabase.from('business_profiles').select('*');
+      let query = supabase.from('business_profiles').select('id, company_name, description, sectors, owner_profile_id, logo_url, website, email, phone, address, branding, created_at, updated_at');
       
       if (urlBusinessId) {
         query = query.eq('id', urlBusinessId);

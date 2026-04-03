@@ -71,6 +71,7 @@ export default function AboutBlock({ showEditControls = true, brandColor, onEdit
             <img
               src={event.image}
               alt="Event About"
+              loading="lazy"
               style={{
                 width: '100%',
                 height: '100%',

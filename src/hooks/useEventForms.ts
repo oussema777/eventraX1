@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner@2.0.3';
 import { useParams } from 'react-router-dom';
@@ -28,44 +29,38 @@ export interface EventForm {
   is_default?: boolean;
 }
 
+const FORMS_COLUMNS = 'id, event_id, title, description, type, status, fields, created_at, updated_at, is_default, schema, form_type';
+
+async function fetchForms(eventId: string): Promise<EventForm[]> {
+  const { data, error } = await supabase
+    .from('event_forms')
+    .select(FORMS_COLUMNS)
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    if (error.code === 'PGRST204' || error.code === '42P01') return [];
+    throw error;
+  }
+  return data || [];
+}
+
 export function useEventForms() {
   const { eventId } = useParams<{ eventId: string }>();
-  const [forms, setForms] = useState<EventForm[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
+  const queryKey = ['event-forms', eventId];
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    if (eventId) {
-      fetchForms();
-    }
-  }, [eventId]);
-
-  const fetchForms = useCallback(async () => {
-    if (!eventId) return;
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('event_forms')
-        .select('*')
-        .eq('event_id', eventId)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      
-      setForms(data || []);
-    } catch (error: any) {
-      console.error('Error fetching forms:', error);
-      toast.error('Failed to load forms');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [eventId]);
+  const { data: forms = [], isLoading } = useQuery({
+    queryKey,
+    queryFn: () => fetchForms(eventId!),
+    enabled: !!eventId,
+  });
 
   const saveForm = async (form: Partial<EventForm>) => {
     if (!eventId) return null;
     setIsSaving(true);
     try {
-      // Prepare payload
       const payload = {
         event_id: eventId,
         title: form.title || 'Untitled Form',
@@ -95,7 +90,7 @@ export function useEventForms() {
       if (result.error) throw result.error;
 
       toast.success('Form saved successfully');
-      await fetchForms();
+      queryClient.invalidateQueries({ queryKey });
       return result.data;
     } catch (error: any) {
       console.error('Error saving form:', error);
@@ -110,8 +105,8 @@ export function useEventForms() {
     try {
       const { error } = await supabase.from('event_forms').delete().eq('id', id);
       if (error) throw error;
-      
-      setForms(prev => prev.filter(f => f.id !== id));
+
+      queryClient.invalidateQueries({ queryKey });
       toast.success('Form deleted');
     } catch (error: any) {
       console.error('Error deleting form:', error);
@@ -123,7 +118,7 @@ export function useEventForms() {
     forms,
     isLoading,
     isSaving,
-    fetchForms,
+    fetchForms: () => queryClient.invalidateQueries({ queryKey }),
     saveForm,
     deleteForm
   };

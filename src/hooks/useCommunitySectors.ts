@@ -1,10 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 
 const PAGE_SIZE = 1000;
-
-let cachedSectors: string[] | null = null;
-let inFlightPromise: Promise<string[]> | null = null;
 
 export function extractProfileSectors(profile: any): string[] {
   const industry = typeof profile?.industry === 'string' ? profile.industry.trim() : '';
@@ -33,19 +30,14 @@ async function fetchCommunitySectors(): Promise<string[]> {
       .select('industry, b2b_profile')
       .range(from, to);
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     const rows = data || [];
     rows.forEach((profile: any) => {
       extractProfileSectors(profile).forEach((sector) => uniqueSectors.add(sector));
     });
 
-    if (rows.length < PAGE_SIZE) {
-      break;
-    }
-
+    if (rows.length < PAGE_SIZE) break;
     from += PAGE_SIZE;
   }
 
@@ -53,6 +45,10 @@ async function fetchCommunitySectors(): Promise<string[]> {
     a.localeCompare(b, undefined, { sensitivity: 'base' })
   );
 }
+
+// Keep the imperative API for non-React callers
+let cachedSectors: string[] | null = null;
+let inFlightPromise: Promise<string[]> | null = null;
 
 export function loadCommunitySectors(): Promise<string[]> {
   if (cachedSectors) {
@@ -74,33 +70,12 @@ export function loadCommunitySectors(): Promise<string[]> {
 }
 
 export function useCommunitySectors(fallback: string[] = []) {
-  const [sectors, setSectors] = useState<string[]>(cachedSectors || fallback);
-  const [isLoading, setIsLoading] = useState(!cachedSectors);
-  const fallbackKey = fallback.join('|');
+  const { data: sectors = fallback, isLoading } = useQuery({
+    queryKey: ['community-sectors'],
+    queryFn: fetchCommunitySectors,
+    staleTime: 30 * 60 * 1000, // 30 minutes — sectors rarely change
+    gcTime: 60 * 60 * 1000,    // 1 hour cache
+  });
 
-  useEffect(() => {
-    let isMounted = true;
-
-    loadCommunitySectors()
-      .then((resolvedSectors) => {
-        if (!isMounted) return;
-        setSectors(resolvedSectors.length > 0 ? resolvedSectors : fallback);
-      })
-      .catch((error) => {
-        console.error('Failed to load community sectors:', error);
-        if (!isMounted) return;
-        setSectors(fallback);
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [fallbackKey]);
-
-  return { sectors, isLoading };
+  return { sectors: sectors.length > 0 ? sectors : fallback, isLoading };
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner@2.0.3';
 import { useParams } from 'react-router-dom';
@@ -15,40 +15,32 @@ export interface AttendeeCategory {
   assignment_value?: string;
 }
 
+const CATEGORIES_COLUMNS = 'id, event_id, name, description, color, icon, is_default, assignment_criteria, assignment_value';
+
+async function fetchAttendeeCategories(eventId: string): Promise<AttendeeCategory[]> {
+  const { data, error } = await supabase
+    .from('event_attendee_categories')
+    .select(CATEGORIES_COLUMNS)
+    .eq('event_id', eventId)
+    .order('is_default', { ascending: false });
+
+  if (error) {
+    if (error.code === 'PGRST204' || error.code === '42P01') return [];
+    throw error;
+  }
+  return data || [];
+}
+
 export function useAttendeeCategories() {
   const { eventId } = useParams<{ eventId: string }>();
-  const [categories, setCategories] = useState<AttendeeCategory[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
+  const queryKey = ['attendee-categories-standalone', eventId];
 
-  const fetchCategories = useCallback(async () => {
-    if (!eventId) return;
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('event_attendee_categories')
-        .select('*')
-        .eq('event_id', eventId)
-        .order('is_default', { ascending: false });
-
-      if (error) {
-        if (error.code === 'PGRST204' || error.code === '42P01') {
-          console.warn('event_attendee_categories table not found, returning empty array');
-          setCategories([]);
-          return;
-        }
-        throw error;
-      }
-    } catch (error: any) {
-      console.error('Error fetching attendee categories:', error);
-      toast.error('Failed to load categories');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [eventId]);
-
-  useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
+  const { data: categories = [], isLoading } = useQuery({
+    queryKey,
+    queryFn: () => fetchAttendeeCategories(eventId!),
+    enabled: !!eventId,
+  });
 
   const saveCategory = async (category: Partial<AttendeeCategory>) => {
     if (!eventId) return null;
@@ -75,8 +67,8 @@ export function useAttendeeCategories() {
       }
 
       if (result.error) throw result.error;
-      
-      await fetchCategories();
+
+      queryClient.invalidateQueries({ queryKey });
       toast.success('Category saved');
       return result.data;
     } catch (error: any) {
@@ -93,7 +85,8 @@ export function useAttendeeCategories() {
         .eq('id', id);
 
       if (error) throw error;
-      setCategories(prev => prev.filter(c => c.id !== id));
+
+      queryClient.invalidateQueries({ queryKey });
       toast.success('Category removed');
     } catch (error: any) {
       toast.error('Failed to delete category');
@@ -105,6 +98,6 @@ export function useAttendeeCategories() {
     isLoading,
     saveCategory,
     deleteCategory,
-    fetchCategories
+    fetchCategories: () => queryClient.invalidateQueries({ queryKey })
   };
 }

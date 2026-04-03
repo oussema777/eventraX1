@@ -245,7 +245,7 @@ export default function AgendaBlock({
                       <div key={spk.id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <div style={{ width: '32px', height: '32px', borderRadius: '50%', overflow: 'hidden', backgroundColor: '#F1F2F4' }}>
                           {spk.avatarUrl ? (
-                            <img src={spk.avatarUrl} alt={spk.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <img src={spk.avatarUrl} alt={spk.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           ) : (
                             <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyCenter: 'center', background: accentColor, color: '#FFF' }}>
                               <User size={16} />

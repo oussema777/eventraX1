@@ -2,8 +2,53 @@ import { supabase } from '../lib/supabase';
 import { validateFileUpload, FILE_VALIDATION_PRESETS } from './security';
 
 /**
+ * Compresses an image file using canvas.
+ * Resizes to maxWidth, converts to JPEG at given quality.
+ * Returns the original file if it's not an image or compression fails.
+ */
+async function compressImage(file: File, maxWidth = 1200, quality = 0.8): Promise<File> {
+  if (!file.type.startsWith('image/')) return file;
+  // Skip SVGs and small files (under 100KB)
+  if (file.type === 'image/svg+xml' || file.size < 100 * 1024) return file;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      // Skip if already small enough
+      if (img.width <= maxWidth) {
+        resolve(file);
+        return;
+      }
+      const canvas = document.createElement('canvas');
+      const ratio = maxWidth / img.width;
+      canvas.width = maxWidth;
+      canvas.height = Math.round(img.height * ratio);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { resolve(file); return; }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { resolve(file); return; }
+          resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+        },
+        'image/jpeg',
+        quality
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file);
+    };
+    img.src = url;
+  });
+}
+
+/**
  * Uploads a file to a Supabase storage bucket and returns the public URL.
  * Validates file type and size before uploading.
+ * Images are automatically compressed before upload.
  */
 export async function uploadFile(
   bucket: string,
@@ -17,10 +62,12 @@ export async function uploadFile(
       console.error('File validation failed:', validationError);
       return null;
     }
+    // Compress images before upload (max 1200px wide, 80% quality)
+    const processedFile = preset === 'image' ? await compressImage(file) : file;
     const { data, error } = await supabase.storage
       .from(bucket)
-      .upload(path, file, {
-        cacheControl: '3600',
+      .upload(path, processedFile, {
+        cacheControl: '2592000',
         upsert: true
       });
 

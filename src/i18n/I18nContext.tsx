@@ -1,5 +1,7 @@
-import { createContext, useCallback, useContext, useMemo, useState, useEffect } from 'react';
-import { translations, type Locale } from './translations';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import enTranslations from './locales/en';
+
+export type Locale = 'en' | 'fr' | 'ar';
 
 type I18nContextValue = {
   locale: Locale;
@@ -12,7 +14,8 @@ type I18nContextValue = {
 const I18nContext = createContext<I18nContextValue | undefined>(undefined);
 const STORAGE_KEY = 'eventra_locale';
 
-const isLocale = (value: string): value is Locale => Object.prototype.hasOwnProperty.call(translations, value);
+const VALID_LOCALES: Locale[] = ['en', 'fr', 'ar'];
+const isLocale = (value: string): value is Locale => VALID_LOCALES.includes(value as Locale);
 
 const getInitialLocale = (): Locale => {
   if (typeof window === 'undefined') return 'en';
@@ -24,9 +27,30 @@ const getInitialLocale = (): Locale => {
   return 'en';
 };
 
-const getTranslationValue = (locale: Locale, path: string): unknown => {
+// Cache loaded locale data in memory so switching back is instant
+const localeCache = new Map<Locale, Record<string, any>>();
+localeCache.set('en', enTranslations);
+
+async function loadLocaleData(locale: Locale): Promise<Record<string, any>> {
+  const cached = localeCache.get(locale);
+  if (cached) return cached;
+
+  let data: Record<string, any>;
+  if (locale === 'fr') {
+    data = (await import('./locales/fr')).default;
+  } else if (locale === 'ar') {
+    data = (await import('./locales/ar')).default;
+  } else {
+    data = enTranslations;
+  }
+
+  localeCache.set(locale, data);
+  return data;
+}
+
+const getValueByPath = (obj: Record<string, any>, path: string): unknown => {
   const keys = path.split('.');
-  let current: unknown = translations[locale] || translations.en;
+  let current: unknown = obj;
   for (const key of keys) {
     if (!current || typeof current !== 'object' || !(key in current)) {
       return undefined;
@@ -46,6 +70,11 @@ const formatTranslation = (value: string, vars?: Record<string, string | number>
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(getInitialLocale);
+  const [localeData, setLocaleData] = useState<Record<string, any>>(
+    localeCache.get(getInitialLocale()) || enTranslations
+  );
+  const localeDataRef = useRef(localeData);
+  localeDataRef.current = localeData;
 
   const isRTL = useMemo(() => false, []); // Always false as per user request to not flip layout
 
@@ -54,6 +83,15 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
       document.documentElement.dir = 'ltr'; // Always LTR
       document.documentElement.lang = locale;
     }
+  }, [locale]);
+
+  // Load locale data when locale changes
+  useEffect(() => {
+    let cancelled = false;
+    loadLocaleData(locale).then((data) => {
+      if (!cancelled) setLocaleData(data);
+    });
+    return () => { cancelled = true; };
   }, [locale]);
 
   const setLocale = useCallback((nextLocale: Locale) => {
@@ -65,26 +103,27 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   const t = useCallback(
     (path: string, vars?: Record<string, string | number>) => {
-      const value = getTranslationValue(locale, path);
+      const value = getValueByPath(localeDataRef.current, path);
       if (typeof value === 'string') return formatTranslation(value, vars);
-      const fallbackValue = getTranslationValue('en', path);
+      // Fallback to EN
+      const fallbackValue = getValueByPath(enTranslations, path);
       if (typeof fallbackValue === 'string') return formatTranslation(fallbackValue, vars);
       if (vars && typeof vars === 'object' && 'defaultValue' in vars) return String(vars.defaultValue);
       if (typeof vars === 'string') return vars;
       return path;
     },
-    [locale]
+    [localeData] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const tList = useCallback(
     <T,>(path: string, fallback: T[] = []) => {
-      const value = getTranslationValue(locale, path);
+      const value = getValueByPath(localeDataRef.current, path);
       if (Array.isArray(value)) return value as T[];
-      const fallbackValue = getTranslationValue('en', path);
+      const fallbackValue = getValueByPath(enTranslations, path);
       if (Array.isArray(fallbackValue)) return fallbackValue as T[];
       return fallback;
     },
-    [locale]
+    [localeData] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const value = useMemo(() => ({ locale, setLocale, t, tList, isRTL }), [locale, setLocale, t, tList, isRTL]);

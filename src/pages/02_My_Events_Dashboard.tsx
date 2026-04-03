@@ -29,14 +29,16 @@ export default function MyEventsDashboard() {
       
       let query = supabase
         .from('events')
-        .select('*');
+        .select('id, name, event_type, event_format, status, start_date, end_date, location_address, cover_image_url, owner_id, created_at, branding_settings');
 
       // If user is not admin, only show their events
       if (profile?.role !== 'admin') {
         query = query.eq('owner_id', user.id);
       }
 
-      const { data, error } = await query.order('created_at', { ascending: false });
+      const { data, error } = await query
+        .order('created_at', { ascending: false })
+        .limit(100);
 
       if (error) throw error;
       setEvents(data || []);
