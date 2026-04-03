@@ -238,11 +238,11 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
         }
 
         const [speakerRes, sessionRes, ticketRes, sponsorRes, exhibitorRes, attendeeRes] = await Promise.all([
-          supabase.from('event_speakers').select('*').eq('event_id', eventId),
-          supabase.from('event_sessions').select('*').eq('event_id', eventId).order('starts_at', { ascending: true }),
-          supabase.from('event_tickets').select('*').eq('event_id', eventId),
-          supabase.from('event_sponsors').select('*').eq('event_id', eventId).order('sort_order', { ascending: true }),
-          supabase.from('event_exhibitors').select('*').eq('event_id', eventId),
+          supabase.from('event_speakers').select('id, full_name, title, type, bio, photo_url, social_links, avatar_url, company').eq('event_id', eventId),
+          supabase.from('event_sessions').select('id, title, description, starts_at, ends_at, location, status, speaker_ids').eq('event_id', eventId).order('starts_at', { ascending: true }),
+          supabase.from('event_tickets').select('id, name, price, currency, quantity_available, quantity_sold, status, description').eq('event_id', eventId),
+          supabase.from('event_sponsors').select('id, name, tier, logo_url, website_url, description, sort_order').eq('event_id', eventId).order('sort_order', { ascending: true }),
+          supabase.from('event_exhibitors').select('id, company_name, description, logo_url, booth_number, website_url, company, industry, booth_location, website').eq('event_id', eventId),
           supabase.from('event_attendees').select('id, name, company, avatar_url, photo_url, profile_id').eq('event_id', eventId)
         ]);
 

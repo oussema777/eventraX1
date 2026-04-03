@@ -59,24 +59,34 @@ export default function AdminDashboard() {
   const [bizStatusFilter, setBizStatusFilter] = useState<'all' | 'pending' | 'verified' | 'rejected'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => { fetchData(); }, [activeTab]);
+  useEffect(() => { fetchData(); }, [activeTab, searchQuery]);
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
       if (activeTab === 'events') {
-        const { data, error } = await supabase
+        let query = supabase
           .from('events')
-          .select('*')
+          .select('id, name, description, organizer_id, created_at, start_date, cover_image_url, moderation_status, is_approved')
           .eq('status', 'published')
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+          .limit(100);
+        if (searchQuery) {
+          query = query.ilike('name', `%${searchQuery}%`);
+        }
+        const { data, error } = await query;
         if (error) throw error;
         setEvents(data || []);
       } else {
-        const { data, error } = await supabase
+        let query = supabase
           .from('business_profiles')
-          .select('*')
-          .order('created_at', { ascending: false });
+          .select('id, company_name, description, owner_profile_id, created_at, verification_status, is_public, logo_url')
+          .order('created_at', { ascending: false })
+          .limit(100);
+        if (searchQuery) {
+          query = query.ilike('company_name', `%${searchQuery}%`);
+        }
+        const { data, error } = await query;
         if (error) throw error;
         setBusinesses(data || []);
       }

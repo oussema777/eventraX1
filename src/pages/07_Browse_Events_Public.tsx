@@ -14,7 +14,7 @@ import { supabase } from '../lib/supabase';
 interface Event {
   id: string;
   image: string;
-  status: 'upcoming' | 'filling-fast' | 'free';
+  status: 'upcoming' | 'free';
   date: string;
   location: string;
   title: string;
@@ -25,51 +25,56 @@ interface Event {
 
 export default function BrowseEventsPublic() {
   const navigate = useNavigate();
+  const PAGE_SIZE = 24;
   const [activeFilter, setActiveFilter] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [page, setPage] = useState(0);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
   useEffect(() => {
-    fetchEvents();
+    setEvents([]);
+    setPage(0);
+    setHasMore(true);
+    fetchEvents(0, true);
   }, [activeFilter]);
 
-  const fetchEvents = async () => {
+  const fetchEvents = async (pageNum: number, reset = false) => {
     try {
-      setIsLoading(true);
+      if (reset) setIsLoading(true);
+      else setIsLoadingMore(true);
+
+      const from = pageNum * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
       let query = supabase
         .from('events')
-        .select('*')
+        .select('id, name, description, start_date, end_date, location, is_public, status, cover_image_url, event_type, branding_settings, owner_id')
         .eq('is_public', true)
         .eq('status', 'published')
-        .order('start_date', { ascending: true });
-
-      // Apply simple filtering if needed based on activeFilter
-      // For now, we fetch all published public events
+        .order('start_date', { ascending: true })
+        .range(from, to);
 
       const { data, error } = await query;
 
       if (error) throw error;
 
-      const mappedEvents: Event[] = (data || []).map((event: any) => {
+      const rows = data || [];
+      if (rows.length < PAGE_SIZE) setHasMore(false);
+
+      const mappedEvents: Event[] = rows.map((event: any) => {
         const startDate = event.start_date ? new Date(event.start_date) : new Date();
-        const isUpcoming = startDate > new Date();
-        
-        let status: 'upcoming' | 'filling-fast' | 'free' = 'upcoming';
-        if (event.pricing_type === 'free') {
-          status = 'free';
-        } else if (isUpcoming && Math.random() > 0.7) { 
-          // Simulate "filling fast" for demo purposes or use capacity logic if available
-          status = 'filling-fast';
-        }
+
+        const status: 'upcoming' | 'free' = event.pricing_type === 'free' ? 'free' : 'upcoming';
 
         return {
           id: event.id,
           image: event.cover_image_url || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800',
-          status: status,
+          status,
           date: startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-          location: event.event_format === 'virtual' ? 'Online Event' : (event.location_address || 'TBD'),
+          location: event.event_format === 'virtual' ? 'Online Event' : (event.location || 'TBD'),
           title: event.name,
           description: event.description || '',
           price: event.pricing_type === 'free' ? 'free' : 'Paid',
@@ -77,12 +82,23 @@ export default function BrowseEventsPublic() {
         };
       });
 
-      setEvents(mappedEvents);
+      if (reset) {
+        setEvents(mappedEvents);
+      } else {
+        setEvents(prev => [...prev, ...mappedEvents]);
+      }
     } catch (error) {
       console.error('Error fetching events:', error);
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
     }
+  };
+
+  const handleLoadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchEvents(nextPage);
   };
 
   const getStatusStyle = (status: Event['status']) => {
@@ -91,11 +107,6 @@ export default function BrowseEventsPublic() {
         bg: '#E6F4EA',
         text: '#1F7A3E',
         label: 'Upcoming'
-      },
-      'filling-fast': {
-        bg: '#FFF3E0',
-        text: '#B54708',
-        label: 'Filling Fast'
       },
       'free': {
         bg: '#E0E7FF',
@@ -489,40 +500,41 @@ export default function BrowseEventsPublic() {
           })}
         </div>
 
-        {/* Pagination */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
-          {[1, 2, 3, 4, 5].map((page) => (
+        {/* Load More */}
+        {hasMore && events.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '8px' }}>
             <button
-              key={page}
-              onClick={() => setCurrentPage(page)}
+              onClick={handleLoadMore}
+              disabled={isLoadingMore}
               style={{
-                width: '40px',
-                height: '40px',
-                backgroundColor: currentPage === page ? '#635BFF' : '#F4F5F6',
+                height: '48px',
+                padding: '0 32px',
+                backgroundColor: '#635BFF',
                 border: 'none',
-                borderRadius: '8px',
+                borderRadius: '12px',
                 fontFamily: 'Inter',
-                fontSize: '14px',
-                fontWeight: 500,
-                color: currentPage === page ? '#FFFFFF' : '#6F767E',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
+                fontSize: '16px',
+                fontWeight: 600,
+                color: '#FFFFFF',
+                cursor: isLoadingMore ? 'not-allowed' : 'pointer',
+                opacity: isLoadingMore ? 0.7 : 1,
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
               }}
               onMouseEnter={(e) => {
-                if (currentPage !== page) {
-                  e.currentTarget.style.backgroundColor = '#E9EAEB';
-                }
+                if (!isLoadingMore) e.currentTarget.style.backgroundColor = '#7C75FF';
               }}
               onMouseLeave={(e) => {
-                if (currentPage !== page) {
-                  e.currentTarget.style.backgroundColor = '#F4F5F6';
-                }
+                e.currentTarget.style.backgroundColor = '#635BFF';
               }}
             >
-              {page}
+              {isLoadingMore && <Loader2 size={18} className="animate-spin" />}
+              {isLoadingMore ? 'Loading...' : 'Load More Events'}
             </button>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

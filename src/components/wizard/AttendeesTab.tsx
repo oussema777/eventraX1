@@ -132,9 +132,10 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
       setLoading(true);
       const { data, error } = await supabase
         .from('event_attendees')
-        .select('*')
+        .select('id, event_id, name, email, ticket_type, ticket_color, price, status, checked_in, confirmation_code, meta, company, category_id, profile_id, avatar_url, photo_url, created_at')
         .eq('event_id', eventId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(500);
 
       if (error) throw error;
       setAttendees(data || []);

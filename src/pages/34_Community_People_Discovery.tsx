@@ -82,10 +82,13 @@ export default function CommunityPeopleDiscovery() {
     try {
       setIsLoading(true);
       
+      const from = 0;
+      const to = 199;
+
       let query = supabase
         .from('profiles')
-        .select('id, full_name, job_title, company, location, avatar_url, bio, professional_data, b2b_profile, industry')
-        .limit(1000);
+        .select('id, full_name, job_title, company, location, avatar_url, bio, industry')
+        .range(from, to);
       
       if (currentUser?.id) {
         query = query.neq('id', currentUser.id);
@@ -95,10 +98,8 @@ export default function CommunityPeopleDiscovery() {
       if (error) throw error;
 
       const mapped: Person[] = (data || []).map(profile => {
-        const profData = profile.professional_data || {};
-        const b2b = profile.b2b_profile || {};
         const sectors = extractProfileSectors(profile);
-        
+
         return {
           id: profile.id,
           name: profile.full_name || t('communityPage.defaults.member'),
@@ -106,11 +107,11 @@ export default function CommunityPeopleDiscovery() {
           company: profile.company || t('communityPage.defaults.company'),
           location: profile.location || t('communityPage.defaults.location'),
           profileImage: profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.full_name || 'U')}&background=0684F5&color=fff`,
-          matchScore: Math.floor(Math.random() * (100 - 70 + 1)) + 70, 
+          matchScore: 0,
           bio: profile.bio || t('communityPage.defaults.bio'),
-          tags: Array.isArray(profData.skills) ? profData.skills.slice(0, 3) : [t('communityPage.defaults.tag')],
-          isOnline: b2b.enabled === true,
-          openToMeetings: b2b.enabled === true,
+          tags: [t('communityPage.defaults.tag')],
+          isOnline: false,
+          openToMeetings: false,
           role: profile.industry || sectors[0] || t('communityPage.defaults.role'),
           industry: profile.industry || sectors[0] || t('communityPage.defaults.industry'),
           sectors

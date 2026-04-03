@@ -289,14 +289,26 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
   const fetchSubmissionCounts = async () => {
     if (!eventId || formsRows.length === 0) return;
     try {
-      const counts: Record<string, number> = {};
-      for (const form of formsRows) {
-        const { count, error } = await supabase
-          .from('event_form_submissions')
-          .select('*', { count: 'exact', head: true })
-          .eq('form_id', form.id);
-        if (!error) counts[form.id] = count || 0;
+      const formIds = formsRows.map((f: any) => f.id);
+      const { data, error } = await supabase.rpc('get_form_submission_counts', { form_ids: formIds });
+      if (error) {
+        // Fallback: if RPC not available, use individual count queries
+        console.warn('RPC get_form_submission_counts not available, falling back:', error.message);
+        const counts: Record<string, number> = {};
+        for (const form of formsRows) {
+          const { count, error: countErr } = await supabase
+            .from('event_form_submissions')
+            .select('*', { count: 'exact', head: true })
+            .eq('form_id', form.id);
+          if (!countErr) counts[form.id] = count || 0;
+        }
+        setSubmissionCounts(counts);
+        return;
       }
+      const counts: Record<string, number> = {};
+      (data || []).forEach((row: { form_id: string; count: number }) => {
+        counts[row.form_id] = row.count;
+      });
       setSubmissionCounts(counts);
     } catch (e) {
       console.error('Error fetching submission counts:', e);
