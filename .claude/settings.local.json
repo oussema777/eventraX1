@@ -11,7 +11,12 @@
       "Bash(git:*)",
       "Bash(npm install:*)",
       "Bash(pushd:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(xargs sed:*)",
+      "Bash(xargs:*)",
+      "Bash(npm ls:*)",
+      "Bash(rm:*)",
+      "Bash(bash:*)"
     ]
   }
 }
