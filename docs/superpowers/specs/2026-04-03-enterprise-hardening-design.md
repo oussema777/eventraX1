@@ -19,7 +19,7 @@
 | Dashboard tab eager imports | 12 (664KB chunk) | 0 (all lazy) |
 | Google Fonts loaded eagerly | 6 families (~400KB) | 1 (Inter only) |
 | Unbounded queries (no `.limit()`) | 8+ views | 0 |
-| Polling intervals | 3 (10s/10s/15s) | 0 (all Realtime) |
+| Polling intervals | 4 (10s/10s/15s + B2B tab) | 0 (all Realtime) |
 | Remaining `select('*')` | ~15 locations | 0 |
 | Dead dependencies | 2 (`docker`, `resend`) | 0 |
 | Wildcard `"*"` versions | 6 packages | 0 |
@@ -40,17 +40,17 @@
 - **Problem:** `dangerouslySetInnerHTML={{ __html: twoFactorQr }}` renders unsanitized SVG from Supabase MFA API
 - **Fix:** Wrap with `DOMPurify.sanitize(twoFactorQr, { USE_PROFILES: { svg: true } })`
 
-### 1.2 — Harden CustomHTMLBlock DOMPurify
-- **File:** `src/components/design-studio/blocks/CustomHTMLBlock.tsx:19-27`
+### 1.2 — Harden CustomHTMLBlock DOMPurify + CSS scoping
+- **File:** `src/components/design-studio/blocks/CustomHTMLBlock.tsx:19-43`
 - **Problems:**
-  - `ADD_TAGS: ['style']` allows inline `<style>` blocks that bypass CSS sanitization
+  - `ADD_TAGS: ['style']` allows inline `<style>` blocks in HTML field that bypass CSS sanitization
   - `FORBID_ATTR` denylist misses 20+ event handlers (`onfocus`, `onblur`, `onkeydown`, etc.)
-  - CSS injected into `document.head` affects entire page (not scoped)
-- **Fix:**
-  - Remove `'style'` from `ADD_TAGS`
-  - Replace `FORBID_ATTR` with `ALLOW_ATTR` allowlist: `['href', 'src', 'alt', 'title', 'class', 'id', 'target', 'rel', 'width', 'height']`
-  - Scope injected CSS by prefixing all selectors with container ID
-  - Replace `Math.random()` style ID with `crypto.randomUUID()`
+  - CSS injected into `document.head` (lines 29-43) affects entire page — not scoped to block container
+  - Note: CSS injection is in the `useEffect` block (lines 29-43), NOT in the DOMPurify config. The `sanitizeCSS()` function handles the separate `settings.css` path.
+- **Fix (two separate changes):**
+  - **DOMPurify config (lines 19-27):** Remove `'style'` from `ADD_TAGS`. Replace `FORBID_ATTR` with `ALLOW_ATTR` allowlist: `['href', 'src', 'alt', 'title', 'class', 'id', 'target', 'rel', 'width', 'height']`
+  - **CSS scoping (lines 29-43):** Prefix all CSS selectors in `safeCSS` with `#${containerId}` before assigning to `styleEl.textContent`, ensuring styles cannot leak outside the block container
+  - Replace `Math.random()` style ID with `crypto.randomUUID()` (with fallback `Math.random().toString(36).substr(2)` for non-HTTPS dev environments)
 
 ### 1.3 — Sanitize i18n dangerouslySetInnerHTML
 - **Files:**
@@ -66,21 +66,26 @@
   ```ts
   export function sanitizeError(error: unknown, fallback: string): string {
     if (error instanceof Error) {
-      // Strip Supabase schema details (table names, constraint names)
       const msg = error.message;
-      if (msg.includes('duplicate key') || msg.includes('violates') || msg.includes('PGRST')) {
+      // Strip Supabase schema details (table names, constraint names, hints)
+      if (msg.includes('duplicate key') || msg.includes('violates') || msg.includes('PGRST')
+          || msg.includes('relation') || msg.includes('column')) {
         return fallback;
       }
-      return msg;
+      // Strip stack traces and limit length for all errors
+      return msg.split('\n')[0].substring(0, 200);
     }
     return fallback;
   }
   ```
+- **Also check:** `error.details` and `error.hint` fields on Supabase error objects — ensure these are never passed to `toast.error()`. Search for `error.details` and `error.hint` in toast calls.
 - **Apply to:** All 30+ `toast.error(error.message)` locations across hooks and components
 
-### 1.5 — Move sensitive data from localStorage to sessionStorage
+### 1.5 — Reduce sensitive data exposure in localStorage
 - **Files:** `src/hooks/useBusinessProfile.ts`, `src/hooks/useBusinessOfferings.ts`
-- **Fix:** Replace `localStorage.getItem/setItem` with `sessionStorage.getItem/setItem` for business profile and offerings cache
+- **Fix (two sub-tasks):**
+  - **(a) Keep PGRST205 offline fallback in localStorage:** The `useBusinessProfile.ts` error-code `PGRST205` fallback (table-not-found) intentionally persists across tab closes for users without the `business_profiles` table provisioned. This must remain in `localStorage` to avoid data loss.
+  - **(b) Move successful-fetch cache writes to sessionStorage:** The `useBusinessOfferings.ts` line 37 `localStorage.setItem` on every successful fetch is a background sync — move this to `sessionStorage` since React Query manages the in-memory cache. Same for the equivalent cache-warm writes in `useBusinessProfile.ts` (not the PGRST205 fallback).
 
 ### 1.6 — Fix file extension derivation from MIME type
 - **File:** `src/utils/storage.ts:92-118`
@@ -108,6 +113,14 @@
 - **New file:** `tsconfig.json`
 - **Config:** `strict: true`, `noImplicitAny: true`, `skipLibCheck: true`, `jsx: "react-jsx"`, `moduleResolution: "bundler"`
 - **Note:** This will surface hundreds of type errors. We add the config but do NOT block the build on `tsc --noEmit` yet — that's a gradual migration.
+- **IMPORTANT:** Adding `tsconfig.json` will cause `@vitejs/plugin-react-swc` to pick it up immediately, potentially changing JSX handling and path resolution. **Must run `npx vite build` immediately after creating the file** to verify the build still succeeds before any further Phase 2 work.
+- **Prerequisite:** Phase 7.4 (versioned import cleanup: `sonner@2.0.3` → `sonner`) should be done in Phase 2 as a sub-step, because TypeScript will not resolve versioned module paths like `sonner@2.0.3`. Move 7.4 here to prevent 48 type errors from accumulating across 6 phases.
+
+### 2.2b — Clean versioned imports (moved from Phase 7.4)
+- **Files:** All 48+ files importing from `'sonner@2.0.3'`
+- **Fix:** Replace with `'sonner'` globally
+- **File:** `vite.config.ts:11-49` — Remove version alias entries
+- **Must complete before Phase 3** to ensure lazy-loaded chunks resolve correctly under new module resolution
 
 ### 2.3 — Define Profile interface
 - **New file:** `src/types/profile.ts`
@@ -144,6 +157,7 @@
   const LazyAreaChart = lazy(() => import('recharts').then(m => ({ default: m.AreaChart })));
   ```
 - **Alternative:** Create a single `src/components/dashboard/LazyChart.tsx` that wraps all recharts components
+- **IMPORTANT:** Also remove `'charts': ['recharts']` from `manualChunks` in `vite.config.ts`. The manual chunk assignment conflicts with dynamic imports — Vite would force recharts into a named chunk regardless of where it's imported, partially negating the lazy-loading benefit.
 
 ### 3.3 — Defer non-Inter fonts
 - **File:** `index.html:28-33`
@@ -193,17 +207,20 @@
 ### 4.5 — CSV export chunking
 - **Files:** `src/components/dashboard/EventReportingTab.tsx:541-608`, `EventDayOfTab.tsx:2631`
 - **Fix:** Fetch in chunks of 1000 rows using `.range(offset, offset+999)` in a loop until no more rows, then build CSV from accumulated chunks
+- **Abort handling:** Accept an `AbortController` signal and break the fetch loop if the user navigates away mid-export, preventing orphaned Supabase connections
 
 ### 4.6 — Fix N+1 in CustomFormsTab
 - **File:** `src/components/wizard/CustomFormsTab.tsx:289-308`
-- **Fix:** Replace sequential per-form count queries with a single RPC or `.in('form_id', formIds)` grouped count:
-  ```ts
-  const { data, error } = await supabase
-    .from('event_form_submissions')
-    .select('form_id', { count: 'exact', head: true })
-    .in('form_id', formIds);
+- **Fix:** Replace sequential per-form count queries with a single RPC:
+  ```sql
+  CREATE OR REPLACE FUNCTION get_form_submission_counts(form_ids UUID[])
+  RETURNS TABLE(form_id UUID, count BIGINT) AS $$
+    SELECT form_id, COUNT(*) FROM event_form_submissions
+    WHERE form_id = ANY(form_ids) GROUP BY form_id;
+  $$ LANGUAGE sql STABLE;
   ```
-  Or create an RPC: `SELECT form_id, COUNT(*) FROM event_form_submissions WHERE form_id = ANY($1) GROUP BY form_id`
+  Then call: `supabase.rpc('get_form_submission_counts', { form_ids: formIds })`
+- **Note:** The `{ head: true }` approach does NOT work for per-form grouped counts — it returns a single total. Use the RPC approach only.
 
 ### 4.7 — Landing page select('*') cleanup
 - **Files:** `src/components/events/DesignStudioLanding.tsx:241-245`, `SingleEventLanding.tsx:68-109`
@@ -213,7 +230,7 @@
 
 ## Phase 5: Polling → Supabase Realtime
 
-> **Goal:** Replace 3 polling intervals with efficient Realtime subscriptions
+> **Goal:** Replace 4 polling intervals with efficient Realtime subscriptions
 
 ### 5.1 — Notifications Realtime
 - **File:** `src/hooks/useNotifications.ts:33`
@@ -229,6 +246,7 @@
       .subscribe()
     ```
   - Clean up channel in useEffect return
+  - **IMPORTANT:** The `useEffect` dependency array MUST include `userId` to handle account switching (sign out → sign in as different user). Without it, the channel keeps the old user's filter and query key in a stale closure.
 
 ### 5.2 — Fix Messages global channel
 - **File:** `src/components/messaging/UserMessagesCenter.tsx:391-429`
@@ -263,6 +281,8 @@
 | `UserB2BCenter.tsx` | 201-206 | 7 tables | Specific columns per table |
 | `EventScheduleTab.tsx` | 206 | `event_sessions` | id, title, start_time, end_time, location, status, speaker_ids |
 
+**Note:** For `event_sponsors` columns in `useSponsors.ts`, include `updated_at` — it is required by Phase 10.2 (optimistic locking).
+
 ### 6.2 — Additional database indexes
 - **New file:** `database/scripts/sql_add_enterprise_indexes.sql`
 ```sql
@@ -287,11 +307,12 @@ CREATE INDEX IF NOT EXISTS idx_b2b_requests_recipient ON b2b_requests(recipient_
 ```
 
 ### 6.3 — Invalidate useEventStats cache after mutations
-- **Files:** `useSpeakers.ts`, `useSessions.ts`, `useTickets.ts`, `useAttendees.ts`, `useExhibitors.ts`
+- **Files:** `useSpeakers.ts`, `useSessions.ts`, `useTickets.ts`, `useAttendees.ts`, `useExhibitors.ts`, `useSponsors.ts`, `useEventForms.ts`
 - **Fix:** After each create/update/delete mutation succeeds, add:
   ```ts
   queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
   ```
+- **Note:** `useEventStats` reads from `event_registrations`, `event_attendees`, `event_forms`, `event_email_templates`, `event_tracking_links`, `event_sponsors`, and `b2b_meetings`. All hooks that mutate these tables need the invalidation call. The 5-min staleTime is acceptable for tables not covered by these hooks (email_templates, tracking_links).
 
 ---
 
@@ -317,14 +338,12 @@ CREATE INDEX IF NOT EXISTS idx_b2b_requests_recipient ON b2b_requests(recipient_
 ### 7.3 — Delete dead code files
 - `src/pages/SchemaInspector.tsx`
 - `src/pages/EventCreationWizard.tsx`
-- `src/pages/04_Wizard_Step2_Design.tsx`
+- `src/pages/04_Wizard_Step2_Design.tsx` — **also update `src/utils/navigation.ts`** which references this file; remove or redirect the import before deleting
 - `src/components/wizard/CustomFormsTabsOld.tsx`
 - Remove any routes referencing these in `App.tsx`
 
-### 7.4 — Clean versioned imports
-- **Files:** All 48+ files importing from `'sonner@2.0.3'`
-- **Fix:** Replace with `'sonner'` globally
-- **File:** `vite.config.ts:11-49` — Remove version alias entries
+### 7.4 — Clean versioned imports (MOVED to Phase 2.2b)
+- **Note:** This task was moved to Phase 2.2b to prevent TypeScript from reporting module-not-found errors on versioned imports across 6 phases. See Phase 2.2b for details.
 
 ### 7.5 — Replace next-themes
 - **File:** `src/components/ui/sonner.tsx:3`
@@ -351,6 +370,7 @@ CREATE INDEX IF NOT EXISTS idx_b2b_requests_recipient ON b2b_requests(recipient_
 - **Current:** `#0684F5` on `#0B2641` = 3.8:1 (fails WCAG AA)
 - **Fix:** Adjust accent blue to `#3B9EFF` or similar — achieves 4.5:1+ contrast ratio
 - **Apply in:** `src/index.css` or `src/styles/globals.css` CSS custom property
+- **Also search for:** Hardcoded `#0684F5` hex values in inline styles across the codebase (e.g., `App.tsx:90` has `borderTopColor: '#0684F5'`). Replace all instances with the new color or a CSS variable reference.
 
 ### 8.4 — Add semantic HTML + ARIA
 - **Layout components:** Add `<main>`, `<nav>`, `<header>` where appropriate
@@ -376,8 +396,9 @@ CREATE INDEX IF NOT EXISTS idx_b2b_requests_recipient ON b2b_requests(recipient_
 
 ### 9.3 — Split EventB2BMatchmakingTab (3,654 lines)
 - Extract: `MatchmakingDashboard`, `MatchmakingSettings`, `MeetingScheduler`, `MatchList`
-- Migrate from `useState` + `useEffect` to React Query hooks
-- Eliminate 50+ `any` types
+- Migrate from `useState` + `useEffect` to React Query hooks — this also eliminates the 4th polling interval (`setInterval` at line ~1112) not addressed in Phase 5
+- Eliminate 50+ `any` types (requires Profile interface from Phase 2.3)
+- **Soft dependency on Phase 2:** The `Profile` and other domain interfaces must exist before `any` types can be properly replaced. Plan accordingly.
 
 ### 9.4 — Split 09_My_Profile (3,807 lines)
 - Extract: `ProfileHeader`, `ProfileDetails`, `ProfileEducation`, `ProfileCertifications`, `ProfileSettings`, `TwoFactorSetup`
@@ -454,6 +475,8 @@ _(To be filled during implementation)_
 - [ ] `tsconfig.json` (new)
 - [ ] `src/types/profile.ts` (new)
 - [ ] `src/contexts/AuthContext.tsx` — Profile type, maybeSingle, skip TOKEN_REFRESHED
+- [ ] 48+ files — replace `sonner@2.0.3` → `sonner` (moved from Phase 7.4)
+- [ ] `vite.config.ts` — remove version aliases (moved from Phase 7.4)
 
 ### Phase 3 Files
 - [ ] `src/pages/06_Event_Management_Dashboard.tsx` — 12 lazy tab imports
@@ -498,9 +521,10 @@ _(To be filled during implementation)_
 - [ ] `src/pages/EventCreationWizard.tsx` — delete
 - [ ] `src/pages/04_Wizard_Step2_Design.tsx` — delete
 - [ ] `src/components/wizard/CustomFormsTabsOld.tsx` — delete
-- [ ] 48+ files — replace `sonner@2.0.3` → `sonner`
-- [ ] `vite.config.ts` — remove version aliases
+- [ ] ~~48+ files — replace `sonner@2.0.3` → `sonner`~~ (moved to Phase 2)
+- [ ] ~~`vite.config.ts` — remove version aliases~~ (moved to Phase 2)
 - [ ] `src/components/ui/sonner.tsx` — remove next-themes
+- [ ] `src/utils/navigation.ts` — remove reference to `04_Wizard_Step2_Design`
 
 ### Phase 8 Files
 - [ ] `eslint.config.js` (new)
