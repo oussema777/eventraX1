@@ -238,14 +238,51 @@ export function useSponsors() {
     queryClient.setQueryData(sponsorsKey, reordered);
 
     try {
-      await Promise.all(
-        orderedIds.map((id, index) =>
-          supabase
+      // Fetch current updated_at timestamps for optimistic locking
+      const { data: currentRows, error: fetchError } = await supabase
+        .from('event_sponsors')
+        .select('id, updated_at')
+        .in('id', orderedIds);
+
+      if (fetchError) throw fetchError;
+
+      const timestampMap = new Map(
+        (currentRows || []).map((r: any) => [r.id, r.updated_at])
+      );
+
+      // Update each sponsor with optimistic lock check on updated_at
+      const results = await Promise.all(
+        orderedIds.map((id, index) => {
+          const expectedUpdatedAt = timestampMap.get(id);
+          let query = supabase
             .from('event_sponsors')
             .update({ sort_order: index })
-            .eq('id', id)
-        )
+            .eq('id', id);
+
+          // If we have a timestamp, use it as an optimistic lock
+          if (expectedUpdatedAt) {
+            query = query.eq('updated_at', expectedUpdatedAt);
+          }
+
+          return query.select('id');
+        })
       );
+
+      // Check if any update returned 0 rows (conflict detected)
+      const hasConflict = results.some(
+        (r) => !r.error && (!r.data || r.data.length === 0)
+      );
+
+      if (hasConflict) {
+        // Another user modified sponsors — refetch and notify
+        queryClient.invalidateQueries({ queryKey: sponsorsKey });
+        toast.error('Sponsor order was modified by another user. Refreshing...');
+        return;
+      }
+
+      // Check for actual errors
+      const firstError = results.find((r) => r.error);
+      if (firstError?.error) throw firstError.error;
     } catch (error) {
       // Rollback on failure
       queryClient.setQueryData(sponsorsKey, previousSponsors);

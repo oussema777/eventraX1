@@ -89,7 +89,8 @@ export async function uploadFile(
       .from(bucket)
       .getPublicUrl(data.path);
 
-    // Append cache-buster so browsers/CDN show the new file after replacement
+    // Cache-buster needed because upsert replaces files at the same path.
+    // The timestamp is stored in DB, not regenerated on each page load.
     return `${publicUrl}?t=${Date.now()}`;
   } catch (error) {
     console.error('Error uploading file:', error);
