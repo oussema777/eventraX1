@@ -36,7 +36,6 @@
               '@radix-ui/react-scroll-area',
               'lucide-react',
             ],
-            'charts': ['recharts'],
             'supabase': ['@supabase/supabase-js'],
           },
         },

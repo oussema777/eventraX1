@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   Home,
@@ -25,18 +25,18 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
-import EventOverviewTab from '../components/dashboard/EventOverviewTab';
-import EventAttendeesTab from '../components/dashboard/EventAttendeesTab';
-import EventScheduleTab from '../components/dashboard/EventScheduleTab';
-import EventSpeakersTab from '../components/dashboard/EventSpeakersTab';
-import EventExhibitorsTab from '../components/dashboard/EventExhibitorsTab';
-import EventTicketingTab from '../components/dashboard/EventTicketingTab';
-import EventB2BMatchmakingTab from '../components/dashboard/EventB2BMatchmakingTab';
-import EventMarketingTab from '../components/dashboard/EventMarketingTab';
-import EventDayOfTab from '../components/dashboard/EventDayOfTab';
-import EventReportingTab from '../components/dashboard/EventReportingTab';
-import EventFormsTab from '../components/dashboard/EventFormsTab';
-import EventNotificationCenterTab from '../components/dashboard/EventNotificationCenterTab';
+const EventOverviewTab = lazy(() => import('../components/dashboard/EventOverviewTab'));
+const EventAttendeesTab = lazy(() => import('../components/dashboard/EventAttendeesTab'));
+const EventScheduleTab = lazy(() => import('../components/dashboard/EventScheduleTab'));
+const EventSpeakersTab = lazy(() => import('../components/dashboard/EventSpeakersTab'));
+const EventExhibitorsTab = lazy(() => import('../components/dashboard/EventExhibitorsTab'));
+const EventTicketingTab = lazy(() => import('../components/dashboard/EventTicketingTab'));
+const EventB2BMatchmakingTab = lazy(() => import('../components/dashboard/EventB2BMatchmakingTab'));
+const EventMarketingTab = lazy(() => import('../components/dashboard/EventMarketingTab'));
+const EventDayOfTab = lazy(() => import('../components/dashboard/EventDayOfTab'));
+const EventReportingTab = lazy(() => import('../components/dashboard/EventReportingTab'));
+const EventFormsTab = lazy(() => import('../components/dashboard/EventFormsTab'));
+const EventNotificationCenterTab = lazy(() => import('../components/dashboard/EventNotificationCenterTab'));
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 
 type NavigationTab =
@@ -365,17 +365,19 @@ export default function EventManagementDashboard() {
 
         {/* CONTENT AREA */}
         <main className="event-dashboard__main flex-1 overflow-y-auto p-8">
-          {activeTab === 'overview' && <EventOverviewTab eventId={eventId} />}
-          {activeTab === 'agenda' && <EventScheduleTab eventId={eventId} />}
-          {activeTab === 'speakers' && <EventSpeakersTab eventId={eventId} />}
-          {activeTab === 'attendees' && <EventAttendeesTab eventId={eventId} />}
-          {activeTab === 'forms' && <EventFormsTab eventId={eventId} />}
-          {activeTab === 'exhibitors' && <EventExhibitorsTab eventId={eventId} />}
-          {activeTab === 'ticketing' && <EventTicketingTab eventId={eventId} />}
-          {activeTab === 'b2b' && <EventB2BMatchmakingTab eventId={eventId} />}
-          {activeTab === 'marketing' && <EventMarketingTab eventId={eventId} />}
-          {activeTab === 'dayof' && <EventDayOfTab eventId={eventId} />}
-          {activeTab === 'notifications' && <EventNotificationCenterTab eventId={eventId} />}
+          <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}><Loader2 className="animate-spin" size={24} /></div>}>
+            {activeTab === 'overview' && <EventOverviewTab eventId={eventId} />}
+            {activeTab === 'agenda' && <EventScheduleTab eventId={eventId} />}
+            {activeTab === 'speakers' && <EventSpeakersTab eventId={eventId} />}
+            {activeTab === 'attendees' && <EventAttendeesTab eventId={eventId} />}
+            {activeTab === 'forms' && <EventFormsTab eventId={eventId} />}
+            {activeTab === 'exhibitors' && <EventExhibitorsTab eventId={eventId} />}
+            {activeTab === 'ticketing' && <EventTicketingTab eventId={eventId} />}
+            {activeTab === 'b2b' && <EventB2BMatchmakingTab eventId={eventId} />}
+            {activeTab === 'marketing' && <EventMarketingTab eventId={eventId} />}
+            {activeTab === 'dayof' && <EventDayOfTab eventId={eventId} />}
+            {activeTab === 'notifications' && <EventNotificationCenterTab eventId={eventId} />}
+          </Suspense>
         </main>
       </div>
     </div>

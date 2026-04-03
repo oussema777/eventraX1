@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import jsQR from 'jsqr';
 import {
   Users,
   CheckCircle,
@@ -475,7 +474,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
     setTorchEnabled(false);
   };
 
-  const scanWithJsQR = (): string | null => {
+  const scanWithJsQR = async (): Promise<string | null> => {
     const video = videoRef.current;
     if (!video || video.readyState < 2) return null;
     const canvas = document.createElement('canvas');
@@ -485,6 +484,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
     if (!ctx) return null;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const { default: jsQR } = await import('jsqr');
     const code = jsQR(imageData.data, imageData.width, imageData.height);
     return code?.data || null;
   };
@@ -506,7 +506,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
           const codes = await detector.detect(videoRef.current);
           rawValue = codes?.[0]?.rawValue || codes?.[0]?.data || null;
         } else {
-          rawValue = scanWithJsQR();
+          rawValue = await scanWithJsQR();
         }
         if (rawValue) {
           await handleDetectedCode(rawValue);
