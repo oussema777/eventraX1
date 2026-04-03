@@ -75,7 +75,7 @@ export default function SingleEventLanding() {
       // 2. Fetch Speakers
       const { data: speakerData } = await supabase
         .from('event_speakers')
-        .select('id, full_name, title, type, bio, photo_url, social_links, avatar_url, company')
+        .select('*')
         .eq('event_id', eventId);
       
       setSpeakers((speakerData || []).map(s => ({
@@ -89,7 +89,7 @@ export default function SingleEventLanding() {
       // 3. Fetch Sessions
       const { data: sessionData } = await supabase
         .from('event_sessions')
-        .select('id, title, description, starts_at, ends_at, location, status, speaker_ids')
+        .select('*')
         .eq('event_id', eventId)
         .order('starts_at', { ascending: true });
       
@@ -98,7 +98,7 @@ export default function SingleEventLanding() {
       // 4. Fetch Sponsors
       const { data: sponsorData } = await supabase
         .from('event_sponsors')
-        .select('id, name, tier, logo_url, website_url, description, sort_order')
+        .select('*')
         .eq('event_id', eventId);
       
       setSponsors(sponsorData || []);
@@ -106,7 +106,7 @@ export default function SingleEventLanding() {
       // 5. Fetch Exhibitors
       const { data: exhibitorData } = await supabase
         .from('event_exhibitors')
-        .select('id, company_name, description, logo_url, booth_number, website_url')
+        .select('*')
         .eq('event_id', eventId);
       
       setExhibitors(exhibitorData || []);

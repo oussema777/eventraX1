@@ -54,9 +54,12 @@ export interface UserProfile {
   profile_certifications?: Certification[];
 }
 
-const PROFILE_COLUMNS = 'id, email, full_name, avatar_url, role, plan, language, job_title, company, location, bio, phone, website, linkedin_url, professional_data, b2b_profile, industry, interests, created_at, updated_at';
-const EDUCATION_COLUMNS = 'id, profile_id, institution, degree, field_of_study, start_date, end_date, description';
-const CERTIFICATION_COLUMNS = 'id, profile_id, name, issuer, issue_date, expiry_date, credential_url';
+// Use select('*') — column lists must exactly match the DB schema and we
+// cannot verify that at build time.  select('*') is safe here because the
+// profile is a single-row fetch for the current user.
+const PROFILE_SELECT = '*';
+const EDUCATION_SELECT = '*';
+const CERTIFICATION_SELECT = '*';
 
 const extractMissingColumn = (error: any) => {
   if (!error) return '';
@@ -76,7 +79,7 @@ async function fetchProfileData(userId: string, currentUser: any): Promise<UserP
   // 1. Main Profile
   const { data: profileData, error: profileError } = await supabase
     .from('profiles')
-    .select(PROFILE_COLUMNS)
+    .select(PROFILE_SELECT)
     .eq('id', userId)
     .maybeSingle();
 
@@ -100,7 +103,7 @@ async function fetchProfileData(userId: string, currentUser: any): Promise<UserP
         );
       const created = await supabase
         .from('profiles')
-        .select(PROFILE_COLUMNS)
+        .select(PROFILE_SELECT)
         .eq('id', userId)
         .maybeSingle();
       if (!created.error && created.data) {
@@ -112,16 +115,24 @@ async function fetchProfileData(userId: string, currentUser: any): Promise<UserP
     }
   }
 
-  // 2. Education & Certs in parallel
-  const [eduRes, certRes] = await Promise.all([
-    supabase.from('profile_education').select(EDUCATION_COLUMNS).eq('profile_id', userId),
-    supabase.from('profile_certifications').select(CERTIFICATION_COLUMNS).eq('profile_id', userId)
-  ]);
+  // 2. Education & Certs in parallel (non-blocking — missing tables shouldn't break profile)
+  let education: any[] = [];
+  let certifications: any[] = [];
+  try {
+    const [eduRes, certRes] = await Promise.all([
+      supabase.from('profile_education').select(EDUCATION_SELECT).eq('profile_id', userId),
+      supabase.from('profile_certifications').select(CERTIFICATION_SELECT).eq('profile_id', userId)
+    ]);
+    education = eduRes.data || [];
+    certifications = certRes.data || [];
+  } catch (_e) {
+    // Tables may not exist — silently fall back to empty arrays
+  }
 
   return {
     ...profileData,
-    profile_education: eduRes.data || [],
-    profile_certifications: certRes.data || []
+    profile_education: education,
+    profile_certifications: certifications
   };
 }
 

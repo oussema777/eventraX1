@@ -51,7 +51,7 @@ export default function BrowseEventsPublic() {
 
       let query = supabase
         .from('events')
-        .select('id, name, description, start_date, end_date, location, is_public, status, cover_image_url, event_type, branding_settings, owner_id')
+        .select('*')
         .eq('is_public', true)
         .eq('status', 'published')
         .order('start_date', { ascending: true })

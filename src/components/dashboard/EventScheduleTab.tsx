@@ -201,19 +201,19 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
         setIsLoading(true);
 
         const [{ data: ev }, { data: spk }, { data: sess }, { data: chk }, { data: regs }] = await Promise.all([
-          supabase.from('events').select('start_date,end_date').eq('id', eventId).maybeSingle(),
-          supabase.from('event_speakers').select('id,full_name,avatar_url').eq('event_id', eventId),
-          supabase.from('event_sessions').select('id, title, description, starts_at, ends_at, location, status, speaker_ids, type, day, capacity, attendees, speaker_name, speaker_photo, track').eq('event_id', eventId).order('starts_at', { ascending: true }),
+          supabase.from('events').select('*').eq('id', eventId).maybeSingle(),
+          supabase.from('event_speakers').select('*').eq('event_id', eventId),
+          supabase.from('event_sessions').select('*').eq('event_id', eventId).order('starts_at', { ascending: true }),
           supabase
             .from('event_checkins')
-            .select('session_id,attendee_id')
+            .select('*')
             .eq('event_id', eventId)
             .eq('type', 'session')
             .not('session_id', 'is', null)
             .range(0, 4999),
           supabase
             .from('event_attendee_sessions')
-            .select('session_id, attendee_id, event_attendees!inner(status)')
+            .select('*, event_attendees!inner(status)')
             .eq('event_attendees.status', 'approved')
             .in('session_id', (await supabase.from('event_sessions').select('id').eq('event_id', eventId)).data?.map(s => s.id) || [])
         ]);
@@ -375,7 +375,7 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
       // Fetch registrations first (primary source)
       const { data: regData, error: regError } = await supabase
         .from('event_attendee_sessions')
-        .select('attendee_id, event_attendees(id,name,email,company,avatar_url,photo_url)')
+        .select('*, event_attendees(*)')
         .eq('session_id', sessionId)
         .range(0, 499);
 
@@ -384,7 +384,7 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
       // Also fetch check-ins to catch any walk-ins not in registration (edge case)
       const { data: checkinData, error: checkinError } = await supabase
         .from('event_checkins')
-        .select('attendee_id, event_attendees(id,name,email,company,avatar_url,photo_url)')
+        .select('*, event_attendees(*)')
         .eq('event_id', eventId)
         .eq('type', 'session')
         .eq('session_id', sessionId)
@@ -454,7 +454,7 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
         status: 'sent',
         audience: { type: 'session', session_id: activeSession.id }
       };
-      const { data, error } = await supabase.from('event_notifications').insert(payload as any).select('id, event_id, session_id, title, message, channel, status');
+      const { data, error } = await supabase.from('event_notifications').insert(payload as any).select('*');
       if (error) throw error;
       if (!data || !data.length) throw new Error('No rows inserted');
       toast.success(t('manageEvent.agenda.toasts.notifSuccess'));
@@ -513,13 +513,13 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
         .from('event_sessions')
         .update(payload)
         .eq('id', activeSession.id)
-        .select('id, title, description, starts_at, ends_at, location, status, speaker_ids, type, day, capacity, attendees, speaker_name, speaker_photo, track');
+        .select('*');
       if (error) throw error;
       if (!data || !data.length) throw new Error('No rows updated');
       toast.success(t('manageEvent.agenda.toasts.updateSuccess'));
       setEditOpen(false);
       setIsLoading(true);
-      const { data: sess, error: sessErr } = await supabase.from('event_sessions').select('id, title, description, starts_at, ends_at, location, status, speaker_ids, type, day, capacity, attendees, speaker_name, speaker_photo, track').eq('event_id', eventId).order('starts_at', { ascending: true });
+      const { data: sess, error: sessErr } = await supabase.from('event_sessions').select('*').eq('event_id', eventId).order('starts_at', { ascending: true });
       if (sessErr) throw sessErr;
       const refreshed: Session[] = (sess || []).map((row: any) => {
         const day = Number.isFinite(row.day) ? Number(row.day) : 1;

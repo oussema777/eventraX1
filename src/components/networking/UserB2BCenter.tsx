@@ -195,13 +195,13 @@ export default function UserB2BCenter() {
         meetingsResult,
         legacyResult
       ] = await Promise.all([
-        supabase.from('profiles').select('id, full_name').eq('id', user.id).single(),
-        supabase.from(MATCHES_TABLE).select('id, profile_id, matched_profile_id, score, reason, tags, status, event_id').eq('profile_id', user.id),
-        supabase.from(REQUESTS_TABLE).select('id, sender_id, recipient_id, message, status, event_id, created_at').eq('recipient_id', user.id),
-        supabase.from(REQUESTS_TABLE).select('id, sender_id, recipient_id, message, status, event_id, created_at').eq('sender_id', user.id),
-        supabase.from(CONNECTIONS_TABLE).select('id, profile_a_id, profile_b_id, event_id, created_at').or(`profile_a_id.eq.${user.id},profile_b_id.eq.${user.id}`),
-        supabase.from(MEETINGS_TABLE).select('id, profile_a_id, profile_b_id, attendee_a_id, attendee_b_id, organizer_id, event_id, status, start_at, location, meta').or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`),
-        supabase.from('b2b_meetings').select('id, profile_a_id, profile_b_id, attendee_a_id, attendee_b_id, organizer_id, event_id, status, start_at, location, meta').then(r => r, () => ({ data: [] }))
+        supabase.from('profiles').select('*').eq('id', user.id).single(),
+        supabase.from(MATCHES_TABLE).select('*').eq('profile_id', user.id),
+        supabase.from(REQUESTS_TABLE).select('*').eq('recipient_id', user.id),
+        supabase.from(REQUESTS_TABLE).select('*').eq('sender_id', user.id),
+        supabase.from(CONNECTIONS_TABLE).select('*').or(`profile_a_id.eq.${user.id},profile_b_id.eq.${user.id}`),
+        supabase.from(MEETINGS_TABLE).select('*').or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`),
+        supabase.from('b2b_meetings').select('*').then(r => r, () => ({ data: [] }))
       ]);
 
       // 3. Process Meetings
@@ -259,13 +259,13 @@ export default function UserB2BCenter() {
 
       const [profilesData, eventsData, attendeesData] = await Promise.all([
         cleanProfileIds.length > 0 
-          ? supabase.from('profiles').select('id, full_name, email, avatar_url, job_title, company').in('id', cleanProfileIds)
+          ? supabase.from('profiles').select('*').in('id', cleanProfileIds)
           : { data: [] },
         cleanEventIds.length > 0
-          ? supabase.from('events').select('id, name').in('id', cleanEventIds)
+          ? supabase.from('events').select('*').in('id', cleanEventIds)
           : { data: [] },
         cleanAttendeeIds.length > 0
-          ? supabase.from('event_attendees').select('id, name, profile_id').in('id', cleanAttendeeIds)
+          ? supabase.from('event_attendees').select('*').in('id', cleanAttendeeIds)
           : { data: [] }
       ]);
 
@@ -576,7 +576,7 @@ export default function UserB2BCenter() {
 
     const { data: selfProfile } = await supabase
       .from('profiles')
-      .select('id, full_name, b2b_profile, professional_data, industry, job_title, department, company, location, years_experience, company_size')
+      .select('*')
       .eq('id', user.id)
       .single();
 
@@ -585,7 +585,7 @@ export default function UserB2BCenter() {
 
     const { data: others } = await supabase
       .from('profiles')
-      .select('id, full_name, b2b_profile, professional_data, industry, job_title, department, company, location, years_experience, company_size')
+      .select('*')
       .neq('id', user.id)
       .limit(60);
 
@@ -666,7 +666,7 @@ export default function UserB2BCenter() {
     const { data: inserted, error } = await supabase
       .from(MATCHES_TABLE)
       .insert(topMatches)
-      .select('id, matched_profile_id, event_id, score, reason, tags, status, created_at');
+      .select('*');
     if (error) {
       toast.error(sanitizeError(error, t('networking.errors.generateMatches')));
       return [];

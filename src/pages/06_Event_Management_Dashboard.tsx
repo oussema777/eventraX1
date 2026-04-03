@@ -82,7 +82,7 @@ export default function EventManagementDashboard() {
       setIsLoading(true);
       const { data, error } = await supabase
         .from('events')
-        .select('id, name, description, start_date, end_date, location, location_address, status, event_type, cover_image_url, branding_settings, owner_id, is_public, created_at, updated_at, moderation_status')
+        .select('*')
         .eq('id', eventId)
         .single();
 

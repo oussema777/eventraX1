@@ -67,7 +67,7 @@ export default function AdminDashboard() {
       if (activeTab === 'events') {
         let query = supabase
           .from('events')
-          .select('id, name, description, organizer_id, created_at, start_date, cover_image_url, moderation_status, is_approved')
+          .select('*')
           .eq('status', 'published')
           .order('created_at', { ascending: false })
           .limit(100);
@@ -80,7 +80,7 @@ export default function AdminDashboard() {
       } else {
         let query = supabase
           .from('business_profiles')
-          .select('id, company_name, description, owner_profile_id, created_at, verification_status, is_public, logo_url')
+          .select('*')
           .order('created_at', { ascending: false })
           .limit(100);
         if (searchQuery) {

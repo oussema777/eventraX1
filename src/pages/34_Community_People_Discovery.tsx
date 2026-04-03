@@ -87,7 +87,7 @@ export default function CommunityPeopleDiscovery() {
 
       let query = supabase
         .from('profiles')
-        .select('id, full_name, job_title, company, location, avatar_url, bio, industry')
+        .select('*')
         .range(from, to);
       
       if (currentUser?.id) {
