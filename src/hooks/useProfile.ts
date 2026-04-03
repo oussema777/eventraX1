@@ -54,6 +54,10 @@ export interface UserProfile {
   profile_certifications?: Certification[];
 }
 
+const PROFILE_COLUMNS = 'id, email, full_name, avatar_url, role, plan, language, job_title, company, location, bio, phone, website, linkedin_url, professional_data, b2b_profile, industry, interests, created_at, updated_at, phone_number, date_of_birth, gender, timezone, department, years_experience, company_size, twitter_url, website_url, linkedin_connected, twitter_connected, has_pro, events_attended, b2b_meetings, connections_made, profile_views, app_preferences';
+const EDUCATION_COLUMNS = 'id, profile_id, institution, degree, field_of_study, start_date, end_date, description, years';
+const CERTIFICATION_COLUMNS = 'id, profile_id, name, issuer, issue_date, expiry_date, credential_url, organization, year';
+
 const extractMissingColumn = (error: any) => {
   if (!error) return '';
   const message = String(error.message || '');
@@ -72,7 +76,7 @@ async function fetchProfileData(userId: string, currentUser: any): Promise<UserP
   // 1. Main Profile
   const { data: profileData, error: profileError } = await supabase
     .from('profiles')
-    .select('*')
+    .select(PROFILE_COLUMNS)
     .eq('id', userId)
     .maybeSingle();
 
@@ -96,7 +100,7 @@ async function fetchProfileData(userId: string, currentUser: any): Promise<UserP
         );
       const created = await supabase
         .from('profiles')
-        .select('*')
+        .select(PROFILE_COLUMNS)
         .eq('id', userId)
         .maybeSingle();
       if (!created.error && created.data) {
@@ -110,8 +114,8 @@ async function fetchProfileData(userId: string, currentUser: any): Promise<UserP
 
   // 2. Education & Certs in parallel
   const [eduRes, certRes] = await Promise.all([
-    supabase.from('profile_education').select('*').eq('profile_id', userId),
-    supabase.from('profile_certifications').select('*').eq('profile_id', userId)
+    supabase.from('profile_education').select(EDUCATION_COLUMNS).eq('profile_id', userId),
+    supabase.from('profile_certifications').select(CERTIFICATION_COLUMNS).eq('profile_id', userId)
   ]);
 
   return {

@@ -92,6 +92,7 @@ export function useEventForms() {
 
       toast.success('Form saved successfully');
       queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
       return result.data;
     } catch (error: any) {
       console.error('Error saving form:', error);
@@ -108,6 +109,7 @@ export function useEventForms() {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
       toast.success('Form deleted');
     } catch (error: any) {
       console.error('Error deleting form:', error);

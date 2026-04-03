@@ -126,6 +126,7 @@ export function useTickets(eventIdOverride?: string) {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
       toast.success('Ticket created');
       return data;
     } catch (error) {
@@ -169,6 +170,7 @@ export function useTickets(eventIdOverride?: string) {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
       toast.success('Ticket updated');
       return data;
     } catch (error) {
@@ -187,6 +189,7 @@ export function useTickets(eventIdOverride?: string) {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
       toast.success('Ticket deleted');
     } catch (error) {
       console.error('Error deleting ticket:', error);

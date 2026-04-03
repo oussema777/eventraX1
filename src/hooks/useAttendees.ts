@@ -194,6 +194,7 @@ export function useAttendees(propsEventId?: string) {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey: categoriesKey });
+      queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
       return data ? mapCategory(data) : undefined;
     } catch (err) {
       console.error('Error creating category:', err);
@@ -221,6 +222,7 @@ export function useAttendees(propsEventId?: string) {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey: categoriesKey });
+      queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
     } catch (err) {
       console.error('Error updating category:', err);
       throw err;
@@ -237,6 +239,7 @@ export function useAttendees(propsEventId?: string) {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey: categoriesKey });
+      queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
     } catch (err) {
       console.error('Error deleting category:', err);
       throw err;

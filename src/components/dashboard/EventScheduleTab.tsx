@@ -203,7 +203,7 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
         const [{ data: ev }, { data: spk }, { data: sess }, { data: chk }, { data: regs }] = await Promise.all([
           supabase.from('events').select('start_date,end_date').eq('id', eventId).maybeSingle(),
           supabase.from('event_speakers').select('id,full_name,avatar_url').eq('event_id', eventId),
-          supabase.from('event_sessions').select('*').eq('event_id', eventId).order('starts_at', { ascending: true }),
+          supabase.from('event_sessions').select('id, title, description, starts_at, ends_at, location, status, speaker_ids, type, day, capacity, attendees, speaker_name, speaker_photo, track').eq('event_id', eventId).order('starts_at', { ascending: true }),
           supabase
             .from('event_checkins')
             .select('session_id,attendee_id')
@@ -454,7 +454,7 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
         status: 'sent',
         audience: { type: 'session', session_id: activeSession.id }
       };
-      const { data, error } = await supabase.from('event_notifications').insert(payload as any).select('*');
+      const { data, error } = await supabase.from('event_notifications').insert(payload as any).select('id, event_id, session_id, title, message, channel, status');
       if (error) throw error;
       if (!data || !data.length) throw new Error('No rows inserted');
       toast.success(t('manageEvent.agenda.toasts.notifSuccess'));
@@ -513,13 +513,13 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
         .from('event_sessions')
         .update(payload)
         .eq('id', activeSession.id)
-        .select('*');
+        .select('id, title, description, starts_at, ends_at, location, status, speaker_ids, type, day, capacity, attendees, speaker_name, speaker_photo, track');
       if (error) throw error;
       if (!data || !data.length) throw new Error('No rows updated');
       toast.success(t('manageEvent.agenda.toasts.updateSuccess'));
       setEditOpen(false);
       setIsLoading(true);
-      const { data: sess, error: sessErr } = await supabase.from('event_sessions').select('*').eq('event_id', eventId).order('starts_at', { ascending: true });
+      const { data: sess, error: sessErr } = await supabase.from('event_sessions').select('id, title, description, starts_at, ends_at, location, status, speaker_ids, type, day, capacity, attendees, speaker_name, speaker_photo, track').eq('event_id', eventId).order('starts_at', { ascending: true });
       if (sessErr) throw sessErr;
       const refreshed: Session[] = (sess || []).map((row: any) => {
         const day = Number.isFinite(row.day) ? Number(row.day) : 1;

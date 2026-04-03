@@ -90,6 +90,7 @@ export function useExhibitors(propsEventId?: string) {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
       return data ? mapExhibitor(data) : undefined;
     } catch (err) {
       console.error('Error creating exhibitor:', err);
@@ -119,6 +120,7 @@ export function useExhibitors(propsEventId?: string) {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
     } catch (err) {
       console.error('Error updating exhibitor:', err);
       throw err;
@@ -135,6 +137,7 @@ export function useExhibitors(propsEventId?: string) {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
     } catch (err) {
       console.error('Error deleting exhibitor:', err);
       throw err;

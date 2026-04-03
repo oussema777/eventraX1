@@ -27,7 +27,7 @@ export interface SponsorPackage {
   color: string;
 }
 
-const SPONSORS_COLUMNS = 'id, name, tier, website_url, logo_url, description, event_id, status, contribution_amount, benefits, notes, sort_order';
+const SPONSORS_COLUMNS = 'id, name, tier, website_url, logo_url, description, event_id, status, contribution_amount, benefits, notes, sort_order, updated_at';
 
 const DEFAULT_PACKAGES: SponsorPackage[] = [
   {
@@ -150,6 +150,7 @@ export function useSponsors() {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey: sponsorsKey });
+      queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
       toast.success('Sponsor created');
       return data;
     } catch (error) {
@@ -180,6 +181,7 @@ export function useSponsors() {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey: sponsorsKey });
+      queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
       toast.success('Sponsor updated');
       return data;
     } catch (error) {
@@ -198,6 +200,7 @@ export function useSponsors() {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey: sponsorsKey });
+      queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
       toast.success('Sponsor deleted');
     } catch (error) {
       console.error('Error deleting sponsor:', error);

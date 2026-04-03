@@ -142,6 +142,7 @@ export function useSessions(manualEventId?: string) {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
       toast.success('Session created');
       return data;
     } catch (error: any) {
@@ -180,6 +181,7 @@ export function useSessions(manualEventId?: string) {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
       toast.success('Session updated');
       return data;
     } catch (error: any) {
@@ -198,6 +200,7 @@ export function useSessions(manualEventId?: string) {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
       toast.success('Session deleted');
     } catch (error) {
       console.error('Error deleting session:', error);

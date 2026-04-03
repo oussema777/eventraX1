@@ -101,6 +101,7 @@ export function useSpeakers(manualEventId?: string) {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
       toast.success('Speaker created');
       return data;
     } catch (error) {
@@ -135,6 +136,7 @@ export function useSpeakers(manualEventId?: string) {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
       toast.success('Speaker updated');
       return data;
     } catch (error) {
@@ -153,6 +155,7 @@ export function useSpeakers(manualEventId?: string) {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
       toast.success('Speaker deleted');
     } catch (error) {
       console.error('Error deleting speaker:', error);
