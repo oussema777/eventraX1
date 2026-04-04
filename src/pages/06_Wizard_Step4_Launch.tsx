@@ -16,6 +16,7 @@ import { useEventWizard } from '../hooks/useEventWizard';
 import { toast } from 'sonner';
 import { createNotification } from '../lib/notifications';
 import { useI18n } from '../i18n/I18nContext';
+import { generateAccessCode } from '../utils/codeGenerator';
 
 export default function WizardStep4Launch() {
   const navigate = useNavigate();
@@ -37,7 +38,8 @@ export default function WizardStep4Launch() {
         status: 'published',
         is_public: false,
         is_approved: false,
-        moderation_status: 'pending'
+        moderation_status: 'pending',
+        access_code: eventData.access_code || null
       });
       if (user?.id) {
         try {
@@ -174,7 +176,19 @@ export default function WizardStep4Launch() {
             <PaymentGatewaySection />
 
             {/* Privacy & Visibility */}
-            <PrivacySection />
+            <PrivacySection
+              isPrivateEvent={!!eventData.access_code}
+              accessCode={eventData.access_code || ''}
+              onVisibilityChange={(isPrivate) => {
+                if (isPrivate) {
+                  const code = eventData.access_code || generateAccessCode();
+                  saveDraft({ access_code: code });
+                } else {
+                  saveDraft({ access_code: null });
+                }
+              }}
+              onAccessCodeChange={(code) => saveDraft({ access_code: code || null })}
+            />
 
             {/* Launch Checklist */}
             <LaunchChecklist />
