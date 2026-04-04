@@ -6,7 +6,8 @@ import {
   Heart,
   ChevronDown,
   SlidersHorizontal,
-  X
+  X,
+  Lock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
@@ -32,6 +33,7 @@ interface EventCard {
   startTimestamp: number | null;
   popularity: number;
   isLiked?: boolean;
+  isPrivate?: boolean;
 }
 
 interface Filters {
@@ -115,7 +117,7 @@ export default function BrowseEventsDiscovery() {
 
         let query = supabase
           .from('events')
-          .select('id, name, description, event_type, event_format, event_status, start_date, location_address, cover_image_url, branding_settings, is_approved, status');
+          .select('id, name, description, event_type, event_format, event_status, start_date, location_address, cover_image_url, branding_settings, is_approved, status, access_code');
 
         // Filtering based on role
         if (!isAdmin) {
@@ -198,7 +200,8 @@ export default function BrowseEventsDiscovery() {
             category: event.event_type || 'General',
             format: event.event_format || 'in-person',
             startTimestamp: start ? start.getTime() : null,
-            popularity: 0
+            popularity: 0,
+            isPrivate: !!event.access_code
           } as EventCard;
         });
 
@@ -1039,17 +1042,26 @@ export default function BrowseEventsDiscovery() {
                       <span style={{ fontSize: '14px', fontWeight: 700, color: '#3B9EFF' }}>
                         {event.price}
                       </span>
-                      <span
-                        className="px-3 py-1 rounded-full"
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: 500,
-                          color: '#94A3B8',
-                          backgroundColor: 'rgba(255,255,255,0.05)'
-                        }}
-                      >
-                        {event.category}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {event.isPrivate && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                            style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B' }}>
+                            <Lock size={10} />
+                            {t('event.private', { defaultValue: 'Private' })}
+                          </span>
+                        )}
+                        <span
+                          className="px-3 py-1 rounded-full"
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 500,
+                            color: '#94A3B8',
+                            backgroundColor: 'rgba(255,255,255,0.05)'
+                          }}
+                        >
+                          {event.category}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
