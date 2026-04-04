@@ -108,6 +108,7 @@ export default function EventsGrid({ events, isLoading, refreshEvents }: EventsG
                 branding_settings: source.branding_settings || null,
                 status: 'draft',
                 is_public: false,
+                access_code: null,
                 owner_id: user.id
               };
               let currentPayload = { ...payload };
