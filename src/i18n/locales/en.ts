@@ -6727,4 +6727,22 @@ export default {
           copyFailed: 'Failed to copy product link.'
         }
       },
+    event: {
+      visibility: 'Event Visibility',
+      public: 'Public',
+      private: 'Private',
+      publicDescription: 'Anyone can find and register',
+      privateDescription: 'Requires access code to register',
+      accessCode: 'Access Code',
+      enterAccessCode: 'Enter Access Code',
+      invalidAccessCode: 'Invalid access code',
+      copyCode: 'Copy Code',
+      codeCopied: 'Code copied!',
+      regenerateCode: 'Regenerate',
+      accessCodeModalTitle: 'Private Event',
+      submitCode: 'Submit',
+      switchToPublic: 'Switch to Public',
+      switchToPrivate: 'Switch to Private',
+      accessCodeMinLength: 'Access code must be at least 4 characters',
+    },
   };

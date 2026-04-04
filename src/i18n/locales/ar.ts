@@ -5469,5 +5469,23 @@ export default {
         subtitle: 'حاول تغيير معايير البحث أو مسح الفلاتر.',
         action: 'مسح جميع الفلاتر'
       }
-    }
+    },
+    event: {
+      visibility: 'رؤية الحدث',
+      public: 'عام',
+      private: 'خاص',
+      publicDescription: 'يمكن لأي شخص التسجيل',
+      privateDescription: 'يتطلب رمز وصول للتسجيل',
+      accessCode: 'رمز الوصول',
+      enterAccessCode: 'أدخل رمز الوصول',
+      invalidAccessCode: 'رمز الوصول غير صالح',
+      copyCode: 'نسخ الرمز',
+      codeCopied: 'تم نسخ الرمز!',
+      regenerateCode: 'إعادة إنشاء',
+      accessCodeModalTitle: 'حدث خاص',
+      submitCode: 'إرسال',
+      switchToPublic: 'التبديل إلى عام',
+      switchToPrivate: 'التبديل إلى خاص',
+      accessCodeMinLength: 'يجب أن يحتوي رمز الوصول على 4 أحرف على الأقل',
+    },
   } as any;

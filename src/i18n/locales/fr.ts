@@ -6473,4 +6473,22 @@ export default {
           copyFailed: 'Echec de la copie du lien.'
         }
       },
+    event: {
+      visibility: "Visibilité de l'événement",
+      public: 'Public',
+      private: 'Privé',
+      publicDescription: "Tout le monde peut s'inscrire",
+      privateDescription: "Code d'accès requis pour s'inscrire",
+      accessCode: "Code d'accès",
+      enterAccessCode: "Entrer le code d'accès",
+      invalidAccessCode: "Code d'accès invalide",
+      copyCode: 'Copier le code',
+      codeCopied: 'Code copié !',
+      regenerateCode: 'Régénérer',
+      accessCodeModalTitle: 'Événement privé',
+      submitCode: 'Soumettre',
+      switchToPublic: 'Passer en public',
+      switchToPrivate: 'Passer en privé',
+      accessCodeMinLength: "Le code d'accès doit contenir au moins 4 caractères",
+    },
   };
