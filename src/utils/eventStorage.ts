@@ -17,6 +17,8 @@ interface EventBasicDetails {
   hasCapacityLimit: boolean;
   enableWaitlist: boolean;
   waitlistCapacity?: number;
+  isPrivateEvent?: boolean;
+  accessCode?: string;
 }
 
 const BASE_STORAGE_KEY = 'eventra_wizard_state';

@@ -31,6 +31,7 @@ export interface EventDraft {
   seo_description?: string;
   seo_slug?: string;
   seo_keywords?: string[];
+  access_code?: string | null;
 }
 
 export function useEventWizard(initialEventId?: string) {
