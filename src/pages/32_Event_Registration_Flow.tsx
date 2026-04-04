@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { generateAccessCode } from '../utils/codeGenerator';
 import {
   Check,
   ChevronLeft,
@@ -67,10 +68,15 @@ interface FormField {
 export default function EventRegistrationFlow() {
   const { eventId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const accessCodeVerified = (location.state as any)?.accessCodeVerified;
   const { user, profile } = useAuth();
   const { t } = useI18n();
-  
+
   const [currentStep, setCurrentStep] = useState<RegistrationStep>(1);
+  const [needsAccessCode, setNeedsAccessCode] = useState(false);
+  const [enteredCode, setEnteredCode] = useState('');
+  const [codeError, setCodeError] = useState('');
   const [event, setEvent] = useState<any>(null);
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [sessions, setSessions] = useState<Session[]>(new Array());
@@ -84,14 +90,7 @@ export default function EventRegistrationFlow() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fileUploading, setFileUploading] = useState<Record<string, boolean>>({});
 
-  const generateConfirmationCode = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let code = 'EV-';
-    for (let i = 0; i < 6; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return code;
-  };
+  const generateConfirmationCode = () => 'EV-' + generateAccessCode(6);
 
   useEffect(() => {
     if (eventId) {
@@ -117,6 +116,13 @@ export default function EventRegistrationFlow() {
 
       if (eventError) throw eventError;
       setEvent(eventData);
+
+      // Check if private event requires access code
+      if (eventData.access_code && !accessCodeVerified) {
+        setNeedsAccessCode(true);
+        setIsLoading(false);
+        return;
+      }
 
       // 2. Fetch Sessions
       const { data: sessionData } = await supabase
@@ -609,6 +615,82 @@ export default function EventRegistrationFlow() {
     if (!iso) return '';
     return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
+
+  if (needsAccessCode) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#0B2641' }}>
+        <div className="w-full max-w-sm mx-4 rounded-2xl p-6" style={{ backgroundColor: '#0D243B', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)' }}>
+              <Lock size={20} style={{ color: '#F59E0B' }} />
+            </div>
+            <div>
+              <h3 className="text-white font-semibold">
+                {t('event.accessCodeModalTitle', { defaultValue: 'Private Event' })}
+              </h3>
+              <p className="text-xs" style={{ color: '#9CA3AF' }}>
+                {t('event.enterAccessCode', { defaultValue: 'Enter Access Code' })}
+              </p>
+            </div>
+          </div>
+
+          <input
+            type="text"
+            value={enteredCode}
+            onChange={(e) => { setEnteredCode(e.target.value.toUpperCase()); setCodeError(''); }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && enteredCode.length >= 4) {
+                if (enteredCode.toUpperCase() === (event?.access_code || '').toUpperCase()) {
+                  setNeedsAccessCode(false);
+                } else {
+                  setCodeError(t('event.invalidAccessCode', { defaultValue: 'Invalid access code' }));
+                }
+              }
+            }}
+            placeholder="e.g. VIP2026"
+            maxLength={10}
+            autoFocus
+            className="w-full h-11 px-4 rounded-lg border outline-none font-mono text-sm tracking-wider mb-2"
+            style={{
+              borderColor: codeError ? '#EF4444' : 'rgba(255,255,255,0.15)',
+              backgroundColor: 'rgba(255,255,255,0.05)',
+              color: 'white',
+              textTransform: 'uppercase'
+            }}
+          />
+
+          {codeError && <p className="text-xs mb-3" style={{ color: '#EF4444' }}>{codeError}</p>}
+
+          <div className="flex gap-3 mt-4">
+            <button
+              onClick={() => navigate(`/event/${eventId}/landing`)}
+              className="flex-1 h-10 rounded-lg border text-sm"
+              style={{ borderColor: 'rgba(255,255,255,0.15)', color: '#9CA3AF' }}
+            >
+              {t('common.back', { defaultValue: 'Back' })}
+            </button>
+            <button
+              onClick={() => {
+                if (enteredCode.toUpperCase() === (event?.access_code || '').toUpperCase()) {
+                  setNeedsAccessCode(false);
+                } else {
+                  setCodeError(t('event.invalidAccessCode', { defaultValue: 'Invalid access code' }));
+                }
+              }}
+              disabled={enteredCode.length < 4}
+              className="flex-1 h-10 rounded-lg text-sm font-medium text-white"
+              style={{
+                backgroundColor: enteredCode.length >= 4 ? '#0684F5' : '#374151',
+                cursor: enteredCode.length >= 4 ? 'pointer' : 'not-allowed'
+              }}
+            >
+              {t('event.submitCode', { defaultValue: 'Submit' })}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
