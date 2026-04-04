@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Lock } from 'lucide-react';
+import { useI18n } from '../../i18n/I18nContext';
 import { supabase } from '../../lib/supabase';
 import HeroBlock from '../design-studio/blocks/HeroBlock';
 import AboutBlock from '../design-studio/blocks/AboutBlock';
@@ -34,6 +35,7 @@ interface EventRecord {
   location_address?: string;
   capacity_limit?: number;
   branding_settings?: any;
+  access_code?: string | null;
 }
 
 interface DesignStudioSettings {
@@ -128,7 +130,11 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
   const { eventId } = useParams();
   const navigate = useNavigate();
   const { user, isLoading: isLoadingAuth } = useAuth();
+  const { t } = useI18n();
   const [isLoading, setIsLoading] = useState(true);
+  const [showAccessCodeModal, setShowAccessCodeModal] = useState(false);
+  const [enteredCode, setEnteredCode] = useState('');
+  const [codeError, setCodeError] = useState('');
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [isRegistered, setIsRegistered] = useState(false);
   const [design, setDesign] = useState<DesignStudioSettings>(DEFAULT_DESIGN);
@@ -145,8 +151,22 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
   const [attendeeId, setAttendeeId] = useState<string | null>(null);
 
   const handleRegister = () => {
-    if (eventId) {
+    if (!eventId) return;
+    if (event?.access_code) {
+      setShowAccessCodeModal(true);
+      setEnteredCode('');
+      setCodeError('');
+    } else {
       navigate(`/event/${eventId}/register`);
+    }
+  };
+
+  const handleAccessCodeSubmit = () => {
+    if (enteredCode.toUpperCase() === (event?.access_code || '').toUpperCase()) {
+      setShowAccessCodeModal(false);
+      navigate(`/event/${eventId}/register`, { state: { accessCodeVerified: true } });
+    } else {
+      setCodeError(t('event.invalidAccessCode', { defaultValue: 'Invalid access code' }));
     }
   };
 
@@ -462,7 +482,20 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
 
     switch (blockType) {
       case 'hero':
-        return <HeroBlock key={block.id} {...sharedProps} event={event || undefined} onRegister={handleRegister} isRegistered={isRegistered} settings={block.settings} />;
+        return (
+          <div key={block.id} style={{ position: 'relative' }}>
+            <HeroBlock {...sharedProps} event={event || undefined} onRegister={handleRegister} isRegistered={isRegistered} settings={block.settings} />
+            {event?.access_code && (
+              <div style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 10 }}>
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium"
+                  style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B' }}>
+                  <Lock size={12} />
+                  {t('event.private', { defaultValue: 'Private' })}
+                </span>
+              </div>
+            )}
+          </div>
+        );
       case 'about':
         const aboutData = block.settings?.title 
           ? { 
@@ -589,10 +622,76 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
         return (
           <div id={blockType} key={block.id}>
             {renderBlock(block)}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    }
+          </div>
+        );
+      })}
+
+      {/* Access Code Modal */}
+      {showAccessCodeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm mx-4 rounded-2xl p-6" style={{ backgroundColor: '#0D243B', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)' }}>
+                <Lock size={20} style={{ color: '#F59E0B' }} />
+              </div>
+              <div>
+                <h3 className="text-white font-semibold">
+                  {t('event.accessCodeModalTitle', { defaultValue: 'Private Event' })}
+                </h3>
+                <p className="text-xs" style={{ color: '#9CA3AF' }}>
+                  {t('event.enterAccessCode', { defaultValue: 'Enter Access Code' })}
+                </p>
+              </div>
+            </div>
+
+            <input
+              type="text"
+              value={enteredCode}
+              onChange={(e) => {
+                setEnteredCode(e.target.value.toUpperCase());
+                setCodeError('');
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && handleAccessCodeSubmit()}
+              placeholder="e.g. VIP2026"
+              maxLength={10}
+              autoFocus
+              className="w-full h-11 px-4 rounded-lg border outline-none font-mono text-sm tracking-wider mb-2"
+              style={{
+                borderColor: codeError ? '#EF4444' : 'rgba(255,255,255,0.15)',
+                backgroundColor: 'rgba(255,255,255,0.05)',
+                color: 'white',
+                textTransform: 'uppercase'
+              }}
+            />
+
+            {codeError && (
+              <p className="text-xs mb-3" style={{ color: '#EF4444' }}>{codeError}</p>
+            )}
+
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => setShowAccessCodeModal(false)}
+                className="flex-1 h-10 rounded-lg border text-sm"
+                style={{ borderColor: 'rgba(255,255,255,0.15)', color: '#9CA3AF' }}
+              >
+                {t('common.cancel', { defaultValue: 'Cancel' })}
+              </button>
+              <button
+                onClick={handleAccessCodeSubmit}
+                disabled={enteredCode.length < 4}
+                className="flex-1 h-10 rounded-lg text-sm font-medium text-white transition-colors"
+                style={{
+                  backgroundColor: enteredCode.length >= 4 ? '#0684F5' : '#374151',
+                  cursor: enteredCode.length >= 4 ? 'pointer' : 'not-allowed'
+                }}
+              >
+                {t('event.submitCode', { defaultValue: 'Submit' })}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
                     
