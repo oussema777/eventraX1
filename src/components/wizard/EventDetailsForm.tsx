@@ -15,8 +15,12 @@ import {
   Lightbulb,
   FileText,
   ArrowRight,
-  Lock
+  Lock,
+  Copy,
+  RefreshCw,
+  Eye
 } from 'lucide-react';
+import { generateAccessCode } from '../../utils/codeGenerator';
 import ProTipBox from './ProTipBox';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ROUTES } from '../../utils/navigation';
@@ -51,6 +55,8 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
   const [maxAttendees, setMaxAttendees] = useState('');
   const [waitlistCapacity, setWaitlistCapacity] = useState('');
   const [enableWaitlist, setEnableWaitlist] = useState(false);
+  const [isPrivateEvent, setIsPrivateEvent] = useState(false);
+  const [accessCode, setAccessCode] = useState('');
   const [showNameError, setShowNameError] = useState(false);
   const [nameIsValid, setNameIsValid] = useState(false);
   const [waitlistError, setWaitlistError] = useState('');
@@ -161,6 +167,8 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
       eventData.attendee_settings?.waitlist_capacity?.toString() ||
       ''
     );
+    setIsPrivateEvent(stored.isPrivateEvent ?? !!eventData.access_code);
+    setAccessCode(stored.accessCode || eventData.access_code || '');
     if (resolvedName.length > 0) {
       setNameIsValid(true);
     }
@@ -182,7 +190,9 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
       maxAttendees: hasCapacityLimit ? parseInt(maxAttendees || '0', 10) : undefined,
       hasCapacityLimit,
       enableWaitlist,
-      waitlistCapacity: enableWaitlist ? parseInt(waitlistCapacity || '0', 10) : undefined
+      waitlistCapacity: enableWaitlist ? parseInt(waitlistCapacity || '0', 10) : undefined,
+      isPrivateEvent,
+      accessCode
     }, eventId);
   }, [
     eventName,
@@ -198,6 +208,8 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
     maxAttendees,
     enableWaitlist,
     waitlistCapacity,
+    isPrivateEvent,
+    accessCode,
     eventId
   ]);
 
@@ -248,7 +260,8 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
       waitlist_enabled: enableWaitlist,
       attendee_settings: {
         waitlist_capacity: enableWaitlist ? parseInt(waitlistCapacity || '0', 10) : null
-      }
+      },
+      access_code: isPrivateEvent && accessCode.length >= 4 ? accessCode : null,
     };
   };
 
@@ -710,6 +723,105 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
                   }}
                 />
               </div>
+            </div>
+          )}
+        </div>
+
+        {/* Event Visibility */}
+        <div>
+          <label className="block text-sm mb-4" style={{ fontWeight: 500, color: '#6B7280' }}>
+            {t('event.visibility', { defaultValue: 'Event Visibility' })} <span style={{ color: '#EF4444' }}>*</span>
+          </label>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            {/* Public Option */}
+            <button
+              onClick={() => setIsPrivateEvent(false)}
+              className="p-4 rounded-lg border-2 transition-all text-center"
+              style={{
+                borderColor: !isPrivateEvent ? '#3B82F6' : '#E5E7EB',
+                backgroundColor: !isPrivateEvent ? '#F0F9FF' : 'white',
+                cursor: 'pointer'
+              }}
+            >
+              <Eye size={24} className="mx-auto mb-2" style={{ color: !isPrivateEvent ? '#3B82F6' : '#6B7280' }} />
+              <div className="text-sm mb-1" style={{ fontWeight: 600, color: '#0B2641' }}>
+                {t('event.public', { defaultValue: 'Public' })}
+              </div>
+              <div className="text-xs" style={{ color: '#6B7280' }}>
+                {t('event.publicDescription', { defaultValue: 'Anyone can find and register' })}
+              </div>
+            </button>
+
+            {/* Private Option */}
+            <button
+              onClick={() => {
+                setIsPrivateEvent(true);
+                if (!accessCode) setAccessCode(generateAccessCode());
+              }}
+              className="p-4 rounded-lg border-2 transition-all text-center"
+              style={{
+                borderColor: isPrivateEvent ? '#3B82F6' : '#E5E7EB',
+                backgroundColor: isPrivateEvent ? '#F0F9FF' : 'white',
+                cursor: 'pointer'
+              }}
+            >
+              <Lock size={24} className="mx-auto mb-2" style={{ color: isPrivateEvent ? '#3B82F6' : '#6B7280' }} />
+              <div className="text-sm mb-1" style={{ fontWeight: 600, color: '#0B2641' }}>
+                {t('event.private', { defaultValue: 'Private' })}
+              </div>
+              <div className="text-xs" style={{ color: '#6B7280' }}>
+                {t('event.privateDescription', { defaultValue: 'Requires access code to register' })}
+              </div>
+            </button>
+          </div>
+
+          {/* Access Code Field (shown when Private) */}
+          {isPrivateEvent && (
+            <div className="mt-4 p-4 rounded-lg border" style={{ borderColor: '#E5E7EB', backgroundColor: '#F9FAFB' }}>
+              <label className="block text-sm mb-2" style={{ fontWeight: 500, color: '#6B7280' }}>
+                {t('event.accessCode', { defaultValue: 'Access Code' })}
+              </label>
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#6B7280' }} />
+                  <input
+                    type="text"
+                    value={accessCode}
+                    onChange={(e) => setAccessCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10))}
+                    placeholder="e.g. VIP2026"
+                    maxLength={10}
+                    className="w-full h-10 pl-10 pr-4 rounded-lg border outline-none transition-colors font-mono text-sm tracking-wider"
+                    style={{ borderColor: '#E5E7EB', color: '#0B2641', textTransform: 'uppercase' }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(accessCode);
+                    toast.success(t('event.codeCopied', { defaultValue: 'Code copied!' }));
+                  }}
+                  className="h-10 px-3 rounded-lg border transition-colors hover:bg-gray-100"
+                  style={{ borderColor: '#E5E7EB' }}
+                  title={t('event.copyCode', { defaultValue: 'Copy Code' })}
+                >
+                  <Copy size={16} style={{ color: '#6B7280' }} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAccessCode(generateAccessCode())}
+                  className="h-10 px-3 rounded-lg border transition-colors hover:bg-gray-100"
+                  style={{ borderColor: '#E5E7EB' }}
+                  title={t('event.regenerateCode', { defaultValue: 'Regenerate' })}
+                >
+                  <RefreshCw size={16} style={{ color: '#6B7280' }} />
+                </button>
+              </div>
+              {accessCode.length > 0 && accessCode.length < 4 && (
+                <p className="text-xs mt-1" style={{ color: '#EF4444' }}>
+                  {t('event.accessCodeMinLength', { defaultValue: 'Access code must be at least 4 characters' })}
+                </p>
+              )}
             </div>
           )}
         </div>
