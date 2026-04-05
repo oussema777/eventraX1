@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eventra - User Journey & Notification Emails</title>
+<style>
+  @page { margin: 20mm 15mm; size: A4; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', -apple-system, sans-serif; color: #1F2937; line-height: 1.6; background: #fff; padding: 40px; max-width: 900px; margin: 0 auto; }
+
+  /* Cover */
+  .cover { text-align: center; padding: 80px 40px; page-break-after: always; min-height: 90vh; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+  .cover-logo { font-size: 48px; font-weight: 800; color: #0684F5; letter-spacing: -1px; margin-bottom: 12px; }
+  .cover-title { font-size: 28px; font-weight: 700; color: #0B2641; margin-bottom: 8px; }
+  .cover-subtitle { font-size: 16px; color: #6B7280; margin-bottom: 40px; }
+  .cover-meta { font-size: 13px; color: #9CA3AF; }
+  .cover-meta span { display: block; margin-bottom: 4px; }
+  .cover-line { width: 80px; height: 4px; background: #0684F5; border-radius: 2px; margin: 30px auto; }
+
+  /* Headings */
+  h1 { font-size: 26px; font-weight: 700; color: #0B2641; margin: 48px 0 16px; padding-bottom: 10px; border-bottom: 3px solid #0684F5; }
+  h2 { font-size: 20px; font-weight: 700; color: #0B2641; margin: 36px 0 12px; }
+  h3 { font-size: 16px; font-weight: 600; color: #374151; margin: 24px 0 8px; }
+  p { margin-bottom: 12px; font-size: 14px; }
+
+  /* TOC */
+  .toc { page-break-after: always; }
+  .toc h2 { font-size: 22px; border: none; }
+  .toc ol { padding-left: 24px; }
+  .toc li { margin-bottom: 10px; font-size: 15px; color: #374151; }
+  .toc a { color: #0684F5; text-decoration: none; }
+  .toc .email-count { font-size: 12px; color: #6B7280; font-weight: 400; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; font-size: 13px; }
+  th { background: #0B2641; color: #fff; padding: 10px 12px; text-align: left; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 10px 12px; border-bottom: 1px solid #E5E7EB; vertical-align: top; }
+  tr:nth-child(even) td { background: #F9FAFB; }
+
+  /* Notification card */
+  .notif-card { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 20px; margin: 16px 0; }
+  .notif-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #6B7280; font-weight: 600; margin-bottom: 4px; }
+  .notif-card .value { font-size: 14px; color: #1F2937; font-weight: 500; margin-bottom: 12px; }
+  .notif-card .value.subject { color: #0684F5; font-weight: 600; }
+
+  /* Email preview */
+  .email-preview { background: #FFFFFF; border: 2px solid #E5E7EB; border-radius: 12px; padding: 28px; margin: 16px 0 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .email-preview h4 { font-size: 12px; text-transform: uppercase; color: #6B7280; letter-spacing: 0.5px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #E5E7EB; }
+  .email-preview .email-body { font-family: sans-serif; font-size: 13px; line-height: 1.7; color: #374151; }
+  .email-preview .email-body .heading { font-size: 20px; font-weight: 700; color: #0B2641; margin-bottom: 8px; }
+  .email-preview .email-body .qr-box { background: #F3F4F6; border: 1px solid #E5E7EB; border-radius: 8px; padding: 20px; text-align: center; margin: 16px 0; }
+  .email-preview .email-body .qr-box .qr-placeholder { width: 120px; height: 120px; background: #D1D5DB; border-radius: 8px; margin: 8px auto; display: flex; align-items: center; justify-content: center; color: #6B7280; font-size: 11px; }
+  .email-preview .email-body .cta-btn { display: inline-block; padding: 10px 24px; background: #0684F5; color: #fff; border-radius: 8px; font-weight: 600; font-size: 13px; text-decoration: none; margin: 8px 0; }
+  .email-preview .email-body .cta-btn-green { display: inline-block; padding: 10px 24px; background: #10B981; color: #fff; border-radius: 8px; font-weight: 600; font-size: 13px; text-decoration: none; margin: 8px 0; }
+  .email-preview .email-body .cta-btn-amber { display: inline-block; padding: 10px 24px; background: #F59E0B; color: #fff; border-radius: 8px; font-weight: 600; font-size: 13px; text-decoration: none; margin: 8px 0; }
+  .email-preview .email-body .cta-btn-red { display: inline-block; padding: 10px 24px; background: #EF4444; color: #fff; border-radius: 8px; font-weight: 600; font-size: 13px; text-decoration: none; margin: 8px 0; }
+  .email-preview .email-body .footer-text { font-size: 11px; color: #9CA3AF; text-align: center; margin-top: 20px; }
+  .email-preview .email-body .detail-table { width: 100%; margin: 12px 0; }
+  .email-preview .email-body .detail-table td { padding: 6px 8px; font-size: 13px; border: none; }
+  .email-preview .email-body .detail-table .dt-label { color: #6B7280; width: 110px; }
+  .email-preview .email-body .detail-table .dt-value { font-weight: 600; color: #1F2937; }
+  .email-preview .email-body .section-box { background: #F0F9FF; border: 1px solid #BFDBFE; border-radius: 10px; padding: 20px; margin: 16px 0; }
+  .email-preview .email-body .section-box-green { background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 10px; padding: 20px; margin: 16px 0; }
+  .email-preview .email-body .section-box-red { background: #FEF2F2; border: 1px solid #FECACA; border-radius: 10px; padding: 20px; margin: 16px 0; }
+  .email-preview .email-body .section-box-amber { background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 10px; padding: 20px; margin: 16px 0; }
+  .email-preview .email-body ul { padding-left: 0; list-style: none; }
+  .email-preview .email-body ul li { margin-bottom: 6px; padding-left: 8px; }
+
+  /* Status badge inline */
+  .status-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .status-approved { background: #ECFDF5; color: #065F46; }
+  .status-rejected { background: #FEF2F2; color: #991B1B; }
+  .status-pending { background: #FFFBEB; color: #92400E; }
+  .status-cancelled { background: #F3F4F6; color: #374151; }
+
+  /* Flow diagram */
+  .flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 16px 0 24px; }
+  .flow .step { background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #1E40AF; }
+  .flow .arrow { color: #9CA3AF; font-size: 16px; }
+
+  /* Badge */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge-email { background: #ECFDF5; color: #065F46; }
+  .badge-new { background: #EEF2FF; color: #4338CA; }
+
+  /* Note */
+  .note { background: #FFFBEB; border-left: 4px solid #F59E0B; padding: 12px 16px; margin: 16px 0; border-radius: 0 8px 8px 0; font-size: 13px; color: #92400E; }
+
+  /* Section divider */
+  .section-divider { border: none; border-top: 2px solid #E5E7EB; margin: 48px 0 0; }
+
+  /* Page break */
+  .page-break { page-break-before: always; }
+
+  @media print {
+    body { padding: 0; }
+    .cover { min-height: auto; padding: 60px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- COVER PAGE -->
+<div class="cover">
+  <div class="cover-logo">Eventra</div>
+  <div class="cover-line"></div>
+  <div class="cover-title">User Journey &amp; Notification Emails</div>
+  <div class="cover-subtitle">Complete reference of all user flows and automated email notifications with their content</div>
+  <div class="cover-meta">
+    <span>Document Version 2.0 &mdash; Enterprise Edition</span>
+    <span>April 5, 2026</span>
+    <span>Prepared for Client Review</span>
+  </div>
+</div>
+
+<!-- TABLE OF CONTENTS -->
+<div class="toc">
+  <h2>Table of Contents</h2>
+  <ol>
+    <li><a href="#j1">Account Creation &amp; Onboarding</a> <span class="email-count">&mdash; 1 email</span></li>
+    <li><a href="#j2">Event Creation &amp; Moderation (Organizer)</a> <span class="email-count">&mdash; 2 emails</span></li>
+    <li><a href="#j3">Event Discovery &amp; Registration (Attendee)</a> <span class="email-count">&mdash; 5 emails</span></li>
+    <li><a href="#j4">B2B Networking &amp; Meetings</a> <span class="email-count">&mdash; 8 emails</span></li>
+    <li><a href="#j5">Business Marketplace</a> <span class="email-count">&mdash; 2 emails</span></li>
+    <li><a href="#j6">Organizer Intelligence</a> <span class="email-count">&mdash; 2 emails</span></li>
+    <li><a href="#summary">All Emails Summary Table</a> <span class="email-count">&mdash; 20 emails total</span></li>
+  </ol>
+</div>
+
+<!-- ========================================================================== -->
+<!-- JOURNEY 1: ACCOUNT CREATION -->
+<!-- ========================================================================== -->
+<h1 id="j1">1. Account Creation &amp; Onboarding</h1>
+
+<h2>User Flow</h2>
+<div class="flow">
+  <span class="step">Landing Page</span><span class="arrow">&rarr;</span>
+  <span class="step">Sign Up</span><span class="arrow">&rarr;</span>
+  <span class="step">Email Verification</span><span class="arrow">&rarr;</span>
+  <span class="step">Complete Profile</span><span class="arrow">&rarr;</span>
+  <span class="step">Dashboard</span>
+</div>
+
+<!-- EMAIL 1 -->
+<h2>Email #1: Welcome Email <span class="badge badge-email">EMAIL</span></h2>
+<div class="notif-card">
+  <div class="label">Trigger</div>
+  <div class="value">After successful account creation and profile setup</div>
+  <div class="label">Subject</div>
+  <div class="value subject">Welcome to Eventra, {userName}!</div>
+  <div class="label">Recipient</div>
+  <div class="value">New user</div>
+</div>
+<div class="email-preview">
+  <h4>Email Preview</h4>
+  <div class="email-body">
+    <div style="text-align:center; margin-bottom:20px;">
+      <span style="color:#0684F5; font-size:22px; font-weight:800;">Eventra</span>
+    </div>
+    <div class="heading" style="text-align:center;">Welcome to the community, {userName}!</div>
+    <p style="text-align:center; color:#4B5563;">We're excited to have you on board. Your professional profile is now live and ready for networking.</p>
+    <div class="qr-box">
+      <p style="font-weight:600; margin-bottom:8px; color:#374151; font-size:12px; text-transform:uppercase;">Your Digital Business Card</p>
+      <div class="qr-placeholder">[QR Code]</div>
+      <p style="font-size:12px; color:#6B7280; margin-top:8px;">Others can scan this code to view your public profile and schedule meetings with you.</p>
+      <div style="margin-top:12px;"><span class="cta-btn">View Your Profile</span></div>
+    </div>
+    <h3 style="font-size:14px; margin-top:20px;">What's next?</h3>
+    <ul>
+      <li><span style="color:#0684F5;">&#8226;</span> Explore upcoming events in your sector</li>
+      <li><span style="color:#0684F5;">&#8226;</span> Connect with industry peers</li>
+      <li><span style="color:#0684F5;">&#8226;</span> Manage your B2B meetings</li>
+    </ul>
+    <div class="footer-text">&copy; 2026 Eventra.cloud. All rights reserved.<br>This email was sent to you as part of your registration on Eventra.</div>
+  </div>
+</div>
+
+<hr class="section-divider">
+
+<!-- ========================================================================== -->
+<!-- JOURNEY 2: EVENT CREATION & MODERATION -->
+<!-- ========================================================================== -->
+<h1 id="j2" class="page-break">2. Event Creation &amp; Moderation (Organizer)</h1>
+
+<h2>User Flow</h2>
+<div class="flow">
+  <span class="step">Dashboard</span><span class="arrow">&rarr;</span>
+  <span class="step">Wizard (4 Steps)</span><span class="arrow">&rarr;</span>
+  <span class="step">Publish</span><span class="arrow">&rarr;</span>
+  <span class="step">Admin Review</span><span class="arrow">&rarr;</span>
+  <span class="step">Approved / Rejected</span>
+</div>
+
+<p>After publishing, the event enters a "pending" moderation state. An admin reviews and approves or rejects. The organizer is notified by email.</p>
+
+<!-- EMAIL 2 -->
+<h2>Email #2: Event Approved <span class="badge badge-email">EMAIL</span> <span class="badge badge-new">NEW</span></h2>
+<div class="notif-card">
+  <div class="label">Trigger</div>
+  <div class="value">Admin approves the organizer's event</div>
+  <div class="label">Subject</div>
+  <div class="value subject">Your event is live: {eventName}</div>
+  <div class="label">Recipient</div>
+  <div class="value">Event organizer</div>
+</div>
+<div class="email-preview">
+  <h4>Email Preview</h4>
+  <div class="email-body">
+    <div style="text-align:center; margin-bottom:20px;">
+      <span style="color:#0684F5; font-size:22px; font-weight:800;">Eventra</span>
+    </div>
+    <div class="heading" style="text-align:center; color:#10B981;">Your event is now live!</div>
+    <p>Hi {organizerName},</p>
+    <p>Great news &mdash; <strong>{eventName}</strong> has been reviewed and approved by our team. It is now publicly visible on Eventra and open for registrations.</p>
+    <div class="section-box-green">
+      <table class="detail-table">
+        <tr><td class="dt-label">Event:</td><td class="dt-value">{eventName}</td></tr>
+        <tr><td class="dt-label">Status:</td><td class="dt-value"><span class="status-badge status-approved">APPROVED</span></td></tr>
+        <tr><td class="dt-label">Dates:</td><td class="dt-value">{startDate} &mdash; {endDate}</td></tr>
+        <tr><td class="dt-label">Format:</td><td class="dt-value">{eventFormat}</td></tr>
+      </table>
+    </div>
+    <div style="text-align:center;"><span class="cta-btn-green">View Your Event</span></div>
+    <p style="font-size:13px; color:#4B5563; margin-top:16px;">Share the link with your network and start building your attendee list!</p>
+    <div class="footer-text">Sent via Eventra Platform</div>
+  </div>
+</div>
+
+<!-- EMAIL 3 -->
+<h2>Email #3: Event Not Approved <span class="badge badge-email">EMAIL</span> <span class="badge badge-new">NEW</span></h2>
+<div class="notif-card">
+  <div class="label">Trigger</div>
+  <div class="value">Admin rejects the organizer's event</div>
+  <div class="label">Subject</div>
+  <div class="value subject">Action required: {eventName} was not approved</div>
+  <div class="label">Recipient</div>
+  <div class="value">Event organizer</div>
+</div>
+<div class="email-preview">
+  <h4>Email Preview</h4>
+  <div class="email-body">
+    <div style="text-align:center; margin-bottom:20px;">
+      <span style="color:#0684F5; font-size:22px; font-weight:800;">Eventra</span>
+    </div>
+    <div class="heading" style="text-align:center; color:#EF4444;">Event not approved</div>
+    <p>Hi {organizerName},</p>
+    <p>Unfortunately, <strong>{eventName}</strong> was not approved after review. Please check the details below and resubmit.</p>
+    <div class="section-box-red">
+      <table class="detail-table">
+        <tr><td class="dt-label">Event:</td><td class="dt-value">{eventName}</td></tr>
+        <tr><td class="dt-label">Status:</td><td class="dt-value"><span class="status-badge status-rejected">NOT APPROVED</span></td></tr>
+        <tr><td class="dt-label">Reason:</td><td class="dt-value" style="color:#991B1B;">{rejectionReason}</td></tr>
+      </table>
+    </div>
+    <div style="text-align:center;"><span class="cta-btn">Edit &amp; Resubmit</span></div>
+    <p style="font-size:13px; color:#6B7280; margin-top:16px;">If you believe this was a mistake, please contact our support team.</p>
+    <div class="footer-text">Sent via Eventra Platform</div>
+  </div>
+</div>
+
+<hr class="section-divider">
+
+<!-- ========================================================================== -->
+<!-- JOURNEY 3: EVENT DISCOVERY & REGISTRATION -->
+<!-- ========================================================================== -->
+<h1 id="j3" class="page-break">3. Event Discovery &amp; Registration (Attendee)</h1>
+
+<h2>User Flow</h2>
+<div class="flow">
+  <span class="step">Browse Events</span><span class="arrow">&rarr;</span>
+  <span class="step">Event Landing Page</span><span class="arrow">&rarr;</span>
+  <span class="step">Access Code (if Private)</span><span class="arrow">&rarr;</span>
+  <span class="step">Personal Info</span><span class="arrow">&rarr;</span>
+  <span class="step">Session Selection</span><span class="arrow">&rarr;</span>
+  <span class="step">Confirmation</span>
+</div>
+
+<p>Events display <span style="background:#ECFDF5;color:#065F46;padding:2px 6px;border-radius:4px;font-size:12px;font-weight:600;">Public</span> or <span style="background:#FEF3C7;color:#92400E;padding:2px 6px;border-radius:4px;font-size:12px;font-weight:600;">Private</span> badges. Private events require an access code. Both logged-in users and anonymous guests can register.</p>
+
+<!-- EMAIL 4 -->
+<h2>Email #4: Registration Confirmation <span class="badge badge-email">EMAIL</span></h2>
+<div class="notif-card">
+  <div class="label">Trigger</div>
+  <div class="value">Successful event registration (Step 3 completion)</div>
+  <div class="label">Subject</div>
+  <div class="value subject">Registration Confirmed: {eventName}</div>
+  <div class="label">Recipient</div>
+  <div class="value">Attendee (email provided during registration)</div>
+  <div class="label">Condition</div>
+  <div class="value">Only sent if organizer has email notifications enabled in Event Notification Center</div>
+</div>
+<div class="email-preview">
+  <h4>Email Preview (Logged-in User)</h4>
+  <div class="email-body">
+    <div class="heading" style="color:#0B2641;">You're going to {eventName}!</div>
+    <p>Hi {attendeeName},</p>
+    <p>Thanks for registering. Here is your recap and check-in details.</p>
+    <div class="qr-box">
+      <p style="font-weight:600; color:#000; margin-bottom:8px;">Your Check-in QR Code</p>
+      <div class="qr-placeholder">[QR Code]</div>
+      <p style="font-size:11px; color:#4B5563; margin-top:8px;">Show this code at the entrance.</p>
+    </div>
+    <h3 style="border-bottom:2px solid #0B2641; padding-bottom:6px; color:#0B2641; font-size:14px;">Your Selected Agenda</h3>
+    <ul>
+      <li><strong>{Session Title 1}</strong><br><span style="font-size:11px; color:#666;">{Time} - {Location}</span></li>
+      <li><strong>{Session Title 2}</strong><br><span style="font-size:11px; color:#666;">{Time} - {Location}</span></li>
+    </ul>
+    <div class="footer-text">Sent via Eventra Platform</div>
+  </div>
+</div>
+
+<h3>Additional Section for Anonymous (Guest) Registrants</h3>
+<p>When an unregistered guest completes event registration, the same email above is sent with an additional promotional block appended:</p>
+<div class="email-preview">
+  <h4>Additional Block (appended for guests only)</h4>
+  <div class="email-body">
+    <div class="section-box">
+      <h3 style="margin-top:0; font-size:14px; color:#0B2641;">Get more from this event</h3>
+      <p style="font-size:13px; color:#4B5563;">Create a free Eventra account to unlock powerful networking features:</p>
+      <ul>
+        <li>&#x1F91D; <strong>B2B Networking</strong> &mdash; Connect with attendees &amp; exhibitors</li>
+        <li>&#x1F4C5; <strong>Meeting Scheduling</strong> &mdash; Book 1-on-1 meetings at the event</li>
+        <li>&#x1F464; <strong>Professional Profile</strong> &mdash; Get discovered by other participants</li>
+        <li>&#x26A1; <strong>Smart Check-in</strong> &mdash; Your personal QR code for instant access</li>
+      </ul>
+      <div style="text-align:center;"><span class="cta-btn">Create Your Free Account</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- EMAIL 5 -->
+<h2>Email #5: Registration Cancelled <span class="badge badge-email">EMAIL</span> <span class="badge badge-new">NEW</span></h2>
+<div class="notif-card">
+  <div class="label">Trigger</div>
+  <div class="value">Attendee cancels their event registration</div>
+  <div class="label">Subject</div>
+  <div class="value subject">Registration Cancelled: {eventName}</div>
+  <div class="label">Recipient</div>
+  <div class="value">Attendee who cancelled</div>
+</div>
+<div class="email-preview">
+  <h4>Email Preview</h4>
+  <div class="email-body">
+    <div class="heading" style="color:#6B7280;">Registration cancelled</div>
+    <p>Hi {attendeeName},</p>
+    <p>Your registration for <strong>{eventName}</strong> has been cancelled as requested.</p>
+    <div style="background:#F3F4F6; border:1px solid #E5E7EB; border-radius:10px; padding:16px; margin:16px 0;">
+      <table class="detail-table">
+        <tr><td class="dt-label">Event:</td><td class="dt-value">{eventName}</td></tr>
+        <tr><td class="dt-label">Date:</td><td class="dt-value">{eventDate}</td></tr>
+        <tr><td class="dt-label">Status:</td><td class="dt-value"><span class="status-badge status-cancelled">CANCELLED</span></td></tr>
+      </table>
+    </div>
+    <p style="font-size:13px; color:#4B5563;">Changed your mind? You can register again any time before the event starts.</p>
+    <div style="text-align:center;"><span class="cta-btn">Re-register</span></div>
+    <div class="footer-text">Sent via Eventra Platform</div>
+  </div>
+</div>
+
+<!-- EMAIL 6 -->
+<h2>Email #6: Waitlist Joined <span class="badge badge-email">EMAIL</span> <span class="badge badge-new">NEW</span></h2>
+<div class="notif-card">
+  <div class="label">Trigger</div>
+  <div class="value">Event is at full capacity; user is placed on waitlist</div>
+  <div class="label">Subject</div>
+  <div class="value subject">You're on the waitlist: {eventName}</div>
+  <div class="label">Recipient</div>
+  <div class="value">Waitlisted attendee</div>
+</div>
+<div class="email-preview">
+  <h4>Email Preview</h4>
+  <div class="email-body">
+    <div class="heading" style="color:#F59E0B;">You're on the waitlist</div>
+    <p>Hi {attendeeName},</p>
+    <p><strong>{eventName}</strong> is currently at full capacity. You have been placed on the waitlist at position <strong>#{position}</strong>.</p>
+    <div class="section-box-amber">
+      <table class="detail-table">
+        <tr><td class="dt-label">Event:</td><td class="dt-value">{eventName}</td></tr>
+        <tr><td class="dt-label">Date:</td><td class="dt-value">{eventDate}</td></tr>
+        <tr><td class="dt-label">Your Position:</td><td class="dt-value" style="color:#F59E0B; font-size:18px;">#{position}</td></tr>
+      </table>
+    </div>
+    <p style="font-size:13px; color:#4B5563;">We'll notify you immediately if a spot opens up. No action needed on your end.</p>
+    <div class="footer-text">Sent via Eventra Platform</div>
+  </div>
+</div>
+
+<!-- EMAIL 7 -->
+<h2>Email #7: Waitlist Promoted <span class="badge badge-email">EMAIL</span> <span class="badge badge-new">NEW</span></h2>
+<div class="notif-card">
+  <div class="label">Trigger</div>
+  <div class="value">A spot opens up and the next waitlisted user is promoted to confirmed attendee</div>
+  <div class="label">Subject</div>
+  <div class="value subject">A spot opened up! You're in: {eventName}</div>
+  <div class="label">Recipient</div>
+  <div class="value">Promoted attendee</div>
+</div>
+<div class="email-preview">
+  <h4>Email Preview</h4>
+  <div class="email-body">
+    <div class="heading" style="color:#10B981;">You're in!</div>
+    <p>Hi {attendeeName},</p>
+    <p>Great news! A spot opened up for <strong>{eventName}</strong> and you've been moved from the waitlist to confirmed.</p>
+    <div class="qr-box">
+      <p style="font-weight:600; color:#000; margin-bottom:8px;">Your Check-in QR Code</p>
+      <div class="qr-placeholder">[QR Code]</div>
+      <p style="font-size:11px; color:#4B5563; margin-top:8px;">Show this code at the entrance.</p>
+    </div>
+    <div style="text-align:center;"><span class="cta-btn-green">View Event Details</span></div>
+    <div class="footer-text">Sent via Eventra Platform</div>
+  </div>
+</div>
+
+<!-- EMAIL 8 -->
+<h2>Email #8: Event Reminder <span class="badge badge-email">EMAIL</span> <span class="badge badge-new">NEW</span></h2>
+<div class="notif-card">
+  <div class="label">Trigger</div>
+  <div class="value">Automated &mdash; 24 hours and 1 hour before event start time</div>
+  <div class="label">Subject (24h)</div>
+  <div class="value subject">Reminder: {eventName} starts tomorrow</div>
+  <div class="label">Subject (1h)</div>
+  <div class="value subject">Starting soon: {eventName} begins in 1 hour</div>
+  <div class="label">Recipient</div>
+  <div class="value">All confirmed attendees</div>
+</div>
+<div class="email-preview">
+  <h4>Email Preview (24h Reminder)</h4>
+  <div class="email-body">
+    <div class="heading" style="color:#0684F5;">{eventName} starts tomorrow!</div>
+    <p>Hi {attendeeName},</p>
+    <p>This is a friendly reminder that <strong>{eventName}</strong> is starting soon. Here are your event details:</p>
+    <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:16px; margin:16px 0;">
+      <table class="detail-table">
+        <tr><td class="dt-label">Event:</td><td class="dt-value">{eventName}</td></tr>
+        <tr><td class="dt-label">Date:</td><td class="dt-value">{startDate}</td></tr>
+        <tr><td class="dt-label">Time:</td><td class="dt-value">{startTime}</td></tr>
+        <tr><td class="dt-label">Location:</td><td class="dt-value">{location}</td></tr>
+      </table>
+    </div>
+    <div class="qr-box">
+      <p style="font-weight:600; color:#000; margin-bottom:8px;">Your Check-in QR Code</p>
+      <div class="qr-placeholder">[QR Code]</div>
+      <p style="font-size:11px; color:#4B5563; margin-top:8px;">Have this ready for quick entry.</p>
+    </div>
+    <div style="text-align:center;"><span class="cta-btn">View Your Agenda</span></div>
+    <div class="footer-text">Sent via Eventra Platform</div>
+  </div>
+</div>
+
+<hr class="section-divider">
+
+<!-- ========================================================================== -->
+<!-- JOURNEY 4: B2B NETWORKING & MEETINGS -->
+<!-- ========================================================================== -->
+<h1 id="j4" class="page-break">4. B2B Networking &amp; Meetings</h1>
+
+<h2>User Flow</h2>
+<div class="flow">
+  <span class="step">Networking Hub</span><span class="arrow">&rarr;</span>
+  <span class="step">Browse Matches</span><span class="arrow">&rarr;</span>
+  <span class="step">Connect</span><span class="arrow">&rarr;</span>
+  <span class="step">Schedule Meeting</span><span class="arrow">&rarr;</span>
+  <span class="step">Confirm / Decline</span><span class="arrow">&rarr;</span>
+  <span class="step">Check-in at Meeting</span>
+</div>
+
+<p>Users can discover AI-suggested matches, send connection requests, and schedule B2B meetings. Meeting emails are sent to <strong>both parties</strong> at each stage of the meeting lifecycle.</p>
+
+<!-- EMAIL 9 -->
+<h2>Email #9: Meeting Request (Pending) <span class="badge badge-email">EMAIL</span></h2>
+<div class="notif-card">
+  <div class="label">Trigger</div>
+  <div class="value">User schedules a B2B meeting with another user</div>
+  <div class="label">Recipients</div>
+  <div class="value">Both meeting organizer and invitee (2 separate emails)</div>
+  <div class="label">Organizer Subject</div>
+  <div class="value subject">Meeting Request: {recipientName} at {eventName}</div>
+  <div class="label">Recipient Subject</div>
+  <div class="value subject">New Meeting Request for {eventName}</div>
+</div>
+<div class="email-preview">
+  <h4>Email Preview &mdash; Meeting Request (Pending)</h4>
+  <div class="email-body">
+    <div class="heading" style="color:#F59E0B;">New Meeting Request</div>
+    <p>Hello,</p>
+    <p><em>For the meeting organizer:</em> Your meeting request for <strong>{eventName}</strong> has been sent.</p>
+    <p><em>For the meeting invitee:</em> You have received a new meeting request for <strong>{eventName}</strong>.</p>
+    <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:16px; margin:16px 0;">
+      <h3 style="margin-top:0; color:#1E293B; font-size:14px;">Meeting Details</h3>
+      <table class="detail-table">
+        <tr><td class="dt-label">Status:</td><td class="dt-value"><span class="status-badge status-pending">PENDING</span></td></tr>
+        <tr><td class="dt-label">Date:</td><td class="dt-value">{meetingDate}</td></tr>
+        <tr><td class="dt-label">Time:</td><td class="dt-value">{meetingTime}</td></tr>
+        <tr><td class="dt-label">Location:</td><td class="dt-value">{location}</td></tr>
+        <tr><td class="dt-label">Participants:</td><td class="dt-value">{organizerName} &amp; {recipientName}</td></tr>
+      </table>
+    </div>
+    <div style="text-align:center;"><span class="cta-btn">Review Request</span></div>
+    <p style="font-size:13px; color:#475569;">Please manage your meetings through your <span style="color:#0684F5; font-weight:600;">Networking Dashboard</span>.</p>
+    <div class="footer-text">Sent via Eventra Networking Engine</div>
+  </div>
+</div>
+
+<!-- EMAIL 10 -->
+<h2>Email #10: Meeting Confirmed <span class="badge badge-email">EMAIL</span></h2>
+<div class="notif-card">
+  <div class="label">Trigger</div>
+  <div class="value">Invitee confirms/accepts the meeting</div>
+  <div class="label">Recipients</div>
+  <div class="value">Both meeting organizer and invitee (2 separate emails)</div>
+  <div class="label">Organizer Subject</div>
+  <div class="value subject">Meeting Confirmed: {recipientName} at {eventName}</div>
+  <div class="label">Recipient Subject</div>
+  <div class="value subject">Meeting Confirmed for {eventName}</div>
+</div>
+<div class="email-preview">
+  <h4>Email Preview &mdash; Meeting Confirmed</h4>
+  <div class="email-body">
+    <div class="heading" style="color:#0684F5;">Meeting Confirmed!</div>
+    <p>Hello,</p>
+    <p>This is to confirm your B2B networking meeting for <strong>{eventName}</strong>.</p>
+    <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:16px; margin:16px 0;">
+      <h3 style="margin-top:0; color:#1E293B; font-size:14px;">Meeting Details</h3>
+      <table class="detail-table">
+        <tr><td class="dt-label">Status:</td><td class="dt-value" style="color:#0684F5; text-transform:uppercase; font-size:11px;">CONFIRMED</td></tr>
+        <tr><td class="dt-label">Date:</td><td class="dt-value">{meetingDate}</td></tr>
+        <tr><td class="dt-label">Time:</td><td class="dt-value">{meetingTime}</td></tr>
+        <tr><td class="dt-label">Location:</td><td class="dt-value">{location}</td></tr>
+        <tr><td class="dt-label">Participants:</td><td class="dt-value">{organizerName} &amp; {recipientName}</td></tr>
+      </table>
+    </div>
+    <div class="qr-box">
+      <p style="font-weight:700; color:#1E293B; margin-bottom:8px;">Meeting QR Code</p>
+      <div class="qr-placeholder">[QR Code]</div>
+      <p style="font-size:12px; color:#64748B; margin-top:8px;">Scan this code at the meeting table for check-in.</p>
+    </div>
+    <p style="font-size:13px; color:#475569;">Please manage your meetings through your <span style="color:#0684F5; font-weight:600;">Networking Dashboard</span>.</p>
+    <div class="footer-text">Sent via Eventra Networking Engine</div>
+  </div>
+</div>
+
+<!-- EMAIL 11 -->
+<h2>Email #11: Meeting Cancelled <span class="badge badge-email">EMAIL</span> <span class="badge badge-new">NEW</span></h2>
+<div class="notif-card">
+  <div class="label">Trigger</div>
+  <div class="value">Either party cancels a confirmed or pending meeting</div>
+  <div class="label">Subject</div>
+  <div class="value subject">Meeting Cancelled: {partnerName} at {eventName}</div>
+  <div class="label">Recipient</div>
+  <div class="value">The other party (not the one who cancelled)</div>
+</div>
+<div class="email-preview">
+  <h4>Email Preview</h4>
+  <div class="email-body">
+    <div class="heading" style="color:#EF4444;">Meeting Cancelled</div>
+    <p>Hi {recipientName},</p>
+    <p>Unfortunately, your meeting with <strong>{cancellerName}</strong> for <strong>{eventName}</strong> has been cancelled.</p>
+    <div style="background:#FEF2F2; border:1px solid #FECACA; border-radius:10px; padding:16px; margin:16px 0;">
+      <table class="detail-table">
+        <tr><td class="dt-label">Meeting:</td><td class="dt-value">{cancellerName}</td></tr>
+        <tr><td class="dt-label">Was scheduled:</td><td class="dt-value">{meetingDate} at {meetingTime}</td></tr>
+        <tr><td class="dt-label">Status:</td><td class="dt-value"><span class="status-badge status-cancelled">CANCELLED</span></td></tr>
+      </table>
+    </div>
+    <p style="font-size:13px; color:#4B5563;">You can schedule new meetings from your Networking Dashboard.</p>
+    <div style="text-align:center;"><span class="cta-btn">Browse Available Slots</span></div>
+    <div class="footer-text">Sent via Eventra Networking Engine</div>
+  </div>
+</div>
+
+<!-- EMAIL 12 -->
+<h2>Email #12: Meeting Rescheduled <span class="badge badge-email">EMAIL</span> <span class="badge badge-new">NEW</span></h2>
+<div class="notif-card">
+  <div class="label">Trigger</div>
+  <div class="value">Either party reschedules the meeting to a new time</div>
+  <div class="label">Subject</div>
+  <div class="value subject">Meeting Rescheduled: {partnerName} at {eventName}</div>
+  <div class="label">Recipient</div>
+  <div class="value">The other party</div>
+</div>
+<div class="email-preview">
+  <h4>Email Preview</h4>
+  <div class="email-body">
+    <div class="heading" style="color:#F59E0B;">Meeting Rescheduled</div>
+    <p>Hi {recipientName},</p>
+    <p><strong>{reschedulerName}</strong> has rescheduled your meeting for <strong>{eventName}</strong>.</p>
+    <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:16px; margin:16px 0;">
+      <h3 style="margin-top:0; color:#1E293B; font-size:14px;">Updated Meeting Details</h3>
+      <table class="detail-table">
+        <tr><td class="dt-label">Previous:</td><td class="dt-value" style="text-decoration:line-through; color:#9CA3AF;">{oldDate} at {oldTime}</td></tr>
+        <tr><td class="dt-label">New Date:</td><td class="dt-value" style="color:#0684F5;">{newDate}</td></tr>
+        <tr><td class="dt-label">New Time:</td><td class="dt-value" style="color:#0684F5;">{newTime}</td></tr>
+        <tr><td class="dt-label">Location:</td><td class="dt-value">{location}</td></tr>
+      </table>
+    </div>
+    <div style="text-align:center;">
+      <span class="cta-btn-green">Confirm New Time</span>
+      &nbsp;&nbsp;
+      <span class="cta-btn-red">Decline</span>
+    </div>
+    <div class="footer-text">Sent via Eventra Networking Engine</div>
+  </div>
+</div>
+
+<!-- EMAIL 13 -->
+<h2>Email #13: Meeting Reminder <span class="badge badge-email">EMAIL</span> <span class="badge badge-new">NEW</span></h2>
+<div class="notif-card">
+  <div class="label">Trigger</div>
+  <div class="value">Automated &mdash; 30 minutes before meeting time</div>
+  <div class="label">Subject</div>
+  <div class="value subject">Reminder: Meeting with {partnerName} in 30 minutes</div>
+  <div class="label">Recipients</div>
+  <div class="value">Both meeting participants</div>
+</div>
+<div class="email-preview">
+  <h4>Email Preview</h4>
+  <div class="email-body">
+    <div class="heading" style="color:#0684F5;">Your meeting is in 30 minutes</div>
+    <p>Hi {userName},</p>
+    <p>Quick reminder &mdash; your B2B meeting with <strong>{partnerName}</strong> is coming up soon.</p>
+    <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:16px; margin:16px 0;">
+      <table class="detail-table">
+        <tr><td class="dt-label">With:</td><td class="dt-value">{partnerName}</td></tr>
+        <tr><td class="dt-label">Time:</td><td class="dt-value" style="color:#0684F5; font-size:16px;">{meetingTime}</td></tr>
+        <tr><td class="dt-label">Location:</td><td class="dt-value">{location}</td></tr>
+      </table>
+    </div>
+    <div class="qr-box">
+      <p style="font-weight:600; color:#000; margin-bottom:8px;">Meeting QR Code</p>
+      <div class="qr-placeholder">[QR Code]</div>
+      <p style="font-size:11px; color:#4B5563; margin-top:8px;">Scan at the meeting table to check in.</p>
+    </div>
+    <div class="footer-text">Sent via Eventra Networking Engine</div>
+  </div>
+</div>
+
+<!-- EMAIL 14 -->
+<h2>Email #14: Meeting Partner Checked In <span class="badge badge-email">EMAIL</span> <span class="badge badge-new">NEW</span></h2>
+<div class="notif-card">
+  <div class="label">Trigger</div>
+  <div class="value">One party scans the meeting QR code / checks in at the meeting table</div>
+  <div class="label">Subject</div>
+  <div class="value subject">{partnerName} is waiting for you &mdash; {eventName}</div>
+  <div class="label">Recipient</div>
+  <div class="value">The other party (who hasn't checked in yet)</div>
+</div>
+<div class="email-preview">
+  <h4>Email Preview</h4>
+  <div class="email-body">
+    <div style="text-align:center; margin-bottom:20px;">
+      <span style="color:#0684F5; font-size:22px; font-weight:800;">Eventra</span>
+    </div>
+    <div class="heading" style="text-align:center; color:#10B981;">{partnerName} is waiting for you!</div>
+    <p>Hi {recipientName},</p>
+    <p><strong>{partnerName}</strong> has arrived and checked in for your meeting. They're ready and waiting at the meeting point.</p>
+    <div class="section-box-green">
+      <table class="detail-table">
+        <tr><td class="dt-label">Meeting with:</td><td class="dt-value" style="font-size:16px;">{partnerName}</td></tr>
+        <tr><td class="dt-label">Time:</td><td class="dt-value">{meetingTime}</td></tr>
+        <tr><td class="dt-label">Location:</td><td class="dt-value" style="color:#065F46; font-size:15px;">{location}</td></tr>
+        <tr><td class="dt-label">Checked in at:</td><td class="dt-value">{checkinTime}</td></tr>
+      </table>
+    </div>
+    <div class="qr-box">
+      <p style="font-weight:600; color:#000; margin-bottom:8px;">Your Meeting QR Code</p>
+      <div class="qr-placeholder">[QR Code]</div>
+      <p style="font-size:11px; color:#4B5563; margin-top:8px;">Scan this when you arrive at the meeting table.</p>
+    </div>
+    <div style="text-align:center;"><span class="cta-btn-green">Get Directions</span></div>
+    <div class="footer-text">Sent via Eventra Networking Engine</div>
+  </div>
+</div>
+
+<!-- EMAIL 15 + 16 (Connection emails) -->
+<h2>Email #15: Connection Request <span class="badge badge-email">EMAIL</span> <span class="badge badge-new">NEW</span></h2>
+<div class="notif-card">
+  <div class="label">Trigger</div>
+  <div class="value">User sends a connection request to another user</div>
+  <div class="label">Subject</div>
+  <div class="value subject">{senderName} wants to connect with you on Eventra</div>
+  <div class="label">Recipient</div>
+  <div class="value">Target user</div>
+</div>
+<div class="email-preview">
+  <h4>Email Preview</h4>
+  <div class="email-body">
+    <div class="heading" style="color:#0684F5;">New Connection Request</div>
+    <p>Hi {recipientName},</p>
+    <p><strong>{senderName}</strong> ({senderJobTitle} at {senderOrganization}) wants to connect with you on Eventra.</p>
+    <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:16px; margin:16px 0; text-align:center;">
+      <div style="width:64px; height:64px; border-radius:50%; background:#D1D5DB; margin:0 auto 8px; display:flex; align-items:center; justify-content:center; color:#6B7280; font-size:11px;">[Avatar]</div>
+      <p style="font-weight:700; color:#0B2641; margin-bottom:2px;">{senderName}</p>
+      <p style="font-size:12px; color:#6B7280; margin-bottom:0;">{senderJobTitle} &middot; {senderOrganization}</p>
+    </div>
+    <div style="text-align:center;">
+      <span class="cta-btn-green">Accept</span>
+      &nbsp;&nbsp;
+      <span class="cta-btn-red">Decline</span>
+    </div>
+    <div class="footer-text">Sent via Eventra Networking Engine</div>
+  </div>
+</div>
+
+<h2>Email #16: Connection Accepted <span class="badge badge-email">EMAIL</span> <span class="badge badge-new">NEW</span></h2>
+<div class="notif-card">
+  <div class="label">Trigger</div>
+  <div class="value">Recipient accepts the connection request</div>
+  <div class="label">Subject</div>
+  <div class="value subject">{accepterName} accepted your connection request</div>
+  <div class="label">Recipient</div>
+  <div class="value">Original requester</div>
+</div>
+<div class="email-preview">
+  <h4>Email Preview</h4>
+  <div class="email-body">
+    <div class="heading" style="color:#10B981;">You're now connected!</div>
+    <p>Hi {requesterName},</p>
+    <p><strong>{accepterName}</strong> accepted your connection request. You can now schedule B2B meetings together.</p>
+    <div style="text-align:center;"><span class="cta-btn">Schedule a Meeting</span></div>
+    <div class="footer-text">Sent via Eventra Networking Engine</div>
+  </div>
+</div>
+
+<hr class="section-divider">
+
+<!-- ========================================================================== -->
+<!-- JOURNEY 5: BUSINESS MARKETPLACE -->
+<!-- ========================================================================== -->
+<h1 id="j5" class="page-break">5. Business Marketplace</h1>
+
+<h2>User Flow</h2>
+<div class="flow">
+  <span class="step">B2B Marketplace</span><span class="arrow">&rarr;</span>
+  <span class="step">Browse Listings</span><span class="arrow">&rarr;</span>
+  <span class="step">Product Detail</span><span class="arrow">&rarr;</span>
+  <span class="step">Request Quote</span><span class="arrow">&rarr;</span>
+  <span class="step">Seller Response</span>
+</div>
+
+<!-- EMAIL 17 -->
+<h2>Email #17: Quote Request Received <span class="badge badge-email">EMAIL</span> <span class="badge badge-new">NEW</span></h2>
+<div class="notif-card">
+  <div class="label">Trigger</div>
+  <div class="value">A buyer requests a quote for a product/service</div>
+  <div class="label">Subject</div>
+  <div class="value subject">New quote request for {productName}</div>
+  <div class="label">Recipient</div>
+  <div class="value">Product owner (seller)</div>
+</div>
+<div class="email-preview">
+  <h4>Email Preview</h4>
+  <div class="email-body">
+    <div class="heading" style="color:#0684F5;">New Quote Request</div>
+    <p>Hi {sellerName},</p>
+    <p><strong>{buyerName}</strong> ({buyerOrganization}) has requested a quote for your listing:</p>
+    <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:16px; margin:16px 0;">
+      <table class="detail-table">
+        <tr><td class="dt-label">Product:</td><td class="dt-value">{productName}</td></tr>
+        <tr><td class="dt-label">Buyer:</td><td class="dt-value">{buyerName} &mdash; {buyerOrganization}</td></tr>
+        <tr><td class="dt-label">Message:</td><td class="dt-value" style="font-style:italic; color:#4B5563;">"{quoteMessage}"</td></tr>
+      </table>
+    </div>
+    <div style="text-align:center;"><span class="cta-btn">Respond to Quote</span></div>
+    <div class="footer-text">Sent via Eventra Marketplace</div>
+  </div>
+</div>
+
+<!-- EMAIL 18 -->
+<h2>Email #18: Quote Response <span class="badge badge-email">EMAIL</span> <span class="badge badge-new">NEW</span></h2>
+<div class="notif-card">
+  <div class="label">Trigger</div>
+  <div class="value">Seller responds to the buyer's quote request</div>
+  <div class="label">Subject</div>
+  <div class="value subject">Quote response for {productName}</div>
+  <div class="label">Recipient</div>
+  <div class="value">Buyer (original requester)</div>
+</div>
+<div class="email-preview">
+  <h4>Email Preview</h4>
+  <div class="email-body">
+    <div class="heading" style="color:#10B981;">You received a quote!</div>
+    <p>Hi {buyerName},</p>
+    <p><strong>{sellerName}</strong> ({sellerOrganization}) has responded to your quote request for <strong>{productName}</strong>.</p>
+    <div style="background:#ECFDF5; border:1px solid #A7F3D0; border-radius:10px; padding:16px; margin:16px 0;">
+      <table class="detail-table">
+        <tr><td class="dt-label">Product:</td><td class="dt-value">{productName}</td></tr>
+        <tr><td class="dt-label">Seller:</td><td class="dt-value">{sellerName} &mdash; {sellerOrganization}</td></tr>
+        <tr><td class="dt-label">Response:</td><td class="dt-value" style="font-style:italic; color:#065F46;">"{quoteResponse}"</td></tr>
+      </table>
+    </div>
+    <div style="text-align:center;"><span class="cta-btn">View Full Details</span></div>
+    <div class="footer-text">Sent via Eventra Marketplace</div>
+  </div>
+</div>
+
+<hr class="section-divider">
+
+<!-- ========================================================================== -->
+<!-- JOURNEY 6: ORGANIZER INTELLIGENCE -->
+<!-- ========================================================================== -->
+<h1 id="j6" class="page-break">6. Organizer Intelligence</h1>
+
+<p>Automated emails that keep event organizers informed about their event performance without needing to check the dashboard.</p>
+
+<!-- EMAIL 19 -->
+<h2>Email #19: Capacity Alert <span class="badge badge-email">EMAIL</span> <span class="badge badge-new">NEW</span></h2>
+<div class="notif-card">
+  <div class="label">Trigger</div>
+  <div class="value">Event reaches 80% capacity, and again at 100% capacity</div>
+  <div class="label">Subject (80%)</div>
+  <div class="value subject">{eventName} is filling up &mdash; 80% capacity reached</div>
+  <div class="label">Subject (100%)</div>
+  <div class="value subject">{eventName} is SOLD OUT!</div>
+  <div class="label">Recipient</div>
+  <div class="value">Event organizer</div>
+</div>
+<div class="email-preview">
+  <h4>Email Preview (80% Capacity)</h4>
+  <div class="email-body">
+    <div class="heading" style="color:#F59E0B;">Your event is filling up!</div>
+    <p>Hi {organizerName},</p>
+    <p><strong>{eventName}</strong> has reached <strong>80%</strong> of its capacity.</p>
+    <div style="background:#FFFBEB; border:1px solid #FDE68A; border-radius:10px; padding:20px; margin:16px 0; text-align:center;">
+      <div style="font-size:48px; font-weight:800; color:#F59E0B;">{currentRegistrations}/{maxCapacity}</div>
+      <p style="font-size:13px; color:#92400E; margin-top:4px;">registered attendees</p>
+      <div style="background:#FDE68A; border-radius:20px; height:12px; margin:12px 0; overflow:hidden;">
+        <div style="background:#F59E0B; height:100%; width:80%; border-radius:20px;"></div>
+      </div>
+    </div>
+    <p style="font-size:13px; color:#4B5563;">Consider increasing capacity or enabling the waitlist if you haven't already.</p>
+    <div style="text-align:center;"><span class="cta-btn">Manage Event Settings</span></div>
+    <div class="footer-text">Sent via Eventra Platform</div>
+  </div>
+</div>
+
+<!-- EMAIL 20 -->
+<h2>Email #20: Post-Event Summary <span class="badge badge-email">EMAIL</span> <span class="badge badge-new">NEW</span></h2>
+<div class="notif-card">
+  <div class="label">Trigger</div>
+  <div class="value">Automated &mdash; 24 hours after event end date</div>
+  <div class="label">Subject</div>
+  <div class="value subject">{eventName} recap &mdash; Your event results are in</div>
+  <div class="label">Recipient</div>
+  <div class="value">Event organizer</div>
+</div>
+<div class="email-preview">
+  <h4>Email Preview</h4>
+  <div class="email-body">
+    <div style="text-align:center; margin-bottom:20px;">
+      <span style="color:#0684F5; font-size:22px; font-weight:800;">Eventra</span>
+    </div>
+    <div class="heading" style="text-align:center;">Your event results are in!</div>
+    <p>Hi {organizerName},</p>
+    <p>Here's a summary of how <strong>{eventName}</strong> performed:</p>
+    <div style="display:flex; gap:12px; margin:20px 0; flex-wrap:wrap;">
+      <div style="flex:1; min-width:120px; background:#EFF6FF; border:1px solid #BFDBFE; border-radius:10px; padding:16px; text-align:center;">
+        <div style="font-size:32px; font-weight:800; color:#0684F5;">{totalRegistrations}</div>
+        <div style="font-size:11px; color:#1E40AF; font-weight:600; text-transform:uppercase;">Registrations</div>
+      </div>
+      <div style="flex:1; min-width:120px; background:#ECFDF5; border:1px solid #A7F3D0; border-radius:10px; padding:16px; text-align:center;">
+        <div style="font-size:32px; font-weight:800; color:#10B981;">{totalCheckins}</div>
+        <div style="font-size:11px; color:#065F46; font-weight:600; text-transform:uppercase;">Check-ins</div>
+      </div>
+      <div style="flex:1; min-width:120px; background:#FEF3C7; border:1px solid #FDE68A; border-radius:10px; padding:16px; text-align:center;">
+        <div style="font-size:32px; font-weight:800; color:#F59E0B;">{totalMeetings}</div>
+        <div style="font-size:11px; color:#92400E; font-weight:600; text-transform:uppercase;">B2B Meetings</div>
+      </div>
+    </div>
+    <table class="detail-table">
+      <tr><td class="dt-label">Attendance Rate:</td><td class="dt-value">{attendanceRate}%</td></tr>
+      <tr><td class="dt-label">Sessions Held:</td><td class="dt-value">{sessionsCount}</td></tr>
+      <tr><td class="dt-label">Connections Made:</td><td class="dt-value">{connectionsCount}</td></tr>
+      <tr><td class="dt-label">Forms Submitted:</td><td class="dt-value">{formsCount}</td></tr>
+    </table>
+    <div style="text-align:center; margin-top:16px;"><span class="cta-btn">View Full Analytics</span></div>
+    <div class="footer-text">Sent via Eventra Platform</div>
+  </div>
+</div>
+
+<hr class="section-divider">
+
+<!-- ========================================================================== -->
+<!-- SUMMARY TABLE -->
+<!-- ========================================================================== -->
+<h1 id="summary" class="page-break">7. All Notification Emails &mdash; Summary</h1>
+
+<table>
+  <tr><th>#</th><th>Email Name</th><th>Trigger</th><th>Recipient</th><th>Subject Line</th></tr>
+  <tr><td>1</td><td>Welcome Email</td><td>Account creation</td><td>New user</td><td>Welcome to Eventra, {name}!</td></tr>
+  <tr><td>2</td><td>Event Approved</td><td>Admin approves event</td><td>Organizer</td><td>Your event is live: {eventName}</td></tr>
+  <tr><td>3</td><td>Event Not Approved</td><td>Admin rejects event</td><td>Organizer</td><td>Action required: {eventName} was not approved</td></tr>
+  <tr><td>4</td><td>Registration Confirmation</td><td>Event registration</td><td>Attendee</td><td>Registration Confirmed: {eventName}</td></tr>
+  <tr><td>5</td><td>Registration Cancelled</td><td>Attendee cancels</td><td>Attendee</td><td>Registration Cancelled: {eventName}</td></tr>
+  <tr><td>6</td><td>Waitlist Joined</td><td>Event at capacity</td><td>Waitlisted user</td><td>You're on the waitlist: {eventName}</td></tr>
+  <tr><td>7</td><td>Waitlist Promoted</td><td>Spot opens up</td><td>Promoted user</td><td>A spot opened up! You're in: {eventName}</td></tr>
+  <tr><td>8</td><td>Event Reminder</td><td>24h &amp; 1h before event</td><td>All attendees</td><td>Reminder: {eventName} starts tomorrow</td></tr>
+  <tr><td>9</td><td>Meeting Request</td><td>Meeting scheduled</td><td>Both parties (x2)</td><td>Meeting Request: {name} at {event}</td></tr>
+  <tr><td>10</td><td>Meeting Confirmed</td><td>Meeting accepted</td><td>Both parties (x2)</td><td>Meeting Confirmed: {name} at {event}</td></tr>
+  <tr><td>11</td><td>Meeting Cancelled</td><td>Meeting cancelled</td><td>Other party</td><td>Meeting Cancelled: {name} at {event}</td></tr>
+  <tr><td>12</td><td>Meeting Rescheduled</td><td>Time changed</td><td>Other party</td><td>Meeting Rescheduled: {name} at {event}</td></tr>
+  <tr><td>13</td><td>Meeting Reminder</td><td>30min before meeting</td><td>Both parties</td><td>Reminder: Meeting with {name} in 30 minutes</td></tr>
+  <tr><td>14</td><td>Meeting Check-in Alert</td><td>Partner checks in</td><td>Other party</td><td>{name} is waiting for you &mdash; {event}</td></tr>
+  <tr><td>15</td><td>Connection Request</td><td>Request sent</td><td>Target user</td><td>{name} wants to connect with you</td></tr>
+  <tr><td>16</td><td>Connection Accepted</td><td>Request accepted</td><td>Requester</td><td>{name} accepted your connection request</td></tr>
+  <tr><td>17</td><td>Quote Request</td><td>Quote requested</td><td>Seller</td><td>New quote request for {product}</td></tr>
+  <tr><td>18</td><td>Quote Response</td><td>Seller responds</td><td>Buyer</td><td>Quote response for {product}</td></tr>
+  <tr><td>19</td><td>Capacity Alert</td><td>80% &amp; 100% capacity</td><td>Organizer</td><td>{event} is filling up &mdash; 80% reached</td></tr>
+  <tr><td>20</td><td>Post-Event Summary</td><td>24h after event ends</td><td>Organizer</td><td>{event} recap &mdash; Your results are in</td></tr>
+</table>
+
+<h2>Email Content Highlights</h2>
+<table>
+  <tr><th>Email</th><th>QR Code</th><th>CTA Button</th><th>Special Content</th></tr>
+  <tr><td>Welcome</td><td>Profile QR</td><td>View Your Profile</td><td>What's next tips</td></tr>
+  <tr><td>Event Approved</td><td>&mdash;</td><td>View Your Event</td><td>Event details card</td></tr>
+  <tr><td>Event Not Approved</td><td>&mdash;</td><td>Edit &amp; Resubmit</td><td>Rejection reason</td></tr>
+  <tr><td>Registration Confirmation</td><td>Check-in QR</td><td>&mdash;</td><td>Selected sessions; Guest upsell</td></tr>
+  <tr><td>Registration Cancelled</td><td>&mdash;</td><td>Re-register</td><td>Cancellation confirmation</td></tr>
+  <tr><td>Waitlist Joined</td><td>&mdash;</td><td>&mdash;</td><td>Waitlist position number</td></tr>
+  <tr><td>Waitlist Promoted</td><td>Check-in QR</td><td>View Event Details</td><td>Promotion celebration</td></tr>
+  <tr><td>Event Reminder</td><td>Check-in QR</td><td>View Your Agenda</td><td>Event details + time</td></tr>
+  <tr><td>Meeting Request</td><td>&mdash;</td><td>Review Request</td><td>Meeting details table</td></tr>
+  <tr><td>Meeting Confirmed</td><td>Meeting QR</td><td>&mdash;</td><td>Meeting details + QR</td></tr>
+  <tr><td>Meeting Cancelled</td><td>&mdash;</td><td>Browse Available Slots</td><td>Cancelled details</td></tr>
+  <tr><td>Meeting Rescheduled</td><td>&mdash;</td><td>Confirm / Decline</td><td>Old vs. new time comparison</td></tr>
+  <tr><td>Meeting Reminder</td><td>Meeting QR</td><td>&mdash;</td><td>30-min countdown</td></tr>
+  <tr><td>Meeting Check-in Alert</td><td>Meeting QR</td><td>Get Directions</td><td>Partner waiting + location</td></tr>
+  <tr><td>Connection Request</td><td>&mdash;</td><td>Accept / Decline</td><td>Sender profile card</td></tr>
+  <tr><td>Connection Accepted</td><td>&mdash;</td><td>Schedule a Meeting</td><td>Next-step CTA</td></tr>
+  <tr><td>Quote Request</td><td>&mdash;</td><td>Respond to Quote</td><td>Buyer message preview</td></tr>
+  <tr><td>Quote Response</td><td>&mdash;</td><td>View Full Details</td><td>Seller response preview</td></tr>
+  <tr><td>Capacity Alert</td><td>&mdash;</td><td>Manage Settings</td><td>Visual progress bar</td></tr>
+  <tr><td>Post-Event Summary</td><td>&mdash;</td><td>View Full Analytics</td><td>Stats dashboard (registrations, check-ins, meetings)</td></tr>
+</table>
+
+<div class="note">
+  <strong>Conditional sending:</strong> Registration confirmation emails (#4) are only sent if the event organizer has enabled email notifications in the Event Notification Center. Event Reminder (#8), Meeting Reminder (#13), and automated summary emails (#20) require scheduled jobs (pg_cron).
+</div>
+
+<h2>Automated / Scheduled Emails</h2>
+<table>
+  <tr><th>Email</th><th>Schedule</th><th>Infrastructure</th></tr>
+  <tr><td>Event Reminder (24h)</td><td>24 hours before event start</td><td>pg_cron + Supabase Edge Function</td></tr>
+  <tr><td>Event Reminder (1h)</td><td>1 hour before event start</td><td>pg_cron + Supabase Edge Function</td></tr>
+  <tr><td>Meeting Reminder</td><td>30 minutes before meeting</td><td>pg_cron + Supabase Edge Function</td></tr>
+  <tr><td>Post-Event Summary</td><td>24 hours after event ends</td><td>pg_cron + Supabase Edge Function</td></tr>
+</table>
+
+<div style="margin-top:60px; text-align:center; font-size:12px; color:#9CA3AF; border-top:1px solid #E5E7EB; padding-top:20px;">
+  <p>Document generated for client review &mdash; Enterprise email notification system for Eventra Platform.</p>
+  <p style="color:#0684F5; font-weight:600;">Eventra Platform &copy; 2026</p>
+</div>
+
+</body>
+</html>

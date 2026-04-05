@@ -3270,10 +3270,16 @@ export default {
             survey: 'استبيان',
             assessment: 'تقييم',
             feedback: 'ملاحظات',
+            evaluation: 'تقييم ما بعد الفعالية',
+            quiz: 'اختبار / تحقق من المعرفة',
+            poll: 'تصويت / استطلاع',
+            nomination: 'ترشيح',
+            pitch: 'تقديم عرض',
+            checkin: 'تسجيل الحضور',
+            interest: 'إبداء الاهتمام',
             'data-collection': 'جمع بيانات',
             application: 'طلب',
             submission: 'تقديم',
-            evaluation: 'تقييم',
             custom: 'أخرى (مخصص)'
           },
           defaults: {

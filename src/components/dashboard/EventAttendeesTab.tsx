@@ -44,6 +44,7 @@ import {
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { createNotification } from '../../lib/notifications';
+import { sendRegistrationCancelledEmail } from '../../lib/email';
 import { useI18n } from '../../i18n/I18nContext';
 
 interface CustomField {
@@ -319,6 +320,9 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
   };
 
   const deleteAttendee = async (id: string) => {
+    // Get attendee info before deleting for the cancellation email
+    const attendee = attendees.find(a => a.id === id);
+
     const { error } = await supabase
       .from('event_attendees')
       .delete()
@@ -328,6 +332,17 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
       toast.error(t('manageEvent.attendees.toasts.deleteError'));
       return false;
     }
+
+    // Send registration cancelled email
+    if (attendee?.email) {
+      sendRegistrationCancelledEmail(attendee.email, {
+        attendeeName: attendee.name || attendee.email,
+        eventName: eventName || 'Event',
+        eventDate: '',
+        eventId: eventId
+      }).catch(() => {});
+    }
+
     loadAttendees();
     return true;
   };

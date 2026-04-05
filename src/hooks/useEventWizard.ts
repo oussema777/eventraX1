@@ -146,7 +146,7 @@ export function useEventWizard(initialEventId?: string) {
       let result;
       const currentId = !isNew ? (eventData.id || effectiveId) : null;
       let safePayload = { ...payload };
-      
+
       for (let attempt = 0; attempt < 3; attempt += 1) {
         result = await trySave(safePayload, currentId);
         if (!result.error) break;

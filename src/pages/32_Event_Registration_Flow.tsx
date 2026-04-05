@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import { sanitizeError } from '../utils/errorHandler';
 import { createNotification } from '../lib/notifications';
 import { useAuth } from '../contexts/AuthContext';
-import { sendEmail, generateRegistrationEmailHtml } from '../lib/email';
+import { sendEmail, generateRegistrationEmailHtml, sendCapacityAlertEmail } from '../lib/email';
 import { countries } from '../data/countries';
 import { uploadFormSubmissionFile } from '../utils/storage';
 import { useI18n } from '../i18n/I18nContext';
@@ -495,6 +495,38 @@ export default function EventRegistrationFlow() {
         console.warn('Failed to update ticket count (RPC missing?):', err);
       }
 
+      // Capacity alert email to organizer
+      try {
+        if (event?.owner_id && freeTicketId) {
+          const { data: ticketInfo } = await supabase
+            .from('event_tickets')
+            .select('quantitySold, quantityTotal')
+            .eq('id', freeTicketId)
+            .maybeSingle();
+          if (ticketInfo && ticketInfo.quantityTotal > 0) {
+            const pct = Math.round(((ticketInfo.quantitySold || 0) / ticketInfo.quantityTotal) * 100);
+            if (pct >= 80) {
+              const { data: ownerProfile } = await supabase
+                .from('profiles')
+                .select('full_name, email')
+                .eq('id', event.owner_id)
+                .maybeSingle();
+              if (ownerProfile?.email) {
+                sendCapacityAlertEmail({
+                  organizerName: ownerProfile.full_name || 'Organizer',
+                  organizerEmail: ownerProfile.email,
+                  eventName: event.name || 'Event',
+                  currentCount: ticketInfo.quantitySold || 0,
+                  totalCapacity: ticketInfo.quantityTotal,
+                  percentFull: pct,
+                  eventId: eventId || ''
+                }).catch(() => {});
+              }
+            }
+          }
+        }
+      } catch { /* non-blocking */ }
+
       if (attendee) {
         setRegisteredAttendeeId(attendee.id); // SAVE ID
         const sessionInserts = Array.from(selectedSessions).map(sessionId => ({
@@ -747,6 +779,13 @@ export default function EventRegistrationFlow() {
             display: none !important;
           }
         }
+        @media (max-width: 768px) {
+          .reg-help-text { display: none; }
+          .reg-help-btn button { padding: 8px !important; border: none !important; }
+        }
+        @media (max-width: 640px) {
+          .h-full.flex.items-center { padding-left: 16px !important; padding-right: 16px !important; }
+        }
       `}</style>
       {/* Header */}
       <header
@@ -758,8 +797,8 @@ export default function EventRegistrationFlow() {
           backdropFilter: 'blur(10px)'
         }}
       >
-        <div className="h-full flex items-center justify-between px-10">
-          <div style={{ width: '150px', cursor: 'pointer' }} onClick={() => navigate('/')}>
+        <div className="h-full flex items-center justify-between px-10" style={{ gap: '12px' }}>
+          <div style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => navigate('/')}>
             <Logo />
           </div>
 
@@ -807,7 +846,7 @@ export default function EventRegistrationFlow() {
             ))}
           </div>
 
-          <div style={{ width: '150px', textAlign: 'right' }}>
+          <div className="reg-help-btn" style={{ minWidth: '40px', textAlign: 'right', flexShrink: 0 }}>
             <button
               className="flex items-center gap-2 transition-colors ml-auto"
               style={{
@@ -818,7 +857,8 @@ export default function EventRegistrationFlow() {
                 border: '1px solid rgba(255, 255, 255, 0.2)',
                 padding: '8px 16px',
                 borderRadius: '8px',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = '#FFFFFF';
@@ -830,7 +870,7 @@ export default function EventRegistrationFlow() {
               }}
             >
               <HelpCircle size={16} />
-              {t('registrationFlow.help')}
+              <span className="reg-help-text">{t('registrationFlow.help')}</span>
             </button>
           </div>
         </div>

@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import WizardSidebar from '../components/wizard/WizardSidebar';
 import EventDetailsForm from '../components/wizard/EventDetailsForm';
+import type { EventDetailsFormHandle } from '../components/wizard/EventDetailsForm';
 import FooterActionBar from '../components/wizard/FooterActionBar';
 import { useAuth } from '../contexts/AuthContext';
 import { useEventWizard } from '../hooks/useEventWizard';
@@ -17,15 +18,24 @@ export default function WizardStep1Details() {
   const { user, signOut } = useAuth();
   const { eventData, isSaving, saveDraft } = useEventWizard(eventId);
   const { t } = useI18n();
+  const formRef = useRef<EventDetailsFormHandle>(null);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [draftName, setDraftName] = useState('');
   const untitledEvent = t('wizard.common.untitledEvent');
 
   const buildDraftPayload = () => {
+    // Prefer form's React state (via ref) over localStorage — eliminates timing issues
+    if (formRef.current) {
+      return formRef.current.getPayload();
+    }
+    // Fallback to localStorage (should not normally happen)
     const details = getEventBasicDetails(eventId);
     const safeName =
       details.eventName?.trim() || draftName.trim() || eventData.name?.trim();
     const resolvedStatus = details.eventStatus || eventData.event_status || 'free';
+    const accessCode = details.isPrivateEvent && details.accessCode && details.accessCode.length >= 4
+      ? details.accessCode
+      : (details.isPrivateEvent === false ? null : eventData.access_code ?? null);
     return {
       name: safeName,
       tagline: details.tagline || eventData.tagline,
@@ -39,7 +49,8 @@ export default function WizardStep1Details() {
       waitlist_enabled: details.enableWaitlist || eventData.waitlist_enabled || false,
       attendee_settings: {
         waitlist_capacity: details.enableWaitlist ? details.waitlistCapacity || null : null
-      }
+      },
+      access_code: accessCode
     };
   };
 
@@ -125,8 +136,9 @@ export default function WizardStep1Details() {
   };
 
   const handleStepClick = async (step: any) => {
-    // If we already have an ID, just navigate
+    // If we already have an ID, save current form state then navigate
     if (eventData.id) {
+      await saveDraft(buildDraftPayload());
       if (typeof step === 'string' && (step.startsWith('2.') || step.startsWith('3.'))) {
         const baseUrl = step.startsWith('2.') ? 'design' : 'registration';
         navigate(`/create/${baseUrl}/${eventData.id}?substep=${step}`);
@@ -258,7 +270,7 @@ export default function WizardStep1Details() {
                 padding: 'clamp(20px, 4vw, 40px)'
               }}
             >
-              <EventDetailsForm onNameChange={setDraftName} />
+              <EventDetailsForm ref={formRef} onNameChange={setDraftName} />
             </div>
           </div>
         </main>

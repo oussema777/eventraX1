@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { createNotification } from '../../lib/notifications';
+import { sendEventApprovedEmail, sendEventRejectedEmail } from '../../lib/email';
 
 interface Event {
   id: string;
@@ -151,6 +152,31 @@ export default function AdminDashboard() {
             action_url: `/event/${eventId}`
           });
         } catch { /* notification failure should not block */ }
+
+        // Send approval/rejection email to organizer
+        try {
+          const { data: organizer } = await supabase
+            .from('profiles').select('email, full_name').eq('id', event.organizer_id).single();
+          if (organizer?.email) {
+            if (isApproved) {
+              sendEventApprovedEmail(organizer.email, {
+                organizerName: organizer.full_name || organizer.email,
+                eventName: event.name,
+                startDate: event.start_date || 'TBD',
+                endDate: '',
+                eventFormat: '',
+                eventId: event.id
+              }).catch(() => {});
+            } else {
+              sendEventRejectedEmail(organizer.email, {
+                organizerName: organizer.full_name || organizer.email,
+                eventName: event.name,
+                rejectionReason: 'Please review your event details and ensure they meet our community guidelines.',
+                eventId: event.id
+              }).catch(() => {});
+            }
+          }
+        } catch { /* email failure should not block */ }
       }
 
       toast.success(`Event ${status} successfully`);

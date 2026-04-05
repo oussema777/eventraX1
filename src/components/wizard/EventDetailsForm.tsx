@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import './EventDetailsForm.css';
 import {
   Calendar,
@@ -30,11 +30,15 @@ import { useI18n } from '../../i18n/I18nContext';
 import { usePlan } from '../../hooks/usePlan';
 import { toast } from 'sonner';
 
+export interface EventDetailsFormHandle {
+  getPayload: () => Record<string, any>;
+}
+
 interface EventDetailsFormProps {
   onNameChange?: (name: string) => void;
 }
 
-export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps) {
+const EventDetailsForm = forwardRef<EventDetailsFormHandle, EventDetailsFormProps>(function EventDetailsForm({ onNameChange }, ref) {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const { eventData, saveDraft, isLoading } = useEventWizard(eventId);
@@ -264,6 +268,10 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
       access_code: isPrivateEvent && accessCode.length >= 4 ? accessCode : null,
     };
   };
+
+  useImperativeHandle(ref, () => ({
+    getPayload: buildPayload
+  }), [eventName, tagline, eventType, otherEventType, eventStatus, eventFormat, venueAddress, startDate, endDate, hasCapacityLimit, maxAttendees, enableWaitlist, waitlistCapacity, isPrivateEvent, accessCode]);
 
   const ensureEventAndNavigate = async (target: string) => {
     // Validation
@@ -1074,4 +1082,6 @@ export default function EventDetailsForm({ onNameChange }: EventDetailsFormProps
       </div>
     </div>
   );
-}
+});
+
+export default EventDetailsForm;

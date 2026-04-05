@@ -263,6 +263,20 @@ export default function WizardStep2DesignStudio() {
     }
   };
 
+  const handleLogoDelete = async () => {
+    setLogoUrl('');
+    const payload = buildDesignPayload({ logoUrl: '' });
+    persistLocalDesign(payload);
+    if (eventData.id) {
+      await saveDraft({
+        branding_settings: {
+          ...(eventData.branding_settings || {}),
+          design_studio: payload
+        }
+      });
+    }
+  };
+
   const handleHeroImageUpload = async (file: File) => {
     const id = eventData.id || eventId;
     if (!id) {
@@ -599,6 +613,7 @@ export default function WizardStep2DesignStudio() {
             onButtonRadiusChange={setButtonRadius}
             logoUrl={logoUrl}
             onLogoUpload={handleLogoUpload}
+            onLogoDelete={handleLogoDelete}
             isLogoUploading={isLogoUploading}
             logoSize={logoSize}
             onLogoSizeChange={setLogoSize}

@@ -27,6 +27,7 @@ import {
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { useI18n } from '../../i18n/I18nContext';
+import { sendMeetingCheckinAlertEmail } from '../../lib/email';
 
 type ScannerType = 'event' | 'session' | 'b2b' | null;
 type ScanResult = 'success' | 'error' | 'duplicate' | null;
@@ -151,13 +152,35 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
         supabase.from('event_attendees').select('id', { head: true, count: 'exact' }).eq('event_id', eventId).eq('checked_in', true).gte('check_in_at', todayStart.toISOString()),
         supabase.from('event_checkins').select('id', { head: true, count: 'exact' }).eq('event_id', eventId).gte('created_at', todayStart.toISOString()),
         supabase.from('event_checkins').select('id', { head: true, count: 'exact' }).eq('event_id', eventId).gte('created_at', lastHour.toISOString()),
-        supabase.from('event_checkins').select('id', { head: true, count: 'exact' }).eq('event_id', eventId).eq('type', 'session'),
+        supabase.from('event_checkins').select('id', { head: true, count: 'exact' }).eq('event_id', eventId).eq('type', 'session').gte('created_at', todayStart.toISOString()),
         supabase.from('event_sessions').select('id,title,location,starts_at,ends_at').eq('event_id', eventId).order('starts_at', { ascending: true }),
-        supabase.from('event_b2b_meetings').select('id,start_at,end_at,status,attendee_a_id,attendee_b_id,location').eq('event_id', eventId).order('start_at', { ascending: true }).limit(200)
+        supabase.from('event_b2b_meetings').select('id,start_at,end_at,status,attendee_a_id,attendee_b_id,profile_a_id,profile_b_id,location').eq('event_id', eventId).in('status', ['confirmed', 'pending', 'completed']).order('start_at', { ascending: true }).limit(200)
       ]);
 
       const sessionsData = sessionsRes.data || [];
-      const meetingsData = meetingsRes.data || [];
+      const meetingsRaw = meetingsRes.data || [];
+
+      // Resolve profile names for B2B meeting display
+      const profileIds = new Set<string>();
+      meetingsRaw.forEach((m: any) => {
+        if (m.profile_a_id) profileIds.add(m.profile_a_id);
+        if (m.profile_b_id) profileIds.add(m.profile_b_id);
+      });
+      let profileNameMap: Record<string, string> = {};
+      if (profileIds.size > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', Array.from(profileIds));
+        (profiles || []).forEach((p: any) => {
+          profileNameMap[p.id] = p.full_name || '';
+        });
+      }
+      const meetingsData = meetingsRaw.map((m: any) => ({
+        ...m,
+        profile_a_name: profileNameMap[m.profile_a_id] || '',
+        profile_b_name: profileNameMap[m.profile_b_id] || ''
+      }));
 
       setSessions(sessionsData);
       setMeetings(meetingsData);
@@ -423,7 +446,9 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
       return;
     }
     if (!selectedMeeting || !meetings.find((x: any) => x.id === selectedMeeting)) {
-      setSelectedMeeting(meetings[0].id);
+      // Prefer first non-completed meeting
+      const active = meetings.find((x: any) => x.status !== 'completed');
+      setSelectedMeeting(active ? active.id : meetings[0].id);
     }
   }, [meetings, selectedMeeting]);
 
@@ -864,6 +889,37 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
               .eq('id', selectedMeeting);
           }
         } catch { /* ignore */ }
+
+        // Send check-in alert email to the OTHER party
+        try {
+          const { data: mtg } = await supabase
+            .from('event_b2b_meetings')
+            .select('profile_a_id, profile_b_id, start_at, location')
+            .eq('id', selectedMeeting)
+            .maybeSingle();
+          if (mtg) {
+            const checkedInProfileId = attendee.profile_id;
+            const otherProfileId = mtg.profile_a_id === checkedInProfileId ? mtg.profile_b_id : mtg.profile_a_id;
+            const [{ data: checkedInProfile }, { data: otherProfile }, { data: ev }] = await Promise.all([
+              supabase.from('profiles').select('full_name, email').eq('id', checkedInProfileId).maybeSingle(),
+              supabase.from('profiles').select('full_name, email').eq('id', otherProfileId).maybeSingle(),
+              supabase.from('events').select('name').eq('id', eventId).maybeSingle()
+            ]);
+            if (otherProfile?.email && checkedInProfile) {
+              const startDate = mtg.start_at ? new Date(mtg.start_at) : new Date();
+              sendMeetingCheckinAlertEmail({
+                recipientName: otherProfile.full_name || 'Attendee',
+                recipientEmail: otherProfile.email,
+                partnerName: checkedInProfile.full_name || 'Your meeting partner',
+                eventName: ev?.name || 'Event',
+                meetingTime: startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                location: mtg.location || 'Networking Area',
+                checkinTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                meetingId: selectedMeeting
+              }).catch(() => {});
+            }
+          }
+        } catch { /* non-blocking */ }
       }
 
       setManualCode('');
@@ -934,6 +990,37 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
             .update({ status: 'completed' })
             .eq('id', meetingId);
         }
+
+        // Send check-in alert email to the OTHER party
+        try {
+          const { data: mtg } = await supabase
+            .from('event_b2b_meetings')
+            .select('profile_a_id, profile_b_id, start_at, location')
+            .eq('id', meetingId)
+            .maybeSingle();
+          if (mtg) {
+            const checkedInProfileId = attendee.profile_id;
+            const otherProfileId = mtg.profile_a_id === checkedInProfileId ? mtg.profile_b_id : mtg.profile_a_id;
+            const [{ data: checkedInProfile }, { data: otherProfile }, { data: ev }] = await Promise.all([
+              supabase.from('profiles').select('full_name, email').eq('id', checkedInProfileId).maybeSingle(),
+              supabase.from('profiles').select('full_name, email').eq('id', otherProfileId).maybeSingle(),
+              supabase.from('events').select('name').eq('id', eventId).maybeSingle()
+            ]);
+            if (otherProfile?.email && checkedInProfile) {
+              const startDate = mtg.start_at ? new Date(mtg.start_at) : new Date();
+              sendMeetingCheckinAlertEmail({
+                recipientName: otherProfile.full_name || 'Attendee',
+                recipientEmail: otherProfile.email,
+                partnerName: checkedInProfile.full_name || 'Your meeting partner',
+                eventName: ev?.name || 'Event',
+                meetingTime: startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                location: mtg.location || 'Networking Area',
+                checkinTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                meetingId
+              }).catch(() => {});
+            }
+          }
+        } catch { /* non-blocking */ }
       }
     } catch (e) {
       if (scannerSettings.offlineScanning) {
@@ -1796,11 +1883,17 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
                         marginTop: '8px'
                       }}
                     >
-                      {meetings.length ? meetings.map((mm: any) => (
-                        <option key={mm.id} value={mm.id}>
-                          Meeting #{mm.id?.toString().slice(0, 8)}{mm.start_at ? ` - ${new Date(mm.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
-                        </option>
-                      )) : (
+                      {meetings.length ? meetings.map((mm: any) => {
+                        const nameA = mm.profile_a_name || 'Participant A';
+                        const nameB = mm.profile_b_name || 'Participant B';
+                        const time = mm.start_at ? new Date(mm.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                        const statusTag = mm.status === 'completed' ? ' [Done]' : '';
+                        return (
+                          <option key={mm.id} value={mm.id}>
+                            {nameA} ↔ {nameB}{time ? ` — ${time}` : ''}{mm.location ? ` (${mm.location})` : ''}{statusTag}
+                          </option>
+                        );
+                      }) : (
                         <option value="" disabled>{t('manageEvent.dayOf.meetings.noMeetings')}</option>
                       )}
                     </select>

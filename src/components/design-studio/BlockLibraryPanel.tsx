@@ -56,6 +56,7 @@ interface BlockLibraryPanelProps {
   onButtonRadiusChange?: (radius: number) => void;
   logoUrl?: string;
   onLogoUpload?: (file: File) => void;
+  onLogoDelete?: () => void;
   isLogoUploading?: boolean;
   logoSize?: number;
   onLogoSizeChange?: (size: number) => void;
@@ -81,6 +82,7 @@ export default function BlockLibraryPanel({
   onButtonRadiusChange,
   logoUrl,
   onLogoUpload,
+  onLogoDelete,
   isLogoUploading = false,
   logoSize = 80,
   onLogoSizeChange
@@ -521,6 +523,68 @@ export default function BlockLibraryPanel({
                     ? t('wizard.designStudio.branding.replaceLogo')
                     : t('wizard.designStudio.branding.uploadLogo')}
               </button>
+
+              {/* Logo Preview */}
+              {logoUrl && (
+                <div style={{
+                  marginTop: '12px',
+                  padding: '12px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}>
+                  <img
+                    src={logoUrl}
+                    alt="Event logo"
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      objectFit: 'contain',
+                      borderRadius: '6px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                    }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255, 255, 255, 0.9)' }}>
+                      {t('wizard.designStudio.branding.logoUploaded', { defaultValue: 'Logo uploaded' })}
+                    </div>
+                    <div style={{
+                      fontSize: '11px',
+                      color: 'rgba(255, 255, 255, 0.5)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {logoUrl.split('/').pop()?.split('?')[0] || 'logo'}
+                    </div>
+                  </div>
+                  {onLogoDelete && (
+                    <button
+                      onClick={onLogoDelete}
+                      title={t('wizard.designStudio.branding.deleteLogo', { defaultValue: 'Remove logo' })}
+                      style={{
+                        padding: '6px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                        color: '#EF4444',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.3)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)'; }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Logo Size Slider */}
               <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>

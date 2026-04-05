@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { createNotification } from '../../lib/notifications';
 import { useI18n } from '../../i18n/I18nContext';
-import { sendMeetingConfirmationEmails } from '../../lib/email';
+import { sendMeetingConfirmationEmails, sendMeetingRescheduledEmail } from '../../lib/email';
 
 interface BookMeetingModalProps {
   isOpen: boolean;
@@ -377,21 +377,36 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
           const currentEvent = eventCatalog.find(e => e.id === targetEventId);
           const eventName = currentEvent ? currentEvent.name : 'Event';
 
-          console.log('[EMAIL_DEBUG] Sending with Event Name:', eventName);
-
           if (currentUser.email && recipientProfile?.email) {
-            sendMeetingConfirmationEmails({
-              organizerEmail: currentUser.email,
-              organizerName: currentUser.full_name || currentUser.email,
-              recipientEmail: recipientProfile.email,
-              recipientName: recipient.name,
-              meetingDate: startAt.toLocaleDateString(),
-              meetingTime: startAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              location: location,
-              eventName: eventName,
-              meetingId: meetingEditId || 'new',
-              status: 'pending'
-            }).catch(err => console.error('Failed to send meeting emails:', err));
+            if (meetingEditId) {
+              // Rescheduled — send rescheduled email to recipient
+              sendMeetingRescheduledEmail({
+                recipientName: recipient.name,
+                recipientEmail: recipientProfile.email,
+                organizerName: currentUser.full_name || currentUser.email,
+                eventName: eventName,
+                oldDate: existingMeeting?.startAt ? new Date(existingMeeting.startAt).toLocaleDateString() : 'N/A',
+                oldTime: existingMeeting?.startAt ? new Date(existingMeeting.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A',
+                newDate: startAt.toLocaleDateString(),
+                newTime: startAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                location: location,
+                meetingId: meetingEditId
+              }).catch(() => {});
+            } else {
+              // New meeting — send confirmation emails
+              sendMeetingConfirmationEmails({
+                organizerEmail: currentUser.email,
+                organizerName: currentUser.full_name || currentUser.email,
+                recipientEmail: recipientProfile.email,
+                recipientName: recipient.name,
+                meetingDate: startAt.toLocaleDateString(),
+                meetingTime: startAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                location: location,
+                eventName: eventName,
+                meetingId: meetingEditId || 'new',
+                status: 'pending'
+              }).catch(err => console.error('Failed to send meeting emails:', err));
+            }
           }
         } catch (emailErr) {
           console.error('Error preparing meeting emails:', emailErr);

@@ -3,7 +3,7 @@ import {
   Search,
   MapPin,
   Calendar,
-  Heart,
+  Eye,
   ChevronDown,
   SlidersHorizontal,
   X,
@@ -67,7 +67,6 @@ export default function BrowseEventsDiscovery() {
     price: [],
     date: []
   });
-  const [likedEvents, setLikedEvents] = useState<Set<string>>(new Set());
 
   const [allEvents, setAllEvents] = useState<EventCard[]>([]);
 
@@ -261,17 +260,6 @@ export default function BrowseEventsDiscovery() {
     resetPagination();
   };
 
-  const toggleLike = (eventId: string) => {
-    setLikedEvents(prev => {
-      const updated = new Set(prev);
-      if (updated.has(eventId)) {
-        updated.delete(eventId);
-      } else {
-        updated.add(eventId);
-      }
-      return updated;
-    });
-  };
 
   const handleEventClick = (eventId: string) => {
     // Navigate to event detail page
@@ -981,28 +969,23 @@ export default function BrowseEventsDiscovery() {
                       </div>
                     </div>
 
-                    {/* Like Button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleLike(event.id);
-                      }}
-                      className="absolute top-4 right-4 p-2 rounded-full transition-all"
+                    {/* Visibility Badge */}
+                    <div
+                      className="absolute top-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full"
                       style={{
-                        backgroundColor: 'rgba(255,255,255,0.9)',
-                        backdropFilter: 'blur(8px)'
+                        backgroundColor: event.isPrivate ? 'rgba(245, 158, 11, 0.9)' : 'rgba(16, 185, 129, 0.9)',
+                        backdropFilter: 'blur(8px)',
+                        color: '#FFFFFF',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        letterSpacing: '0.3px'
                       }}
-                      onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
-                      onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                     >
-                      <Heart 
-                        size={18} 
-                        style={{ 
-                          color: likedEvents.has(event.id) ? '#EF4444' : '#6B7280',
-                          fill: likedEvents.has(event.id) ? '#EF4444' : 'none'
-                        }} 
-                      />
-                    </button>
+                      {event.isPrivate ? <Lock size={12} /> : <Eye size={12} />}
+                      {event.isPrivate
+                        ? t('event.private', { defaultValue: 'Private' })
+                        : t('event.public', { defaultValue: 'Public' })}
+                    </div>
                   </div>
 
                   {/* Content Area */}
@@ -1043,13 +1026,6 @@ export default function BrowseEventsDiscovery() {
                         {event.price}
                       </span>
                       <div className="flex items-center gap-2">
-                        {event.isPrivate && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
-                            style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B' }}>
-                            <Lock size={10} />
-                            {t('event.private', { defaultValue: 'Private' })}
-                          </span>
-                        )}
                         <span
                           className="px-3 py-1 rounded-full"
                           style={{

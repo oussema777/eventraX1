@@ -28,7 +28,7 @@ import { createNotification } from '../../lib/notifications';
 import { useI18n } from '../../i18n/I18nContext';
 import { useMessageThread } from '../../hooks/useMessageThread';
 import BookMeetingModal from './BookMeetingModal';
-import { sendEmail, generateMeetingConfirmationEmailHtml, sendMeetingConfirmationEmails } from '../../lib/email';
+import { sendEmail, generateMeetingConfirmationEmailHtml, sendMeetingConfirmationEmails, sendMeetingCancelledEmail, sendConnectionRequestEmail, sendConnectionAcceptedEmail } from '../../lib/email';
 
 const MATCHES_TABLE = 'b2b_matches';
 const REQUESTS_TABLE = 'b2b_requests';
@@ -729,6 +729,26 @@ export default function UserB2BCenter() {
 
   const handleCancelMeeting = async (meetingId: string, profileId: string) => {
     await supabase.from(MEETINGS_TABLE).update({ status: 'cancelled' }).eq('id', meetingId);
+
+    // Send cancellation email to the other party
+    const { data: meeting } = await supabase
+      .from(MEETINGS_TABLE)
+      .select('*, event:event_id(name), profile_a:profile_a_id(full_name, email), profile_b:profile_b_id(full_name, email)')
+      .eq('id', meetingId).single();
+    if (meeting) {
+      const isA = meeting.profile_a?.full_name === currentUserName;
+      const other = isA ? meeting.profile_b : meeting.profile_a;
+      if (other?.email) {
+        sendMeetingCancelledEmail(other.email, {
+          recipientName: other.full_name || other.email,
+          cancellerName: currentUserName,
+          eventName: meeting.event?.name || 'Event',
+          meetingDate: formatDate(meeting.start_at),
+          meetingTime: formatTime(meeting.start_at)
+        }).catch(() => {});
+      }
+    }
+
     await safeNotify({
       recipient_id: profileId,
       type: 'action',
@@ -813,6 +833,26 @@ export default function UserB2BCenter() {
 
   const handleDeclineMeeting = async (meetingId: string, profileId: string) => {
     await supabase.from(MEETINGS_TABLE).update({ status: 'cancelled' }).eq('id', meetingId);
+
+    // Send decline email to the meeting organizer
+    const { data: meeting } = await supabase
+      .from(MEETINGS_TABLE)
+      .select('*, event:event_id(name), profile_a:profile_a_id(full_name, email), profile_b:profile_b_id(full_name, email)')
+      .eq('id', meetingId).single();
+    if (meeting) {
+      const isA = meeting.profile_a?.full_name === currentUserName;
+      const other = isA ? meeting.profile_b : meeting.profile_a;
+      if (other?.email) {
+        sendMeetingCancelledEmail(other.email, {
+          recipientName: other.full_name || other.email,
+          cancellerName: currentUserName,
+          eventName: meeting.event?.name || 'Event',
+          meetingDate: formatDate(meeting.start_at),
+          meetingTime: formatTime(meeting.start_at)
+        }).catch(() => {});
+      }
+    }
+
     await safeNotify({
       recipient_id: profileId,
       type: 'action',
@@ -856,6 +896,21 @@ export default function UserB2BCenter() {
       return;
     }
     await supabase.from(MATCHES_TABLE).update({ status: 'pending' }).eq('id', matchId);
+
+    // Send connection request email
+    const { data: recipientProfile } = await supabase
+      .from('profiles').select('email, full_name, job_title, organization').eq('id', match.profileId).single();
+    if (recipientProfile?.email) {
+      const { data: senderProfile } = await supabase
+        .from('profiles').select('job_title, organization').eq('id', user.id).single();
+      sendConnectionRequestEmail(recipientProfile.email, {
+        recipientName: recipientProfile.full_name || recipientProfile.email,
+        senderName: currentUserName,
+        senderJobTitle: senderProfile?.job_title || '',
+        senderOrganization: senderProfile?.organization || ''
+      }).catch(() => {});
+    }
+
     await safeNotify({
       recipient_id: match.profileId,
       type: 'action',
@@ -883,6 +938,17 @@ export default function UserB2BCenter() {
       [{ profile_a_id: profileA, profile_b_id: profileB, event_id: request.eventId }],
       { onConflict: 'profile_a_id,profile_b_id' }
     );
+
+    // Send connection accepted email to the requester
+    const { data: requesterProfile } = await supabase
+      .from('profiles').select('email, full_name').eq('id', request.profileId).single();
+    if (requesterProfile?.email) {
+      sendConnectionAcceptedEmail(requesterProfile.email, {
+        requesterName: requesterProfile.full_name || requesterProfile.email,
+        accepterName: currentUserName
+      }).catch(() => {});
+    }
+
     await safeNotify({
       recipient_id: request.profileId,
       type: 'action',

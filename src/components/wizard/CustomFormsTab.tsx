@@ -57,7 +57,13 @@ import {
   BarChart3,
   ClipboardCheck,
   Download,
-  Table
+  Table,
+  HelpCircle,
+  Vote,
+  Trophy,
+  Rocket,
+  UserCheck,
+  Handshake
 } from 'lucide-react';
 import FieldPropertiesPanel from './FieldPropertiesPanel';
 import { IncludeInDashboardToggle } from './IncludeInDashboardToggle';
@@ -76,7 +82,7 @@ interface FormCard {
   id: string;
   title: string;
   description: string;
-  type: 'registration' | 'survey' | 'assessment' | 'feedback' | 'data-collection' | 'application' | 'submission' | 'evaluation' | 'custom';
+  type: 'registration' | 'survey' | 'assessment' | 'feedback' | 'data-collection' | 'application' | 'submission' | 'evaluation' | 'quiz' | 'poll' | 'nomination' | 'pitch' | 'checkin' | 'interest' | 'custom';
   status: 'active' | 'draft' | 'locked';
   isDefault?: boolean;
   isFree: boolean;
@@ -175,6 +181,12 @@ const iconForFormType = (formType: string) => {
   if (t.includes('submission')) return Upload;
   if (t.includes('application')) return Hand;
   if (t.includes('evaluation')) return ClipboardCheck;
+  if (t.includes('quiz')) return HelpCircle;
+  if (t.includes('poll')) return Vote;
+  if (t.includes('nomination')) return Trophy;
+  if (t.includes('pitch')) return Rocket;
+  if (t.includes('checkin')) return UserCheck;
+  if (t.includes('interest')) return Handshake;
   if (t.includes('data')) return FileText;
   return ClipboardList;
 };
@@ -188,6 +200,12 @@ const colorForFormType = (formType: string) => {
   if (t.includes('submission')) return '#EF4444';
   if (t.includes('application')) return '#EC4899';
   if (t.includes('evaluation')) return '#14B8A6';
+  if (t.includes('quiz')) return '#6366F1';
+  if (t.includes('poll')) return '#F97316';
+  if (t.includes('nomination')) return '#EAB308';
+  if (t.includes('pitch')) return '#E11D48';
+  if (t.includes('checkin')) return '#22C55E';
+  if (t.includes('interest')) return '#0EA5E9';
   if (t.includes('data')) return '#06B6D4';
   return '#10B981';
 };
@@ -2517,11 +2535,17 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                     >
                       <option value="survey">{t('wizard.step3.customForms.formTypes.survey')}</option>
                       <option value="feedback">{t('wizard.step3.customForms.formTypes.feedback')}</option>
+                      <option value="evaluation">{t('wizard.step3.customForms.formTypes.evaluation')}</option>
                       <option value="assessment">{t('wizard.step3.customForms.formTypes.assessment')}</option>
-                      <option value="data-collection">{t('wizard.step3.customForms.formTypes.data-collection')}</option>
+                      <option value="quiz">{t('wizard.step3.customForms.formTypes.quiz')}</option>
+                      <option value="poll">{t('wizard.step3.customForms.formTypes.poll')}</option>
+                      <option value="nomination">{t('wizard.step3.customForms.formTypes.nomination')}</option>
+                      <option value="pitch">{t('wizard.step3.customForms.formTypes.pitch')}</option>
+                      <option value="checkin">{t('wizard.step3.customForms.formTypes.checkin')}</option>
+                      <option value="interest">{t('wizard.step3.customForms.formTypes.interest')}</option>
                       <option value="application">{t('wizard.step3.customForms.formTypes.application')}</option>
                       <option value="submission">{t('wizard.step3.customForms.formTypes.submission')}</option>
-                      <option value="evaluation">{t('wizard.step3.customForms.formTypes.evaluation')}</option>
+                      <option value="data-collection">{t('wizard.step3.customForms.formTypes.data-collection')}</option>
                       <option value="custom">{t('wizard.step3.customForms.formTypes.custom')}</option>
                     </select>
                   </div>
