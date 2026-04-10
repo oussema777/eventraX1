@@ -44,6 +44,7 @@ interface BusinessCard {
   sector: string;
   companySize: 'Freelancer' | 'SME' | 'Enterprise';
   pending: boolean;
+  offeringCount: number;
 }
 
 const toCompanySize = (value?: string): BusinessCard['companySize'] => {
@@ -103,7 +104,7 @@ export default function B2BMarketplaceDiscovery() {
       
       let query = supabase
         .from('business_profiles')
-        .select('id, company_name, description, sectors, company_size, address, logo_url, cover_url, verification_status, branding, business_offerings(images)', { count: 'exact' })
+        .select('id, created_at', { count: 'exact' })
         .eq('verification_status', 'verified')
         .eq('is_public', true);
 
@@ -120,18 +121,61 @@ export default function B2BMarketplaceDiscovery() {
         query = query.in('company_size', selectedSizes);
       }
 
-      const start = (pageNum - 1) * ITEMS_PER_PAGE;
-      const end = start + ITEMS_PER_PAGE - 1;
-
-      const { data, error, count } = await query
-        .order('created_at', { ascending: false })
-        .range(start, end);
+      const { data: profileRows, error, count } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
 
       setTotalCount(count || 0);
 
-      const mapped: BusinessCard[] = (data || []).map((profile: any) => {
+      const matchingProfiles = profileRows || [];
+      const profileIds = matchingProfiles.map((profile: any) => profile.id).filter(Boolean);
+
+      const offeringCounts = new Map<string, number>();
+      if (profileIds.length > 0) {
+        const { data: offeringRows, error: offeringError } = await supabase
+          .from('business_offerings')
+          .select('business_id')
+          .in('business_id', profileIds);
+
+        if (offeringError) throw offeringError;
+
+        (offeringRows || []).forEach((offering: any) => {
+          const businessId = offering.business_id;
+          if (!businessId) return;
+          offeringCounts.set(businessId, (offeringCounts.get(businessId) || 0) + 1);
+        });
+      }
+
+      const sortedProfileIds = [...matchingProfiles]
+        .sort((a: any, b: any) => {
+          const offeringsDiff = (offeringCounts.get(b.id) || 0) - (offeringCounts.get(a.id) || 0);
+          if (offeringsDiff !== 0) return offeringsDiff;
+          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+        })
+        .map((profile: any) => profile.id);
+
+      const start = (pageNum - 1) * ITEMS_PER_PAGE;
+      const pageProfileIds = sortedProfileIds.slice(start, start + ITEMS_PER_PAGE);
+
+      if (pageProfileIds.length === 0) {
+        setBusinesses([]);
+        return;
+      }
+
+      const { data: detailRows, error: detailError } = await supabase
+        .from('business_profiles')
+        .select('id, company_name, description, sectors, company_size, address, logo_url, cover_url, verification_status, branding, business_offerings(images)')
+        .in('id', pageProfileIds);
+
+      if (detailError) throw detailError;
+
+      const detailMap = new Map((detailRows || []).map((profile: any) => [profile.id, profile]));
+
+      const mapped: BusinessCard[] = pageProfileIds.map((profileId) => {
+        const profile: any = detailMap.get(profileId);
+        if (!profile) {
+          return null;
+        }
         const branding = profile.branding || {};
         const sectorTags = profile.sectors || [];
         const images = [
@@ -154,9 +198,10 @@ export default function B2BMarketplaceDiscovery() {
           tags: sectorTags.length > 0 ? sectorTags : ['Business'],
           sector: sectorTags[0] || 'Business',
           companySize: toCompanySize(profile.company_size),
-          pending: profile.verification_status === 'pending'
+          pending: profile.verification_status === 'pending',
+          offeringCount: offeringCounts.get(profile.id) || 0
         };
-      });
+      }).filter(Boolean) as BusinessCard[];
 
       setBusinesses(mapped);
     } catch (error: any) {
