@@ -1472,7 +1472,7 @@ function AddSessionModal({
                             {/* Date & Time Selection - ENHANCED */}
                             <div>
                               <label style={{ fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '16px', display: 'block' }}>
-                                {t('wizard.step3.sessions.modal.scheduleTitle', { defaultValue: 'Session Schedule' })}
+                                {t('wizard.step3.sessions.modal.scheduleTitle', { defaultValue: 'When does this session take place?' })}
                               </label>
                               
                               {/* Date Selection Cards */}
@@ -1519,28 +1519,21 @@ function AddSessionModal({
                                                                       <Clock size={14} /> {t('wizard.step3.sessions.modal.startTime')}
                                                                     </label>
                                                                     <div className="relative">
-                                                                      <select
+                                                                      <input
                                                                         id="start-time"
+                                                                        type="time"
                                                                         value={startTime}
                                                                         onChange={(e) => setStartTime(e.target.value)}
-                                                                        className="w-full h-12 px-4 rounded-lg outline-none transition-all appearance-none cursor-pointer"
+                                                                        className="w-full h-12 px-4 rounded-lg outline-none transition-all"
                                                                         style={{
                                                                           fontSize: '16px',
                                                                           fontWeight: 600,
                                                                           color: '#FFFFFF',
                                                                           backgroundColor: 'rgba(255, 255, 255, 0.05)',
                                                                           border: '1.5px solid rgba(255, 255, 255, 0.1)',
-                                                                          backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'rgb(148,163,184)\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3e%3cpolyline points=\'6 9 12 15 18 9\'%3e%3c/polyline%3e%3c/svg%3e")',
-                                                                          backgroundRepeat: 'no-repeat',
-                                                                          backgroundPosition: 'right 12px center',
-                                                                          backgroundSize: '16px'
+                                                                          colorScheme: 'dark'
                                                                         }}
-                                                                      >
-                                                                        <option value="" style={{ backgroundColor: '#0B2641' }}>--:--</option>
-                                                                        {timeOptions.map(t => (
-                                                                          <option key={t} value={t} style={{ backgroundColor: '#0B2641' }}>{t}</option>
-                                                                        ))}
-                                                                      </select>
+                                                                      />
                                                                     </div>
                                                                   </div>
                                                                   <div>
@@ -1548,28 +1541,21 @@ function AddSessionModal({
                                                                       <Clock size={14} /> {t('wizard.step3.sessions.modal.endTime')}
                                                                     </label>
                                                                     <div className="relative">
-                                                                      <select
+                                                                      <input
                                                                         id="end-time"
+                                                                        type="time"
                                                                         value={endTime}
                                                                         onChange={(e) => setEndTime(e.target.value)}
-                                                                        className="w-full h-12 px-4 rounded-lg outline-none transition-all appearance-none cursor-pointer"
+                                                                        className="w-full h-12 px-4 rounded-lg outline-none transition-all"
                                                                         style={{
                                                                           fontSize: '16px',
                                                                           fontWeight: 600,
                                                                           color: '#FFFFFF',
                                                                           backgroundColor: 'rgba(255, 255, 255, 0.05)',
                                                                           border: '1.5px solid rgba(255, 255, 255, 0.1)',
-                                                                          backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'rgb(148,163,184)\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3e%3cpolyline points=\'6 9 12 15 18 9\'%3e%3c/polyline%3e%3c/svg%3e")',
-                                                                          backgroundRepeat: 'no-repeat',
-                                                                          backgroundPosition: 'right 12px center',
-                                                                          backgroundSize: '16px'
+                                                                          colorScheme: 'dark'
                                                                         }}
-                                                                      >
-                                                                        <option value="" style={{ backgroundColor: '#0B2641' }}>--:--</option>
-                                                                        {timeOptions.map(t => (
-                                                                          <option key={t} value={t} style={{ backgroundColor: '#0B2641' }}>{t}</option>
-                                                                        ))}
-                                                                      </select>
+                                                                      />
                                                                     </div>
                                                                   </div>
                                                                 </div>
