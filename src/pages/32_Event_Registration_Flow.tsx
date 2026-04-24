@@ -89,6 +89,7 @@ export default function EventRegistrationFlow() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fileUploading, setFileUploading] = useState<Record<string, boolean>>({});
+  const [countrySearch, setCountrySearch] = useState('');
 
   const generateConfirmationCode = () => 'EV-' + generateAccessCode(6);
 
@@ -329,15 +330,23 @@ export default function EventRegistrationFlow() {
   };
 
   const updateFormField = (fieldId: string, value: string) => {
-    setFormFields(formFields.map(field =>
+    setFormFields(prev => prev.map(field =>
       field.id === fieldId && !field.readonly ? { ...field, value } : field
     ));
   };
 
   const toggleCountryDropdown = (fieldId: string) => {
-    setFormFields(formFields.map(field =>
+    setFormFields(prev => prev.map(field =>
       field.id === fieldId ? { ...field, isDropdownOpen: !field.isDropdownOpen } : field
     ));
+    setCountrySearch('');
+  };
+
+  const selectCountry = (fieldId: string, countryCode: string) => {
+    setFormFields(prev => prev.map(field =>
+      field.id === fieldId ? { ...field, value: countryCode, isDropdownOpen: false } : field
+    ));
+    setCountrySearch('');
   };
 
   const updatePhoneField = (fieldId: string, part: 'countryCode' | 'number', value: string) => {
@@ -381,7 +390,11 @@ export default function EventRegistrationFlow() {
       const responses: Record<string, any> = {};
       formFields.forEach(f => {
         if (f.type === 'phone' && f.phoneCountryCode && f.phoneNumber) {
-          responses[f.label] = `${f.phoneCountryCode} ${f.phoneNumber}`;
+          const phoneCountry = countries.find(c => c.code === f.phoneCountryCode);
+          responses[f.label] = `${phoneCountry?.phoneCode || f.phoneCountryCode} ${f.phoneNumber}`;
+        } else if (f.type === 'country' && f.value) {
+          const countryObj = countries.find(c => c.code === f.value);
+          responses[f.label] = countryObj?.name || f.value;
         } else {
           responses[f.label] = f.value;
         }
@@ -981,30 +994,50 @@ export default function EventRegistrationFlow() {
                               style={{
                                 backgroundColor: '#FFFFFF',
                                 border: '1px solid #E5E7EB',
-                                maxHeight: '200px',
-                                overflowY: 'auto'
+                                maxHeight: '280px',
+                                overflowY: 'hidden',
+                                display: 'flex',
+                                flexDirection: 'column'
                               }}
                             >
-                              {countries.map((country) => (
-                                <button
-                                  key={country.code}
-                                  type="button"
-                                  onClick={() => {
-                                    updateFormField(field.id, country.code);
-                                    toggleCountryDropdown(field.id);
-                                  }}
-                                  className="w-full flex items-center gap-3 px-4 py-2.5 transition-colors"
+                              <div style={{ padding: '8px', borderBottom: '1px solid #E5E7EB' }}>
+                                <input
+                                  type="text"
+                                  value={countrySearch}
+                                  onChange={(e) => setCountrySearch(e.target.value)}
+                                  placeholder={t('registrationFlow.searchCountry', { defaultValue: 'Search country...' })}
+                                  autoFocus
+                                  className="w-full px-3 py-2 rounded-md outline-none"
                                   style={{
-                                    border: 'none',
-                                    backgroundColor: field.value === country.code ? '#F3F4F6' : 'transparent',
-                                    cursor: 'pointer',
-                                    textAlign: 'left'
+                                    fontSize: '14px',
+                                    color: '#374151',
+                                    backgroundColor: '#F9FAFB',
+                                    border: '1px solid #E5E7EB'
                                   }}
-                                >
-                                  <span style={{ fontSize: '20px' }}>{toFlagEmoji(country.code)}</span>
-                                  <span style={{ fontSize: '14px', color: '#374151' }}>{country.name}</span>
-                                </button>
-                              ))}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+                              <div style={{ overflowY: 'auto', flex: 1 }}>
+                                {countries
+                                  .filter(c => !countrySearch || c.name.toLowerCase().includes(countrySearch.toLowerCase()) || c.code.toLowerCase().includes(countrySearch.toLowerCase()))
+                                  .map((country) => (
+                                  <button
+                                    key={country.code}
+                                    type="button"
+                                    onClick={() => selectCountry(field.id, country.code)}
+                                    className="w-full flex items-center gap-3 px-4 py-2.5 transition-colors"
+                                    style={{
+                                      border: 'none',
+                                      backgroundColor: field.value === country.code ? '#F3F4F6' : 'transparent',
+                                      cursor: 'pointer',
+                                      textAlign: 'left'
+                                    }}
+                                  >
+                                    <span style={{ fontSize: '20px' }}>{toFlagEmoji(country.code)}</span>
+                                    <span style={{ fontSize: '14px', color: '#374151' }}>{country.name}</span>
+                                  </button>
+                                ))}
+                              </div>
                             </div>
                           )}
                         </div>
