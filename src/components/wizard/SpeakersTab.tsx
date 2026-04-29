@@ -22,8 +22,8 @@ import SuccessToast from './SuccessToast';
 import { useSpeakers, Speaker } from '../../hooks/useSpeakers';
 import { useI18n } from '../../i18n/I18nContext';
 
-export default function SpeakersTab() {
-  const { speakers, isLoading, createSpeaker, updateSpeaker, deleteSpeaker } = useSpeakers();
+export default function SpeakersTab({ eventId }: { eventId?: string }) {
+  const { speakers, isLoading, createSpeaker, updateSpeaker, deleteSpeaker } = useSpeakers(eventId);
   const { t } = useI18n();
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');

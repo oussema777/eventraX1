@@ -24,27 +24,25 @@ export interface Speaker {
   website_url?: string;
 }
 
-const SPEAKERS_COLUMNS = 'id, event_id, name, full_name, title, company, bio, email, avatar_url, type, status, tags, linkedin_url, twitter_url, website_url, phone';
-
 function mapSpeaker(s: any): Speaker {
   return {
     id: s.id,
-    full_name: s.name || s.full_name,
+    full_name: s.full_name || s.name || '',
     title: s.title || '',
     company: s.company || '',
     bio: s.bio || '',
     shortBio: (s.bio || '').substring(0, 100) + '...',
     email: s.email || '',
-    photo: s.avatar_url,
+    photo: s.avatar_url || s.photo_url || '',
     type: (s.type as any) || 'regular',
     status: (s.status as any) || 'confirmed',
     tags: s.tags || [],
     sessions: 0,
-    expectedAttendees: '',
-    linkedin_url: s.linkedin_url,
-    twitter_url: s.twitter_url,
-    website_url: s.website_url,
-    phone: s.phone,
+    expectedAttendees: s.expected_attendance || '',
+    linkedin_url: s.linkedin_url || '',
+    twitter_url: s.twitter_url || '',
+    website_url: s.website_url || '',
+    phone: s.phone || '',
     event_id: s.event_id
   };
 }
@@ -52,12 +50,13 @@ function mapSpeaker(s: any): Speaker {
 async function fetchSpeakers(eventId: string): Promise<Speaker[]> {
   const { data, error } = await supabase
     .from('event_speakers')
-    .select(SPEAKERS_COLUMNS)
-    .eq('event_id', eventId);
+    .select('*')
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: false });
 
   if (error) {
-    if (error.code === 'PGRST204' || error.code === '42P01') return [];
-    throw error;
+    console.error('Failed to fetch speakers:', error);
+    return [];
   }
   return (data || []).map(mapSpeaker);
 }

@@ -31,7 +31,7 @@ interface SessionsTabProps {
 export default function SessionsTab({ eventId, eventStartDate, eventEndDate }: SessionsTabProps) {
   const { t } = useI18n();
   const { sessions: rawSessions, isLoading: sessionsLoading, createSession, updateSession, deleteSession } = useSessions(eventId);
-  const { speakers: allSpeakers, isLoading: speakersLoading } = useSpeakers();
+  const { speakers: allSpeakers, isLoading: speakersLoading } = useSpeakers(eventId);
   const { isPro: hasPro } = usePlan();
   const { eventData, isLoading: eventLoading } = useEventWizard(eventId);
   const eventMaxCapacity = eventData?.capacity_limit;

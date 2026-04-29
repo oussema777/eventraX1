@@ -67,7 +67,7 @@ export default function WizardStep2DesignStudio() {
   const [searchParams] = useSearchParams();
   const { user, signOut } = useAuth();
   const { eventData, saveDraft, isSaving: isEventSaving } = useEventWizard(eventId);
-  const { speakers } = useSpeakers();
+  const { speakers } = useSpeakers(eventId);
   const { sessions } = useSessions(eventId);
   const { tickets } = useTickets();
   const { exhibitors } = useExhibitors(eventId);
