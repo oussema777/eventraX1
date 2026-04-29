@@ -44,7 +44,7 @@ export default function TestimonialsBlock({
     <div
       style={{
         position: 'relative',
-        padding: '100px 40px',
+        padding: 'clamp(48px, 8vw, 100px) clamp(16px, 5vw, 40px)',
         backgroundColor: '#FFFFFF',
         width: '100%'
       }}
@@ -65,13 +65,13 @@ export default function TestimonialsBlock({
 
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: '80px' }}>
-          <h2 style={{ fontSize: '42px', fontWeight: 900, color: '#111827', marginBottom: '16px', letterSpacing: '-0.02em' }}>{title}</h2>
+          <h2 style={{ fontSize: 'clamp(26px, 5vw, 42px)', fontWeight: 900, color: '#111827', marginBottom: '16px', letterSpacing: '-0.02em' }}>{title}</h2>
           <p style={{ fontSize: '18px', color: '#6B7280', maxWidth: '700px', margin: '0 auto', lineHeight: '1.6' }}>{subtitle}</p>
         </div>
 
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', 
+          gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', 
           gap: '32px' 
         }}>
           {testimonials.length > 0 ? (
@@ -80,7 +80,7 @@ export default function TestimonialsBlock({
                 key={item.id}
                 style={{
                   backgroundColor: '#FFFFFF',
-                  padding: '40px',
+                  padding: 'clamp(24px, 4vw, 40px)',
                   borderRadius: '32px',
                   boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02)',
                   border: '1px solid #F3F4F6',

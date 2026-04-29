@@ -59,7 +59,7 @@ export default function HeroBlock({
     <div
       style={{
         width: '100%',
-        height: '600px',
+        minHeight: 'clamp(400px, 70vh, 600px)',
         background: bgImage ? `url(${bgImage})` : `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
@@ -67,7 +67,8 @@ export default function HeroBlock({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '60px 40px'
+        padding: 'clamp(32px, 6vw, 60px) clamp(16px, 5vw, 40px)',
+        overflow: 'hidden'
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -110,7 +111,7 @@ export default function HeroBlock({
       )}
 
       {/* Content */}
-      <div style={{ textAlign: 'center', position: 'relative', zIndex: 1, maxWidth: '800px' }}>
+      <div style={{ textAlign: 'center', position: 'relative', zIndex: 1, maxWidth: '800px', width: '100%' }}>
         {/* Category Badge */}
         <div
           style={{
@@ -122,7 +123,7 @@ export default function HeroBlock({
             fontSize: '13px',
             fontWeight: 600,
             color: '#FFFFFF',
-            marginBottom: '20px',
+            marginBottom: 'clamp(12px, 2vw, 20px)',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -134,12 +135,13 @@ export default function HeroBlock({
         {/* Event Title */}
         <h1
           style={{
-            fontSize: '56px',
+            fontSize: 'clamp(24px, 5vw, 56px)',
             fontWeight: 700,
             color: '#FFFFFF',
-            marginBottom: '16px',
+            marginBottom: 'clamp(8px, 2vw, 16px)',
             textShadow: '0px 2px 8px rgba(0, 0, 0, 0.2)',
-            lineHeight: 1.1
+            lineHeight: 1.1,
+            wordBreak: 'break-word'
           }}
         >
           {eventTitle}
@@ -148,28 +150,28 @@ export default function HeroBlock({
         {/* Event Subtitle */}
         <p
           style={{
-            fontSize: '20px',
+            fontSize: 'clamp(14px, 2.5vw, 20px)',
             color: 'rgba(255, 255, 255, 0.95)',
-            marginBottom: '32px',
+            marginBottom: 'clamp(16px, 3vw, 32px)',
             maxWidth: '600px',
-            margin: '0 auto 32px'
+            margin: '0 auto clamp(16px, 3vw, 32px)'
           }}
         >
           {eventSubtitle}
         </p>
 
         {/* CTA Buttons */}
-        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 'clamp(8px, 2vw, 16px)', justifyContent: 'center', flexWrap: 'wrap' }}>
           {btn1Visible && (
             <button
               onClick={onRegister}
               style={{
-                height: '56px',
-                padding: '0 32px',
+                height: 'clamp(40px, 5vw, 56px)',
+                padding: '0 clamp(16px, 3vw, 32px)',
                 backgroundColor: '#FFFFFF',
                 borderRadius: `${radius}px`,
                 border: 'none',
-                fontSize: '16px',
+                fontSize: 'clamp(13px, 2vw, 16px)',
                 fontWeight: 700,
                 color: primaryColor,
                 display: 'flex',
@@ -205,12 +207,12 @@ export default function HeroBlock({
                 }
               }}
               style={{
-                height: '56px',
-                padding: '0 32px',
+                height: 'clamp(40px, 5vw, 56px)',
+                padding: '0 clamp(16px, 3vw, 32px)',
                 backgroundColor: 'transparent',
                 borderRadius: `${radius}px`,
                 border: '2px solid rgba(255, 255, 255, 0.4)',
-                fontSize: '16px',
+                fontSize: 'clamp(13px, 2vw, 16px)',
                 fontWeight: 700,
                 color: '#FFFFFF',
                 cursor: 'pointer',

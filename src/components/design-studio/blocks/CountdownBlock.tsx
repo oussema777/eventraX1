@@ -68,15 +68,15 @@ export default function CountdownBlock({
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <div 
         style={{ 
-          width: '110px', 
-          height: '110px', 
+          width: 'clamp(70px, 10vw, 110px)',
+          height: 'clamp(70px, 10vw, 110px)',
           backgroundColor: '#FFFFFF',
           color: brandColor,
           borderRadius: '24px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '48px',
+          fontSize: 'clamp(28px, 5vw, 48px)',
           fontWeight: 900,
           marginBottom: '12px',
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
@@ -96,7 +96,7 @@ export default function CountdownBlock({
     <div
       style={{
         position: 'relative',
-        padding: '100px 40px',
+        padding: 'clamp(48px, 8vw, 100px) clamp(16px, 5vw, 40px)',
         backgroundColor: '#F9FAFB',
         width: '100%',
         overflow: 'hidden'
@@ -133,10 +133,10 @@ export default function CountdownBlock({
       )}
 
       <div style={{ maxWidth: '900px', margin: '0 auto', textAlign: 'center', position: 'relative', zIndex: 1 }}>
-        <h2 style={{ fontSize: '42px', fontWeight: 900, color: '#111827', marginBottom: '16px', letterSpacing: '-0.02em' }}>{title}</h2>
+        <h2 style={{ fontSize: 'clamp(26px, 5vw, 42px)', fontWeight: 900, color: '#111827', marginBottom: '16px', letterSpacing: '-0.02em' }}>{title}</h2>
         <p style={{ fontSize: '18px', color: '#6B7280', marginBottom: '64px', maxWidth: '600px', margin: '0 auto 64px', lineHeight: '1.6' }}>{subtitle}</p>
 
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '24px', marginBottom: '64px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 'clamp(8px, 2vw, 24px)', marginBottom: '64px', flexWrap: 'wrap' }}>
           {renderTimeUnit(timeLeft.days, 'Days')}
           <div style={{ fontSize: '32px', fontWeight: 300, color: '#D1D5DB', marginTop: '-20px' }}>:</div>
           {renderTimeUnit(timeLeft.hours, 'Hours')}

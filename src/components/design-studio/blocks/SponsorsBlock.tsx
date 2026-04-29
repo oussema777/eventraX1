@@ -132,7 +132,7 @@ export default function SponsorsBlock({
     <div
       style={{
         position: 'relative',
-        padding: '100px 40px',
+        padding: 'clamp(48px, 8vw, 100px) clamp(16px, 5vw, 40px)',
         backgroundColor: '#F9FAFB',
         width: '100%'
       }}
@@ -152,10 +152,10 @@ export default function SponsorsBlock({
       )}
 
       <div style={{ maxWidth: '1100px', margin: '0 auto', textAlign: 'center' }}>
-        <h2 style={{ fontSize: '42px', fontWeight: 900, color: '#111827', marginBottom: '16px', letterSpacing: '-0.02em' }}>
+        <h2 style={{ fontSize: 'clamp(26px, 5vw, 42px)', fontWeight: 900, color: '#111827', marginBottom: '16px', letterSpacing: '-0.02em' }}>
           {title}
         </h2>
-        <p style={{ fontSize: '18px', color: '#6B7280', marginBottom: '64px', maxWidth: '700px', margin: '0 auto 64px', lineHeight: '1.6' }}>
+        <p style={{ fontSize: 'clamp(15px, 2vw, 18px)', color: '#6B7280', marginBottom: '64px', maxWidth: '700px', margin: '0 auto 64px', lineHeight: '1.6' }}>
           {subtitle}
         </p>
 

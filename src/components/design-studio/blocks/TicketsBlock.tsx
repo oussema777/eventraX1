@@ -29,7 +29,7 @@ export default function TicketsBlock({ showEditControls = true, brandColor, butt
 
   return (
     <div
-      style={{ padding: '80px 40px', backgroundColor: '#FFFFFF', position: 'relative' }}
+      style={{ padding: 'clamp(40px, 8vw, 80px) clamp(16px, 5vw, 40px)', backgroundColor: '#FFFFFF', position: 'relative' }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -56,7 +56,7 @@ export default function TicketsBlock({ showEditControls = true, brandColor, butt
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         {/* Section Header */}
         <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-          <h2 style={{ fontSize: '36px', fontWeight: 700, color: '#1A1D1F', marginBottom: '12px' }}>
+          <h2 style={{ fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 700, color: '#1A1D1F', marginBottom: '12px' }}>
             {t('wizard.designStudio.tickets.title')}
           </h2>
           <p style={{ fontSize: '16px', color: '#6F767E' }}>
@@ -68,7 +68,7 @@ export default function TicketsBlock({ showEditControls = true, brandColor, butt
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))',
             gap: '24px',
             position: 'relative'
           }}
@@ -80,7 +80,7 @@ export default function TicketsBlock({ showEditControls = true, brandColor, butt
                 backgroundColor: '#FAFBFC',
                 border: ticket.popular ? `3px solid ${accentColor}` : '2px solid #E9EAEB',
                 borderRadius: '16px',
-                padding: '32px',
+                padding: 'clamp(20px, 3vw, 32px)',
                 textAlign: 'center',
                 position: 'relative',
                 transform: ticket.popular ? 'scale(1.05)' : 'scale(1)',
@@ -135,7 +135,7 @@ export default function TicketsBlock({ showEditControls = true, brandColor, butt
               </div>
 
               {/* Price */}
-              <div style={{ fontSize: '48px', fontWeight: 700, color: '#1A1D1F', marginBottom: '8px' }}>
+              <div style={{ fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 700, color: '#1A1D1F', marginBottom: '8px' }}>
                 {ticket.price}
               </div>
 

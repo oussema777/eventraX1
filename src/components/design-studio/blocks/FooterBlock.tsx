@@ -80,7 +80,7 @@ export default function FooterBlock({ showEditControls = true, brandColor, onEdi
 
   return (
     <div
-      style={{ padding: '60px 40px', backgroundColor: '#1A1D1F', position: 'relative' }}
+      style={{ padding: 'clamp(32px, 6vw, 60px) clamp(16px, 5vw, 40px)', backgroundColor: '#1A1D1F', position: 'relative' }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -104,14 +104,14 @@ export default function FooterBlock({ showEditControls = true, brandColor, onEdi
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: '48px',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(250px, 100%), 1fr))',
+            gap: 'clamp(24px, 4vw, 48px)',
             marginBottom: '48px'
           }}
         >
           {/* Column 1: Event Info */}
           <div>
-            <div style={{ fontSize: '24px', fontWeight: 700, color: '#FFFFFF', marginBottom: '16px' }}>
+            <div style={{ fontSize: 'clamp(18px, 3vw, 24px)', fontWeight: 700, color: '#FFFFFF', marginBottom: '16px' }}>
               {eventName}
             </div>
             <p style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.7)', marginBottom: '20px' }}>

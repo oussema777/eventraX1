@@ -47,7 +47,7 @@ export default function NetworkingBlock({
       className="networking-block"
       style={{
         position: 'relative',
-        padding: '100px 40px',
+        padding: 'clamp(48px, 8vw, 100px) clamp(16px, 5vw, 40px)',
         backgroundColor: '#0B2641',
         width: '100%',
         color: '#FFFFFF',

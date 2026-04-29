@@ -63,7 +63,7 @@ export default function EventDetailsBlock({ showEditControls = true, brandColor,
 
   return (
     <div
-      style={{ padding: '60px 40px', backgroundColor: '#FAFBFC', position: 'relative' }}
+      style={{ padding: 'clamp(32px, 6vw, 60px) clamp(16px, 5vw, 40px)', backgroundColor: '#FAFBFC', position: 'relative' }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -95,7 +95,7 @@ export default function EventDetailsBlock({ showEditControls = true, brandColor,
       <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
         <h2
           style={{
-            fontSize: '32px',
+            fontSize: 'clamp(22px, 4vw, 32px)',
             fontWeight: 700,
             color: '#1A1D1F',
             textAlign: 'center',
@@ -108,7 +108,7 @@ export default function EventDetailsBlock({ showEditControls = true, brandColor,
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(250px, 100%), 1fr))',
             gap: '32px'
           }}
         >
@@ -120,7 +120,7 @@ export default function EventDetailsBlock({ showEditControls = true, brandColor,
                 key={idx}
                 style={{
                   backgroundColor: '#FFFFFF',
-                  padding: '32px',
+                  padding: 'clamp(20px, 3vw, 32px)',
                   borderRadius: '16px',
                   boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.04)',
                   textAlign: 'center',
