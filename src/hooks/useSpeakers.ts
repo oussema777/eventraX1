@@ -22,6 +22,7 @@ export interface Speaker {
   linkedin_url?: string;
   twitter_url?: string;
   website_url?: string;
+  sort_order?: number;
 }
 
 function mapSpeaker(s: any): Speaker {
@@ -43,7 +44,8 @@ function mapSpeaker(s: any): Speaker {
     twitter_url: s.twitter_url || '',
     website_url: s.website_url || '',
     phone: s.phone || '',
-    event_id: s.event_id
+    event_id: s.event_id,
+    sort_order: s.sort_order ?? 999
   };
 }
 
@@ -52,6 +54,7 @@ async function fetchSpeakers(eventId: string): Promise<Speaker[]> {
     .from('event_speakers')
     .select('*')
     .eq('event_id', eventId)
+    .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -162,12 +165,78 @@ export function useSpeakers(manualEventId?: string) {
     }
   };
 
+  const setSpeakers = (updater: Speaker[] | ((prev: Speaker[]) => Speaker[])) => {
+    queryClient.setQueryData(queryKey, (old: Speaker[] | undefined) => {
+      if (typeof updater === 'function') return updater(old || []);
+      return updater;
+    });
+  };
+
+  const reorderSpeakers = async (orderedIds: string[]) => {
+    const previousSpeakers = speakers;
+    const reordered = orderedIds
+      .map((id, index) => {
+        const speaker = speakers.find(s => s.id === id);
+        return speaker ? { ...speaker, sort_order: index } : null;
+      })
+      .filter(Boolean) as Speaker[];
+    queryClient.setQueryData(queryKey, reordered);
+
+    try {
+      const { data: currentRows, error: fetchError } = await supabase
+        .from('event_speakers')
+        .select('id, updated_at')
+        .in('id', orderedIds);
+
+      if (fetchError) throw fetchError;
+
+      const timestampMap = new Map(
+        (currentRows || []).map((r: any) => [r.id, r.updated_at])
+      );
+
+      const results = await Promise.all(
+        orderedIds.map((id, index) => {
+          const expectedUpdatedAt = timestampMap.get(id);
+          let query = supabase
+            .from('event_speakers')
+            .update({ sort_order: index })
+            .eq('id', id);
+
+          if (expectedUpdatedAt) {
+            query = query.eq('updated_at', expectedUpdatedAt);
+          }
+
+          return query.select('id');
+        })
+      );
+
+      const hasConflict = results.some(
+        (r) => !r.error && (!r.data || r.data.length === 0)
+      );
+
+      if (hasConflict) {
+        queryClient.invalidateQueries({ queryKey });
+        toast.error('Speaker order was modified by another user. Refreshing...');
+        return;
+      }
+
+      const firstError = results.find((r) => r.error);
+      if (firstError?.error) throw firstError.error;
+    } catch (error) {
+      queryClient.setQueryData(queryKey, previousSpeakers);
+      console.error('Error reordering speakers:', error);
+      toast.error('Failed to reorder speakers');
+    }
+  };
+
   return {
     speakers,
+    setSpeakers,
     isLoading,
     createSpeaker,
     updateSpeaker,
     deleteSpeaker,
+    reorderSpeakers,
     loadSpeakers: () => queryClient.invalidateQueries({ queryKey })
   };
 }

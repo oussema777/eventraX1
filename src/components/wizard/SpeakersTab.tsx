@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import {
   Users,
   Star,
@@ -13,8 +13,12 @@ import {
   Trash2,
   Download,
   Mic,
-  Layers
+  Layers,
+  GripVertical
 } from 'lucide-react';
+import { DndProvider, useDrag, useDrop } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
+import type { Identifier, XYCoord } from 'dnd-core';
 import AddEditSpeakerModal from './modals/AddEditSpeakerModal';
 import SpeakerProfileModal from './modals/SpeakerProfileModal';
 import ImportSpeakersModal from './modals/ImportSpeakersModal';
@@ -22,9 +26,30 @@ import SuccessToast from './SuccessToast';
 import { useSpeakers, Speaker } from '../../hooks/useSpeakers';
 import { useI18n } from '../../i18n/I18nContext';
 
+const SPEAKER_DND_TYPE = 'speaker-item';
+
+interface DragItem {
+  id: string;
+  index: number;
+}
+
 export default function SpeakersTab({ eventId }: { eventId?: string }) {
-  const { speakers, isLoading, createSpeaker, updateSpeaker, deleteSpeaker } = useSpeakers(eventId);
+  const { speakers, setSpeakers, isLoading, createSpeaker, updateSpeaker, deleteSpeaker, reorderSpeakers } = useSpeakers(eventId);
   const { t } = useI18n();
+
+  const moveSpeaker = useCallback((dragIndex: number, hoverIndex: number) => {
+    setSpeakers((prev: Speaker[]) => {
+      const updated = [...prev];
+      const [removed] = updated.splice(dragIndex, 1);
+      updated.splice(hoverIndex, 0, removed);
+      return updated;
+    });
+  }, [setSpeakers]);
+
+  const handleDragEnd = useCallback(() => {
+    const orderedIds = speakers.map(s => s.id);
+    reorderSpeakers(orderedIds);
+  }, [speakers, reorderSpeakers]);
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [activeFilter, setActiveFilter] = useState<'all' | 'trainer' | 'coach' | 'expert'>('all');
@@ -235,6 +260,7 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
 
       {/* SPEAKERS GRID VIEW */}
       {viewMode === 'grid' && (
+        <DndProvider backend={HTML5Backend}>
         <div className="speakers-grid grid grid-cols-3 gap-6">
           {filteredSpeakers.map((speaker) => {
             const typeColors: Record<string, string> = {
@@ -248,16 +274,21 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
               pending: { bg: 'rgba(245, 158, 11, 0.15)', text: '#F59E0B' },
               declined: { bg: 'rgba(239, 68, 68, 0.15)', text: '#EF4444' }
             };
-            
+
             const badge = getTypeBadge(speaker.type);
             const statusStyle = statusColors[speaker.status] || statusColors.pending;
 
             return (
-              <div
+              <DraggableSpeakerCard
                 key={speaker.id}
+                index={speakers.indexOf(speaker)}
+                moveSpeaker={moveSpeaker}
+                onDragEnd={handleDragEnd}
+              >
+              <div
                 onClick={() => handleViewProfile(speaker)}
-                className="rounded-xl overflow-hidden border transition-all hover:shadow-lg cursor-pointer group"
-                style={{ 
+                className="rounded-xl border transition-all hover:shadow-lg cursor-pointer group"
+                style={{
                   backgroundColor: 'rgba(255,255,255,0.08)',
                   borderColor: 'rgba(255,255,255,0.15)',
                   transform: 'translateY(0)',
@@ -275,9 +306,9 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
                 }}
               >
                 {/* Header Image Section */}
-                <div 
+                <div
                   className="relative flex items-center justify-center"
-                  style={{ 
+                  style={{
                     height: '180px',
                     background: speaker.type === 'keynote'
                         ? 'linear-gradient(135deg, #8B5CF6 0%, #0684F5 100%)'
@@ -302,15 +333,15 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
                     />
 
                   {/* Profile Photo */}
-                  <div 
+                  <div
                     className="absolute"
-                    style={{ 
+                    style={{
                       top: '120px',
                       left: '50%',
                       transform: 'translateX(-50%)',
-                      width: '120px', 
-                      height: '120px', 
-                      borderRadius: '50%', 
+                      width: '120px',
+                      height: '120px',
+                      borderRadius: '50%',
                       border: '4px solid #FFFFFF',
                       boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
                       backgroundColor: '#0B2641',
@@ -329,9 +360,9 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
 
                   {/* Type Badge */}
                   {badge && (
-                    <div 
+                    <div
                       className="absolute top-3 right-3 flex items-center gap-1 px-3 py-1.5 rounded-xl"
-                      style={{ 
+                      style={{
                         background: typeColors[speaker.type] || typeColors.regular,
                         color: '#FFFFFF',
                         fontWeight: 700,
@@ -344,7 +375,7 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
                       {badge.label}
                     </div>
                   )}
-                  
+
                   {/* Select Checkbox */}
                    <input
                     type="checkbox"
@@ -357,7 +388,7 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
                     style={{
                       position: 'absolute',
                       top: '12px',
-                      left: '12px',
+                      left: '40px',
                       width: '20px',
                       height: '20px',
                       cursor: 'pointer',
@@ -398,20 +429,20 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
                   </div>
 
                   {/* Footer Actions */}
-                  <div 
+                  <div
                     className="flex items-center justify-between pt-4 mt-4"
                     style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}
                   >
                     {/* Status Badge */}
-                    <span 
+                    <span
                         className="px-3 py-1 rounded-full text-xs flex items-center gap-1.5"
-                        style={{ 
+                        style={{
                         backgroundColor: statusStyle.bg,
                         color: statusStyle.text,
                         fontWeight: 600
                         }}
                     >
-                        <div 
+                        <div
                         className="w-2 h-2 rounded-full"
                         style={{ backgroundColor: statusStyle.text }}
                         />
@@ -440,7 +471,7 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
                         >
                         <Eye size={14} style={{ color: '#94A3B8' }} />
                         </button>
-                        <button 
+                        <button
                             onClick={(e) => {
                                 e.stopPropagation();
                                 handleDeleteSpeaker(speaker.id);
@@ -454,13 +485,14 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
                   </div>
                 </div>
               </div>
+              </DraggableSpeakerCard>
             );
           })}
 
           {/* Empty State Card */}
           <div
             className="rounded-xl border-2 border-dashed flex flex-col items-center justify-center text-center p-8 transition-colors hover:border-blue-400 hover:bg-blue-50 cursor-pointer"
-            style={{ 
+            style={{
               borderColor: '#E5E7EB',
               backgroundColor: '#FAFAFA',
               minHeight: '420px'
@@ -477,7 +509,7 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
             <p className="text-sm mb-4" style={{ color: '#6B7280' }}>
               {t('manageEvent.speakers.allSpeakers.empty.subtitle')}
             </p>
-            <button 
+            <button
               className="px-5 h-10 rounded-lg border transition-colors hover:bg-white"
               style={{ borderColor: '#E5E7EB', fontWeight: 600 }}
             >
@@ -485,18 +517,21 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
             </button>
           </div>
         </div>
+        </DndProvider>
       )}
 
       {/* SPEAKERS LIST VIEW */}
       {viewMode === 'list' && (
+        <DndProvider backend={HTML5Backend}>
         <div className="speaker-list-view rounded-xl overflow-hidden border" style={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' }}>
           <div className="speaker-list-inner">
             {/* Table Header */}
-            <div 
+            <div
               className="grid grid-cols-12 gap-4 p-4"
               style={{ backgroundColor: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}
             >
-              <div className="col-span-1 flex items-center">
+              <div className="col-span-1 flex items-center gap-2">
+                <div style={{ width: '24px' }}></div>
                 <input type="checkbox" className="w-5 h-5" style={{ accentColor: 'var(--primary)' }} />
               </div>
               <div className="col-span-4">
@@ -525,13 +560,14 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
               const statusBadge = getStatusBadge(speaker.status);
 
               return (
-                <div
+                <DraggableSpeakerRow
                   key={speaker.id}
-                  className="grid grid-cols-12 gap-4 p-4 transition-colors hover:bg-gray-50"
-                  style={{ borderBottom: '1px solid #E5E7EB' }}
+                  index={speakers.indexOf(speaker)}
+                  moveSpeaker={moveSpeaker}
+                  onDragEnd={handleDragEnd}
                 >
                   <div className="col-span-1 flex items-center">
-                    <input 
+                    <input
                       type="checkbox"
                       checked={selectedSpeakers.has(speaker.id)}
                       onChange={() => handleSelectSpeaker(speaker.id)}
@@ -540,7 +576,7 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
                     />
                   </div>
                   <div className="col-span-4 flex items-center gap-3">
-                    <div 
+                    <div
                       className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden"
                       style={{ backgroundColor: '#F3F4F6' }}
                     >
@@ -564,15 +600,15 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
                     <p className="text-sm" style={{ color: '#0B2641' }}>{speaker.sessions}</p>
                   </div>
                   <div className="col-span-1 flex items-center">
-                    <span 
+                    <span
                       className="px-2 py-1 rounded-full text-xs flex items-center gap-1"
-                      style={{ 
+                      style={{
                         backgroundColor: `${statusBadge.color}15`,
                         color: statusBadge.color,
                         fontWeight: 600
                       }}
                     >
-                      <div 
+                      <div
                         className="w-1.5 h-1.5 rounded-full"
                         style={{ backgroundColor: statusBadge.color }}
                       />
@@ -581,9 +617,9 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
                   </div>
                   <div className="col-span-1 flex items-center">
                     {badge && (
-                      <span 
+                      <span
                         className="px-2 py-1 rounded text-xs"
-                        style={{ 
+                        style={{
                           background: badge.bg,
                           color: '#FFFFFF',
                           fontWeight: 600
@@ -598,11 +634,12 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
                       <MoreVertical size={16} style={{ color: '#6B7280' }} />
                     </button>
                   </div>
-                </div>
+                </DraggableSpeakerRow>
               );
             })}
           </div>
         </div>
+        </DndProvider>
       )}
 
       {/* Modals */}
@@ -640,6 +677,138 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
         isVisible={showToast}
         onHide={() => setShowToast(false)}
       />
+    </div>
+  );
+}
+
+// Draggable Speaker Card (Grid View)
+function DraggableSpeakerCard({ index, moveSpeaker, onDragEnd, children }: {
+  index: number;
+  moveSpeaker: (dragIndex: number, hoverIndex: number) => void;
+  onDragEnd: () => void;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const dragHandleRef = useRef<HTMLDivElement>(null);
+
+  const [{ handlerId }, drop] = useDrop<DragItem, void, { handlerId: Identifier | null }>({
+    accept: SPEAKER_DND_TYPE,
+    collect(monitor) {
+      return { handlerId: monitor.getHandlerId() };
+    },
+    hover(item: DragItem, monitor) {
+      if (!ref.current) return;
+      const dragIndex = item.index;
+      const hoverIndex = index;
+      if (dragIndex === hoverIndex) return;
+      const hoverBoundingRect = ref.current.getBoundingClientRect();
+      const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
+      const clientOffset = monitor.getClientOffset();
+      const hoverClientY = (clientOffset as XYCoord).y - hoverBoundingRect.top;
+      if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) return;
+      if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) return;
+      moveSpeaker(dragIndex, hoverIndex);
+      item.index = hoverIndex;
+    },
+  });
+
+  const [{ isDragging }, drag, preview] = useDrag({
+    type: SPEAKER_DND_TYPE,
+    item: () => ({ id: `speaker-${index}`, index }),
+    collect: (monitor: any) => ({ isDragging: monitor.isDragging() }),
+    end: () => onDragEnd(),
+  });
+
+  preview(drop(ref));
+  drag(dragHandleRef);
+
+  return (
+    <div ref={ref} data-handler-id={handlerId} style={{ position: 'relative', opacity: isDragging ? 0.4 : 1 }}>
+      <div
+        ref={dragHandleRef}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: 'absolute',
+          top: '14px',
+          left: '14px',
+          zIndex: 50,
+          cursor: 'grab',
+          padding: '6px',
+          borderRadius: '8px',
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: '1px solid rgba(255,255,255,0.2)',
+          pointerEvents: 'auto',
+        }}
+      >
+        <GripVertical size={18} style={{ color: '#FFFFFF' }} />
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// Draggable Speaker Row (List View)
+function DraggableSpeakerRow({ index, moveSpeaker, onDragEnd, children }: {
+  index: number;
+  moveSpeaker: (dragIndex: number, hoverIndex: number) => void;
+  onDragEnd: () => void;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const dragHandleRef = useRef<HTMLDivElement>(null);
+
+  const [{ handlerId }, drop] = useDrop<DragItem, void, { handlerId: Identifier | null }>({
+    accept: SPEAKER_DND_TYPE,
+    collect(monitor) {
+      return { handlerId: monitor.getHandlerId() };
+    },
+    hover(item: DragItem, monitor) {
+      if (!ref.current) return;
+      const dragIndex = item.index;
+      const hoverIndex = index;
+      if (dragIndex === hoverIndex) return;
+      const hoverBoundingRect = ref.current.getBoundingClientRect();
+      const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
+      const clientOffset = monitor.getClientOffset();
+      const hoverClientY = (clientOffset as XYCoord).y - hoverBoundingRect.top;
+      if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) return;
+      if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) return;
+      moveSpeaker(dragIndex, hoverIndex);
+      item.index = hoverIndex;
+    },
+  });
+
+  const [{ isDragging }, drag] = useDrag({
+    type: SPEAKER_DND_TYPE,
+    item: () => ({ id: `speaker-row-${index}`, index }),
+    collect: (monitor: any) => ({ isDragging: monitor.isDragging() }),
+    end: () => onDragEnd(),
+  });
+
+  drop(ref);
+  drag(dragHandleRef);
+
+  return (
+    <div
+      ref={ref}
+      data-handler-id={handlerId}
+      className="grid grid-cols-12 gap-4 p-4 transition-colors hover:bg-gray-50"
+      style={{ borderBottom: '1px solid #E5E7EB', opacity: isDragging ? 0.4 : 1 }}
+    >
+      <div className="col-span-1 flex items-center gap-2">
+        <div
+          ref={dragHandleRef}
+          style={{ cursor: 'grab', display: 'flex', alignItems: 'center' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical size={16} style={{ color: '#9CA3AF' }} />
+        </div>
+      </div>
+      {children}
     </div>
   );
 }

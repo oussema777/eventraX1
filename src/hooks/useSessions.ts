@@ -84,13 +84,13 @@ function mapSession(s: any): Session {
 async function fetchSessions(eventId: string): Promise<Session[]> {
   const { data, error } = await supabase
     .from('event_sessions')
-    .select(SESSIONS_COLUMNS)
+    .select('*')
     .eq('event_id', eventId)
     .order('starts_at', { ascending: true });
 
   if (error) {
-    if (error.code === 'PGRST204' || error.code === '42P01') return [];
-    throw error;
+    console.error('Failed to fetch sessions:', error);
+    return [];
   }
   return (data || []).map(mapSession);
 }
