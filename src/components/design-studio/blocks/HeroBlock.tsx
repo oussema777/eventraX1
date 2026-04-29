@@ -79,7 +79,7 @@ export default function HeroBlock({
           style={{
             position: 'absolute',
             inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backgroundColor: 'rgba(0, 0, 0, 0.25)',
             zIndex: 0
           }}
         />
