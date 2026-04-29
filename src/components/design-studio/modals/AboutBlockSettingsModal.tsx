@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import { useI18n } from '../../../i18n/I18nContext';
 import { uploadEventAsset } from '../../../utils/storage';
 import { toast } from 'sonner';
+import RichTextEditor from '../RichTextEditor';
 
 interface AboutBlockSettingsModalProps {
   isOpen: boolean;
@@ -273,25 +274,9 @@ export default function AboutBlockSettingsModal({
             <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
               {t('wizard.designStudio.modals.aboutBlock.labels.mainInformation')}
             </label>
-            <textarea
+            <RichTextEditor
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="dark-placeholder"
-              style={{ 
-                width: '100%', 
-                minHeight: '140px', 
-                padding: '12px 16px', 
-                borderRadius: '8px', 
-                border: '2px solid #E5E7EB', 
-                fontSize: '15px',
-                color: '#111827',
-                fontWeight: 500,
-                outline: 'none',
-                resize: 'vertical',
-                lineHeight: 1.5
-              }}
-              onFocus={(e) => e.currentTarget.style.borderColor = '#0684F5'}
-              onBlur={(e) => e.currentTarget.style.borderColor = '#E5E7EB'}
+              onChange={setDescription}
               placeholder={t('wizard.designStudio.modals.aboutBlock.placeholders.description')}
             />
           </div>

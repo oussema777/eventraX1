@@ -75,11 +75,11 @@ export default function AboutBlock({ showEditControls = true, brandColor, onEdit
           gap: 'clamp(24px, 5vw, 60px)',
           maxWidth: '1200px',
           margin: '0 auto',
-          alignItems: 'stretch'
+          alignItems: 'start'
         }}
       >
         {/* Image */}
-        <div style={{ display: 'flex', minHeight: '300px' }}>
+        <div style={{ minHeight: '300px', maxHeight: '450px', position: 'sticky', top: '24px' }}>
           {event?.image ? (
             <img
               src={event.image}
@@ -88,6 +88,7 @@ export default function AboutBlock({ showEditControls = true, brandColor, onEdit
               style={{
                 width: '100%',
                 height: '100%',
+                maxHeight: '450px',
                 borderRadius: '16px',
                 objectFit: 'cover',
                 boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.1)'
@@ -97,7 +98,7 @@ export default function AboutBlock({ showEditControls = true, brandColor, onEdit
             <div
               style={{
                 width: '100%',
-                height: '100%',
+                height: '300px',
                 borderRadius: '16px',
                 background: 'linear-gradient(135deg, #E0E7FF 0%, #C7D2FE 100%)',
                 boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.1)',
