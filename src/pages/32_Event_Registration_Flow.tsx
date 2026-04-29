@@ -30,12 +30,16 @@ import SEOHead from '../components/SEOHead';
 import { truncateDescription, canonicalUrl } from '../utils/seo';
 
 const toFlagEmoji = (code: string) => {
-  if (!code) return '';
-  return code
-    .toUpperCase()
-    .split('')
-    .map((char) => String.fromCodePoint(127397 + char.charCodeAt(0)))
-    .join('');
+  if (!code || code.length !== 2) return '';
+  try {
+    return code
+      .toUpperCase()
+      .split('')
+      .map((char) => String.fromCodePoint(127397 + char.charCodeAt(0)))
+      .join('');
+  } catch {
+    return '';
+  }
 };
 
 type RegistrationStep = 1 | 2 | 3;

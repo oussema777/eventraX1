@@ -70,11 +70,16 @@ import { IncludeInDashboardToggle } from './IncludeInDashboardToggle';
 import { countries } from '../../data/countries';
 
 const toFlagEmoji = (code: string) => {
-  return code
-    .toUpperCase()
-    .split('')
-    .map((char) => String.fromCodePoint(127397 + char.charCodeAt(0)))
-    .join('');
+  if (!code || code.length !== 2) return '';
+  try {
+    return code
+      .toUpperCase()
+      .split('')
+      .map((char) => String.fromCodePoint(127397 + char.charCodeAt(0)))
+      .join('');
+  } catch {
+    return '';
+  }
 };
 import FieldSettingsModal from './FieldSettingsModal';
 
