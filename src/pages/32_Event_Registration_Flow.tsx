@@ -235,7 +235,8 @@ export default function EventRegistrationFlow() {
 
           // Check if this is a system field (Name/Email)
           const isEmail = f.type === 'email' || f.id === 'default-email';
-          const isName = (f.label && f.label.toLowerCase().includes('name')) || f.id === 'default-name';
+          const labelLowerCheck = (f.label || '').toLowerCase();
+          const isName = f.id === 'default-name' || (f.label && /^(full\s*name|name|your\s*name|nom)$/i.test(f.label.trim()) && !labelLowerCheck.includes('company') && !labelLowerCheck.includes('organization'));
 
           if (isEmail && user?.email) {
             defaultValue = user.email;
