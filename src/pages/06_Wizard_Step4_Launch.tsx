@@ -69,7 +69,7 @@ export default function WizardStep4Launch() {
       toast.error(t('wizard.step4.errors.saveFirst'));
       return;
     }
-    await saveDraft({ status: 'draft' });
+    await saveDraft({});
     toast.success(t('wizard.step4.toasts.draftSaved'));
   };
 

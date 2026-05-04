@@ -111,7 +111,8 @@ export default function WizardStep1Details() {
 
     const nextEvent = await saveDraft({
       ...details,
-      status: eventData.status || 'draft'
+      // Only set status to 'draft' for brand-new events; preserve existing status for updates
+      ...(eventData.id ? {} : { status: 'draft' })
     }, !eventData.id);
     const id = nextEvent?.id || eventData.id;
     if (id) {
