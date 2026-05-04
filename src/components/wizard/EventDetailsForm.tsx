@@ -18,7 +18,8 @@ import {
   Lock,
   Copy,
   RefreshCw,
-  Eye
+  Eye,
+  Handshake
 } from 'lucide-react';
 import { generateAccessCode } from '../../utils/codeGenerator';
 import ProTipBox from './ProTipBox';
@@ -61,6 +62,7 @@ const EventDetailsForm = forwardRef<EventDetailsFormHandle, EventDetailsFormProp
   const [enableWaitlist, setEnableWaitlist] = useState(false);
   const [isPrivateEvent, setIsPrivateEvent] = useState(false);
   const [accessCode, setAccessCode] = useState('');
+  const [requireAccountForB2B, setRequireAccountForB2B] = useState(false);
   const [showNameError, setShowNameError] = useState(false);
   const [nameIsValid, setNameIsValid] = useState(false);
   const [waitlistError, setWaitlistError] = useState('');
@@ -173,6 +175,11 @@ const EventDetailsForm = forwardRef<EventDetailsFormHandle, EventDetailsFormProp
     );
     setIsPrivateEvent(stored.isPrivateEvent ?? !!eventData.access_code);
     setAccessCode(stored.accessCode || eventData.access_code || '');
+    setRequireAccountForB2B(
+      typeof stored.requireAccountForB2B === 'boolean'
+        ? stored.requireAccountForB2B
+        : !!eventData.attendee_settings?.requireAccountForB2B
+    );
     if (resolvedName.length > 0) {
       setNameIsValid(true);
     }
@@ -196,7 +203,8 @@ const EventDetailsForm = forwardRef<EventDetailsFormHandle, EventDetailsFormProp
       enableWaitlist,
       waitlistCapacity: enableWaitlist ? parseInt(waitlistCapacity || '0', 10) : undefined,
       isPrivateEvent,
-      accessCode
+      accessCode,
+      requireAccountForB2B
     }, eventId);
   }, [
     eventName,
@@ -214,6 +222,7 @@ const EventDetailsForm = forwardRef<EventDetailsFormHandle, EventDetailsFormProp
     waitlistCapacity,
     isPrivateEvent,
     accessCode,
+    requireAccountForB2B,
     eventId
   ]);
 
@@ -263,7 +272,9 @@ const EventDetailsForm = forwardRef<EventDetailsFormHandle, EventDetailsFormProp
       capacity_limit: hasCapacityLimit ? parseInt(maxAttendees || '0', 10) : null,
       waitlist_enabled: enableWaitlist,
       attendee_settings: {
-        waitlist_capacity: enableWaitlist ? parseInt(waitlistCapacity || '0', 10) : null
+        ...(eventData.attendee_settings || {}),
+        waitlist_capacity: enableWaitlist ? parseInt(waitlistCapacity || '0', 10) : null,
+        requireAccountForB2B
       },
       access_code: isPrivateEvent && accessCode.length >= 4 ? accessCode : null,
     };
@@ -271,7 +282,7 @@ const EventDetailsForm = forwardRef<EventDetailsFormHandle, EventDetailsFormProp
 
   useImperativeHandle(ref, () => ({
     getPayload: buildPayload
-  }), [eventName, tagline, eventType, otherEventType, eventStatus, eventFormat, venueAddress, startDate, endDate, hasCapacityLimit, maxAttendees, enableWaitlist, waitlistCapacity, isPrivateEvent, accessCode]);
+  }), [eventName, tagline, eventType, otherEventType, eventStatus, eventFormat, venueAddress, startDate, endDate, hasCapacityLimit, maxAttendees, enableWaitlist, waitlistCapacity, isPrivateEvent, accessCode, requireAccountForB2B]);
 
   const ensureEventAndNavigate = async (target: string) => {
     // Validation
@@ -830,6 +841,40 @@ const EventDetailsForm = forwardRef<EventDetailsFormHandle, EventDetailsFormProp
                   {t('event.accessCodeMinLength', { defaultValue: 'Access code must be at least 4 characters' })}
                 </p>
               )}
+            </div>
+          )}
+        </div>
+
+        {/* B2B Account Requirement */}
+        <div>
+          <div className="flex flex-wrap items-center gap-3 mb-3">
+            <button
+              onClick={() => setRequireAccountForB2B(!requireAccountForB2B)}
+              className="relative w-11 h-6 rounded-full transition-colors"
+              style={{
+                backgroundColor: requireAccountForB2B ? '#3B82F6' : '#E5E7EB'
+              }}
+            >
+              <div
+                className="absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform"
+                style={{
+                  left: requireAccountForB2B ? 'calc(100% - 22px)' : '2px'
+                }}
+              />
+            </button>
+            <div className="flex items-center gap-2">
+              <Handshake size={16} style={{ color: requireAccountForB2B ? '#3B82F6' : '#6B7280' }} />
+              <span className="text-sm" style={{ color: '#0B2641', fontWeight: 500 }}>
+                {t('event.requireAccountForB2B', { defaultValue: 'Require account for B2B networking' })}
+              </span>
+            </div>
+          </div>
+
+          {requireAccountForB2B && (
+            <div className="p-3 rounded-lg" style={{ backgroundColor: '#F0F9FF', border: '1px solid #BAE6FD' }}>
+              <p className="text-xs" style={{ color: '#0369A1', lineHeight: 1.6 }}>
+                {t('event.requireAccountForB2BDescription', { defaultValue: 'Attendees must create an Eventra account to register. This ensures they can access B2B matchmaking, messaging, and networking features.' })}
+              </p>
             </div>
           )}
         </div>

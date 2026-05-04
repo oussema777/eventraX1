@@ -22,7 +22,13 @@ export default function AuthCallback() {
 
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        navigate(next, { replace: true });
+        // If B2B registration is pending, go directly to the event landing page
+        // (the landing page useEffect will handle final redirect to register after profile setup)
+        const b2bRedirect = localStorage.getItem('pendingB2BRegister');
+        const finalNext = b2bRedirect
+          ? b2bRedirect.replace('/register', '/landing')
+          : next;
+        navigate(finalNext, { replace: true });
       } else {
         setMessage('Sign-in link expired. Please request a new link.');
       }

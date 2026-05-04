@@ -56,6 +56,27 @@ export default function LandingPage() {
       localStorage.removeItem('pendingProfileSetup');
     }
   }, [user, profile, isLoading]);
+
+  // B2B registration redirect — if user completed auth and landed here, send them back to the event
+  useEffect(() => {
+    if (isLoading || !user) return;
+    const pendingUrl = localStorage.getItem('pendingB2BRegister');
+    if (!pendingUrl) return;
+    // If profile is complete, redirect immediately to registration
+    const needsProfileCheck =
+      !profile ||
+      !profile.full_name ||
+      profile.full_name === 'New User' ||
+      !profile.phone_number ||
+      !profile.location;
+    if (!needsProfileCheck) {
+      localStorage.removeItem('pendingB2BRegister');
+      navigate(pendingUrl, { replace: true });
+    }
+    // If profile still incomplete, let the profile setup modal finish first
+    // (the above useEffect already shows it), then this will re-fire when profile updates
+  }, [user, profile, isLoading]);
+
   const handleLogout = async () => {
     await signOut();
   };
@@ -68,19 +89,26 @@ export default function LandingPage() {
 
   // Handle email signup
   const handleEmailSignup = async () => {
-    // Modal handles the logic
     setShowRegistrationModal(false);
+    const pendingUrl = localStorage.getItem('pendingB2BRegister');
+    if (pendingUrl) {
+      localStorage.removeItem('pendingB2BRegister');
+      navigate(pendingUrl, { replace: true });
+    }
   };
 
   // Handle login success
   const handleLoginSuccess = () => {
-    // Modal handles the logic
     setShowLoginModal(false);
+    const pendingUrl = localStorage.getItem('pendingB2BRegister');
+    if (pendingUrl) {
+      localStorage.removeItem('pendingB2BRegister');
+      navigate(pendingUrl, { replace: true });
+    }
   };
 
   // Handle Google login
   const handleGoogleLogin = async () => {
-    // Modal handles the logic
     setShowLoginModal(false);
   };
 

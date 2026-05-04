@@ -40,17 +40,19 @@ interface AgendaBlockProps {
   sessions?: AgendaSession[];
   onToggleSession?: (sessionId: string) => void;
   isRegistered?: boolean;
+  showSpeakerTags?: boolean;
 }
 
-export default function AgendaBlock({ 
-  showEditControls = true, 
-  brandColor, 
-  buttonRadius, 
-  onEdit, 
-  days, 
+export default function AgendaBlock({
+  showEditControls = true,
+  brandColor,
+  buttonRadius,
+  onEdit,
+  days,
   sessions,
   onToggleSession,
-  isRegistered = false
+  isRegistered = false,
+  showSpeakerTags = true
 }: AgendaBlockProps) {
   const { t, tList } = useI18n();
   const accentColor = brandColor || '#635BFF';
@@ -255,7 +257,7 @@ export default function AgendaBlock({
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ fontSize: '14px', fontWeight: 600, color: '#1A1D1F' }}>{spk.name}</span>
-                            {spk.type && spk.type !== 'lecture' && (
+                            {showSpeakerTags && spk.type && spk.type !== 'lecture' && (
                               <span style={{
                                 fontSize: '10px',
                                 fontWeight: 700,

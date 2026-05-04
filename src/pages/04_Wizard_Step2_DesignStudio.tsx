@@ -43,6 +43,7 @@ const AttendeesBlockSettingsModal = lazy(() => import('../components/design-stud
 const ExhibitorsBlockSettingsModal = lazy(() => import('../components/design-studio/modals/ExhibitorsBlockSettingsModal'));
 const CountdownBlockSettingsModal = lazy(() => import('../components/design-studio/modals/CountdownBlockSettingsModal'));
 const CustomHTMLBlockSettingsModal = lazy(() => import('../components/design-studio/modals/CustomHTMLBlockSettingsModal'));
+const AgendaBlockSettingsModal = lazy(() => import('../components/design-studio/modals/AgendaBlockSettingsModal'));
 const VideoHeroBlockSettingsModal = lazy(() => import('../components/design-studio/modals/VideoHeroBlockSettingsModal'));
 
 interface Block {
@@ -505,12 +506,13 @@ export default function WizardStep2DesignStudio() {
         return wrapWithLock(<SpeakersBlock speakers={mappedSpeakers} brandColor={brandColor} onEdit={() => handleOpenSettings(block.id)} />);
       case 'agenda':
         return wrapWithLock(
-          <AgendaBlock 
-            days={mappedDays.length > 0 ? mappedDays : undefined} 
-            sessions={mappedSessions} 
-            brandColor={brandColor} 
-            buttonRadius={buttonRadius} 
+          <AgendaBlock
+            days={mappedDays.length > 0 ? mappedDays : undefined}
+            sessions={mappedSessions}
+            brandColor={brandColor}
+            buttonRadius={buttonRadius}
             onEdit={() => handleOpenSettings(block.id)}
+            showSpeakerTags={block.settings?.showSpeakerTags !== false}
           />
         );
       case 'tickets':
@@ -798,6 +800,13 @@ export default function WizardStep2DesignStudio() {
         onClose={() => setSettingsBlockId(null)}
         settings={selectedBlock?.settings || {}}
         onSave={(data) => handleSaveBlockSettings('exhibitors', data)}
+      />
+
+      <AgendaBlockSettingsModal
+        isOpen={settingsBlockId === 'agenda'}
+        onClose={() => setSettingsBlockId(null)}
+        settings={selectedBlock?.settings || {}}
+        onSave={(data) => handleSaveBlockSettings('agenda', data)}
       />
 
       <CountdownBlockSettingsModal

@@ -14,9 +14,14 @@ import {
   Download,
   CreditCard,
   Upload,
-  Globe
+  Globe,
+  Handshake,
+  UserPlus,
+  LogIn
 } from 'lucide-react';
 import Logo from '../components/ui/Logo';
+import ModalLogin from '../components/modals/ModalLogin';
+import ModalRegistrationEntry from '../components/modals/ModalRegistrationEntry';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import { sanitizeError } from '../utils/errorHandler';
@@ -79,6 +84,9 @@ export default function EventRegistrationFlow() {
 
   const [currentStep, setCurrentStep] = useState<RegistrationStep>(1);
   const [needsAccessCode, setNeedsAccessCode] = useState(false);
+  const [needsAccount, setNeedsAccount] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const [enteredCode, setEnteredCode] = useState('');
   const [codeError, setCodeError] = useState('');
   const [event, setEvent] = useState<any>(null);
@@ -96,6 +104,14 @@ export default function EventRegistrationFlow() {
   const [countrySearch, setCountrySearch] = useState('');
 
   const generateConfirmationCode = () => 'EV-' + generateAccessCode(6);
+
+  // When user logs in while on the account-required gate, re-fetch event data
+  useEffect(() => {
+    if (needsAccount && user) {
+      setNeedsAccount(false);
+      fetchEventData();
+    }
+  }, [user, needsAccount]);
 
   useEffect(() => {
     if (eventId) {
@@ -125,6 +141,13 @@ export default function EventRegistrationFlow() {
       // Check if private event requires access code
       if (eventData.access_code && !accessCodeVerified) {
         setNeedsAccessCode(true);
+        setIsLoading(false);
+        return;
+      }
+
+      // Check if B2B event requires an Eventra account
+      if (eventData.attendee_settings?.requireAccountForB2B && !user) {
+        setNeedsAccount(true);
         setIsLoading(false);
         return;
       }
@@ -737,6 +760,116 @@ export default function EventRegistrationFlow() {
             </button>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (needsAccount) {
+    const handleSwitchToLogin = () => {
+      setShowRegistrationModal(false);
+      setShowLoginModal(true);
+    };
+    const handleSwitchToSignup = () => {
+      setShowLoginModal(false);
+      setShowRegistrationModal(true);
+    };
+
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#0B2641' }}>
+        <div className="w-full max-w-md mx-4 rounded-2xl overflow-hidden" style={{ backgroundColor: '#0D243B', border: '1px solid rgba(255,255,255,0.08)' }}>
+          {/* Top accent bar */}
+          <div style={{ height: '4px', background: 'linear-gradient(90deg, #0684F5, #8B5CF6)' }} />
+
+          <div className="p-8 text-center">
+            {/* Icon */}
+            <div className="mx-auto mb-5 w-16 h-16 rounded-full flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, rgba(6,132,245,0.15), rgba(139,92,246,0.15))' }}>
+              <Handshake size={28} style={{ color: '#0684F5' }} />
+            </div>
+
+            {/* Title */}
+            <h2 className="text-xl font-bold text-white mb-2">
+              {t('event.accountRequiredTitle', { defaultValue: 'Create an Account to Register' })}
+            </h2>
+            <p className="text-sm mb-6" style={{ color: '#9CA3AF', lineHeight: 1.6 }}>
+              {t('event.accountRequiredReason', { defaultValue: 'This event includes B2B networking and matchmaking. An account lets you connect with other attendees, schedule meetings, and more.' })}
+            </p>
+
+            {/* Feature highlights */}
+            <div className="grid grid-cols-1 gap-3 mb-8 text-left">
+              {[
+                { icon: Handshake, text: t('event.b2bFeature1', { defaultValue: 'B2B matchmaking & meetings' }) },
+                { icon: Globe, text: t('event.b2bFeature2', { defaultValue: 'Attendee networking directory' }) },
+                { icon: Calendar, text: t('event.b2bFeature3', { defaultValue: 'Personalized session schedule' }) }
+              ].map((item, i) => (
+                <div key={i} className="flex items-center gap-3 px-4 py-3 rounded-lg"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}>
+                  <item.icon size={16} style={{ color: '#0684F5', flexShrink: 0 }} />
+                  <span className="text-sm" style={{ color: '#D1D5DB' }}>{item.text}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => setShowRegistrationModal(true)}
+                className="w-full h-12 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 transition-all"
+                style={{
+                  background: 'linear-gradient(135deg, #0684F5, #0574D4)',
+                  boxShadow: '0 4px 14px rgba(6, 132, 245, 0.3)'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 6px 20px rgba(6, 132, 245, 0.45)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(6, 132, 245, 0.3)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+              >
+                <UserPlus size={18} />
+                {t('event.createAccount', { defaultValue: 'Create Account' })}
+              </button>
+              <button
+                onClick={() => setShowLoginModal(true)}
+                className="w-full h-12 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all"
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  color: '#D1D5DB'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'; }}
+              >
+                <LogIn size={18} />
+                {t('event.alreadyHaveAccount', { defaultValue: 'Already have an account? Sign in' })}
+              </button>
+            </div>
+
+            {/* Back link */}
+            <button
+              onClick={() => navigate(`/event/${eventId}/landing`)}
+              className="mt-5 text-xs transition-colors"
+              style={{ color: '#6B7280' }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#9CA3AF'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = '#6B7280'; }}
+            >
+              {t('event.backToEvent', { defaultValue: '← Back to event page' })}
+            </button>
+          </div>
+        </div>
+
+        {/* Auth Modals */}
+        <ModalRegistrationEntry
+          isOpen={showRegistrationModal}
+          onClose={() => setShowRegistrationModal(false)}
+          onGoogleSignup={async () => setShowRegistrationModal(false)}
+          onEmailSignup={async () => setShowRegistrationModal(false)}
+          onLoginClick={handleSwitchToLogin}
+        />
+
+        <ModalLogin
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+          onGoogleLogin={async () => setShowLoginModal(false)}
+          onLoginSuccess={() => setShowLoginModal(false)}
+          onSignUpClick={handleSwitchToSignup}
+        />
       </div>
     );
   }

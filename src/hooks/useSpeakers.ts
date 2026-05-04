@@ -114,23 +114,25 @@ export function useSpeakers(manualEventId?: string) {
 
   const updateSpeaker = async (id: string, speaker: Partial<Speaker>) => {
     try {
+      // Build payload with only defined values to avoid overwriting with undefined
+      const payload: Record<string, any> = {};
+      if (speaker.full_name !== undefined) payload.full_name = speaker.full_name;
+      if (speaker.title !== undefined) payload.title = speaker.title;
+      if (speaker.company !== undefined) payload.company = speaker.company;
+      if (speaker.bio !== undefined) payload.bio = speaker.bio;
+      if (speaker.photo !== undefined) payload.avatar_url = speaker.photo;
+      if (speaker.linkedin_url !== undefined) payload.linkedin_url = speaker.linkedin_url;
+      if (speaker.twitter_url !== undefined) payload.twitter_url = speaker.twitter_url;
+      if (speaker.website_url !== undefined) payload.website_url = speaker.website_url;
+      if (speaker.email !== undefined) payload.email = speaker.email;
+      if ((speaker as any).phone !== undefined) payload.phone = (speaker as any).phone;
+      if (speaker.type !== undefined) payload.type = speaker.type;
+      if (speaker.status !== undefined) payload.status = speaker.status;
+      if (speaker.tags !== undefined) payload.tags = speaker.tags;
+
       const { data, error } = await supabase
         .from('event_speakers')
-        .update({
-          full_name: speaker.name,
-          title: speaker.title,
-          company: speaker.company,
-          bio: speaker.bio,
-          avatar_url: speaker.photo,
-          linkedin_url: speaker.linkedin_url,
-          twitter_url: speaker.twitter_url,
-          website_url: speaker.website_url,
-          email: speaker.email,
-          phone: speaker.phone,
-          type: speaker.type,
-          status: speaker.status,
-          tags: speaker.tags
-        })
+        .update(payload)
         .eq('id', id)
         .select()
         .single();
