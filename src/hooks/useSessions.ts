@@ -113,12 +113,6 @@ export function useSessions(manualEventId?: string) {
       return;
     }
     try {
-      // Conflict Check — uses DB-level date filtering
-      if (session.venue && session.startTime && session.endTime) {
-        const conflictMsg = await checkVenueConflict(eventId, session.venue, session.startTime, session.endTime);
-        if (conflictMsg) throw new Error(conflictMsg);
-      }
-
       const dbPayload: any = {
         event_id: eventId,
         title: session.title,
@@ -153,12 +147,6 @@ export function useSessions(manualEventId?: string) {
 
   const updateSession = async (id: string, session: Partial<Session>) => {
     try {
-      // Conflict Check — uses shared helper with DB-level filtering, excludes self
-      if (session.startTime && session.endTime && session.venue) {
-        const conflictMsg = await checkVenueConflict(eventId!, session.venue, session.startTime, session.endTime, id);
-        if (conflictMsg) throw new Error(conflictMsg);
-      }
-
       const dbPayload: any = {};
       if (session.title !== undefined) dbPayload.title = session.title;
       if (session.description !== undefined) dbPayload.description = session.description;

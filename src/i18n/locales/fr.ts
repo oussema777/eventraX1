@@ -4034,7 +4034,10 @@ export default {
             selectDate: 'Choisissez une date',
             errors: {
               timeRange: "Attention ! La session finit avant d'avoir commence. Merci de verifier l'horaire.",
-              invalidDateTime: 'Veuillez saisir une date et une heure valides.'
+              invalidDateTime: 'Veuillez saisir une date et une heure valides.',
+              conflictTitle: 'Conflit d\'horaire',
+              conflictBody: 'Ce creneau chevauche "{session}" a {venue}.',
+              capacityExceedsEvent: 'La capacite depasse celle de l\'evenement'
             },
             selectedSpeakers: 'Intervenants selectionnes ({count})',
             speakerLine: '{title} • {company}',

@@ -1222,32 +1222,6 @@ function AddSessionModal({
           return;
       }
 
-      // Frontend Conflict Check for clearer notification
-      if (finalVenue && finalVenue !== 'TBD' && finalVenue !== '') {
-        const start = startDateTime.getTime();
-        const end = endDateTime.getTime();
-
-        const conflict = existingSessions.find(s => {
-          if (initialData && s.id === initialData.id) return false;
-          if (s.venue !== finalVenue) return false;
-          if (s.status === 'cancelled') return false;
-
-          const sStart = new Date(s.rawStartTime).getTime();
-          const sEnd = new Date(s.rawEndTime).getTime();
-          return (start < sEnd && end > sStart);
-        });
-
-        if (conflict) {
-          toast.error(
-            <div className="flex flex-col gap-1">
-              <span className="font-bold text-red-600">{t('wizard.step3.sessions.modal.errors.conflictTitle')}</span>
-              <span className="text-sm">{t('wizard.step3.sessions.modal.errors.conflictBody', { venue: finalVenue, session: conflict.title })}</span>
-            </div>,
-            { duration: 5000 }
-          );
-          return;
-        }
-      }
 
       const payload = {
         title,

@@ -4108,7 +4108,10 @@ export default {
             selectDate: 'Pick a date',
             errors: {
               timeRange: "Wait! The session ends before it starts. Please check the time again.",
-              invalidDateTime: 'Please enter a valid date and time.'
+              invalidDateTime: 'Please enter a valid date and time.',
+              conflictTitle: 'Schedule Conflict',
+              conflictBody: 'This time slot overlaps with "{session}" at {venue}.',
+              capacityExceedsEvent: 'Capacity exceeds event capacity'
             },
             selectedSpeakers: 'Selected Speakers ({count})',
             speakerLine: '{title} • {company}',
