@@ -290,7 +290,7 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
         }
 
         const [speakerRes, sessionRes, ticketRes, sponsorRes, exhibitorRes, attendeeRes] = await Promise.all([
-          supabase.from('event_speakers').select('*').eq('event_id', eventId).order('sort_order', { ascending: true }),
+          supabase.from('event_speakers').select('*').eq('event_id', eventId).order('full_name', { ascending: true }),
           supabase.from('event_sessions').select('*').eq('event_id', eventId).order('starts_at', { ascending: true }),
           supabase.from('event_tickets').select('*').eq('event_id', eventId),
           supabase.from('event_sponsors').select('*').eq('event_id', eventId).order('sort_order', { ascending: true }),

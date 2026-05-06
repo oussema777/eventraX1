@@ -34,11 +34,12 @@ export default function WizardStep4Launch() {
         toast.error(t('wizard.step4.errors.publishFirst'));
         return;
       }
+      const isAlreadyApproved = eventData.is_approved === true || eventData.moderation_status === 'approved';
       await saveDraft({
         status: 'published',
-        is_public: false,
-        is_approved: false,
-        moderation_status: 'pending',
+        ...(isAlreadyApproved
+          ? {} // Keep existing approval — don't reset once approved
+          : { is_public: false, is_approved: false, moderation_status: 'pending' }),
         access_code: eventData.access_code || null
       });
       if (user?.id) {

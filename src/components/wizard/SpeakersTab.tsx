@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState } from 'react';
 import {
   Users,
   Star,
@@ -13,12 +13,8 @@ import {
   Trash2,
   Download,
   Mic,
-  Layers,
-  GripVertical
+  Layers
 } from 'lucide-react';
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
-import type { Identifier, XYCoord } from 'dnd-core';
 import AddEditSpeakerModal from './modals/AddEditSpeakerModal';
 import SpeakerProfileModal from './modals/SpeakerProfileModal';
 import ImportSpeakersModal from './modals/ImportSpeakersModal';
@@ -26,30 +22,9 @@ import SuccessToast from './SuccessToast';
 import { useSpeakers, Speaker } from '../../hooks/useSpeakers';
 import { useI18n } from '../../i18n/I18nContext';
 
-const SPEAKER_DND_TYPE = 'speaker-item';
-
-interface DragItem {
-  id: string;
-  index: number;
-}
-
 export default function SpeakersTab({ eventId }: { eventId?: string }) {
-  const { speakers, setSpeakers, isLoading, createSpeaker, updateSpeaker, deleteSpeaker, reorderSpeakers } = useSpeakers(eventId);
+  const { speakers, isLoading, createSpeaker, updateSpeaker, deleteSpeaker } = useSpeakers(eventId);
   const { t } = useI18n();
-
-  const moveSpeaker = useCallback((dragIndex: number, hoverIndex: number) => {
-    setSpeakers((prev: Speaker[]) => {
-      const updated = [...prev];
-      const [removed] = updated.splice(dragIndex, 1);
-      updated.splice(hoverIndex, 0, removed);
-      return updated;
-    });
-  }, [setSpeakers]);
-
-  const handleDragEnd = useCallback(() => {
-    const orderedIds = speakers.map(s => s.id);
-    reorderSpeakers(orderedIds);
-  }, [speakers, reorderSpeakers]);
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [activeFilter, setActiveFilter] = useState<'all' | 'trainer' | 'coach' | 'expert'>('all');
@@ -260,7 +235,6 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
 
       {/* SPEAKERS GRID VIEW */}
       {viewMode === 'grid' && (
-        <DndProvider backend={HTML5Backend}>
         <div className="speakers-grid grid grid-cols-3 gap-6">
           {filteredSpeakers.map((speaker) => {
             const typeColors: Record<string, string> = {
@@ -279,11 +253,8 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
             const statusStyle = statusColors[speaker.status] || statusColors.pending;
 
             return (
-              <DraggableSpeakerCard
+              <div
                 key={speaker.id}
-                index={speakers.indexOf(speaker)}
-                moveSpeaker={moveSpeaker}
-                onDragEnd={handleDragEnd}
               >
               <div
                 onClick={() => handleViewProfile(speaker)}
@@ -388,7 +359,7 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
                     style={{
                       position: 'absolute',
                       top: '12px',
-                      left: '40px',
+                      left: '14px',
                       width: '20px',
                       height: '20px',
                       cursor: 'pointer',
@@ -485,7 +456,7 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
                   </div>
                 </div>
               </div>
-              </DraggableSpeakerCard>
+              </div>
             );
           })}
 
@@ -517,12 +488,10 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
             </button>
           </div>
         </div>
-        </DndProvider>
       )}
 
       {/* SPEAKERS LIST VIEW */}
       {viewMode === 'list' && (
-        <DndProvider backend={HTML5Backend}>
         <div className="speaker-list-view rounded-xl overflow-hidden border" style={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB' }}>
           <div className="speaker-list-inner">
             {/* Table Header */}
@@ -530,8 +499,7 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
               className="grid grid-cols-12 gap-4 p-4"
               style={{ backgroundColor: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}
             >
-              <div className="col-span-1 flex items-center gap-2">
-                <div style={{ width: '24px' }}></div>
+              <div className="col-span-1 flex items-center">
                 <input type="checkbox" className="w-5 h-5" style={{ accentColor: 'var(--primary)' }} />
               </div>
               <div className="col-span-4">
@@ -560,11 +528,10 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
               const statusBadge = getStatusBadge(speaker.status);
 
               return (
-                <DraggableSpeakerRow
+                <div
                   key={speaker.id}
-                  index={speakers.indexOf(speaker)}
-                  moveSpeaker={moveSpeaker}
-                  onDragEnd={handleDragEnd}
+                  className="grid grid-cols-12 gap-4 p-4 transition-colors hover:bg-gray-50"
+                  style={{ borderBottom: '1px solid #E5E7EB' }}
                 >
                   <div className="col-span-1 flex items-center">
                     <input
@@ -634,12 +601,11 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
                       <MoreVertical size={16} style={{ color: '#6B7280' }} />
                     </button>
                   </div>
-                </DraggableSpeakerRow>
+                </div>
               );
             })}
           </div>
         </div>
-        </DndProvider>
       )}
 
       {/* Modals */}
@@ -681,134 +647,3 @@ export default function SpeakersTab({ eventId }: { eventId?: string }) {
   );
 }
 
-// Draggable Speaker Card (Grid View)
-function DraggableSpeakerCard({ index, moveSpeaker, onDragEnd, children }: {
-  index: number;
-  moveSpeaker: (dragIndex: number, hoverIndex: number) => void;
-  onDragEnd: () => void;
-  children: React.ReactNode;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const dragHandleRef = useRef<HTMLDivElement>(null);
-
-  const [{ handlerId }, drop] = useDrop<DragItem, void, { handlerId: Identifier | null }>({
-    accept: SPEAKER_DND_TYPE,
-    collect(monitor) {
-      return { handlerId: monitor.getHandlerId() };
-    },
-    hover(item: DragItem, monitor) {
-      if (!ref.current) return;
-      const dragIndex = item.index;
-      const hoverIndex = index;
-      if (dragIndex === hoverIndex) return;
-      const hoverBoundingRect = ref.current.getBoundingClientRect();
-      const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
-      const clientOffset = monitor.getClientOffset();
-      const hoverClientY = (clientOffset as XYCoord).y - hoverBoundingRect.top;
-      if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) return;
-      if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) return;
-      moveSpeaker(dragIndex, hoverIndex);
-      item.index = hoverIndex;
-    },
-  });
-
-  const [{ isDragging }, drag, preview] = useDrag({
-    type: SPEAKER_DND_TYPE,
-    item: () => ({ id: `speaker-${index}`, index }),
-    collect: (monitor: any) => ({ isDragging: monitor.isDragging() }),
-    end: () => onDragEnd(),
-  });
-
-  preview(drop(ref));
-  drag(dragHandleRef);
-
-  return (
-    <div ref={ref} data-handler-id={handlerId} style={{ position: 'relative', opacity: isDragging ? 0.4 : 1 }}>
-      <div
-        ref={dragHandleRef}
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          position: 'absolute',
-          top: '14px',
-          left: '14px',
-          zIndex: 50,
-          cursor: 'grab',
-          padding: '6px',
-          borderRadius: '8px',
-          backgroundColor: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: '1px solid rgba(255,255,255,0.2)',
-          pointerEvents: 'auto',
-        }}
-      >
-        <GripVertical size={18} style={{ color: '#FFFFFF' }} />
-      </div>
-      {children}
-    </div>
-  );
-}
-
-// Draggable Speaker Row (List View)
-function DraggableSpeakerRow({ index, moveSpeaker, onDragEnd, children }: {
-  index: number;
-  moveSpeaker: (dragIndex: number, hoverIndex: number) => void;
-  onDragEnd: () => void;
-  children: React.ReactNode;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const dragHandleRef = useRef<HTMLDivElement>(null);
-
-  const [{ handlerId }, drop] = useDrop<DragItem, void, { handlerId: Identifier | null }>({
-    accept: SPEAKER_DND_TYPE,
-    collect(monitor) {
-      return { handlerId: monitor.getHandlerId() };
-    },
-    hover(item: DragItem, monitor) {
-      if (!ref.current) return;
-      const dragIndex = item.index;
-      const hoverIndex = index;
-      if (dragIndex === hoverIndex) return;
-      const hoverBoundingRect = ref.current.getBoundingClientRect();
-      const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
-      const clientOffset = monitor.getClientOffset();
-      const hoverClientY = (clientOffset as XYCoord).y - hoverBoundingRect.top;
-      if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) return;
-      if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) return;
-      moveSpeaker(dragIndex, hoverIndex);
-      item.index = hoverIndex;
-    },
-  });
-
-  const [{ isDragging }, drag] = useDrag({
-    type: SPEAKER_DND_TYPE,
-    item: () => ({ id: `speaker-row-${index}`, index }),
-    collect: (monitor: any) => ({ isDragging: monitor.isDragging() }),
-    end: () => onDragEnd(),
-  });
-
-  drop(ref);
-  drag(dragHandleRef);
-
-  return (
-    <div
-      ref={ref}
-      data-handler-id={handlerId}
-      className="grid grid-cols-12 gap-4 p-4 transition-colors hover:bg-gray-50"
-      style={{ borderBottom: '1px solid #E5E7EB', opacity: isDragging ? 0.4 : 1 }}
-    >
-      <div className="col-span-1 flex items-center gap-2">
-        <div
-          ref={dragHandleRef}
-          style={{ cursor: 'grab', display: 'flex', alignItems: 'center' }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <GripVertical size={16} style={{ color: '#9CA3AF' }} />
-        </div>
-      </div>
-      {children}
-    </div>
-  );
-}

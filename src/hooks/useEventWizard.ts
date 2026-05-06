@@ -26,6 +26,8 @@ export interface EventDraft {
   attendee_settings?: any;
   status: 'draft' | 'published' | 'archived' | 'completed' | 'cancelled';
   is_public?: boolean;
+  is_approved?: boolean;
+  moderation_status?: 'pending' | 'approved' | 'rejected';
   owner_id?: string;
   seo_title?: string;
   seo_description?: string;
