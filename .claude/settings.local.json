@@ -16,7 +16,28 @@
       "Bash(xargs:*)",
       "Bash(npm ls:*)",
       "Bash(rm:*)",
-      "Bash(bash:*)"
+      "Bash(bash:*)",
+      "Bash(git.exe:*)",
+      "Bash(cmd.exe:*)",
+      "Bash(npx:*)",
+      "WebFetch(domain:anima.coop)",
+      "WebFetch(domain:www.f6s.com)",
+      "WebSearch",
+      "WebFetch(domain:www.accelerateurm.com)",
+      "WebFetch(domain:msmeafricaonline.com)",
+      "WebFetch(domain:innovation.ampmetropole.fr)",
+      "Bash(python3:*)",
+      "Bash(python:*)",
+      "WebFetch(domain:www.investinprovence.com)",
+      "WebFetch(domain:seketak-eg.com)",
+      "WebFetch(domain:eventra.cloud)",
+      "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\":*)",
+      "WebFetch(domain:managers.tn)",
+      "WebFetch(domain:gits.seketak-eg.com)",
+      "Bash(PYTHONIOENCODING=utf-8 python:*)",
+      "Bash(cp:*)",
+      "Bash(start:*)",
+      "Bash(explorer.exe:*)"
     ]
   }
 }

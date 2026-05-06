@@ -1,0 +1,1998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EVENTRA — Pitch Deck | Soft Landing 2026</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+  @page { size: A4 landscape; margin: 0; }
+
+  :root {
+    --bg-deep: #061A2E;
+    --bg-primary: #0B2641;
+    --bg-card: #0D243B;
+    --bg-card-hover: #112D4A;
+    --accent: #0684F5;
+    --accent-light: #3DA0FF;
+    --accent-glow: rgba(6, 132, 245, 0.15);
+    --accent-glow-strong: rgba(6, 132, 245, 0.3);
+    --white: #FFFFFF;
+    --gray-100: #F0F4F8;
+    --gray-200: #D9E2EC;
+    --gray-300: #BCCCDC;
+    --gray-400: #9FB3C8;
+    --gray-500: #627D98;
+    --red: #EF4444;
+    --green: #10B981;
+    --orange: #F59E0B;
+    --purple: #8B5CF6;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    margin: 0; padding: 0;
+    width: 297mm;
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg-deep);
+    color: var(--white);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  section.slide {
+    width: 297mm; height: 210mm;
+    page-break-after: always;
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: column;
+    box-sizing: border-box;
+    background: var(--bg-primary);
+  }
+
+  section.slide:last-child { page-break-after: avoid; }
+
+  @media print {
+    body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    section.slide { page-break-after: always; }
+    section.slide:last-child { page-break-after: avoid; }
+    .glow-orb { filter: none !important; opacity: 0.08; }
+  }
+
+  @media screen {
+    section.slide { margin-bottom: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.6); }
+    body { padding: 24px 0; }
+  }
+
+  /* ===== COMMON ELEMENTS ===== */
+
+  .slide-footer {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 60px;
+    font-size: 10px; font-weight: 500;
+    color: var(--gray-500);
+    letter-spacing: 0.5px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    background: rgba(0,0,0,0.15);
+    z-index: 10;
+  }
+  .slide-footer .left { display: flex; align-items: center; gap: 8px; }
+  .slide-footer .logo-sm {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 2px;
+  }
+  .slide-footer .sep { color: var(--gray-500); opacity: 0.4; }
+  .slide-footer .page-num {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 13px;
+    color: var(--accent);
+    background: var(--accent-glow);
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 8px;
+  }
+
+  .slide-content {
+    flex: 1;
+    padding: 48px 60px 60px;
+    display: flex; flex-direction: column;
+    position: relative; z-index: 2;
+  }
+
+  .slide-header {
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .slide-tag {
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 2.5px;
+    color: var(--accent);
+    background: var(--accent-glow);
+    padding: 5px 14px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .slide-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 32px;
+    line-height: 1.15;
+    color: var(--white);
+    margin-top: 10px;
+  }
+  .slide-subtitle {
+    font-size: 15px; font-weight: 400;
+    color: var(--gray-300);
+    line-height: 1.5;
+    margin-top: 6px;
+    max-width: 700px;
+  }
+
+  /* Grid decoration */
+  .grid-bg {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    z-index: 0;
+  }
+  .glow-orb {
+    position: absolute; border-radius: 50%;
+    filter: blur(80px); opacity: 0.15; z-index: 0;
+  }
+  .glow-orb.blue { background: var(--accent); }
+  .glow-orb.purple { background: #6366F1; }
+
+  /* Cards */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 24px;
+    position: relative;
+  }
+  .card::before {
+    content: '';
+    position: absolute; top: 0; left: 24px; right: 24px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent-glow-strong), transparent);
+  }
+
+  /* ============== SLIDE 1: TITLE ============== */
+
+  .slide-1 {
+    background: linear-gradient(135deg, #040E1A 0%, var(--bg-primary) 40%, #0A1F38 100%);
+    justify-content: center; align-items: center; text-align: center;
+    padding: 0;
+  }
+  .slide-1 .grid-bg { opacity: 0.5; }
+  .slide-1 .glow-1 { width: 500px; height: 500px; top: -100px; right: -100px; }
+  .slide-1 .glow-2 { width: 400px; height: 400px; bottom: -50px; left: -50px; background: #6366F1; }
+  .slide-1 .center-content { position: relative; z-index: 2; }
+  .slide-1 .logo-mark {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 900; font-size: 72px;
+    letter-spacing: 12px;
+    background: linear-gradient(135deg, var(--white) 0%, var(--accent-light) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; color: transparent;
+    margin-bottom: 16px;
+  }
+  .slide-1 .tagline {
+    font-size: 20px; font-weight: 500;
+    color: var(--gray-200);
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .slide-1 .tagline-bold {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 16px; font-weight: 400;
+    color: var(--gray-400);
+    letter-spacing: 0.5px;
+    margin-bottom: 40px;
+  }
+  .slide-1 .feature-pills {
+    display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+    margin-bottom: 48px;
+  }
+  .slide-1 .pill {
+    font-size: 11px; font-weight: 600;
+    color: var(--accent-light);
+    background: var(--accent-glow);
+    border: 1px solid rgba(6,132,245,0.2);
+    padding: 8px 16px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+  }
+  .slide-1 .bottom-bar {
+    position: absolute; bottom: 36px; left: 60px; right: 60px;
+    display: flex; justify-content: space-between; align-items: center;
+    z-index: 2;
+  }
+  .slide-1 .bottom-bar .program {
+    font-size: 11px; color: var(--gray-400);
+    letter-spacing: 1px; font-weight: 500;
+  }
+  .slide-1 .bottom-bar .url {
+    font-size: 12px; color: var(--accent);
+    font-weight: 600; letter-spacing: 0.5px;
+  }
+  .slide-1 .node-network {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1;
+  }
+  .slide-1 .node {
+    position: absolute; width: 6px; height: 6px;
+    background: var(--accent); border-radius: 50%; opacity: 0.3;
+  }
+  .slide-1 .line-connector {
+    position: absolute; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(6,132,245,0.15), transparent);
+    transform-origin: left center;
+  }
+
+  /* ============== SLIDE 2: PROBLEM ============== */
+
+  .slide-2 .problem-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    flex: 1;
+    margin-top: 24px;
+  }
+  .slide-2 .story-side {
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .slide-2 .story-text {
+    font-size: 14px; line-height: 1.7;
+    color: var(--gray-300);
+    margin-bottom: 20px;
+  }
+  .slide-2 .story-text em {
+    color: var(--accent-light); font-style: normal; font-weight: 600;
+  }
+  .slide-2 .chaos-stat {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 22px; font-weight: 800;
+    font-family: 'Space Grotesk', sans-serif;
+    color: var(--red);
+    margin-bottom: 8px;
+  }
+  .slide-2 .chaos-stat span { font-size: 13px; color: var(--gray-400); font-weight: 400; }
+  .slide-2 .pain-points {
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .slide-2 .pain-item {
+    display: flex; align-items: flex-start; gap: 14px;
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 10px;
+    padding: 14px 16px;
+    border-left: 3px solid var(--red);
+  }
+  .slide-2 .pain-num {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 16px;
+    color: var(--red);
+    min-width: 24px;
+  }
+  .slide-2 .pain-text {
+    font-size: 12.5px; font-weight: 500;
+    color: var(--gray-200);
+    line-height: 1.4;
+  }
+  .slide-2 .pain-text span {
+    display: block; font-size: 11px;
+    color: var(--gray-500); font-weight: 400;
+    margin-top: 2px;
+  }
+
+  /* ============== SLIDE 3: MARKET ============== */
+
+  .slide-3 .market-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 32px;
+    flex: 1;
+    margin-top: 20px;
+  }
+  .slide-3 .tam-section {
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .slide-3 .market-ring {
+    display: flex; align-items: center; gap: 20px;
+    padding: 16px 20px;
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+  }
+  .slide-3 .ring-circle {
+    width: 64px; height: 64px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 800; font-size: 11px;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+  }
+  .slide-3 .ring-tam { border: 3px solid var(--accent); color: var(--accent); }
+  .slide-3 .ring-sam { border: 3px solid var(--purple); color: var(--purple); }
+  .slide-3 .ring-som { border: 3px solid var(--green); color: var(--green); }
+  .slide-3 .ring-info h4 {
+    font-size: 15px; font-weight: 700;
+    font-family: 'Space Grotesk', sans-serif;
+    color: var(--white);
+    margin-bottom: 3px;
+  }
+  .slide-3 .ring-info p {
+    font-size: 11.5px; color: var(--gray-400);
+    line-height: 1.4;
+  }
+  .slide-3 .drivers-section h3 {
+    font-size: 13px; font-weight: 700;
+    color: var(--accent); text-transform: uppercase;
+    letter-spacing: 2px; margin-bottom: 12px;
+  }
+  .slide-3 .driver-item {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 12.5px; color: var(--gray-200);
+    margin-bottom: 10px; font-weight: 500;
+  }
+  .slide-3 .driver-dot {
+    width: 8px; height: 8px; border-radius: 2px;
+    background: var(--accent); flex-shrink: 0;
+  }
+  .slide-3 .gap-box {
+    background: linear-gradient(135deg, var(--bg-card) 0%, rgba(6,132,245,0.08) 100%);
+    border: 1px solid rgba(6,132,245,0.2);
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-top: 10px;
+  }
+  .slide-3 .gap-box h4 {
+    font-size: 13px; font-weight: 700;
+    color: var(--accent); margin-bottom: 6px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .slide-3 .gap-box p {
+    font-size: 11.5px; color: var(--gray-300);
+    line-height: 1.5;
+  }
+
+  /* ============== SLIDE 4: COMPETITIVE ============== */
+
+  .slide-4 .comp-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    flex: 1;
+    margin-top: 16px;
+  }
+  .slide-4 .matrix-and-table {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 24px;
+  }
+  .slide-4 .matrix-box {
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    min-height: 260px;
+  }
+  .slide-4 .matrix-title {
+    font-size: 10px; font-weight: 700;
+    color: var(--gray-400); text-transform: uppercase;
+    letter-spacing: 2px; margin-bottom: 12px;
+  }
+  .slide-4 .matrix-grid {
+    position: relative;
+    width: 240px; height: 200px;
+    margin: 0 auto;
+  }
+  .slide-4 .matrix-axis-y,
+  .slide-4 .matrix-axis-x {
+    position: absolute; font-size: 8px;
+    color: var(--gray-500); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .slide-4 .matrix-axis-y { left: -8px; top: 50%; transform: rotate(-90deg) translateX(-50%); transform-origin: left center; white-space: nowrap; }
+  .slide-4 .matrix-axis-x { bottom: -16px; left: 50%; transform: translateX(-50%); white-space: nowrap; }
+  .slide-4 .matrix-quadrant {
+    position: absolute; width: 50%; height: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; color: var(--gray-500);
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+  .slide-4 .q-tl { top: 0; left: 0; border-radius: 8px 0 0 0; }
+  .slide-4 .q-tr { top: 0; right: 0; border-radius: 0 8px 0 0; }
+  .slide-4 .q-bl { bottom: 0; left: 0; border-radius: 0 0 0 8px; }
+  .slide-4 .q-br { bottom: 0; right: 0; border-radius: 0 0 8px 0; }
+  .slide-4 .q-tl { background: rgba(6,132,245,0.1); border-color: rgba(6,132,245,0.2); }
+  .slide-4 .comp-dot {
+    position: absolute;
+    font-size: 7.5px; font-weight: 700;
+    padding: 2px 6px; border-radius: 4px;
+    white-space: nowrap; z-index: 2;
+  }
+  .slide-4 .comp-dot.eventra {
+    background: var(--accent); color: white;
+    font-size: 9px; padding: 4px 10px;
+    box-shadow: 0 0 20px rgba(6,132,245,0.5);
+  }
+  .slide-4 .comp-dot.enterprise { background: rgba(239,68,68,0.2); color: #FCA5A5; }
+  .slide-4 .comp-dot.basic { background: rgba(255,255,255,0.08); color: var(--gray-400); }
+  .slide-4 .comp-dot.virtual { background: rgba(245,158,11,0.15); color: #FCD34D; }
+
+  .slide-4 .feature-table {
+    flex: 1;
+  }
+  .slide-4 .feat-table-inner {
+    display: grid;
+    grid-template-columns: 160px repeat(5, 1fr);
+    font-size: 9px;
+    gap: 0;
+  }
+  .slide-4 .ft-header {
+    font-weight: 700; color: var(--gray-400);
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 8px 6px;
+    border-bottom: 2px solid rgba(255,255,255,0.1);
+    font-size: 8px;
+  }
+  .slide-4 .ft-header.eventra-h { color: var(--accent); }
+  .slide-4 .ft-cell {
+    padding: 5px 6px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: var(--gray-300);
+    display: flex; align-items: center;
+  }
+  .slide-4 .ft-feature { font-weight: 600; color: var(--gray-200); font-size: 9.5px; }
+  .slide-4 .ft-check { color: var(--green); font-weight: 700; font-size: 14px; }
+  .slide-4 .ft-cross { color: var(--red); opacity: 0.5; font-size: 14px; }
+  .slide-4 .ft-cell.eventra-col { background: rgba(6,132,245,0.06); }
+
+  .slide-4 .score-bar {
+    display: flex; align-items: center; gap: 16px;
+    margin-top: 10px;
+    padding: 10px 20px;
+    background: linear-gradient(90deg, var(--accent-glow) 0%, transparent 100%);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+  }
+  .slide-4 .score-bar .score {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 800; font-size: 20px;
+    color: var(--accent);
+  }
+  .slide-4 .score-bar .score-text {
+    font-size: 11px; color: var(--gray-300);
+  }
+  .slide-4 .score-bar .score-text strong { color: var(--white); }
+
+  /* ============== SLIDE 5: SOLUTION ============== */
+
+  .slide-5 .phases {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    flex: 1;
+    margin-top: 20px;
+  }
+  .slide-5 .phase-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+    padding: 22px 20px;
+    display: flex; flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+  .slide-5 .phase-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  }
+  .slide-5 .phase-pre::before { background: linear-gradient(90deg, var(--accent), var(--accent-light)); }
+  .slide-5 .phase-during::before { background: linear-gradient(90deg, var(--green), #34D399); }
+  .slide-5 .phase-post::before { background: linear-gradient(90deg, var(--purple), #A78BFA); }
+  .slide-5 .phase-icon {
+    font-size: 24px; margin-bottom: 10px;
+  }
+  .slide-5 .phase-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 14px;
+    color: var(--white);
+    margin-bottom: 4px;
+  }
+  .slide-5 .phase-label {
+    font-size: 10px; color: var(--gray-400);
+    text-transform: uppercase; letter-spacing: 1.5px;
+    margin-bottom: 14px;
+    font-weight: 600;
+  }
+  .slide-5 .phase-features {
+    display: flex; flex-direction: column; gap: 8px;
+    flex: 1;
+  }
+  .slide-5 .pf-item {
+    display: flex; align-items: flex-start; gap: 8px;
+    font-size: 11px; color: var(--gray-200);
+    line-height: 1.4;
+  }
+  .slide-5 .pf-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    margin-top: 5px; flex-shrink: 0;
+  }
+  .slide-5 .phase-pre .pf-dot { background: var(--accent); }
+  .slide-5 .phase-during .pf-dot { background: var(--green); }
+  .slide-5 .phase-post .pf-dot { background: var(--purple); }
+  .slide-5 .pf-highlight {
+    font-size: 10px; font-weight: 600;
+    color: var(--accent-light);
+    background: var(--accent-glow);
+    padding: 6px 10px;
+    border-radius: 6px;
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+  .slide-5 .phase-post .pf-highlight { color: #C4B5FD; background: rgba(139,92,246,0.12); }
+
+
+  /* ============== SLIDE 6: PRODUCT ============== */
+
+  .slide-6 .screenshots {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 16px;
+    flex: 1;
+    margin-top: 20px;
+  }
+  .slide-6 .screen-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex; flex-direction: column;
+  }
+  .slide-6 .screen-num {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 800; font-size: 28px;
+    color: var(--accent); opacity: 0.3;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .slide-6 .screen-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 13px;
+    color: var(--white);
+    margin-bottom: 6px;
+  }
+  .slide-6 .screen-desc {
+    font-size: 11px; color: var(--gray-400);
+    line-height: 1.5;
+    flex: 1;
+  }
+  .slide-6 .screen-mockup {
+    margin-top: 12px;
+    height: 70px;
+    background: var(--bg-deep);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    display: flex; flex-direction: column; padding: 6px 10px;
+  }
+  .slide-6 .screen-mockup .mock-toolbar {
+    display: flex; gap: 4px; margin-bottom: 4px;
+  }
+  .slide-6 .screen-mockup .mock-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+  }
+  .slide-6 .screen-mockup .mock-content {
+    flex: 1; display: flex; gap: 4px;
+  }
+  .slide-6 .screen-mockup .mock-sidebar {
+    width: 20%;
+    background: rgba(6,132,245,0.1);
+    border-radius: 3px;
+  }
+  .slide-6 .screen-mockup .mock-main {
+    flex: 1;
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .slide-6 .screen-mockup .mock-block {
+    border-radius: 2px;
+    flex: 1;
+  }
+  .slide-6 .screen-mockup .mock-block.blue { background: rgba(6,132,245,0.15); }
+  .slide-6 .screen-mockup .mock-block.dim { background: rgba(255,255,255,0.04); }
+  .slide-6 .screen-mockup .mock-block.green { background: rgba(16,185,129,0.12); }
+  .slide-6 .screen-mockup .mock-block.purple { background: rgba(139,92,246,0.12); }
+  .slide-6 .live-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(16,185,129,0.1);
+    border: 1px solid rgba(16,185,129,0.3);
+    color: var(--green);
+    font-size: 11px; font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 20px;
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+  }
+  .slide-6 .live-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green);
+  }
+
+  /* ============== SLIDE 7: TRACTION ============== */
+
+  .slide-7 .traction-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    flex: 1;
+    margin-top: 20px;
+  }
+  .slide-7 .metrics-side {
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .slide-7 .metric-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .slide-7 .metric-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .slide-7 .metric-num {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 800; font-size: 28px;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .slide-7 .metric-label {
+    font-size: 10px; color: var(--gray-400);
+    font-weight: 500; letter-spacing: 0.5px;
+  }
+  .slide-7 .events-side {
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .slide-7 .event-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 16px 18px;
+    display: flex; gap: 14px;
+    align-items: flex-start;
+  }
+  .slide-7 .event-flag {
+    font-size: 28px; line-height: 1;
+    flex-shrink: 0;
+  }
+  .slide-7 .event-info h4 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 13px;
+    color: var(--white);
+    margin-bottom: 3px;
+  }
+  .slide-7 .event-info p {
+    font-size: 10.5px; color: var(--gray-400);
+    line-height: 1.4;
+  }
+  .slide-7 .event-info .partners {
+    font-size: 9.5px; color: var(--gray-500);
+    margin-top: 4px;
+    font-style: italic;
+  }
+  .slide-7 .status-banner {
+    background: linear-gradient(90deg, rgba(16,185,129,0.1), transparent);
+    border-left: 3px solid var(--green);
+    border-radius: 0 8px 8px 0;
+    padding: 10px 16px;
+    font-size: 12px; font-weight: 600;
+    color: var(--green);
+    margin-top: auto;
+  }
+
+  /* ============== SLIDE 8: BUSINESS MODEL ============== */
+
+  .slide-8 .bm-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    flex: 1;
+    margin-top: 20px;
+  }
+  .slide-8 .plans-side {
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .slide-8 .plan-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 18px 20px;
+    display: flex; align-items: center; gap: 18px;
+  }
+  .slide-8 .plan-card.featured {
+    border-color: rgba(6,132,245,0.3);
+    background: linear-gradient(135deg, var(--bg-card) 0%, rgba(6,132,245,0.08) 100%);
+  }
+  .slide-8 .plan-price {
+    font-family: 'Space Grotesk', sans-serif;
+    text-align: center;
+    min-width: 80px;
+  }
+  .slide-8 .plan-price .amount {
+    font-weight: 800; font-size: 26px; color: var(--white);
+    line-height: 1;
+  }
+  .slide-8 .plan-price .period {
+    font-size: 10px; color: var(--gray-500);
+  }
+  .slide-8 .plan-price .free { color: var(--green); }
+  .slide-8 .plan-details h4 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 14px;
+    color: var(--white);
+    margin-bottom: 4px;
+  }
+  .slide-8 .plan-details p {
+    font-size: 11px; color: var(--gray-400);
+    line-height: 1.4;
+  }
+  .slide-8 .plan-badge {
+    font-size: 9px; font-weight: 700;
+    color: var(--accent); background: var(--accent-glow);
+    padding: 3px 10px; border-radius: 10px;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+  .slide-8 .revenue-side {
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .slide-8 .rev-split {
+    display: flex; gap: 10px; align-items: center;
+  }
+  .slide-8 .rev-bar-container {
+    flex: 1; height: 28px;
+    background: var(--bg-card);
+    border-radius: 6px;
+    overflow: hidden;
+    display: flex;
+  }
+  .slide-8 .rev-bar {
+    height: 100%;
+    display: flex; align-items: center;
+    padding: 0 10px;
+    font-size: 10px; font-weight: 700;
+    color: white;
+  }
+  .slide-8 .rev-bar.sub { background: var(--accent); width: 70%; }
+  .slide-8 .rev-bar.txn { background: var(--purple); width: 25%; }
+  .slide-8 .rev-bar.add { background: var(--green); width: 5%; font-size: 0; }
+  .slide-8 .rev-legend {
+    display: flex; gap: 16px; font-size: 10px; color: var(--gray-400);
+  }
+  .slide-8 .rev-legend-dot {
+    width: 10px; height: 10px; border-radius: 3px;
+    display: inline-block; margin-right: 5px; vertical-align: middle;
+  }
+  .slide-8 .price-compare {
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .slide-8 .price-compare h4 {
+    font-size: 11px; font-weight: 700;
+    color: var(--accent); text-transform: uppercase;
+    letter-spacing: 1.5px; margin-bottom: 12px;
+  }
+  .slide-8 .price-row {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 10px;
+  }
+  .slide-8 .price-label {
+    font-size: 11px; color: var(--gray-300);
+    min-width: 110px; font-weight: 500;
+  }
+  .slide-8 .price-bar-bg {
+    flex: 1; height: 20px;
+    background: var(--bg-deep);
+    border-radius: 4px; overflow: hidden;
+    position: relative;
+  }
+  .slide-8 .price-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    display: flex; align-items: center;
+    padding-left: 8px;
+    font-size: 9px; font-weight: 700; color: white;
+  }
+  .slide-8 .price-bar-fill.eventra { background: var(--accent); width: 3%; min-width: 60px; }
+  .slide-8 .price-bar-fill.bizzabo { background: var(--red); width: 100%; opacity: 0.6; }
+  .slide-8 .price-bar-fill.cvent { background: var(--red); width: 100%; opacity: 0.6; }
+  .slide-8 .multiplier {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 800; font-size: 14px;
+    color: var(--green);
+    min-width: 42px; text-align: right;
+  }
+
+  /* ============== SLIDE 9: GTM ============== */
+
+  .slide-9 .gtm-timeline {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    flex: 1;
+    margin-top: 24px;
+  }
+  .slide-9 .gtm-phase {
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+    padding: 22px 20px;
+    display: flex; flex-direction: column;
+    position: relative;
+  }
+  .slide-9 .gtm-phase::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    border-radius: 14px 14px 0 0;
+  }
+  .slide-9 .gtm-p1::before { background: var(--accent); }
+  .slide-9 .gtm-p2::before { background: var(--orange); }
+  .slide-9 .gtm-p3::before { background: var(--green); }
+  .slide-9 .gtm-num {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 800; font-size: 36px;
+    line-height: 1; margin-bottom: 6px;
+  }
+  .gtm-p1 .gtm-num { color: var(--accent); }
+  .gtm-p2 .gtm-num { color: var(--orange); }
+  .gtm-p3 .gtm-num { color: var(--green); }
+  .slide-9 .gtm-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 14px;
+    color: var(--white);
+    margin-bottom: 2px;
+  }
+  .slide-9 .gtm-period {
+    font-size: 10px; color: var(--gray-500);
+    font-weight: 600; letter-spacing: 0.5px;
+    margin-bottom: 14px;
+  }
+  .slide-9 .gtm-items {
+    display: flex; flex-direction: column; gap: 8px;
+    flex: 1;
+  }
+  .slide-9 .gtm-item {
+    font-size: 11px; color: var(--gray-300);
+    line-height: 1.4;
+    padding-left: 14px;
+    position: relative;
+  }
+  .slide-9 .gtm-item::before {
+    content: '';
+    position: absolute; left: 0; top: 6px;
+    width: 5px; height: 5px; border-radius: 50%;
+  }
+  .gtm-p1 .gtm-item::before { background: var(--accent); }
+  .gtm-p2 .gtm-item::before { background: var(--orange); }
+  .gtm-p3 .gtm-item::before { background: var(--green); }
+  .slide-9 .gtm-target {
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 14px;
+  }
+  .gtm-p1 .gtm-target { color: var(--accent); }
+  .gtm-p2 .gtm-target { color: var(--orange); }
+  .gtm-p3 .gtm-target { color: var(--green); }
+
+  /* ============== SLIDE 10: TEAM ============== */
+
+  .slide-10 .team-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    flex: 1;
+    margin-top: 24px;
+  }
+  .slide-10 .team-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+    padding: 24px 20px;
+    display: flex; flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .slide-10 .avatar {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 800; font-size: 24px;
+    margin-bottom: 14px;
+  }
+  .slide-10 .avatar-1 { background: linear-gradient(135deg, var(--accent), #3B82F6); color: white; }
+  .slide-10 .avatar-2 { background: linear-gradient(135deg, var(--green), #34D399); color: white; }
+  .slide-10 .avatar-3 { background: linear-gradient(135deg, var(--purple), #A78BFA); color: white; }
+  .slide-10 .team-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 16px;
+    color: var(--white);
+    margin-bottom: 2px;
+  }
+  .slide-10 .team-role {
+    font-size: 11px; color: var(--accent);
+    font-weight: 600; letter-spacing: 0.5px;
+    margin-bottom: 12px;
+  }
+  .slide-10 .team-bio {
+    font-size: 11px; color: var(--gray-400);
+    line-height: 1.5;
+  }
+  .slide-10 .team-stat {
+    margin-top: auto;
+    padding-top: 14px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 18px;
+    color: var(--accent);
+  }
+  .slide-10 .team-stat span {
+    display: block;
+    font-family: 'Inter', sans-serif;
+    font-weight: 400; font-size: 10px;
+    color: var(--gray-500);
+    margin-top: 2px;
+  }
+  .slide-10 .team-bottom {
+    display: flex; align-items: center; justify-content: center; gap: 24px;
+    margin-top: 8px;
+    font-size: 12px; color: var(--gray-300);
+  }
+  .slide-10 .team-bottom strong {
+    color: var(--accent);
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  /* ============== SLIDE 11: FINANCIALS ============== */
+
+  .slide-11 .fin-layout {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 28px;
+    flex: 1;
+    margin-top: 20px;
+  }
+  .slide-11 .chart-side {
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .slide-11 .rev-chart {
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 20px;
+    flex: 1;
+    display: flex; flex-direction: column;
+  }
+  .slide-11 .chart-title {
+    font-size: 11px; font-weight: 700;
+    color: var(--gray-400);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 16px;
+  }
+  .slide-11 .bar-chart {
+    display: flex; align-items: flex-end;
+    gap: 24px; flex: 1;
+    padding-bottom: 20px;
+  }
+  .slide-11 .bar-group {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; gap: 8px;
+  }
+  .slide-11 .bar-value {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 800; font-size: 18px;
+    color: var(--white);
+  }
+  .slide-11 .bar {
+    width: 100%; border-radius: 8px 8px 4px 4px;
+    position: relative;
+    display: flex; flex-direction: column;
+    justify-content: flex-end;
+    overflow: hidden;
+  }
+  .slide-11 .bar-sub {
+    background: var(--accent);
+    width: 100%;
+  }
+  .slide-11 .bar-txn {
+    background: var(--purple);
+    width: 100%;
+  }
+  .slide-11 .bar-label {
+    font-size: 11px; font-weight: 600;
+    color: var(--gray-400);
+    margin-top: 6px;
+  }
+  .slide-11 .bar-clients {
+    font-size: 10px; color: var(--gray-500);
+  }
+  .slide-11 .kpi-side {
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .slide-11 .kpi-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .slide-11 .kpi-label {
+    font-size: 10px; color: var(--gray-500);
+    font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .slide-11 .kpi-value {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 800; font-size: 22px;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 2px;
+  }
+  .slide-11 .kpi-desc {
+    font-size: 10px; color: var(--gray-400);
+  }
+  .slide-11 .kpi-value.green { color: var(--green); }
+  .slide-11 .breakeven {
+    background: linear-gradient(135deg, var(--bg-card) 0%, rgba(16,185,129,0.08) 100%);
+    border-color: rgba(16,185,129,0.2);
+    margin-top: auto;
+  }
+
+  /* ============== SLIDE 12: ASK ============== */
+
+  .slide-12 {
+    background: linear-gradient(135deg, #040E1A 0%, var(--bg-primary) 40%, #0A1F38 100%);
+  }
+  .slide-12 .ask-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    flex: 1;
+    margin-top: 20px;
+  }
+  .slide-12 .need-side,
+  .slide-12 .bring-side {
+    display: flex; flex-direction: column;
+  }
+  .slide-12 .ask-heading {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid;
+  }
+  .slide-12 .need-side .ask-heading { color: var(--accent); border-color: var(--accent); }
+  .slide-12 .bring-side .ask-heading { color: var(--green); border-color: var(--green); }
+  .slide-12 .ask-items {
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .slide-12 .ask-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 12px; color: var(--gray-200);
+    line-height: 1.5;
+  }
+  .slide-12 .ask-icon {
+    font-size: 14px; margin-top: 1px; flex-shrink: 0;
+  }
+  .slide-12 .cta-bar {
+    margin-top: auto;
+    padding-top: 16px;
+    text-align: center;
+  }
+  .slide-12 .cta-text {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 18px;
+    color: var(--white);
+    line-height: 1.6;
+    margin-bottom: 12px;
+  }
+  .slide-12 .cta-text em {
+    color: var(--accent); font-style: normal;
+  }
+  .slide-12 .cta-contact {
+    font-size: 13px; color: var(--accent);
+    font-weight: 600; letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ======================== SLIDE 1: TITLE ======================== -->
+<section class="slide slide-1">
+  <div class="grid-bg"></div>
+  <div class="glow-orb blue glow-1"></div>
+  <div class="glow-orb purple glow-2"></div>
+
+  <div class="node-network">
+    <div class="node" style="top:15%;left:20%"></div>
+    <div class="node" style="top:25%;left:70%"></div>
+    <div class="node" style="top:60%;left:15%"></div>
+    <div class="node" style="top:70%;left:80%"></div>
+    <div class="node" style="top:45%;left:45%"></div>
+    <div class="node" style="top:80%;left:40%"></div>
+    <div class="node" style="top:20%;left:85%"></div>
+    <div class="line-connector" style="top:16%;left:20%;width:340px;transform:rotate(5deg)"></div>
+    <div class="line-connector" style="top:46%;left:15%;width:280px;transform:rotate(-10deg)"></div>
+    <div class="line-connector" style="top:62%;left:45%;width:300px;transform:rotate(12deg)"></div>
+  </div>
+
+  <div class="center-content">
+    <div class="logo-mark">EVENTRA</div>
+    <div class="tagline">The All-in-One Event Management Platform</div>
+    <div class="tagline-bold">Every event. One platform. Zero friction.</div>
+    <div class="feature-pills">
+      <div class="pill">No-Code Website Builder</div>
+      <div class="pill">Ticketing</div>
+      <div class="pill">AI B2B Matchmaking</div>
+      <div class="pill">Check-In</div>
+      <div class="pill">Trilingual EN/FR/AR</div>
+    </div>
+  </div>
+
+  <div class="bottom-bar">
+    <div class="program">SOFT LANDING PROVENCE AFRICA CONNECT 2026</div>
+    <div class="url">eventra.cloud</div>
+  </div>
+</section>
+
+<!-- ======================== SLIDE 2: PROBLEM ======================== -->
+<section class="slide slide-2">
+  <div class="grid-bg"></div>
+  <div class="glow-orb blue" style="width:300px;height:300px;top:-80px;right:-80px"></div>
+
+  <div class="slide-content">
+    <div class="slide-header">
+      <div class="slide-tag">The Problem</div>
+    </div>
+    <div class="slide-title">Event Management is Broken</div>
+    <div class="slide-subtitle">Running an event today means juggling 5+ disconnected tools — and still dropping the ball.</div>
+
+    <div class="problem-grid">
+      <div class="story-side">
+        <div class="chaos-stat">5+ Tools <span>per event, zero integration</span></div>
+        <div class="chaos-stat">5 Dashboards <span>5 invoices, 5 headaches</span></div>
+        <div style="margin-top:16px">
+          <div class="story-text">
+            Imagine organizing a professional conference. You <em>build</em> with WordPress, <em>ticket</em> with Eventbrite, <em>email</em> with Mailchimp, <em>check-in</em> with another app, and <em>matchmake</em> with a $15K/year tool.
+          </div>
+          <div class="story-text">
+            After the event? Copy-paste between spreadsheets. This is the reality in <em>Paris, Cairo, Dubai, and Abidjan</em>.
+          </div>
+        </div>
+      </div>
+
+      <div class="pain-points">
+        <div class="pain-item">
+          <div class="pain-num">01</div>
+          <div class="pain-text">Website Building<span>Requires developers or expensive designers</span></div>
+        </div>
+        <div class="pain-item">
+          <div class="pain-num">02</div>
+          <div class="pain-text">Ticketing & Registration<span>Separate platform, separate fees, no integration</span></div>
+        </div>
+        <div class="pain-item">
+          <div class="pain-num">03</div>
+          <div class="pain-text">Communication<span>Email tools completely disconnected from attendee data</span></div>
+        </div>
+        <div class="pain-item">
+          <div class="pain-num">04</div>
+          <div class="pain-text">On-Site Check-In<span>Manual processes or yet another app</span></div>
+        </div>
+        <div class="pain-item">
+          <div class="pain-num">05</div>
+          <div class="pain-text">B2B Matchmaking<span>$10K–$18K/year premium, or completely absent</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="left"><span class="logo-sm">EVENTRA</span> <span class="sep">|</span> Soft Landing 2026</div>
+    <div class="page-num">02</div>
+  </div>
+</section>
+
+<!-- ======================== SLIDE 5: SOLUTION ======================== -->
+<section class="slide slide-5">
+  <div class="grid-bg"></div>
+  <div class="glow-orb blue" style="width:300px;height:300px;top:50%;left:50%;transform:translate(-50%,-50%)"></div>
+
+  <div class="slide-content">
+    <div class="slide-header">
+      <div class="slide-tag">Our Solution</div>
+    </div>
+    <div class="slide-title">The 3-Phase Event Engine</div>
+    <div class="slide-subtitle">One platform. Entire lifecycle. Zero code. Replaces 5 tools.</div>
+
+    <div class="phases">
+      <div class="phase-card phase-pre">
+        <div class="phase-icon">🚀</div>
+        <div class="phase-name">PRE-EVENT</div>
+        <div class="phase-label">Build & Promote</div>
+        <div class="phase-features">
+          <div class="pf-item"><div class="pf-dot"></div>No-Code Website Builder — 15+ drag-and-drop blocks</div>
+          <div class="pf-item"><div class="pf-dot"></div>Registration & Ticketing — Free/paid/VIP/early-bird, promo codes</div>
+          <div class="pf-item"><div class="pf-dot"></div>Marketing Emails — Enterprise-grade campaigns & scheduling</div>
+          <div class="pf-item"><div class="pf-dot"></div>Speaker & Sponsor Management — Tiers, profiles, agendas</div>
+          <div class="pf-item"><div class="pf-dot"></div>B2B Matchmaking Setup — Profiling & meeting pre-scheduling</div>
+          <div class="pf-highlight">Custom Forms & Evaluation — Surveys, registration questions, session eval. Replaces Google Forms for masterclasses & workshops</div>
+        </div>
+      </div>
+
+      <div class="phase-card phase-during">
+        <div class="phase-icon">⚡</div>
+        <div class="phase-name">DURING EVENT</div>
+        <div class="phase-label">Manage & Connect</div>
+        <div class="phase-features">
+          <div class="pf-item"><div class="pf-dot"></div>On-Site QR Check-In — Real-time scanning & attendance</div>
+          <div class="pf-item"><div class="pf-dot"></div>Live B2B Matchmaking — AI-powered meeting suggestions</div>
+          <div class="pf-item"><div class="pf-dot"></div>Trade Mission Tools — Delegation management, bilateral coordination</div>
+          <div class="pf-item"><div class="pf-dot"></div>Real-Time Dashboard — Live metrics, check-in rates, engagement</div>
+        </div>
+      </div>
+
+      <div class="phase-card phase-post">
+        <div class="phase-icon">📊</div>
+        <div class="phase-name">POST-EVENT</div>
+        <div class="phase-label">Analyze & Follow-up</div>
+        <div class="phase-features">
+          <div class="pf-item"><div class="pf-dot"></div>Analytics & ROI — Funnels, revenue, sponsor ROI, session ratings</div>
+          <div class="pf-item"><div class="pf-dot"></div>Data Export — CSV/Excel, CRM-ready</div>
+          <div class="pf-item"><div class="pf-dot"></div>One-Click Duplication — Clone for recurring series</div>
+          <div class="pf-highlight">Post-Event Evaluation — Real-time session evaluation, satisfaction surveys, NPS. Replaces Google Forms for workshops & masterclasses</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="left"><span class="logo-sm">EVENTRA</span> <span class="sep">|</span> Soft Landing 2026</div>
+    <div class="page-num">03</div>
+  </div>
+</section>
+
+<!-- ======================== SLIDE 6: PRODUCT ======================== -->
+<section class="slide slide-6">
+  <div class="grid-bg"></div>
+
+  <div class="slide-content">
+    <div class="slide-header">
+      <div class="slide-tag">Product in Action</div>
+      <div class="live-badge"><div class="live-dot"></div>LIVE at eventra.cloud</div>
+    </div>
+    <div class="slide-title">Not a Mockup. Not a Prototype.</div>
+    <div class="slide-subtitle">Live platform. Real events. Battle-tested at international summits.</div>
+
+    <div class="screenshots">
+      <div class="screen-card">
+        <div class="screen-num">01</div>
+        <div class="screen-name">No-Code Website Builder</div>
+        <div class="screen-desc">Drag-and-drop event website builder with 15+ blocks. Full customization, instant preview, mobile-responsive output.</div>
+        <div class="screen-mockup">
+          <div class="mock-toolbar"><div class="mock-dot"></div><div class="mock-dot"></div><div class="mock-dot"></div></div>
+          <div class="mock-content">
+            <div class="mock-sidebar"></div>
+            <div class="mock-main">
+              <div class="mock-block blue" style="flex:2"></div>
+              <div class="mock-block dim"></div>
+              <div class="mock-block dim"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="screen-card">
+        <div class="screen-num">02</div>
+        <div class="screen-name">Published Event Landing Page</div>
+        <div class="screen-desc">Real event page built by our platform — responsive, trilingual, with integrated ticketing and registration.</div>
+        <div class="screen-mockup">
+          <div class="mock-toolbar"><div class="mock-dot"></div><div class="mock-dot"></div><div class="mock-dot"></div></div>
+          <div class="mock-content">
+            <div class="mock-main">
+              <div class="mock-block blue" style="flex:3"></div>
+              <div class="mock-block dim" style="flex:1"></div>
+              <div class="mock-block green" style="flex:1"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="screen-card">
+        <div class="screen-num">03</div>
+        <div class="screen-name">B2B Matchmaking Engine</div>
+        <div class="screen-desc">AI-powered attendee matching based on profiles, sectors, and business goals. Meeting scheduling built in.</div>
+        <div class="screen-mockup">
+          <div class="mock-toolbar"><div class="mock-dot"></div><div class="mock-dot"></div><div class="mock-dot"></div></div>
+          <div class="mock-content">
+            <div class="mock-main" style="flex-direction:row">
+              <div class="mock-block purple" style="flex:1"></div>
+              <div class="mock-block blue" style="flex:1"></div>
+              <div class="mock-block purple" style="flex:1"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="screen-card">
+        <div class="screen-num">04</div>
+        <div class="screen-name">On-Site Check-In Scanner</div>
+        <div class="screen-desc">QR code scanning interface with real-time attendance tracking and live dashboard.</div>
+        <div class="screen-mockup">
+          <div class="mock-toolbar"><div class="mock-dot"></div><div class="mock-dot"></div><div class="mock-dot"></div></div>
+          <div class="mock-content">
+            <div class="mock-main" style="flex-direction:row">
+              <div class="mock-block green" style="flex:1"></div>
+              <div class="mock-main" style="flex:2">
+                <div class="mock-block dim"></div>
+                <div class="mock-block blue"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="left"><span class="logo-sm">EVENTRA</span> <span class="sep">|</span> Soft Landing 2026</div>
+    <div class="page-num">04</div>
+  </div>
+</section>
+
+<!-- ======================== SLIDE 3: MARKET ======================== -->
+<section class="slide slide-3">
+  <div class="grid-bg"></div>
+  <div class="glow-orb blue" style="width:350px;height:350px;bottom:-100px;left:-80px"></div>
+
+  <div class="slide-content">
+    <div class="slide-header">
+      <div class="slide-tag">Market Opportunity</div>
+    </div>
+    <div class="slide-title">A €8.6B Market with a Massive<br>Underserved Middle</div>
+
+    <div class="market-grid">
+      <div class="tam-section">
+        <div class="market-ring">
+          <div class="ring-circle ring-tam">TAM</div>
+          <div class="ring-info">
+            <h4>€8.6B → €16B by 2030</h4>
+            <p>Global Event Management Software<br>13.2% CAGR (Grand View Research, 2025)</p>
+          </div>
+        </div>
+        <div class="market-ring">
+          <div class="ring-circle ring-sam">SAM</div>
+          <div class="ring-info">
+            <h4>€2.1B</h4>
+            <p>Europe + MENA + Africa mid-market<br>Organizers running 2–50 events/year</p>
+          </div>
+        </div>
+        <div class="market-ring">
+          <div class="ring-circle ring-som">SOM</div>
+          <div class="ring-info">
+            <h4>€168K ARR by Year 3</h4>
+            <p>120 paying clients × avg €1,400/year<br>Entry via Africa-Europe corridor</p>
+          </div>
+        </div>
+        <div class="gap-box">
+          <h4>The Gap We Fill</h4>
+          <p>Enterprise tools (Cvent, Bizzabo) serve the top 5% at €10K–20K/year. Basic tools (Eventbrite) cover simple ticketing. The <strong style="color:var(--white)">80% in between</strong> — professional organizers needing a full platform at accessible pricing — are completely underserved.</p>
+        </div>
+      </div>
+
+      <div class="drivers-section">
+        <h3>Key Growth Drivers</h3>
+        <div class="driver-item"><div class="driver-dot"></div>Hybrid event adoption (60%+ offer both formats)</div>
+        <div class="driver-item"><div class="driver-dot"></div>AI integration (45% of new platforms embed AI)</div>
+        <div class="driver-item"><div class="driver-dot"></div>SME demand for affordable all-in-one solutions</div>
+        <div class="driver-item"><div class="driver-dot"></div>Post-pandemic "experience economy" boom</div>
+
+        <h3 style="margin-top:24px">European Market</h3>
+        <div class="driver-item"><div class="driver-dot" style="background:var(--purple)"></div>EU EMS Market: €3.1B, growing at 14.6% CAGR</div>
+        <div class="driver-item"><div class="driver-dot" style="background:var(--purple)"></div>France: 2nd largest event market in Europe</div>
+
+        <div class="gap-box" style="margin-top:20px">
+          <h4>🌍 Linguistic Blue Ocean</h4>
+          <p>400M+ Arabic speakers globally. Zero competitors offer native Arabic + full RTL support. French-language event management SEO has near-zero competition.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="left"><span class="logo-sm">EVENTRA</span> <span class="sep">|</span> Soft Landing 2026</div>
+    <div class="page-num">05</div>
+  </div>
+</section>
+
+<!-- ======================== SLIDE 4: COMPETITIVE ======================== -->
+<section class="slide slide-4">
+  <div class="grid-bg"></div>
+
+  <div class="slide-content">
+    <div class="slide-header">
+      <div class="slide-tag">Competitive Landscape</div>
+    </div>
+    <div class="slide-title">15 Features. 14 Competitors. We Win All 15.</div>
+    <div class="slide-subtitle">They built for enterprises. We built for everyone.</div>
+
+    <div class="comp-layout">
+      <div class="matrix-and-table">
+        <div class="matrix-box">
+          <div class="matrix-title">Positioning Matrix</div>
+          <div class="matrix-grid">
+            <div class="matrix-axis-y">Features ↑</div>
+            <div class="matrix-axis-x">Price →</div>
+            <div class="matrix-quadrant q-tl"></div>
+            <div class="matrix-quadrant q-tr"></div>
+            <div class="matrix-quadrant q-bl"></div>
+            <div class="matrix-quadrant q-br"></div>
+            <!-- Eventra -->
+            <div class="comp-dot eventra" style="top:18%;left:12%">EVENTRA</div>
+            <!-- Enterprise -->
+            <div class="comp-dot enterprise" style="top:12%;left:72%">Cvent</div>
+            <div class="comp-dot enterprise" style="top:22%;left:78%">Bizzabo</div>
+            <div class="comp-dot enterprise" style="top:16%;left:62%">Hubilo</div>
+            <div class="comp-dot enterprise" style="top:28%;left:68%">Whova</div>
+            <div class="comp-dot enterprise" style="top:20%;left:86%">vFairs</div>
+            <!-- Basic -->
+            <div class="comp-dot basic" style="top:68%;left:14%">Eventbrite</div>
+            <div class="comp-dot basic" style="top:74%;left:8%">Ticket Tailor</div>
+            <div class="comp-dot basic" style="top:62%;left:22%">Splash</div>
+            <div class="comp-dot basic" style="top:72%;left:28%">Accelevents</div>
+            <!-- Virtual -->
+            <div class="comp-dot virtual" style="top:60%;left:70%">Hopin</div>
+            <div class="comp-dot virtual" style="top:66%;left:80%">Airmeet</div>
+            <div class="comp-dot virtual" style="top:58%;left:60%">Zuddl</div>
+            <div class="comp-dot basic" style="top:36%;left:82%">Grip</div>
+            <div class="comp-dot basic" style="top:40%;left:72%">Brella</div>
+          </div>
+        </div>
+
+        <div class="feature-table">
+          <div class="feat-table-inner">
+            <div class="ft-header">Feature</div>
+            <div class="ft-header eventra-h">Eventra</div>
+            <div class="ft-header">Eventbrite</div>
+            <div class="ft-header">Cvent</div>
+            <div class="ft-header">Bizzabo</div>
+            <div class="ft-header">Others (11)</div>
+
+            <div class="ft-cell ft-feature">No-Code Website Builder</div>
+            <div class="ft-cell eventra-col ft-check">✓</div>
+            <div class="ft-cell ft-cross">✗</div>
+            <div class="ft-cell ft-check">✓</div>
+            <div class="ft-cell ft-check">✓</div>
+            <div class="ft-cell" style="font-size:9px;color:var(--gray-500)">4 of 11</div>
+
+            <div class="ft-cell ft-feature">Ticketing & Registration</div>
+            <div class="ft-cell eventra-col ft-check">✓</div>
+            <div class="ft-cell ft-check">✓</div>
+            <div class="ft-cell ft-check">✓</div>
+            <div class="ft-cell ft-check">✓</div>
+            <div class="ft-cell" style="font-size:9px;color:var(--gray-500)">9 of 11</div>
+
+            <div class="ft-cell ft-feature">Email Marketing</div>
+            <div class="ft-cell eventra-col ft-check">✓</div>
+            <div class="ft-cell" style="font-size:9px;color:var(--orange)">Basic</div>
+            <div class="ft-cell ft-check">✓</div>
+            <div class="ft-cell ft-check">✓</div>
+            <div class="ft-cell" style="font-size:9px;color:var(--gray-500)">3 of 11</div>
+
+            <div class="ft-cell ft-feature">B2B Matchmaking</div>
+            <div class="ft-cell eventra-col ft-check">✓</div>
+            <div class="ft-cell ft-cross">✗</div>
+            <div class="ft-cell ft-check">✓</div>
+            <div class="ft-cell ft-check">✓</div>
+            <div class="ft-cell" style="font-size:9px;color:var(--gray-500)">3 of 11</div>
+
+            <div class="ft-cell ft-feature">QR Check-In</div>
+            <div class="ft-cell eventra-col ft-check">✓</div>
+            <div class="ft-cell ft-check">✓</div>
+            <div class="ft-cell ft-check">✓</div>
+            <div class="ft-cell ft-check">✓</div>
+            <div class="ft-cell" style="font-size:9px;color:var(--gray-500)">4 of 11</div>
+
+            <div class="ft-cell ft-feature">Custom Eval Forms</div>
+            <div class="ft-cell eventra-col ft-check">✓</div>
+            <div class="ft-cell ft-cross">✗</div>
+            <div class="ft-cell ft-check">✓</div>
+            <div class="ft-cell ft-check">✓</div>
+            <div class="ft-cell" style="font-size:9px;color:var(--gray-500)">1 of 11</div>
+
+            <div class="ft-cell ft-feature">Trade Mission Tools</div>
+            <div class="ft-cell eventra-col ft-check">✓</div>
+            <div class="ft-cell ft-cross">✗</div>
+            <div class="ft-cell ft-cross">✗</div>
+            <div class="ft-cell ft-cross">✗</div>
+            <div class="ft-cell" style="font-size:9px;color:var(--red);font-weight:600">0 of 11</div>
+
+            <div class="ft-cell ft-feature">Trilingual + RTL</div>
+            <div class="ft-cell eventra-col ft-check">✓</div>
+            <div class="ft-cell ft-cross">✗</div>
+            <div class="ft-cell ft-cross">✗</div>
+            <div class="ft-cell ft-cross">✗</div>
+            <div class="ft-cell" style="font-size:9px;color:var(--red);font-weight:600">0 of 11</div>
+
+            <div class="ft-cell ft-feature">Under €500/year</div>
+            <div class="ft-cell eventra-col" style="color:var(--green);font-weight:700;font-size:11px">€432</div>
+            <div class="ft-cell ft-check">✓</div>
+            <div class="ft-cell" style="font-size:9px;color:var(--red)">€18K</div>
+            <div class="ft-cell" style="font-size:9px;color:var(--red)">€16.5K</div>
+            <div class="ft-cell" style="font-size:9px;color:var(--gray-500)">0 of 11</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="score-bar">
+        <div class="score">15/15</div>
+        <div class="score-text"><strong>Eventra scores all 15 features.</strong> Next closest: Cvent (12/15) at <strong>38× our price</strong>. Two features NO competitor offers at any price: native Arabic + RTL, and trade mission tools.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="left"><span class="logo-sm">EVENTRA</span> <span class="sep">|</span> Soft Landing 2026</div>
+    <div class="page-num">06</div>
+  </div>
+</section>
+
+<!-- ======================== SLIDE 7: TRACTION ======================== -->
+<section class="slide slide-7">
+  <div class="grid-bg"></div>
+  <div class="glow-orb blue" style="width:350px;height:350px;top:-100px;right:-100px"></div>
+
+  <div class="slide-content">
+    <div class="slide-header">
+      <div class="slide-tag">Traction & Proof</div>
+    </div>
+    <div class="slide-title">Battle-Tested Across 3 International Summits</div>
+    <div class="slide-subtitle">We didn't come with a pitch. We came with proof.</div>
+
+    <div class="traction-layout">
+      <div class="metrics-side">
+        <div class="metric-row">
+          <div class="metric-card">
+            <div class="metric-num">3</div>
+            <div class="metric-label">International Summits</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-num">670+</div>
+            <div class="metric-label">Attendees</div>
+          </div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-card">
+            <div class="metric-num">60+</div>
+            <div class="metric-label">B2B Meetings</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-num">6+</div>
+            <div class="metric-label">Press Outlets</div>
+          </div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-card">
+            <div class="metric-num">3</div>
+            <div class="metric-label">Countries</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-num">5+</div>
+            <div class="metric-label">Gov. Partners</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="events-side">
+        <div class="event-card">
+          <div class="event-flag">🇪🇬</div>
+          <div class="event-info">
+            <h4>GITS 2025 — Cairo, Egypt</h4>
+            <p>170 global trade leaders | 6 countries | 60 B2B meetings<br>Marriott Zamalek | Fintech, Agritech, Solar, E-commerce</p>
+            <div class="partners">Partners: Egypt Ministry of Int'l Cooperation, GAFI</div>
+          </div>
+        </div>
+        <div class="event-card">
+          <div class="event-flag">🇨🇮</div>
+          <div class="event-info">
+            <h4>GITS 2025 — Abidjan, Côte d'Ivoire</h4>
+            <p>250+ changemakers & decision-makers<br>Cross-border trade, sustainable growth, women entrepreneurship</p>
+            <div class="partners">Partners: SEKETAK, RedStart, AfriLabs, JEUN'ESS</div>
+          </div>
+        </div>
+        <div class="event-card">
+          <div class="event-flag">🇹🇳</div>
+          <div class="event-info">
+            <h4>IPDAYS × GITS 2025 — Tunis, Tunisia</h4>
+            <p>250+ entrepreneurs, investors & institutional partners<br>Radisson Hotel | Key speakers: Minister of Commerce, AFD, CEPEX</p>
+            <div class="partners">Partners: RedStart, Expertise France, AFD | Press: 6 outlets</div>
+          </div>
+        </div>
+        <div class="status-banner">✓ Pilot phase complete. Commercial launch Q3 2026.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="left"><span class="logo-sm">EVENTRA</span> <span class="sep">|</span> Soft Landing 2026</div>
+    <div class="page-num">07</div>
+  </div>
+</section>
+
+<!-- ======================== SLIDE 8: BUSINESS MODEL ======================== -->
+<section class="slide slide-8">
+  <div class="grid-bg"></div>
+
+  <div class="slide-content">
+    <div class="slide-header">
+      <div class="slide-tag">Business Model</div>
+    </div>
+    <div class="slide-title">Enterprise Features. Accessible Pricing.</div>
+
+    <div class="bm-layout">
+      <div class="plans-side">
+        <div class="plan-card">
+          <div class="plan-price">
+            <div class="amount free">Free</div>
+            <div class="period">forever</div>
+          </div>
+          <div class="plan-details">
+            <h4>STARTER</h4>
+            <p>1 event, 3-day max, basic features. Conversion funnel entry.</p>
+          </div>
+        </div>
+        <div class="plan-card featured">
+          <div class="plan-price">
+            <div class="amount">€45</div>
+            <div class="period">/month</div>
+          </div>
+          <div class="plan-details">
+            <h4>PRO</h4>
+            <p>5 events/mo, full features, B2B matchmaking, advanced analytics, unlimited emails.</p>
+          </div>
+          <div class="plan-badge">MOST POPULAR</div>
+        </div>
+        <div class="plan-card">
+          <div class="plan-price">
+            <div class="amount">€275</div>
+            <div class="period">/month</div>
+          </div>
+          <div class="plan-details">
+            <h4>ENTERPRISE</h4>
+            <p>Unlimited events & duration, trade mission tools, white-label, dedicated support.</p>
+          </div>
+        </div>
+
+        <div style="margin-top:4px">
+          <div class="rev-bar-container">
+            <div class="rev-bar sub">70% Subscriptions</div>
+            <div class="rev-bar txn">25% Txn</div>
+            <div class="rev-bar add"></div>
+          </div>
+          <div class="rev-legend" style="margin-top:6px">
+            <span><span class="rev-legend-dot" style="background:var(--accent)"></span>SaaS</span>
+            <span><span class="rev-legend-dot" style="background:var(--purple)"></span>Ticket Fees (2-5%)</span>
+            <span><span class="rev-legend-dot" style="background:var(--green)"></span>Add-ons</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="revenue-side">
+        <div class="price-compare">
+          <h4>Price Comparison</h4>
+          <div class="price-row">
+            <div class="price-label">Eventra Pro</div>
+            <div class="price-bar-bg"><div class="price-bar-fill eventra">€432/yr</div></div>
+            <div class="multiplier"></div>
+          </div>
+          <div class="price-row">
+            <div class="price-label">Bizzabo</div>
+            <div class="price-bar-bg"><div class="price-bar-fill bizzabo">€16,500/yr</div></div>
+            <div class="multiplier">38×</div>
+          </div>
+          <div class="price-row" style="margin-top:8px">
+            <div class="price-label">Eventra Enterprise</div>
+            <div class="price-bar-bg"><div class="price-bar-fill eventra" style="width:15%;min-width:70px">€2,640/yr</div></div>
+            <div class="multiplier"></div>
+          </div>
+          <div class="price-row">
+            <div class="price-label">Cvent</div>
+            <div class="price-bar-bg"><div class="price-bar-fill cvent">€18,000/yr</div></div>
+            <div class="multiplier">7×</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:auto">
+          <h4 style="font-size:11px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px">Why We Can Be 30× Cheaper</h4>
+          <div style="font-size:11px;color:var(--gray-300);line-height:1.6">
+            <div style="margin-bottom:6px">✓ Lean 3-person founding team (zero VC bloat)</div>
+            <div style="margin-bottom:6px">✓ Serverless architecture (Supabase) = minimal costs</div>
+            <div style="margin-bottom:6px">✓ Emerging-market development efficiency</div>
+            <div>✓ No legacy systems to maintain</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="left"><span class="logo-sm">EVENTRA</span> <span class="sep">|</span> Soft Landing 2026</div>
+    <div class="page-num">08</div>
+  </div>
+</section>
+
+<!-- ======================== SLIDE 9: GTM ======================== -->
+<section class="slide slide-9">
+  <div class="grid-bg"></div>
+  <div class="glow-orb blue" style="width:300px;height:300px;bottom:-80px;right:-80px"></div>
+
+  <div class="slide-content">
+    <div class="slide-header">
+      <div class="slide-tag">Go-to-Market</div>
+    </div>
+    <div class="slide-title">How We Get to 120 Clients in 3 Years</div>
+    <div class="slide-subtitle">Global product. Africa-Europe beachhead.</div>
+
+    <div class="gtm-timeline">
+      <div class="gtm-phase gtm-p1">
+        <div class="gtm-num">01</div>
+        <div class="gtm-name">Activate Network</div>
+        <div class="gtm-period">H2 2026</div>
+        <div class="gtm-items">
+          <div class="gtm-item">Convert GITS summit partners into paying clients (20+ institutional organizers)</div>
+          <div class="gtm-item">Leverage RedStart Tunisia network (800+ startups = event organizers)</div>
+          <div class="gtm-item">Soft Landing introductions to French chambers of commerce</div>
+        </div>
+        <div class="gtm-target">→ 10 paying clients</div>
+      </div>
+
+      <div class="gtm-phase gtm-p2">
+        <div class="gtm-num">02</div>
+        <div class="gtm-name">Expand via Partners</div>
+        <div class="gtm-period">2027</div>
+        <div class="gtm-items">
+          <div class="gtm-item">Partner with accelerators & incubators (10–20 events/year each)</div>
+          <div class="gtm-item">Chamber of commerce partnerships in France & MENA</div>
+          <div class="gtm-item">Content marketing + SEO in French & Arabic (zero competition)</div>
+          <div class="gtm-item">Showcase at Le Grand Bain + Emerging Valley</div>
+        </div>
+        <div class="gtm-target">→ 40 paying clients</div>
+      </div>
+
+      <div class="gtm-phase gtm-p3">
+        <div class="gtm-num">03</div>
+        <div class="gtm-name">Product-Led Growth</div>
+        <div class="gtm-period">2028+</div>
+        <div class="gtm-items">
+          <div class="gtm-item">Free tier drives organic signups globally</div>
+          <div class="gtm-item">Arabic/French SEO moat (no competitor targets these)</div>
+          <div class="gtm-item">Referral program: organizers recommend to organizers</div>
+          <div class="gtm-item">API partnerships with CRM & marketing platforms</div>
+        </div>
+        <div class="gtm-target">→ 120+ paying clients</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="left"><span class="logo-sm">EVENTRA</span> <span class="sep">|</span> Soft Landing 2026</div>
+    <div class="page-num">09</div>
+  </div>
+</section>
+
+<!-- ======================== SLIDE 10: TEAM ======================== -->
+<section class="slide slide-10">
+  <div class="grid-bg"></div>
+
+  <div class="slide-content">
+    <div class="slide-header">
+      <div class="slide-tag">The Team</div>
+    </div>
+    <div class="slide-title">Built by Operators, Not Observers</div>
+    <div class="slide-subtitle">50+ years combined experience across Africa, MENA, and Europe.</div>
+
+    <div class="team-grid">
+      <div class="team-card">
+        <div class="avatar avatar-1">AA</div>
+        <div class="team-name">Assem Abdel Hamid</div>
+        <div class="team-role">CEO & Co-Founder</div>
+        <div class="team-bio">20+ years in tech, event management, and international business. Founded SEKETAK. Led 3 GITS summits across Egypt, Côte d'Ivoire, and Tunisia. Network spanning government ministries, investors, and trade bodies.</div>
+        <div class="team-stat">20+ yrs<span>International Business</span></div>
+      </div>
+      <div class="team-card">
+        <div class="avatar avatar-2">OL</div>
+        <div class="team-name">Oussama Lamine</div>
+        <div class="team-role">CTO & Co-Founder</div>
+        <div class="team-bio">Full-stack developer and systems architect. Built Eventra end-to-end: React, TypeScript, Supabase. Co-founded RedStart Tunisie — supported 800+ startups. Expert in scalable SaaS and AI integration.</div>
+        <div class="team-stat">800+<span>Startups Supported</span></div>
+      </div>
+      <div class="team-card">
+        <div class="avatar avatar-3">SS</div>
+        <div class="team-name">Sara Snoussi</div>
+        <div class="team-role">COO & Co-Founder</div>
+        <div class="team-bio">10+ years in business strategy, partnerships, and institutional engagement. Managed operations for all 3 GITS summits. B2B sales, MENA-Europe trade relations, and growth strategy expertise.</div>
+        <div class="team-stat">10+ yrs<span>Strategy & Partnerships</span></div>
+      </div>
+    </div>
+
+    <div class="team-bottom">
+      <span><strong>3</strong> co-founders</span>
+      <span style="color:var(--gray-500)">|</span>
+      <span><strong>50+</strong> years combined</span>
+      <span style="color:var(--gray-500)">|</span>
+      <span><strong>4</strong> countries operated in</span>
+      <span style="color:var(--gray-500)">|</span>
+      <span>Advisors: <strong>RedStart Network</strong></span>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="left"><span class="logo-sm">EVENTRA</span> <span class="sep">|</span> Soft Landing 2026</div>
+    <div class="page-num">10</div>
+  </div>
+</section>
+
+<!-- ======================== SLIDE 11: FINANCIALS ======================== -->
+<section class="slide slide-11">
+  <div class="grid-bg"></div>
+
+  <div class="slide-content">
+    <div class="slide-header">
+      <div class="slide-tag">Financial Projections</div>
+    </div>
+    <div class="slide-title">Conservative Path to €211K ARR</div>
+
+    <div class="fin-layout">
+      <div class="chart-side">
+        <div class="rev-chart">
+          <div class="chart-title">Revenue Projection (3 Years)</div>
+          <div class="bar-chart">
+            <div class="bar-group">
+              <div class="bar-value">€18K</div>
+              <div class="bar" style="height:20px">
+                <div class="bar-sub" style="height:70%"></div>
+                <div class="bar-txn" style="height:30%"></div>
+              </div>
+              <div class="bar-label">Year 1</div>
+              <div class="bar-clients">10 clients</div>
+            </div>
+            <div class="bar-group">
+              <div class="bar-value">€68K</div>
+              <div class="bar" style="height:68px">
+                <div class="bar-sub" style="height:70%"></div>
+                <div class="bar-txn" style="height:30%"></div>
+              </div>
+              <div class="bar-label">Year 2</div>
+              <div class="bar-clients">40 clients</div>
+            </div>
+            <div class="bar-group">
+              <div class="bar-value">€211K</div>
+              <div class="bar" style="height:210px">
+                <div class="bar-sub" style="height:70%"></div>
+                <div class="bar-txn" style="height:30%"></div>
+              </div>
+              <div class="bar-label">Year 3</div>
+              <div class="bar-clients">120 clients</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:16px;font-size:10px;color:var(--gray-400);margin-top:8px;justify-content:center">
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--accent);vertical-align:middle;margin-right:4px"></span>Subscriptions (70%)</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--purple);vertical-align:middle;margin-right:4px"></span>Transaction Fees (25%)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-side">
+        <div class="kpi-card">
+          <div class="kpi-label">Gross Margin</div>
+          <div class="kpi-value">85%+</div>
+          <div class="kpi-desc">SaaS, serverless infrastructure</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">LTV:CAC Ratio</div>
+          <div class="kpi-value">9–19×</div>
+          <div class="kpi-desc">Target CAC €150–300 | Avg LTV €2,800</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Monthly Burn</div>
+          <div class="kpi-value">~€2,000</div>
+          <div class="kpi-desc">Team equity-compensated, lean ops</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Current Runway</div>
+          <div class="kpi-value green">12+ months</div>
+          <div class="kpi-desc">Bootstrapped model, no VC dependency</div>
+        </div>
+        <div class="kpi-card breakeven">
+          <div class="kpi-label">Break-Even Point</div>
+          <div class="kpi-value green">~30 clients</div>
+          <div class="kpi-desc">Mix of Pro + Enterprise. Month 14–18 post-launch.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="left"><span class="logo-sm">EVENTRA</span> <span class="sep">|</span> Soft Landing 2026</div>
+    <div class="page-num">11</div>
+  </div>
+</section>
+
+<!-- ======================== SLIDE 12: THE ASK ======================== -->
+<section class="slide slide-12">
+  <div class="grid-bg"></div>
+  <div class="glow-orb blue" style="width:400px;height:400px;top:-100px;left:50%;transform:translateX(-50%)"></div>
+  <div class="glow-orb purple" style="width:300px;height:300px;bottom:-80px;right:-80px"></div>
+
+  <div class="slide-content">
+    <div class="slide-header">
+      <div class="slide-tag">The Ask</div>
+    </div>
+    <div class="slide-title">From Soft Landing to European Market Leader</div>
+
+    <div class="ask-layout">
+      <div class="need-side">
+        <div class="ask-heading">What We Need</div>
+        <div class="ask-items">
+          <div class="ask-item"><div class="ask-icon">🏢</div>Legal entity setup in Aix-Marseille-Provence — the Mediterranean gateway connecting Europe to Africa & MENA</div>
+          <div class="ask-item"><div class="ask-icon">🤝</div>B2B introductions to French event organizers, chambers of commerce & institutional partners</div>
+          <div class="ask-item"><div class="ask-icon">💰</div>Investor network access for pre-seed round</div>
+          <div class="ask-item"><div class="ask-icon">🧭</div>Mentorship: EU market entry, GDPR, payment gateway setup (Stripe integration), commercial strategy</div>
+          <div class="ask-item"><div class="ask-icon">🎤</div>Stage at Le Grand Bain and Emerging Valley</div>
+        </div>
+      </div>
+      <div class="bring-side">
+        <div class="ask-heading">What We Bring</div>
+        <div class="ask-items">
+          <div class="ask-item"><div class="ask-icon">✅</div>A live, production-grade platform — not a prototype</div>
+          <div class="ask-item"><div class="ask-icon">✅</div>3 international summits delivered across 4 countries</div>
+          <div class="ask-item"><div class="ask-icon">✅</div>Institutional credibility: government ministries, GAFI, AFD, CEPEX</div>
+          <div class="ask-item"><div class="ask-icon">✅</div>50+ years combined experience spanning Africa, MENA & Europe</div>
+          <div class="ask-item"><div class="ask-icon">✅</div>Market gap validated by 670+ users and 6+ press outlets</div>
+          <div class="ask-item"><div class="ask-icon">✅</div>3 LOI discussions in progress for Q3–Q4 2026 paid deployments</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cta-bar">
+      <div class="cta-text">
+        We're not asking you to bet on an idea.<br>
+        We're asking you to back <em>a product that already works</em>,<br>
+        <em>a team that already delivers</em>, and <em>a market that's already growing</em>.
+      </div>
+      <div class="cta-contact">eventra.cloud &nbsp;|&nbsp; assem@seketak-eg.com</div>
+    </div>
+  </div>
+
+  <div class="slide-footer">
+    <div class="left"><span class="logo-sm">EVENTRA</span> <span class="sep">|</span> Soft Landing 2026</div>
+    <div class="page-num">12</div>
+  </div>
+</section>
+
+</body>
+</html>
