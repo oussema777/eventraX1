@@ -170,6 +170,7 @@ export async function sendMeetingConfirmationEmails(params: {
   eventName: string;
   meetingId: string;
   status: 'pending' | 'confirmed';
+  videoUrl?: string;
 }) {
   const meetingUrl = `${window.location.origin}/my-networking?meetingId=${params.meetingId}`;
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(meetingUrl)}&size=250x250&bgcolor=ffffff&color=0684F5&margin=10`;
@@ -182,7 +183,8 @@ export async function sendMeetingConfirmationEmails(params: {
     organizerName: params.organizerName,
     recipientName: params.recipientName,
     qrCodeUrl,
-    status: params.status
+    status: params.status,
+    videoUrl: params.videoUrl
   };
 
   const safeRecipientName = escapeHTML(params.recipientName);
@@ -894,6 +896,7 @@ export function generateMeetingConfirmationEmailHtml(params: {
   qrCodeUrl: string;
   status: 'pending' | 'confirmed';
   role: 'organizer' | 'recipient';
+  videoUrl?: string;
 }) {
   const isConfirmed = params.status === 'confirmed';
   const title = isConfirmed ? 'Meeting Confirmed!' : 'New Meeting Request';
@@ -942,6 +945,14 @@ export function generateMeetingConfirmationEmailHtml(params: {
         </table>
       </div>
 
+      ${isConfirmed && params.videoUrl ? `
+      <div style="text-align: center; margin: 32px 0;">
+        <a href="${escapeHTML(params.videoUrl)}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #0684F5, #0570D6); color: #FFFFFF; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">🎥 Join Video Call</a>
+        <p style="font-size: 12px; color: #64748B; margin-top: 12px; word-break: break-all;">
+          Or copy this link: <a href="${escapeHTML(params.videoUrl)}" style="color: #0684F5; text-decoration: none;">${escapeHTML(params.videoUrl)}</a>
+        </p>
+      </div>
+      ` : ''}
       ${isConfirmed ? `
       <div style="text-align: center; margin: 32px 0;">
         <p style="margin-bottom: 16px; font-weight: 700; color: #1E293B;">Meeting QR Code</p>

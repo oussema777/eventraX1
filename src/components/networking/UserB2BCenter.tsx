@@ -19,7 +19,7 @@ import {
   Eye,
   QrCode
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
@@ -98,9 +98,11 @@ interface Connection {
 
 export default function UserB2BCenter() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<TabType>('schedule');
+  const [highlightedMeetingId, setHighlightedMeetingId] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState('all');
   const [showPastMeetings, setShowPastMeetings] = useState(true);
   const [showSentRequests, setShowSentRequests] = useState(false);
@@ -186,6 +188,16 @@ export default function UserB2BCenter() {
       myAttendeeIds = (myAttendees || []).map(a => a.id);
 
       // 2. Fetch all networking data in parallel
+      // Build meetings query: profile-based + attendee-based for full coverage
+      const meetingsOrFilters = [`profile_a_id.eq.${user.id},profile_b_id.eq.${user.id},organizer_id.eq.${user.id}`];
+      if (myAttendeeIds.length > 0) {
+        // Also fetch by attendee IDs for edge cases where profile_id columns may not be set
+        myAttendeeIds.forEach(aid => {
+          meetingsOrFilters.push(`attendee_a_id.eq.${aid}`);
+          meetingsOrFilters.push(`attendee_b_id.eq.${aid}`);
+        });
+      }
+
       const [
         profileResult,
         matchesResult,
@@ -200,7 +212,7 @@ export default function UserB2BCenter() {
         supabase.from(REQUESTS_TABLE).select('*').eq('recipient_id', user.id),
         supabase.from(REQUESTS_TABLE).select('*').eq('sender_id', user.id),
         supabase.from(CONNECTIONS_TABLE).select('*').or(`profile_a_id.eq.${user.id},profile_b_id.eq.${user.id}`),
-        supabase.from(MEETINGS_TABLE).select('*').or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`),
+        supabase.from(MEETINGS_TABLE).select('*').or(meetingsOrFilters.join(',')),
         supabase.from('b2b_meetings').select('*').then(r => r, () => ({ data: [] }))
       ]);
 
@@ -390,6 +402,7 @@ export default function UserB2BCenter() {
           startAt: row.start_at,
           organizerId: row.organizer_id || (isCurrentUserA ? user.id : otherProfileId),
           meetingFormat: row.meta?.meeting_format || (row.meta?.meeting_type === 'video' ? 'video' : 'in-person'),
+          meetingUrl: row.meta?.video_url || (row.meta?.meeting_type === 'video' ? `https://meet.jit.si/Eventra${row.id.replace(/-/g, '').slice(0, 12)}` : undefined),
           qrCodeUrl: row.status === 'confirmed' ? qrCodeUrl : undefined
         };
       }));
@@ -787,12 +800,21 @@ export default function UserB2BCenter() {
       if (fetchError || !meeting) {
         console.error('Could not fetch meeting details for email:', fetchError);
       } else {
+        // 2b. Auto-generate Jitsi link for video meetings without a custom URL
+        let videoUrl = meeting.meta?.video_url || '';
+        if (meeting.meta?.meeting_type === 'video' && !videoUrl) {
+          videoUrl = `https://meet.jit.si/Eventra${meetingId.replace(/-/g, '').slice(0, 12)}`;
+          // Persist the auto-generated link so both participants see it
+          const updatedMeta = { ...meeting.meta, video_url: videoUrl };
+          await supabase.from(MEETINGS_TABLE).update({ meta: updatedMeta }).eq('id', meetingId);
+        }
+
         // 3. Prepare Email Data
         const eventName = meeting.event?.name || 'Event';
         const meetingDate = formatDate(meeting.start_at);
         const meetingTime = formatTime(meeting.start_at);
         const location = meeting.location || 'TBD';
-        
+
         // Identify participants
         const organizer = meeting.organizer || meeting.profile_a;
         const recipient = meeting.profile_b;
@@ -808,7 +830,8 @@ export default function UserB2BCenter() {
             location,
             eventName,
             meetingId: meeting.id,
-            status: 'confirmed'
+            status: 'confirmed',
+            videoUrl: videoUrl || undefined
           }).catch(err => console.error('Failed to send confirmation emails:', err));
         }
       }
@@ -1036,6 +1059,22 @@ export default function UserB2BCenter() {
     loadNetworkingData();
   }, [user?.id, t]);
 
+  // Handle ?meetingId= from email links — switch to schedule tab and highlight meeting
+  useEffect(() => {
+    const meetingIdParam = searchParams.get('meetingId');
+    if (meetingIdParam) {
+      setActiveTab('schedule');
+      setHighlightedMeetingId(meetingIdParam);
+      // Scroll to the meeting card after render
+      setTimeout(() => {
+        const el = document.getElementById(`meeting-${meetingIdParam}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 500);
+      // Clear highlight after 5 seconds
+      setTimeout(() => setHighlightedMeetingId(null), 5000);
+    }
+  }, [searchParams, meetings]);
+
   useEffect(() => {
     if (!user?.id) return;
 
@@ -1048,6 +1087,9 @@ export default function UserB2BCenter() {
       .on('postgres_changes', {
         event: '*', schema: 'public', table: REQUESTS_TABLE,
         filter: `recipient_id=eq.${user.id}`
+      }, () => loadNetworkingData())
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: MEETINGS_TABLE
       }, () => loadNetworkingData())
       .subscribe();
 
@@ -1437,7 +1479,7 @@ export default function UserB2BCenter() {
             <div className="space-y-6">
               {filteredMeetings.length > 0 ? (
                 filteredMeetings.map((meeting) => (
-                  <div key={meeting.id} className="networking-hub__meeting-row flex gap-6">
+                  <div key={meeting.id} id={`meeting-${meeting.id}`} className="networking-hub__meeting-row flex gap-6" style={highlightedMeetingId === meeting.id ? { outline: '2px solid #0684F5', outlineOffset: '4px', borderRadius: '12px', transition: 'outline 0.3s ease' } : undefined}>
                     {/* Time & Date */}
                     <div className="flex-shrink-0" style={{ width: '120px' }}>
                       <div className="flex flex-col gap-1">
@@ -1540,21 +1582,28 @@ export default function UserB2BCenter() {
                         )}
 
                         {meeting.type === 'video' && meeting.status === 'confirmed' && (
-                            <button
-                              onClick={() => handleJoinCall(meeting)}
-                              className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-                              style={{
-                                backgroundColor: '#0684F5',
-                                color: '#FFFFFF',
-                                fontSize: '13px',
-                                fontWeight: 600
-                              }}
-                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0570D6'}
-                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0684F5'}
-                            >
-                              <Video size={14} />
-                              {t('networking.actions.joinCall')}
-                            </button>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+                              <button
+                                onClick={() => handleJoinCall(meeting)}
+                                className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+                                style={{
+                                  backgroundColor: '#0684F5',
+                                  color: '#FFFFFF',
+                                  fontSize: '13px',
+                                  fontWeight: 600
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0570D6'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0684F5'}
+                              >
+                                <Video size={14} />
+                                {t('networking.actions.joinCall')}
+                              </button>
+                              {meeting.meetingUrl?.includes('meet.jit.si') && (
+                                <span style={{ fontSize: '10px', color: '#F59E0B', lineHeight: 1.3 }}>
+                                  Jitsi — first person signs in with Google to start
+                                </span>
+                              )}
+                            </div>
                           )}
                           {meeting.status === 'pending' && meeting.organizerId !== user?.id && (
                             <>

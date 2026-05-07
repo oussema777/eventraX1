@@ -26,6 +26,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
   const [meetingSessionId, setMeetingSessionId] = useState<string | null>(null);
   const [meetingEditId, setMeetingEditId] = useState<string | null>(null);
   const [meetingMessage, setMeetingMessage] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
   
   // Logistics State
   const [venueConfig, setVenueConfig] = useState<any>(null);
@@ -55,6 +56,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
         }
         setMeetingEventId(existingMeeting.eventId || eventId || null);
         setMeetingSessionId(existingMeeting.sessionId || null);
+        setVideoUrl(existingMeeting.meta?.video_url || '');
       } else {
         resetForm();
       }
@@ -69,6 +71,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
     setMeetingSessionId(null);
     setMeetingEditId(null);
     setMeetingMessage('');
+    setVideoUrl('');
     setGeneratedSlots([]);
     setSelectedSlot(null);
   };
@@ -316,7 +319,8 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
             meeting_type: meetingType === 'video' ? 'video' : 'in-person',
             meeting_format: meetingType,
             session_id: meetingType === 'video' ? null : meetingSessionId,
-            message: meetingMessage
+            message: meetingMessage,
+            ...(meetingType === 'video' && videoUrl.trim() ? { video_url: videoUrl.trim() } : {})
           }
         };
 
@@ -602,6 +606,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
           )}
 
           {meetingType === 'video' && (
+            <>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
               <div>
                 <label style={{ fontSize: '12px', color: '#94A3B8' }}>Meeting Date</label>
@@ -634,6 +639,26 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
                 />
               </div>
             </div>
+            <div className="mb-4">
+              <label style={{ fontSize: '12px', color: '#94A3B8', display: 'block', marginBottom: '4px' }}>Video Call Link</label>
+              <input
+                type="url"
+                value={videoUrl}
+                onChange={(event) => setVideoUrl(event.target.value)}
+                placeholder="Paste Google Meet / Zoom / Teams link"
+                className="w-full px-3 py-2 rounded-lg border outline-none"
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  borderColor: 'rgba(255,255,255,0.15)',
+                  color: '#FFFFFF',
+                  fontSize: '13px'
+                }}
+              />
+              <p style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>
+                Recommended: paste a Google Meet or Zoom link. If empty, a Jitsi Meet link is auto-generated (requires Google sign-in to start).
+              </p>
+            </div>
+            </>
           )}
 
           <div className="mt-5">
