@@ -114,6 +114,15 @@ export function useEventWizard(initialEventId?: string) {
         ...data,
       };
 
+      // Safety: for existing event updates that are NOT a publish action,
+      // never send approval fields — prevents accidental approval reset
+      const isPublishAction = data.status === 'published';
+      if (!isNew && !isPublishAction) {
+        delete payload.is_approved;
+        delete payload.moderation_status;
+        delete payload.is_public;
+      }
+
       // For new events, initialize with default branding (includes default Hero block)
       if (isNew && !payload.branding_settings && !eventData.branding_settings) {
         payload.branding_settings = DEFAULT_BRANDING_SETTINGS;

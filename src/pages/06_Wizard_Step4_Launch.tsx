@@ -13,6 +13,7 @@ import LaunchFooterActionBar from '../components/wizard/LaunchFooterActionBar';
 
 import { useAuth } from '../contexts/AuthContext';
 import { useEventWizard } from '../hooks/useEventWizard';
+import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import { createNotification } from '../lib/notifications';
 import { useI18n } from '../i18n/I18nContext';
@@ -34,7 +35,23 @@ export default function WizardStep4Launch() {
         toast.error(t('wizard.step4.errors.publishFirst'));
         return;
       }
-      const isAlreadyApproved = eventData.is_approved === true || eventData.moderation_status === 'approved';
+
+      // Always fetch fresh approval status from DB to avoid race conditions
+      // where eventData might still hold default/stale values
+      let isAlreadyApproved = eventData.is_approved === true || eventData.moderation_status === 'approved';
+      try {
+        const { data: freshEvent } = await supabase
+          .from('events')
+          .select('is_approved, moderation_status')
+          .eq('id', eventData.id)
+          .single();
+        if (freshEvent) {
+          isAlreadyApproved = freshEvent.is_approved === true || freshEvent.moderation_status === 'approved';
+        }
+      } catch {
+        // If fresh fetch fails, fall back to eventData (best effort)
+      }
+
       await saveDraft({
         status: 'published',
         ...(isAlreadyApproved
