@@ -27,9 +27,12 @@ import {
   Calendar,
   User,
   MapPin,
-  Copy
+  Copy,
+  Mail,
+  Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { sendEmail, generateB2BInvitationEmailHtml, generateMatchNotificationEmailHtml } from '../../lib/email';
 
 type TabType = 'ai-matchmaker' | 'all-meetings' | 'analytics' | 'suggestions' | 'logistics';
 
@@ -1339,6 +1342,338 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
     if (ok) toast.success(t('manageEvent.b2b.toasts.notifSent'));
   };
 
+  // ─── MATCH ALL PARTICIPANTS ──────────────────────────────────────────────────
+  const [matchingAll, setMatchingAll] = useState(false);
+  const [emailingAll, setEmailingAll] = useState(false);
+
+  const handleMatchAllParticipants = async () => {
+    if (!eventId) return;
+    if (matchingAll) return;
+
+    setMatchingAll(true);
+
+    try {
+      // Always fetch fresh from DB to avoid stale state issues
+      const { data: freshAttendees, error: attError } = await supabase
+        .from('event_attendees')
+        .select('id,name,email,company,photo_url,avatar_url,ticket_type,meta,created_at,profile_id')
+        .eq('event_id', eventId)
+        .limit(600);
+
+      if (attError) throw attError;
+      const pool = freshAttendees || [];
+
+      if (pool.length < 2) {
+        toast.error('Need at least 2 attendees to create matches');
+        setMatchingAll(false);
+        return;
+      }
+
+    const toastId = toast.loading(`Matching ${pool.length} participants...`);
+
+      // Fetch existing meetings to skip duplicate pairs
+      const { data: existingMeetings } = await supabase
+        .from('event_b2b_meetings')
+        .select('attendee_a_id,attendee_b_id')
+        .eq('event_id', eventId);
+
+      const existingPairs = new Set<string>();
+      (existingMeetings || []).forEach((m: any) => {
+        existingPairs.add([m.attendee_a_id, m.attendee_b_id].sort().join(':'));
+      });
+
+      // Round-robin: each person gets 3-5 matches, distributed fairly
+      const matchCounts: Record<string, number> = {};
+      const maxPerPerson = 5;
+      const minPerPerson = 3;
+      const meetings: { aId: string; bId: string; aName: string; bName: string; aCompany: string; bCompany: string }[] = [];
+
+      // Build all possible pairs sorted randomly for fairness
+      const allPairs: { a: any; b: any }[] = [];
+      for (let i = 0; i < pool.length - 1; i++) {
+        for (let j = i + 1; j < pool.length; j++) {
+          if (!pool[i]?.id || !pool[j]?.id) continue;
+          const key = [pool[i].id, pool[j].id].sort().join(':');
+          if (existingPairs.has(key)) continue;
+          allPairs.push({ a: pool[i], b: pool[j] });
+        }
+      }
+      // Shuffle for fairness
+      for (let i = allPairs.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [allPairs[i], allPairs[j]] = [allPairs[j], allPairs[i]];
+      }
+
+      // First pass: ensure everyone gets at least minPerPerson
+      for (const pair of allPairs) {
+        const aCount = matchCounts[pair.a.id] || 0;
+        const bCount = matchCounts[pair.b.id] || 0;
+        if (aCount >= minPerPerson && bCount >= minPerPerson) continue;
+        if (aCount >= maxPerPerson || bCount >= maxPerPerson) continue;
+        meetings.push({
+          aId: pair.a.id,
+          bId: pair.b.id,
+          aName: pair.a.name || pair.a.email || 'Attendee',
+          bName: pair.b.name || pair.b.email || 'Attendee',
+          aCompany: pair.a.company || '',
+          bCompany: pair.b.company || ''
+        });
+        matchCounts[pair.a.id] = aCount + 1;
+        matchCounts[pair.b.id] = bCount + 1;
+      }
+
+      // Second pass: fill up to maxPerPerson for those under minPerPerson
+      for (const pair of allPairs) {
+        const aCount = matchCounts[pair.a.id] || 0;
+        const bCount = matchCounts[pair.b.id] || 0;
+        const key = [pair.a.id, pair.b.id].sort().join(':');
+        if (meetings.some(m => [m.aId, m.bId].sort().join(':') === key)) continue;
+        if (aCount >= maxPerPerson || bCount >= maxPerPerson) continue;
+        if (aCount >= minPerPerson && bCount >= minPerPerson) continue;
+        meetings.push({
+          aId: pair.a.id,
+          bId: pair.b.id,
+          aName: pair.a.name || pair.a.email || 'Attendee',
+          bName: pair.b.name || pair.b.email || 'Attendee',
+          aCompany: pair.a.company || '',
+          bCompany: pair.b.company || ''
+        });
+        matchCounts[pair.a.id] = aCount + 1;
+        matchCounts[pair.b.id] = bCount + 1;
+      }
+
+      if (!meetings.length) {
+        toast.dismiss(toastId);
+        toast.info('All possible meeting pairs already exist');
+        setMatchingAll(false);
+        return;
+      }
+
+      // Insert meetings in batches
+      const batchSize = 50;
+      for (let i = 0; i < meetings.length; i += batchSize) {
+        const batch = meetings.slice(i, i + batchSize).map(m => ({
+          event_id: eventId,
+          attendee_a_id: m.aId,
+          attendee_b_id: m.bId,
+          status: 'pending',
+          is_ai: true,
+          match_score: null,
+          meta: { is_bulk_match_all: true }
+        }));
+        const { error } = await supabase.from('event_b2b_meetings').insert(batch);
+        if (error) {
+          console.error('Batch insert error:', error);
+        }
+      }
+
+      toast.dismiss(toastId);
+      toast.success(`Created ${meetings.length} meetings for ${Object.keys(matchCounts).length} participants!`);
+      await fetchMeetings();
+
+      // Send match notification emails
+      const networkingUrl = `${window.location.origin}/my-networking`;
+      const { data: eventData } = await supabase.from('events').select('title').eq('id', eventId).single();
+      const eventName = eventData?.title || 'Event';
+
+      // Group matches by attendee
+      const attendeeMatches: Record<string, { name: string; email: string; matches: { name: string; company: string }[] }> = {};
+      for (const m of meetings) {
+        const attA = pool.find((a: any) => a.id === m.aId);
+        const attB = pool.find((a: any) => a.id === m.bId);
+        if (attA?.email) {
+          if (!attendeeMatches[m.aId]) attendeeMatches[m.aId] = { name: attA.name || 'Attendee', email: attA.email, matches: [] };
+          attendeeMatches[m.aId].matches.push({ name: m.bName, company: m.bCompany });
+        }
+        if (attB?.email) {
+          if (!attendeeMatches[m.bId]) attendeeMatches[m.bId] = { name: attB.name || 'Attendee', email: attB.email, matches: [] };
+          attendeeMatches[m.bId].matches.push({ name: m.aName, company: m.aCompany });
+        }
+      }
+
+      // Send emails (fire and forget, don't block)
+      let emailsSent = 0;
+      for (const [, info] of Object.entries(attendeeMatches)) {
+        const html = generateMatchNotificationEmailHtml({
+          attendeeName: info.name,
+          eventName,
+          matches: info.matches,
+          networkingUrl
+        });
+        const sent = await sendEmail({
+          to: info.email,
+          subject: `Your B2B Matches for ${eventName} are ready!`,
+          html
+        });
+        if (sent) emailsSent++;
+      }
+      const totalWithEmail = Object.keys(attendeeMatches).length;
+      if (emailsSent === 0 && totalWithEmail > 0) {
+        toast.error(`Meetings created but emails failed to send (${totalWithEmail} recipients). Check email server.`, { duration: 6000 });
+      } else if (emailsSent > 0) {
+        toast.success(`Sent match notification emails to ${emailsSent} attendees!`, { duration: 5000 });
+      }
+    } catch (err) {
+      console.error('Match all error:', err);
+      toast.dismiss(toastId);
+      toast.error('Failed to create matches');
+    } finally {
+      setMatchingAll(false);
+    }
+  };
+
+  // ─── SEND B2B INVITATION EMAIL BLAST ──────────────────────────────────────────
+  const handleSendB2BInvitationEmail = async () => {
+    if (!eventId) return;
+    if (emailingAll) return;
+
+    setEmailingAll(true);
+
+    try {
+      // Always fetch fresh from DB to avoid stale state issues
+      const { data: freshAttendees, error: attError } = await supabase
+        .from('event_attendees')
+        .select('id,name,email,company')
+        .eq('event_id', eventId)
+        .limit(600);
+
+      if (attError) throw attError;
+
+      const withEmail = (freshAttendees || []).filter((a: any) => a.email);
+      if (!withEmail.length) {
+        toast.error('No attendees with email addresses found');
+        setEmailingAll(false);
+        return;
+      }
+
+      const toastId = toast.loading(`Sending invitation emails to ${withEmail.length} attendees...`);
+
+      const { data: eventData } = await supabase.from('events').select('title').eq('id', eventId).single();
+      const eventName = eventData?.title || 'Event';
+      const networkingUrl = `${window.location.origin}/my-networking`;
+
+      let sent = 0;
+      for (const attendee of withEmail) {
+        const html = generateB2BInvitationEmailHtml({
+          attendeeName: attendee.name || 'Attendee',
+          eventName,
+          networkingUrl
+        });
+        const ok = await sendEmail({
+          to: attendee.email,
+          subject: `B2B Networking is live for ${eventName}!`,
+          html
+        });
+        if (ok) sent++;
+      }
+
+      toast.dismiss(toastId);
+      if (sent === 0) {
+        toast.error(`Found ${withEmail.length} attendees but all emails failed to send. Check your email server configuration.`, { duration: 6000 });
+      } else if (sent < withEmail.length) {
+        toast.warning(`Sent ${sent} of ${withEmail.length} emails. Some failed to deliver.`, { duration: 5000 });
+      } else {
+        toast.success(`Successfully sent ${sent} B2B invitation emails!`, { duration: 5000 });
+      }
+    } catch (err) {
+      console.error('B2B invitation email error:', err);
+      toast.error('Failed to send invitation emails', { duration: 5000 });
+    } finally {
+      setEmailingAll(false);
+    }
+  };
+
+  // ─── SEND MATCH NOTIFICATION BLAST ────────────────────────────────────────────
+  const handleSendMatchNotificationBlast = async () => {
+    if (!eventId) return;
+    if (emailingAll) return;
+
+    if (!meetingsData.length) {
+      toast.error('No meetings exist yet. Match participants first.');
+      return;
+    }
+
+    setEmailingAll(true);
+    const toastId = toast.loading('Sending match notification emails...');
+
+    try {
+      const { data: eventData } = await supabase.from('events').select('title').eq('id', eventId).single();
+      const eventName = eventData?.title || 'Event';
+      const networkingUrl = `${window.location.origin}/my-networking`;
+
+      // Fetch all meetings with attendee info
+      const { data: meetings } = await supabase
+        .from('event_b2b_meetings')
+        .select('attendee_a_id,attendee_b_id')
+        .eq('event_id', eventId);
+
+      if (!meetings?.length) {
+        toast.dismiss(toastId);
+        toast.error('No meetings found');
+        setEmailingAll(false);
+        return;
+      }
+
+      // Get all attendee IDs from meetings
+      const allIds = Array.from(new Set((meetings || []).flatMap((m: any) => [m.attendee_a_id, m.attendee_b_id]).filter(Boolean)));
+      const { data: attendees } = await supabase
+        .from('event_attendees')
+        .select('id,name,email,company')
+        .in('id', allIds);
+
+      const attendeeMap: Record<string, any> = {};
+      (attendees || []).forEach((a: any) => { attendeeMap[a.id] = a; });
+
+      // Group matches per attendee
+      const perAttendee: Record<string, { name: string; email: string; matches: { name: string; company: string }[] }> = {};
+      for (const m of meetings) {
+        const a = attendeeMap[m.attendee_a_id];
+        const b = attendeeMap[m.attendee_b_id];
+        if (a?.email) {
+          if (!perAttendee[m.attendee_a_id]) perAttendee[m.attendee_a_id] = { name: a.name || 'Attendee', email: a.email, matches: [] };
+          perAttendee[m.attendee_a_id].matches.push({ name: b?.name || 'Attendee', company: b?.company || '' });
+        }
+        if (b?.email) {
+          if (!perAttendee[m.attendee_b_id]) perAttendee[m.attendee_b_id] = { name: b.name || 'Attendee', email: b.email, matches: [] };
+          perAttendee[m.attendee_b_id].matches.push({ name: a?.name || 'Attendee', company: a?.company || '' });
+        }
+      }
+
+      let sent = 0;
+      for (const [, info] of Object.entries(perAttendee)) {
+        const html = generateMatchNotificationEmailHtml({
+          attendeeName: info.name,
+          eventName,
+          matches: info.matches,
+          networkingUrl
+        });
+        const ok = await sendEmail({
+          to: info.email,
+          subject: `Your B2B Matches for ${eventName}`,
+          html
+        });
+        if (ok) sent++;
+      }
+
+      toast.dismiss(toastId);
+      const totalRecipients = Object.keys(perAttendee).length;
+      if (sent === 0) {
+        toast.error(`Found ${totalRecipients} attendees but all emails failed to send. Check your email server configuration.`, { duration: 6000 });
+      } else if (sent < totalRecipients) {
+        toast.warning(`Sent ${sent} of ${totalRecipients} match notifications. Some failed.`, { duration: 5000 });
+      } else {
+        toast.success(`Successfully sent match notifications to ${sent} attendees!`, { duration: 5000 });
+      }
+    } catch (err) {
+      console.error('Match notification blast error:', err);
+      toast.error('Failed to send match notifications', { duration: 5000 });
+    } finally {
+      setEmailingAll(false);
+    }
+  };
+
+  const [showEmailMenu, setShowEmailMenu] = useState(false);
+
   const toggleSelectAllMeetings = (checked: boolean) => {
     if (!checked) {
       setSelectedMeetingIds([]);
@@ -1581,6 +1916,123 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
               <Plus size={18} />
               {t('manageEvent.b2b.header.createMeeting')}
             </button>
+            <button
+              onClick={handleMatchAllParticipants}
+              disabled={matchingAll}
+              style={{
+                height: '44px',
+                padding: '0 20px',
+                background: matchingAll ? 'rgba(16,185,129,0.3)' : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                border: 'none',
+                borderRadius: '8px',
+                color: '#FFFFFF',
+                fontSize: '15px',
+                fontWeight: 600,
+                cursor: matchingAll ? 'wait' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 0 20px rgba(16,185,129,0.3)',
+                opacity: matchingAll ? 0.7 : 1
+              }}
+            >
+              <Zap size={18} />
+              {matchingAll ? 'Matching...' : 'Match All Participants'}
+            </button>
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowEmailMenu(!showEmailMenu)}
+                disabled={emailingAll}
+                style={{
+                  height: '44px',
+                  padding: '0 20px',
+                  background: emailingAll ? 'rgba(139,92,246,0.3)' : 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: '#FFFFFF',
+                  fontSize: '15px',
+                  fontWeight: 600,
+                  cursor: emailingAll ? 'wait' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 0 20px rgba(139,92,246,0.3)',
+                  opacity: emailingAll ? 0.7 : 1
+                }}
+              >
+                <Mail size={18} />
+                {emailingAll ? 'Sending...' : 'Email Attendees'}
+              </button>
+              {showEmailMenu && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '52px',
+                    right: 0,
+                    background: '#0D243B',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    borderRadius: '12px',
+                    padding: '8px',
+                    minWidth: '260px',
+                    zIndex: 50,
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+                  }}
+                >
+                  <button
+                    onClick={() => { setShowEmailMenu(false); handleSendB2BInvitationEmail(); }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: '#FFFFFF',
+                      fontSize: '14px',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      textAlign: 'left'
+                    }}
+                    onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+                    onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <Send size={16} style={{ color: '#8B5CF6' }} />
+                    <div>
+                      <div>Invite to B2B Networking</div>
+                      <div style={{ fontSize: '12px', color: '#94A3B8', marginTop: '2px' }}>Encourage attendees to book meetings</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => { setShowEmailMenu(false); handleSendMatchNotificationBlast(); }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: '#FFFFFF',
+                      fontSize: '14px',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      textAlign: 'left'
+                    }}
+                    onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+                    onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <Users size={16} style={{ color: '#10B981' }} />
+                    <div>
+                      <div>Notify Matches</div>
+                      <div style={{ fontSize: '12px', color: '#94A3B8', marginTop: '2px' }}>Send match details to all participants</div>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
             <button
               onClick={handleDownload}
               style={{

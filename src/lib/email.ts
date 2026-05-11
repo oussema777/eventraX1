@@ -977,3 +977,68 @@ export function generateMeetingConfirmationEmailHtml(params: {
     </div>
   `;
 }
+
+// ─── B2B INVITATION EMAIL ───────────────────────────────────────────────────
+export function generateB2BInvitationEmailHtml(params: {
+  attendeeName: string;
+  eventName: string;
+  networkingUrl: string;
+}) {
+  const safeName = escapeHTML(params.attendeeName);
+  const safeEvent = escapeHTML(params.eventName);
+  return emailWrapper(`
+    <h1 style="color:#0684F5;font-size:22px;font-weight:700;text-align:center;margin-bottom:12px;">Unlock B2B Networking</h1>
+    <p>Hi ${safeName},</p>
+    <p>You're registered for <strong>${safeEvent}</strong> &mdash; and we've activated our <strong>AI-powered B2B matchmaking</strong> to help you make the most of this event!</p>
+    <div style="background:#F0F9FF;padding:20px;border-radius:12px;margin:20px 0;border:1px solid #BAE6FD;">
+      <h3 style="margin-top:0;color:#0369A1;font-size:16px;">What you can do:</h3>
+      <ul style="margin:0;padding-left:20px;color:#334155;line-height:2;">
+        <li>Browse other attendees &amp; exhibitors</li>
+        <li>Request 1-on-1 B2B meetings</li>
+        <li>Get AI-matched with high-potential connections</li>
+        <li>Join video or in-person meetings at the event</li>
+      </ul>
+    </div>
+    ${ctaButton('Explore B2B Networking', params.networkingUrl)}
+    <p style="font-size:13px;color:#64748B;text-align:center;">Start booking meetings before spots fill up!</p>
+    ${footerLine('Sent via Eventra B2B Networking Engine')}
+  `);
+}
+
+// ─── MATCH NOTIFICATION EMAIL ───────────────────────────────────────────────
+export function generateMatchNotificationEmailHtml(params: {
+  attendeeName: string;
+  eventName: string;
+  matches: { name: string; company: string }[];
+  networkingUrl: string;
+}) {
+  const safeName = escapeHTML(params.attendeeName);
+  const safeEvent = escapeHTML(params.eventName);
+  const matchRows = params.matches.map(m =>
+    `<tr>
+      <td style="padding:10px 12px;border-bottom:1px solid #F1F5F9;font-weight:600;font-size:14px;">${escapeHTML(m.name)}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #F1F5F9;color:#64748B;font-size:14px;">${escapeHTML(m.company || 'N/A')}</td>
+    </tr>`
+  ).join('');
+
+  return emailWrapper(`
+    <h1 style="color:#10B981;font-size:22px;font-weight:700;text-align:center;margin-bottom:12px;">Your B2B Matches Are Ready!</h1>
+    <p>Hi ${safeName},</p>
+    <p>Great news! We've matched you with <strong>${params.matches.length} attendee${params.matches.length > 1 ? 's' : ''}</strong> at <strong>${safeEvent}</strong> for B2B networking meetings.</p>
+    <div style="background:#F8FAFC;padding:20px;border-radius:12px;margin:20px 0;border:1px solid #E2E8F0;">
+      <h3 style="margin-top:0;color:#1E293B;font-size:15px;">Your Matches</h3>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:#F1F5F9;">
+            <th style="padding:8px 12px;text-align:left;font-size:12px;color:#64748B;font-weight:600;">Name</th>
+            <th style="padding:8px 12px;text-align:left;font-size:12px;color:#64748B;font-weight:600;">Company</th>
+          </tr>
+        </thead>
+        <tbody>${matchRows}</tbody>
+      </table>
+    </div>
+    ${ctaButton('View Your Matches', params.networkingUrl, '#10B981')}
+    <p style="font-size:13px;color:#64748B;text-align:center;">Log in to confirm meeting times and start networking.</p>
+    ${footerLine('Sent via Eventra AI Matchmaker')}
+  `);
+}
