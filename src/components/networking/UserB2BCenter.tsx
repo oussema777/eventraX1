@@ -1605,7 +1605,7 @@ export default function UserB2BCenter() {
                               )}
                             </div>
                           )}
-                          {meeting.status === 'pending' && meeting.organizerId !== user?.id && (
+                          {meeting.status === 'pending' && meeting.organizerId !== user?.id && meeting.startAt && (
                             <>
                               <button
                                 onClick={() => handleConfirmMeeting(meeting.id, meeting.profileId)}
@@ -1649,26 +1649,26 @@ export default function UserB2BCenter() {
                             </>
                           )}
                           
-                          {meeting.status !== 'cancelled' && meeting.organizerId === user?.id && (
+                          {meeting.status !== 'cancelled' && (meeting.organizerId === user?.id || (!meeting.startAt && meeting.status === 'pending')) && (
                             <button
                               onClick={() => handleScheduleMeeting(meeting.profileId, meeting.eventId)}
                               className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
                               style={{
-                                backgroundColor: 'rgba(6, 132, 245, 0.1)',
-                                color: '#0684F5',
+                                backgroundColor: !meeting.startAt ? '#0684F5' : 'rgba(6, 132, 245, 0.1)',
+                                color: !meeting.startAt ? '#FFFFFF' : '#0684F5',
                                 fontSize: '13px',
                                 fontWeight: 600,
-                                border: '1px solid rgba(6, 132, 245, 0.2)'
+                                border: !meeting.startAt ? 'none' : '1px solid rgba(6, 132, 245, 0.2)'
                               }}
                               onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.2)';
+                                e.currentTarget.style.backgroundColor = !meeting.startAt ? '#0570D6' : 'rgba(6, 132, 245, 0.2)';
                               }}
                               onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'rgba(6, 132, 245, 0.1)';
+                                e.currentTarget.style.backgroundColor = !meeting.startAt ? '#0684F5' : 'rgba(6, 132, 245, 0.1)';
                               }}
                             >
                               <Calendar size={14} />
-                              {t('networking.actions.reschedule', 'Reschedule')}
+                              {!meeting.startAt ? t('networking.actions.scheduleMeeting', 'Schedule Meeting') : t('networking.actions.reschedule', 'Reschedule')}
                             </button>
                           )}
 

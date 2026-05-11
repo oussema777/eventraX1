@@ -1453,126 +1453,20 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
         return;
       }
 
-      // Generate time slots from venue config
-      const slotDuration = venueConfig.slotDuration || 30;
-      const tableCount = venueConfig.tableCount || 10;
-      const tablePrefix = venueConfig.tablePrefix || 'Table-';
-      const schedules = venueConfig.schedules || [];
-
-      const allSlots: { iso: string; endIso: string }[] = [];
-      for (const schedule of schedules) {
-        const start = new Date(`${schedule.date}T${schedule.start}:00`);
-        const end = new Date(`${schedule.date}T${schedule.end}:00`);
-        let current = new Date(start);
-        while (current < end) {
-          const slotEnd = new Date(current.getTime() + slotDuration * 60000);
-          allSlots.push({ iso: current.toISOString(), endIso: slotEnd.toISOString() });
-          current = slotEnd;
-        }
-      }
-
-      // If no venue schedules configured, fall back to event dates
-      if (!allSlots.length) {
-        const { data: evtDates } = await supabase.from('events').select('start_date,end_date').eq('id', eventId).single();
-        if (evtDates?.start_date) {
-          const startD = new Date(evtDates.start_date);
-          const endD = new Date(evtDates.end_date || evtDates.start_date);
-          for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
-            const dateStr = d.toISOString().split('T')[0];
-            const dayStart = new Date(`${dateStr}T09:00:00`);
-            const dayEnd = new Date(`${dateStr}T17:00:00`);
-            let current = new Date(dayStart);
-            while (current < dayEnd) {
-              const slotEnd = new Date(current.getTime() + slotDuration * 60000);
-              allSlots.push({ iso: current.toISOString(), endIso: slotEnd.toISOString() });
-              current = slotEnd;
-            }
-          }
-        }
-      }
-
-      // Assign meetings to slots + tables (round-robin)
-      // Track per-person busy slots to avoid conflicts
-      const personBusySlots: Record<string, Set<number>> = {};
-      const slotTableUsage: Record<number, number> = {}; // slotIndex -> tables used
-
-      const payloads: any[] = [];
-      let slotIdx = 0;
-      let tableIdx = 1;
-
-      for (const m of meetings) {
-        // Find next available slot where neither person is busy
-        let assigned = false;
-        const startSearch = slotIdx;
-
-        for (let attempts = 0; attempts < allSlots.length; attempts++) {
-          const si = (startSearch + attempts) % allSlots.length;
-          const aBusy = personBusySlots[m.aId]?.has(si);
-          const bBusy = personBusySlots[m.bId]?.has(si);
-          const tablesUsed = slotTableUsage[si] || 0;
-
-          if (!aBusy && !bBusy && tablesUsed < tableCount) {
-            const tableNum = tablesUsed + 1;
-            const tableName = `${tablePrefix}${tableNum < 10 ? '0' : ''}${tableNum}`;
-
-            payloads.push({
-              event_id: eventId,
-              attendee_a_id: m.aId,
-              attendee_b_id: m.bId,
-              ...(m.aProfileId ? { profile_a_id: m.aProfileId } : {}),
-              ...(m.bProfileId ? { profile_b_id: m.bProfileId } : {}),
-              start_at: allSlots[si].iso,
-              end_at: allSlots[si].endIso,
-              location: tableName,
-              status: 'pending',
-              is_ai: true,
-              match_score: 0,
-              meta: { is_bulk_match_all: true, meeting_type: 'in-person', meeting_format: 'in-person' }
-            });
-
-            // Mark both people as busy for this slot
-            if (!personBusySlots[m.aId]) personBusySlots[m.aId] = new Set();
-            if (!personBusySlots[m.bId]) personBusySlots[m.bId] = new Set();
-            personBusySlots[m.aId].add(si);
-            personBusySlots[m.bId].add(si);
-            slotTableUsage[si] = tablesUsed + 1;
-
-            slotIdx = si + 1;
-            assigned = true;
-            break;
-          }
-        }
-
-        // If no conflict-free slot found, assign to next slot anyway
-        if (!assigned && allSlots.length > 0) {
-          const si = slotIdx % allSlots.length;
-          const tablesUsed = slotTableUsage[si] || 0;
-          const tableNum = (tablesUsed % tableCount) + 1;
-          const tableName = `${tablePrefix}${tableNum < 10 ? '0' : ''}${tableNum}`;
-
-          payloads.push({
-            event_id: eventId,
-            attendee_a_id: m.aId,
-            attendee_b_id: m.bId,
-            ...(m.aProfileId ? { profile_a_id: m.aProfileId } : {}),
-            ...(m.bProfileId ? { profile_b_id: m.bProfileId } : {}),
-            start_at: allSlots[si].iso,
-            end_at: allSlots[si].endIso,
-            location: tableName,
-            status: 'pending',
-            is_ai: true,
-            match_score: 0,
-            meta: { is_bulk_match_all: true, meeting_type: 'in-person', meeting_format: 'in-person' }
-          });
-          slotTableUsage[si] = tablesUsed + 1;
-          slotIdx = si + 1;
-        }
-      }
-
-      // Insert in batches
+      // Insert pairings only — attendees choose time/format themselves
       const batchSize = 50;
-      for (let i = 0; i < payloads.length; i += batchSize) {
-        const batch = payloads.slice(i, i + batchSize);
+      for (let i = 0; i < meetings.length; i += batchSize) {
+        const batch = meetings.slice(i, i + batchSize).map(m => ({
+          event_id: eventId,
+          attendee_a_id: m.aId,
+          attendee_b_id: m.bId,
+          ...(m.aProfileId ? { profile_a_id: m.aProfileId } : {}),
+          ...(m.bProfileId ? { profile_b_id: m.bProfileId } : {}),
+          status: 'pending',
+          is_ai: true,
+          match_score: 0,
+          meta: { is_bulk_match_all: true }
+        }));
         const { error, data: insertedData } = await supabase.from('event_b2b_meetings').insert(batch).select('id');
         if (error) {
           console.error('Batch insert error:', error);
