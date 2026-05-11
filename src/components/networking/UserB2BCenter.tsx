@@ -733,9 +733,16 @@ export default function UserB2BCenter() {
   const handleScheduleMeeting = (profileId: string, defaultEventId?: string | null) => {
     const name = profileNameMap.get(profileId) || t('networking.defaults.user');
     const existing = meetingByProfileId.get(profileId) || null;
-    
+
+    // For unscheduled bulk matches (no start time), pass meeting ID but mark as unscheduled
+    // so the modal updates the existing row but doesn't lock the type selection
+    const isUnscheduled = existing && !existing.startAt && existing.status === 'pending';
+    const meetingForModal = isUnscheduled
+      ? { ...existing, meetingFormat: '', _isUnscheduled: true }
+      : existing;
+
     setMeetingTarget({ id: profileId, name });
-    setActiveMeeting(existing);
+    setActiveMeeting(meetingForModal);
     setActiveMeetingEventId(defaultEventId || existing?.eventId || undefined);
     setIsMeetingModalOpen(true);
   };

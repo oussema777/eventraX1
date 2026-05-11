@@ -488,17 +488,19 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
         <div className="px-6 py-5 overflow-y-auto custom-scrollbar" style={{ flex: 1 }}>
           <div className="mb-5">
             <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '10px' }}>
-              Meeting Type {meetingEditId && <span style={{ fontSize: '11px', fontStyle: 'italic', color: '#F59E0B', marginLeft: '8px' }}>(Format locked for reschedule)</span>}
+              Meeting Type {meetingEditId && !existingMeeting?._isUnscheduled && <span style={{ fontSize: '11px', fontStyle: 'italic', color: '#F59E0B', marginLeft: '8px' }}>(Format locked for reschedule)</span>}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               {[
                 { id: 'video', label: 'Online' },
                 { id: 'in-person', label: 'In-person' },
                 { id: 'hybrid', label: 'Hybrid' }
-              ].map((option) => (
+              ].map((option) => {
+                const isLocked = meetingEditId && !existingMeeting?._isUnscheduled;
+                return (
                 <button
                   key={option.id}
-                  disabled={meetingEditId ? true : false}
+                  disabled={isLocked ? true : false}
                   onClick={() => setMeetingType(option.id as any)}
                   className="px-4 py-2 rounded-lg transition-colors flex-1 min-w-[100px]"
                   style={{
@@ -507,13 +509,14 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
                     fontSize: '13px',
                     fontWeight: 600,
                     border: '1px solid rgba(255,255,255,0.15)',
-                    cursor: meetingEditId ? 'not-allowed' : 'pointer',
-                    opacity: meetingEditId && meetingType !== option.id ? 0.5 : 1
+                    cursor: isLocked ? 'not-allowed' : 'pointer',
+                    opacity: isLocked && meetingType !== option.id ? 0.5 : 1
                   }}
                 >
                   {option.label}
                 </button>
-              ))}
+                );
+              })}
             </div>
           </div>
 
