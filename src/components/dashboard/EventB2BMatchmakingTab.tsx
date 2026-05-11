@@ -1386,7 +1386,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
       const matchCounts: Record<string, number> = {};
       const maxPerPerson = 5;
       const minPerPerson = 3;
-      const meetings: { aId: string; bId: string; aName: string; bName: string; aCompany: string; bCompany: string }[] = [];
+      const meetings: { aId: string; bId: string; aName: string; bName: string; aCompany: string; bCompany: string; aProfileId: string | null; bProfileId: string | null }[] = [];
 
       // Build all possible pairs sorted randomly for fairness
       const allPairs: { a: any; b: any }[] = [];
@@ -1416,7 +1416,9 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
           aName: pair.a.name || pair.a.email || 'Attendee',
           bName: pair.b.name || pair.b.email || 'Attendee',
           aCompany: pair.a.company || '',
-          bCompany: pair.b.company || ''
+          bCompany: pair.b.company || '',
+          aProfileId: pair.a.profile_id || null,
+          bProfileId: pair.b.profile_id || null
         });
         matchCounts[pair.a.id] = aCount + 1;
         matchCounts[pair.b.id] = bCount + 1;
@@ -1436,7 +1438,9 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
           aName: pair.a.name || pair.a.email || 'Attendee',
           bName: pair.b.name || pair.b.email || 'Attendee',
           aCompany: pair.a.company || '',
-          bCompany: pair.b.company || ''
+          bCompany: pair.b.company || '',
+          aProfileId: pair.a.profile_id || null,
+          bProfileId: pair.b.profile_id || null
         });
         matchCounts[pair.a.id] = aCount + 1;
         matchCounts[pair.b.id] = bCount + 1;
@@ -1456,6 +1460,8 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
           event_id: eventId,
           attendee_a_id: m.aId,
           attendee_b_id: m.bId,
+          ...(m.aProfileId ? { profile_a_id: m.aProfileId } : {}),
+          ...(m.bProfileId ? { profile_b_id: m.bProfileId } : {}),
           status: 'pending',
           is_ai: true,
           match_score: null,
