@@ -1464,7 +1464,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
           ...(m.bProfileId ? { profile_b_id: m.bProfileId } : {}),
           status: 'pending',
           is_ai: true,
-          match_score: null,
+          match_score: 0,
           meta: { is_bulk_match_all: true }
         }));
         const { error, data: insertedData } = await supabase.from('event_b2b_meetings').insert(batch).select('id');
