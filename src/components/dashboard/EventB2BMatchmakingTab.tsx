@@ -1467,14 +1467,19 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
           match_score: null,
           meta: { is_bulk_match_all: true }
         }));
-        const { error } = await supabase.from('event_b2b_meetings').insert(batch);
+        const { error, data: insertedData } = await supabase.from('event_b2b_meetings').insert(batch).select('id');
         if (error) {
           console.error('Batch insert error:', error);
+          toast.dismiss(toastId);
+          toast.error(`Failed to insert meetings: ${error.message}`, { duration: 8000 });
+          setMatchingAll(false);
+          return;
         }
+        console.log(`Batch inserted ${insertedData?.length || 0} meetings`);
       }
 
       toast.dismiss(toastId);
-      toast.success(`Created ${meetings.length} meetings for ${Object.keys(matchCounts).length} participants!`);
+      toast.success(`Created ${meetings.length} meetings for ${Object.keys(matchCounts).length} participants!`, { duration: 5000 });
       await fetchMeetings();
 
       // Send match notification emails
