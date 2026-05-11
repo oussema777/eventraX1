@@ -1473,8 +1473,8 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
 
       // Send match notification emails
       const networkingUrl = `${window.location.origin}/my-networking`;
-      const { data: eventData } = await supabase.from('events').select('title').eq('id', eventId).single();
-      const eventName = eventData?.title || 'Event';
+      const { data: eventData } = await supabase.from('events').select('name').eq('id', eventId).single();
+      const eventName = eventData?.name || 'Event';
 
       // Group matches by attendee
       const attendeeMatches: Record<string, { name: string; email: string; matches: { name: string; company: string }[] }> = {};
@@ -1548,8 +1548,8 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
 
       const toastId = toast.loading(`Sending invitation emails to ${withEmail.length} attendees...`);
 
-      const { data: eventData } = await supabase.from('events').select('title').eq('id', eventId).single();
-      const eventName = eventData?.title || 'Event';
+      const { data: eventData } = await supabase.from('events').select('name').eq('id', eventId).single();
+      const eventName = eventData?.name || 'Event';
       const networkingUrl = `${window.location.origin}/my-networking`;
 
       let sent = 0;
@@ -1597,8 +1597,8 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
     const toastId = toast.loading('Sending match notification emails...');
 
     try {
-      const { data: eventData } = await supabase.from('events').select('title').eq('id', eventId).single();
-      const eventName = eventData?.title || 'Event';
+      const { data: eventData } = await supabase.from('events').select('name').eq('id', eventId).single();
+      const eventName = eventData?.name || 'Event';
       const networkingUrl = `${window.location.origin}/my-networking`;
 
       // Fetch all meetings with attendee info
