@@ -53,6 +53,9 @@ interface Meeting {
   organizerId?: string;
   meetingFormat?: 'video' | 'in-person' | 'hybrid';
   qrCodeUrl?: string;
+  attendeeAId?: string | null;
+  attendeeBId?: string | null;
+  isCurrentUserA?: boolean;
 }
 
 interface Match {
@@ -403,7 +406,10 @@ export default function UserB2BCenter() {
           organizerId: row.organizer_id || (isCurrentUserA ? user.id : otherProfileId),
           meetingFormat: row.meta?.meeting_format || (row.meta?.meeting_type === 'video' ? 'video' : 'in-person'),
           meetingUrl: row.meta?.video_url || (row.meta?.meeting_type === 'video' ? `https://meet.jit.si/Eventra${row.id.replace(/-/g, '').slice(0, 12)}` : undefined),
-          qrCodeUrl: row.status === 'confirmed' ? qrCodeUrl : undefined
+          qrCodeUrl: row.status === 'confirmed' ? qrCodeUrl : undefined,
+          attendeeAId: row.attendee_a_id || null,
+          attendeeBId: row.attendee_b_id || null,
+          isCurrentUserA
         };
       }));
 
@@ -730,9 +736,33 @@ export default function UserB2BCenter() {
     }
   };
 
-  const handleScheduleMeeting = (profileId: string, defaultEventId?: string | null) => {
-    const name = profileNameMap.get(profileId) || t('networking.defaults.user');
-    const existing = meetingByProfileId.get(profileId) || null;
+  const handleScheduleMeeting = async (profileId: string, defaultEventId?: string | null, meeting?: Meeting | null) => {
+    let resolvedProfileId = profileId;
+
+    // If profileId is empty (bulk matches without profile IDs), resolve from attendee record
+    if (!resolvedProfileId && meeting) {
+      const otherAttendeeId = meeting.isCurrentUserA ? meeting.attendeeBId : meeting.attendeeAId;
+      if (otherAttendeeId) {
+        try {
+          const { data: attendee } = await supabase
+            .from('event_attendees')
+            .select('profile_id')
+            .eq('id', otherAttendeeId)
+            .maybeSingle();
+          if (attendee?.profile_id) {
+            resolvedProfileId = attendee.profile_id;
+          }
+        } catch { /* fallback below */ }
+      }
+    }
+
+    if (!resolvedProfileId) {
+      toast.error('Cannot identify the meeting participant. The attendee may not have a linked profile.');
+      return;
+    }
+
+    const name = profileNameMap.get(resolvedProfileId) || (meeting?.name) || t('networking.defaults.user');
+    const existing = meetingByProfileId.get(resolvedProfileId) || meeting || null;
 
     // For unscheduled bulk matches (no start time), pass meeting ID but mark as unscheduled
     // so the modal updates the existing row but doesn't lock the type selection
@@ -741,7 +771,7 @@ export default function UserB2BCenter() {
       ? { ...existing, meetingFormat: '', _isUnscheduled: true }
       : existing;
 
-    setMeetingTarget({ id: profileId, name });
+    setMeetingTarget({ id: resolvedProfileId, name });
     setActiveMeeting(meetingForModal);
     setActiveMeetingEventId(defaultEventId || existing?.eventId || undefined);
     setIsMeetingModalOpen(true);
@@ -1658,7 +1688,7 @@ export default function UserB2BCenter() {
                           
                           {meeting.status !== 'cancelled' && (meeting.organizerId === user?.id || (!meeting.startAt && meeting.status === 'pending')) && (
                             <button
-                              onClick={() => handleScheduleMeeting(meeting.profileId, meeting.eventId)}
+                              onClick={() => handleScheduleMeeting(meeting.profileId, meeting.eventId, meeting)}
                               className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
                               style={{
                                 backgroundColor: !meeting.startAt ? '#0684F5' : 'rgba(6, 132, 245, 0.1)',
@@ -1907,7 +1937,7 @@ export default function UserB2BCenter() {
                                     fontSize: '12px',
                                     fontWeight: 600
                                   }}
-                                  onClick={() => handleScheduleMeeting(match.profileId, match.eventId)}
+                                  onClick={() => handleScheduleMeeting(match.profileId, match.eventId, existingMeeting)}
                                 >
                                   {t('networking.actions.reschedule')}
                                 </button>

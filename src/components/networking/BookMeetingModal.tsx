@@ -39,6 +39,9 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
   const [eventMeetingCounts, setEventMeetingCounts] = useState<Record<string, number>>({});
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
 
+  // Submission State
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   // Filters
   const [eventFilterCountry, setEventFilterCountry] = useState('');
   const [eventFilterDate, setEventFilterDate] = useState('');
@@ -53,6 +56,11 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
           const date = new Date(existingMeeting.startAt);
           setMeetingDate(date.toISOString().slice(0, 10));
           setMeetingTime(date.toTimeString().slice(0, 5));
+        } else {
+          setMeetingDate('');
+          setMeetingTime('');
+          setSelectedSlot(null);
+          setGeneratedSlots([]);
         }
         setMeetingEventId(existingMeeting.eventId || eventId || null);
         setMeetingSessionId(existingMeeting.sessionId || null);
@@ -74,6 +82,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
     setVideoUrl('');
     setGeneratedSlots([]);
     setSelectedSlot(null);
+    setIsSubmitting(false);
   };
 
   const loadEventData = async () => {
@@ -224,21 +233,33 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
   };
 
   const handleSubmit = async () => {
-    if (!currentUser?.id || !recipient?.id) return;
+    if (isSubmitting) return;
+    if (!currentUser?.id) {
+      console.error('[BookMeetingModal] currentUser.id is missing:', currentUser);
+      toast.error('Session expired. Please refresh the page.');
+      return;
+    }
+    if (!recipient?.id) {
+      console.error('[BookMeetingModal] recipient.id is missing:', recipient);
+      toast.error('Could not identify the meeting participant. Please try again.');
+      return;
+    }
     if (!meetingType) {
       toast.error('Select a meeting type.');
       return;
     }
+    setIsSubmitting(true);
 
     let startAt: Date;
     let endAt: Date;
     let location = 'Video Call';
 
     if (meetingType === 'video') {
-       if (!meetingDate || !meetingTime) { toast.error('Select date/time'); return; }
+       if (!meetingDate || !meetingTime) { toast.error('Select date/time'); setIsSubmitting(false); return; }
        startAt = new Date(`${meetingDate}T${meetingTime}:00`);
        if (Number.isNaN(startAt.getTime())) {
         toast.error('Invalid meeting date/time.');
+        setIsSubmitting(false);
         return;
       }
        endAt = new Date(startAt.getTime() + 30 * 60000);
@@ -246,19 +267,21 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
        // In-person logic using generated slots
        if (!selectedSlot) {
          toast.error('Please select a time slot.');
+         setIsSubmitting(false);
          return;
        }
        startAt = new Date(selectedSlot.iso);
        const duration = venueConfig?.slotDuration || 30;
        endAt = new Date(startAt.getTime() + duration * 60000);
-       location = selectedSlot.nextTable || `Networking Area`; 
+       location = selectedSlot.nextTable || `Networking Area`;
     }
 
     // Resolve Attendee IDs
     const targetEventId = isVirtual(meetingType) ? (meetingEventId || eventCatalog[0]?.id) : (eventId || meetingEventId);
-    
+
     if (!targetEventId) {
         toast.error("Event context missing.");
+        setIsSubmitting(false);
         return;
     }
 
@@ -286,6 +309,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
             } else {
                 toast.error('One or both participants already have a scheduled meeting at this time.');
             }
+            setIsSubmitting(false);
             return;
         }
     } catch (e) {
@@ -293,20 +317,38 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
     }
 
     try {
+        // Try to resolve attendee IDs — first by profile lookup, then fallback to existing meeting data
+        let attendeeAId: string | null = null;
+        let attendeeBId: string | null = null;
+
         const [resA, resB] = await Promise.all([
-            supabase.from('event_attendees').select('id').eq('event_id', targetEventId).eq('profile_id', currentUser.id).single(),
-            supabase.from('event_attendees').select('id').eq('event_id', targetEventId).eq('profile_id', recipient.id).single()
+            supabase.from('event_attendees').select('id').eq('event_id', targetEventId).eq('profile_id', currentUser.id).maybeSingle(),
+            supabase.from('event_attendees').select('id').eq('event_id', targetEventId).eq('profile_id', recipient.id).maybeSingle()
         ]);
 
-        if (resA.error || resB.error) {
-            console.error(resA.error, resB.error);
+        attendeeAId = resA.data?.id || null;
+        attendeeBId = resB.data?.id || null;
+
+        // Fallback: use attendee IDs from the existing meeting (bulk matches store these)
+        if ((!attendeeAId || !attendeeBId) && existingMeeting) {
+            if (!attendeeAId) {
+                attendeeAId = existingMeeting.isCurrentUserA ? existingMeeting.attendeeAId : existingMeeting.attendeeBId;
+            }
+            if (!attendeeBId) {
+                attendeeBId = existingMeeting.isCurrentUserA ? existingMeeting.attendeeBId : existingMeeting.attendeeAId;
+            }
+        }
+
+        if (!attendeeAId || !attendeeBId) {
+            console.error('Could not resolve attendee IDs:', { attendeeAId, attendeeBId, resA, resB });
             toast.error("Could not verify registration for one or both users.");
+            setIsSubmitting(false);
             return;
         }
 
         const payload = {
-          attendee_a_id: resA.data.id,
-          attendee_b_id: resB.data.id,
+          attendee_a_id: attendeeAId,
+          attendee_b_id: attendeeBId,
           profile_a_id: currentUser.id,
           profile_b_id: recipient.id,
           organizer_id: currentUser.id,
@@ -422,6 +464,8 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
 
     } catch (err: any) {
         toast.error(err.message || 'Failed to schedule meeting');
+    } finally {
+        setIsSubmitting(false);
     }
   };
 
@@ -715,21 +759,24 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
           </button>
           <button
             onClick={handleSubmit}
+            disabled={isSubmitting}
             className="w-full sm:w-auto px-6 py-2 rounded-lg transition-colors order-1 sm:order-2"
             style={{
-              backgroundColor: '#0684F5',
+              backgroundColor: isSubmitting ? '#064a9e' : '#0684F5',
               color: '#FFFFFF',
               fontSize: '13px',
-              fontWeight: 600
+              fontWeight: 600,
+              opacity: isSubmitting ? 0.7 : 1,
+              cursor: isSubmitting ? 'not-allowed' : 'pointer'
             }}
             onMouseEnter={(event) => {
-              event.currentTarget.style.backgroundColor = '#0570D6';
+              if (!isSubmitting) event.currentTarget.style.backgroundColor = '#0570D6';
             }}
             onMouseLeave={(event) => {
-              event.currentTarget.style.backgroundColor = '#0684F5';
+              if (!isSubmitting) event.currentTarget.style.backgroundColor = '#0684F5';
             }}
           >
-            {meetingEditId ? 'Reschedule Meeting' : 'Schedule Meeting'}
+            {isSubmitting ? 'Submitting...' : meetingEditId ? 'Reschedule Meeting' : 'Schedule Meeting'}
           </button>
         </div>
       </div>
