@@ -30,7 +30,7 @@ export async function sendEmail({ to, subject, html }: SendEmailParams): Promise
   }
 }
 
-export function generateRegistrationEmailHtml(eventName: string, attendeeName: string, qrCodeUrl: string, sessions: any[], isAnonymous: boolean = false) {
+export function generateRegistrationEmailHtml(eventName: string, attendeeName: string, qrCodeUrl: string, sessions: any[], isAnonymous: boolean = false, magicLink?: string | null) {
   const safeEventName = escapeHTML(eventName);
   const safeAttendeeName = escapeHTML(attendeeName);
 
@@ -58,6 +58,18 @@ export function generateRegistrationEmailHtml(eventName: string, attendeeName: s
         <ul style="padding-left: 20px; list-style-type: none;">
           ${sessionList}
         </ul>
+      ` : ''}
+
+      ${magicLink ? `
+      <div style="margin-top: 24px; padding: 20px; background: linear-gradient(135deg, #EFF6FF, #F0F9FF); border-radius: 12px; text-align: center; border: 1px solid #BFDBFE;">
+        <h3 style="margin-top: 0; margin-bottom: 8px; color: #0B2641; font-size: 16px;">🤝 B2B Networking Access</h3>
+        <p style="font-size: 14px; color: #4B5563; margin-bottom: 16px; line-height: 1.5;">
+          You opted in for B2B matchmaking. Click below to access your networking dashboard and discover your matches.
+        </p>
+        <a href="${magicLink}" style="display: inline-block; padding: 12px 28px; background-color: #0684F5; color: #FFFFFF; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">
+          Access B2B Networking
+        </a>
+      </div>
       ` : ''}
 
       ${isAnonymous ? `
