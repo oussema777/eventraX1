@@ -17,7 +17,8 @@ import {
   Globe,
   Handshake,
   UserPlus,
-  LogIn
+  LogIn,
+  X
 } from 'lucide-react';
 import Logo from '../components/ui/Logo';
 import ModalLogin from '../components/modals/ModalLogin';
@@ -31,6 +32,7 @@ import { sendEmail, generateRegistrationEmailHtml, sendCapacityAlertEmail } from
 import { countries } from '../data/countries';
 import { uploadFormSubmissionFile } from '../utils/storage';
 import { useI18n } from '../i18n/I18nContext';
+import { PLATFORM_INTERESTS, PLATFORM_SECTORS } from '../constants/platformFields';
 import SEOHead from '../components/SEOHead';
 import { truncateDescription, canonicalUrl } from '../utils/seo';
 
@@ -102,6 +104,23 @@ export default function EventRegistrationFlow() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fileUploading, setFileUploading] = useState<Record<string, boolean>>({});
   const [countrySearch, setCountrySearch] = useState('');
+
+  // System fields state (mandatory, always present)
+  const [systemFields, setSystemFields] = useState({
+    fullName: '',
+    phone: '',
+    phoneCountryCode: '+216',
+    email: '',
+    companyName: '',
+    companyDescription: '',
+    interests: [] as string[],
+    sector: '',
+    socialUrl: '',
+    b2bOptIn: false,
+  });
+  const [isInterestsOpen, setIsInterestsOpen] = useState(false);
+  const [isSectorOpen, setIsSectorOpen] = useState(false);
+  const [isPhoneCountryOpen, setIsPhoneCountryOpen] = useState(false);
 
   const generateConfirmationCode = () => 'EV-' + generateAccessCode(6);
 
@@ -347,6 +366,21 @@ export default function EventRegistrationFlow() {
       } else {
         console.log('[REGISTRATION_DEBUG] No custom form found, using default fields');
         setFormFields(defaultFields);
+      }
+
+      // Auto-fill system fields from profile
+      if (profile) {
+        setSystemFields(prev => ({
+          ...prev,
+          fullName: profile.full_name || prev.fullName,
+          email: user?.email || profile.email || prev.email,
+          phone: profile.phone || prev.phone,
+          companyName: profile.company || prev.companyName,
+          companyDescription: profile.company_description || prev.companyDescription,
+          interests: profile.interests || prev.interests,
+          sector: profile.sector || prev.sector,
+          socialUrl: profile.social_url || profile.linkedin_url || prev.socialUrl,
+        }));
       }
 
     } catch (error) {
@@ -659,23 +693,31 @@ export default function EventRegistrationFlow() {
 
   const canProceed = () => {
     if (currentStep === 1) {
+      // System field validation
+      const systemValid =
+        systemFields.fullName.trim().length >= 2 &&
+        systemFields.email.trim().length > 0 && /\S+@\S+\.\S+/.test(systemFields.email) &&
+        systemFields.phone.trim().length > 0 &&
+        systemFields.companyName.trim().length >= 2 &&
+        systemFields.companyDescription.trim().length >= 10 &&
+        systemFields.companyDescription.trim().length <= 500 &&
+        systemFields.interests.length > 0 &&
+        systemFields.sector.trim().length > 0 &&
+        /^https?:\/\/.+/.test(systemFields.socialUrl);
+
+      // Custom field validation (existing logic)
       const requiredFields = formFields.filter(f => f.required);
       const emptyRequired = requiredFields.filter(f => {
-        // Special check for phone fields since they use phoneNumber instead of value
         if (f.type === 'phone') {
           return !f.phoneNumber || f.phoneNumber.trim() === '';
         }
         return !f.value || f.value.trim() === '';
       });
-      
-      if (emptyRequired.length > 0) {
-        console.log('[REGISTRATION_DEBUG] Missing required fields:', emptyRequired.map(f => f.label).join(', '));
-      }
 
       const noActiveUploads = !Object.values(fileUploading).some(val => val === true);
-      return emptyRequired.length === 0 && noActiveUploads;
+      return systemValid && emptyRequired.length === 0 && noActiveUploads;
     }
-    return true; // Step 2 is optional
+    return true;
   };
 
   const steps = [
@@ -687,6 +729,274 @@ export default function EventRegistrationFlow() {
   const formatTime = (iso: string) => {
     if (!iso) return '';
     return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const renderSystemFields = () => {
+    const isReadOnly = !!profile;
+    const fieldStyle = {
+      backgroundColor: '#0D243B',
+      borderColor: 'rgba(255,255,255,0.15)',
+      color: '#FFFFFF',
+    };
+
+    const updateSystemField = (key: string, value: any) => {
+      setSystemFields(prev => ({ ...prev, [key]: value }));
+    };
+
+    return (
+      <>
+        {/* 1. Full Name */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-white mb-1.5">
+            {t('registration.systemFields.fullName', { defaultValue: 'Full Name' })} <span className="text-red-400">*</span>
+          </label>
+          <input
+            type="text"
+            value={systemFields.fullName}
+            onChange={e => updateSystemField('fullName', e.target.value)}
+            readOnly={isReadOnly && !!systemFields.fullName}
+            className="w-full px-3 py-2.5 rounded-lg border text-sm"
+            style={fieldStyle}
+            placeholder="John Doe"
+          />
+        </div>
+
+        {/* 2. Email */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-white mb-1.5">
+            {t('registration.systemFields.email', { defaultValue: 'Email Address' })} <span className="text-red-400">*</span>
+          </label>
+          <input
+            type="email"
+            value={systemFields.email}
+            onChange={e => updateSystemField('email', e.target.value)}
+            readOnly={isReadOnly && !!systemFields.email}
+            className="w-full px-3 py-2.5 rounded-lg border text-sm"
+            style={fieldStyle}
+            placeholder="john@company.com"
+          />
+        </div>
+
+        {/* 3. Phone with country code */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-white mb-1.5">
+            {t('registration.systemFields.phone', { defaultValue: 'Phone Number' })} <span className="text-red-400">*</span>
+          </label>
+          <div className="flex gap-2">
+            <div className="relative" style={{ minWidth: '110px' }}>
+              <button
+                type="button"
+                onClick={() => setIsPhoneCountryOpen(!isPhoneCountryOpen)}
+                className="w-full flex items-center gap-1.5 px-2 py-2.5 rounded-lg border text-sm"
+                style={fieldStyle}
+              >
+                <span>{toFlagEmoji(countries.find(c => c.phoneCode === systemFields.phoneCountryCode)?.code || '') || '🌍'}</span>
+                <span className="text-white/70 text-xs">{systemFields.phoneCountryCode}</span>
+                <ChevronDown size={12} className="ml-auto text-white/50" />
+              </button>
+              {isPhoneCountryOpen && (
+                <div className="absolute z-50 mt-1 w-64 max-h-48 overflow-y-auto rounded-lg border shadow-xl"
+                  style={{ backgroundColor: '#0D243B', borderColor: 'rgba(255,255,255,0.15)' }}>
+                  {countries.map(c => (
+                    <button
+                      key={c.code}
+                      type="button"
+                      onClick={() => { updateSystemField('phoneCountryCode', c.phoneCode); setIsPhoneCountryOpen(false); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white hover:bg-white/10"
+                    >
+                      <span>{toFlagEmoji(c.code)}</span>
+                      <span>{c.name}</span>
+                      <span className="ml-auto text-white/50">{c.phoneCode}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <input
+              type="tel"
+              value={systemFields.phone}
+              onChange={e => updateSystemField('phone', e.target.value)}
+              readOnly={isReadOnly && !!systemFields.phone}
+              className="flex-1 px-3 py-2.5 rounded-lg border text-sm"
+              style={fieldStyle}
+              placeholder="12345678"
+            />
+          </div>
+        </div>
+
+        {/* 4. Company Name */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-white mb-1.5">
+            {t('registration.systemFields.companyName', { defaultValue: 'Company Name' })} <span className="text-red-400">*</span>
+          </label>
+          <input
+            type="text"
+            value={systemFields.companyName}
+            onChange={e => updateSystemField('companyName', e.target.value)}
+            readOnly={isReadOnly && !!systemFields.companyName}
+            className="w-full px-3 py-2.5 rounded-lg border text-sm"
+            style={fieldStyle}
+            placeholder="Acme Corp"
+          />
+        </div>
+
+        {/* 5. Short Company Description */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-white mb-1.5">
+            {t('registration.systemFields.companyDescription', { defaultValue: 'Short Company Description' })} <span className="text-red-400">*</span>
+          </label>
+          <textarea
+            value={systemFields.companyDescription}
+            onChange={e => updateSystemField('companyDescription', e.target.value)}
+            readOnly={isReadOnly && !!systemFields.companyDescription}
+            className="w-full px-3 py-2.5 rounded-lg border text-sm resize-none"
+            style={fieldStyle}
+            rows={3}
+            maxLength={500}
+            placeholder={t('registration.systemFields.companyDescriptionPlaceholder', { defaultValue: 'Briefly describe what your company does (10-500 characters)' })}
+          />
+          <p className="text-xs mt-1" style={{ color: systemFields.companyDescription.length < 10 ? '#EF4444' : 'rgba(255,255,255,0.4)' }}>
+            {systemFields.companyDescription.length}/500
+          </p>
+        </div>
+
+        {/* 6. Interests (multi-select) */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-white mb-1.5">
+            {t('registration.systemFields.interests', { defaultValue: 'Interests' })} <span className="text-red-400">*</span>
+          </label>
+          {systemFields.interests.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {systemFields.interests.map(interest => (
+                <span key={interest} className="flex items-center gap-1 px-2 py-1 rounded-full text-xs"
+                  style={{ backgroundColor: 'rgba(6,132,245,0.2)', color: '#0684F5', border: '1px solid rgba(6,132,245,0.3)' }}>
+                  {interest}
+                  <button type="button" onClick={() => updateSystemField('interests', systemFields.interests.filter((i: string) => i !== interest))}
+                    className="ml-0.5 hover:text-white">
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsInterestsOpen(!isInterestsOpen)}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border text-sm"
+              style={fieldStyle}
+            >
+              <span className="text-white/50">
+                {t('registration.systemFields.interestsPlaceholder', { defaultValue: 'Select your interests' })}
+              </span>
+              <ChevronDown size={14} className="text-white/50" />
+            </button>
+            {isInterestsOpen && (
+              <div className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border shadow-xl"
+                style={{ backgroundColor: '#0D243B', borderColor: 'rgba(255,255,255,0.15)' }}>
+                {PLATFORM_INTERESTS.map(interest => {
+                  const isSelected = systemFields.interests.includes(interest);
+                  return (
+                    <button
+                      key={interest}
+                      type="button"
+                      onClick={() => {
+                        if (isSelected) {
+                          updateSystemField('interests', systemFields.interests.filter((i: string) => i !== interest));
+                        } else {
+                          updateSystemField('interests', [...systemFields.interests, interest]);
+                        }
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white hover:bg-white/10"
+                    >
+                      <div className="w-4 h-4 rounded border flex items-center justify-center"
+                        style={{ borderColor: isSelected ? '#0684F5' : 'rgba(255,255,255,0.3)', backgroundColor: isSelected ? '#0684F5' : 'transparent' }}>
+                        {isSelected && <Check size={10} className="text-white" />}
+                      </div>
+                      {interest}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 7. Sector (single-select) */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-white mb-1.5">
+            {t('registration.systemFields.sector', { defaultValue: 'Sector' })} <span className="text-red-400">*</span>
+          </label>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsSectorOpen(!isSectorOpen)}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border text-sm"
+              style={fieldStyle}
+            >
+              <span className={systemFields.sector ? 'text-white' : 'text-white/50'}>
+                {systemFields.sector || t('registration.systemFields.sectorPlaceholder', { defaultValue: 'Select your sector' })}
+              </span>
+              <ChevronDown size={14} className="text-white/50" />
+            </button>
+            {isSectorOpen && (
+              <div className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border shadow-xl"
+                style={{ backgroundColor: '#0D243B', borderColor: 'rgba(255,255,255,0.15)' }}>
+                {PLATFORM_SECTORS.map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => { updateSystemField('sector', s); setIsSectorOpen(false); }}
+                    className={`w-full text-left px-3 py-2 text-xs hover:bg-white/10 ${systemFields.sector === s ? 'text-[#0684F5]' : 'text-white'}`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 8. Social URL */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-white mb-1.5">
+            {t('registration.systemFields.socialUrl', { defaultValue: 'Social / Website URL' })} <span className="text-red-400">*</span>
+          </label>
+          <input
+            type="url"
+            value={systemFields.socialUrl}
+            onChange={e => updateSystemField('socialUrl', e.target.value)}
+            readOnly={isReadOnly && !!systemFields.socialUrl}
+            className="w-full px-3 py-2.5 rounded-lg border text-sm"
+            style={fieldStyle}
+            placeholder={t('registration.systemFields.socialUrlPlaceholder', { defaultValue: 'https://linkedin.com/in/yourprofile' })}
+          />
+        </div>
+
+        {/* B2B Toggle */}
+        <div className="mb-6 p-4 rounded-lg" style={{ backgroundColor: 'rgba(6,132,245,0.08)', border: '1px solid rgba(6,132,245,0.2)' }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-white">
+                {t('registration.systemFields.b2bOptIn', { defaultValue: 'Want B2B Matching?' })}
+              </p>
+              <p className="text-xs text-white/50 mt-0.5">
+                {t('registration.systemFields.b2bOptInDescription', { defaultValue: 'Get matched with relevant attendees for business networking' })}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => updateSystemField('b2bOptIn', !systemFields.b2bOptIn)}
+              className="relative w-11 h-6 rounded-full transition-colors"
+              style={{ backgroundColor: systemFields.b2bOptIn ? '#0684F5' : 'rgba(255,255,255,0.2)' }}
+            >
+              <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
+                style={{ transform: systemFields.b2bOptIn ? 'translateX(20px)' : 'translateX(0)' }} />
+            </button>
+          </div>
+        </div>
+      </>
+    );
   };
 
   if (needsAccessCode) {
@@ -1051,6 +1361,19 @@ export default function EventRegistrationFlow() {
               </div>
 
               <div className="space-y-6">
+                {/* System fields (mandatory, always present) */}
+                {renderSystemFields()}
+
+                {/* Divider between system fields and custom fields */}
+                {formFields.length > 0 && (
+                  <div className="border-t border-white/10 my-6 pt-4">
+                    <p className="text-sm text-white/50 mb-4">
+                      {t('registration.additionalFields', { defaultValue: 'Additional Information' })}
+                    </p>
+                  </div>
+                )}
+
+                {/* Custom fields from event form builder */}
                 {formFields.map((field) => (
                   <div key={field.id}>
                     <label
