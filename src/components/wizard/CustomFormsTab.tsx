@@ -747,7 +747,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
       ],
       totalFields: 8,
       lastEdited: t('wizard.step3.customForms.defaults.registration.lastEdited'),
-      infoNote: t('wizard.step3.customForms.defaults.registration.info'),
+      infoNote: t('registration.customFormsInfo', { defaultValue: 'Every registration form includes 8 mandatory fields (name, email, phone, company, etc.) by default. Custom fields appear after these.' }),
       icon: ClipboardList,
       iconColor: '#0684F5'
     }
