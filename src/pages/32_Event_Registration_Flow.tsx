@@ -697,7 +697,7 @@ export default function EventRegistrationFlow() {
       const systemValid =
         systemFields.fullName.trim().length >= 2 &&
         systemFields.email.trim().length > 0 && /\S+@\S+\.\S+/.test(systemFields.email) &&
-        systemFields.phone.trim().length > 0 &&
+        systemFields.phone.replace(/\D/g, '').length >= 7 &&
         systemFields.companyName.trim().length >= 2 &&
         systemFields.companyDescription.trim().length >= 10 &&
         systemFields.companyDescription.trim().length <= 500 &&
