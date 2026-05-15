@@ -1,0 +1,13 @@
+-- Add new profile columns for registration system fields
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS sector TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS company_description TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS social_url TEXT;
+
+-- Note: interests column already exists as text[] in profiles table
+-- No change needed for interests
+
+-- Verify columns exist
+SELECT column_name, data_type
+FROM information_schema.columns
+WHERE table_name = 'profiles'
+  AND column_name IN ('sector', 'company_description', 'social_url', 'interests');

@@ -17,6 +17,9 @@ export interface Profile {
   b2b_profile: Record<string, unknown> | null;
   industry: string | null;
   interests: string[] | null;
+  sector: string | null;
+  company_description: string | null;
+  social_url: string | null;
   created_at: string;
   updated_at: string;
 }
