@@ -444,37 +444,10 @@ export default function EventRegistrationFlow() {
   };
 
   const handleCompleteRegistration = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     try {
-      setIsSubmitting(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      // Get form data
-      const responses: Record<string, any> = {};
-      formFields.forEach(f => {
-        if (f.type === 'phone' && f.phoneCountryCode && f.phoneNumber) {
-          const phoneCountry = countries.find(c => c.code === f.phoneCountryCode);
-          responses[f.label] = `${phoneCountry?.phoneCode || f.phoneCountryCode} ${f.phoneNumber}`;
-        } else if (f.type === 'country' && f.value) {
-          const countryObj = countries.find(c => c.code === f.value);
-          responses[f.label] = countryObj?.name || f.value;
-        } else {
-          responses[f.label] = f.value;
-        }
-      });
-
-      const email = user?.email || formFields.find(f => f.type === 'email')?.value;
-      const name = profile?.full_name || formFields.find(f => f.label.toLowerCase().includes('name'))?.value;
-
-      if (!email || !name) {
-        toast.error(t('registrationFlow.toasts.nameEmailRequired'));
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (!freeTicketId) {
-        console.warn('No ticket found, registration might be incomplete on analytics.');
-      }
-
       // Fetch notification settings for event_registration
       let regNotifSettings = { is_email_enabled: true, is_bell_enabled: true };
       if (eventId) {
@@ -489,85 +462,59 @@ export default function EventRegistrationFlow() {
         } catch { /* default ON */ }
       }
 
-      const code = generateConfirmationCode();
-      setConfirmationCode(code);
-      responses['confirmation_code'] = code;
-
-      // 1. Insert Attendee
-      const attendeePayload = {
-        event_id: eventId,
-        profile_id: user?.id || null,
-        ticket_type: 'General Admission', 
-        ticket_color: '#0684F5',
-        price: 0,
-        status: 'registered',
-        meta: responses, 
-        email: email, 
-        name: name
-      };
-
-      const { data: attendee, error: regError } = await supabase
-        .from('event_attendees')
-        .insert([attendeePayload])
-        .select()
-        .single();
-
-      if (regError) {
-        if (regError.code === '23505') {
-          // Already registered - fetch existing record
-          toast.success(t('registrationFlow.toasts.alreadyRegistered'));
-          
-          let query = supabase
-            .from('event_attendees')
-            .select()
-            .eq('event_id', eventId);
-            
-          if (user) {
-            query = query.eq('profile_id', user.id);
-          } else {
-            query = query.eq('email', email);
-          }
-
-          const { data: existing } = await query.single();
-          
-          if (existing) {
-            setRegisteredAttendeeId(existing.id); // SAVE ID
-            const existingCode = existing.meta?.confirmation_code || code;
-            setConfirmationCode(existingCode);
-
-            const sessionInserts = Array.from(selectedSessions).map(sessionId => ({
-              attendee_id: existing.id,
-              session_id: sessionId
-            }));
-
-            await supabase.from('event_attendee_sessions').delete().eq('attendee_id', existing.id);
-            
-            if (sessionInserts.length > 0) {
-              await supabase.from('event_attendee_sessions').insert(sessionInserts);
-            }
-
-            const mySessions = sessions.filter(s => selectedSessions.has(s.id));
-            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${existing.id}`;
-            if (regNotifSettings.is_email_enabled) {
-              const emailHtml = generateRegistrationEmailHtml(event?.name || 'Event', existing.name || email || 'Attendee', qrUrl, mySessions, !user);
-              await sendEmail({
-                to: email || '',
-                subject: `Registration Confirmed: ${event?.name}`,
-                html: emailHtml
-              });
-            }
-            
-            setCurrentStep(3);
-            return;
-          }
+      // Build custom fields from formFields
+      const customFields: Record<string, any> = {};
+      formFields.forEach(field => {
+        if (field.type === 'phone' && field.phoneCountryCode && field.phoneNumber) {
+          const phoneCountry = countries.find(c => c.code === field.phoneCountryCode);
+          customFields[field.label] = `${phoneCountry?.phoneCode || field.phoneCountryCode} ${field.phoneNumber}`;
+        } else if (field.type === 'country' && field.value) {
+          const countryObj = countries.find(c => c.code === field.value);
+          customFields[field.label] = countryObj?.name || field.value;
+        } else {
+          customFields[field.label] = field.value;
         }
-        throw regError;
+      });
+
+      // Call Edge Function for registration + account creation
+      const { data, error } = await supabase.functions.invoke('create-event-registration', {
+        body: {
+          event_id: eventId,
+          full_name: systemFields.fullName,
+          email: systemFields.email,
+          phone: `${systemFields.phoneCountryCode} ${systemFields.phone}`.trim(),
+          company_name: systemFields.companyName,
+          company_description: systemFields.companyDescription,
+          interests: systemFields.interests,
+          sector: systemFields.sector,
+          social_url: systemFields.socialUrl,
+          b2b_opt_in: systemFields.b2bOptIn,
+          custom_fields: customFields,
+          ticket_type: 'General Admission',
+          ticket_color: '#0684F5',
+          price: 0,
+          selected_sessions: Array.from(selectedSessions),
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      // Store confirmation data
+      setRegisteredAttendeeId(data.attendee_id);
+      setConfirmationCode(data.confirmation_code);
+
+      if (data.already_registered) {
+        toast.success(t('registrationFlow.toasts.alreadyRegistered', { defaultValue: 'You are already registered for this event.' }));
       }
 
-      try {
-        await supabase.rpc('increment_ticket_sold', { tid: freeTicketId, qty: 1 });
-      } catch (err) {
-        console.warn('Failed to update ticket count (RPC missing?):', err);
+      // Increment ticket sold
+      if (freeTicketId) {
+        try {
+          await supabase.rpc('increment_ticket_sold', { tid: freeTicketId, qty: 1 });
+        } catch (err) {
+          console.warn('Failed to update ticket count (RPC missing?):', err);
+        }
       }
 
       // Capacity alert email to organizer
@@ -602,37 +549,35 @@ export default function EventRegistrationFlow() {
         }
       } catch { /* non-blocking */ }
 
-      if (attendee) {
-        setRegisteredAttendeeId(attendee.id); // SAVE ID
-        const sessionInserts = Array.from(selectedSessions).map(sessionId => ({
-          attendee_id: attendee.id,
-          session_id: sessionId
-        }));
-        
-        if (sessionInserts.length > 0) {
-          await supabase.from('event_attendee_sessions').insert(sessionInserts);
-        }
-
+      // Send confirmation email (client-side)
+      if (regNotifSettings.is_email_enabled) {
         const mySessions = sessions.filter(s => selectedSessions.has(s.id));
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${attendee.id}`;
-        if (regNotifSettings.is_email_enabled) {
-          const emailHtml = generateRegistrationEmailHtml(event?.name || 'Event', attendee.name || email || 'Attendee', qrUrl, mySessions, !user);
-          await sendEmail({
-            to: email || '',
-            subject: `Registration Confirmed: ${event?.name}`,
-            html: emailHtml
-          });
-        }
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${data.attendee_id}`;
+        const emailHtml = generateRegistrationEmailHtml(
+          event?.name || 'Event',
+          systemFields.fullName || 'Attendee',
+          qrUrl,
+          mySessions,
+          !user,
+          data.magic_link || null
+        );
+        await sendEmail({
+          to: systemFields.email,
+          subject: data.magic_link
+            ? `Registration Confirmed + B2B Access: ${event?.name}`
+            : `Registration Confirmed: ${event?.name}`,
+          html: emailHtml,
+        });
       }
 
+      // Create notification for organizer
       try {
         if (event?.owner_id && regNotifSettings.is_bell_enabled) {
-          // Internal manager alert - kept as simple system notification
           await createNotification({
             recipient_id: event.owner_id,
             actor_id: user?.id || null,
             title: 'New event registration',
-            body: `${email || 'An attendee'} registered for ${event.name || 'your event'}.`,
+            body: `${systemFields.email || 'An attendee'} registered for ${event.name || 'your event'}.`,
             type: 'action',
             action_url: `/event/${eventId}`
           });
@@ -641,8 +586,8 @@ export default function EventRegistrationFlow() {
 
       setCurrentStep(3);
     } catch (error: any) {
-      console.error('Registration failed:', error);
-      toast.error(sanitizeError(error, t('registrationFlow.toasts.registrationFailed')));
+      console.error('Registration error:', error);
+      toast.error(sanitizeError(error, t('registrationFlow.toasts.registrationError', { defaultValue: 'Registration failed. Please try again.' })));
     } finally {
       setIsSubmitting(false);
     }
