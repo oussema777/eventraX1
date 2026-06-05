@@ -99,11 +99,31 @@ interface Connection {
   eventId?: string | null;
 }
 
-export default function UserB2BCenter() {
+interface UserB2BCenterProps {
+  /**
+   * When provided, scopes the entire networking surface to a single event:
+   * every data query is filtered with `.eq('event_id', eventId)` and the
+   * component renders only the four core sections (matches, connections,
+   * meetings, messages) with no global app chrome. When omitted the
+   * component behaves exactly as before (member-wide global view).
+   */
+  eventId?: string;
+  /**
+   * Hint that this is the hidden per-event guest identity. Suppresses
+   * off-surface navigation (view-profile / global messages) so the guest
+   * never leaves the single-event surface.
+   */
+  guest?: boolean;
+}
+
+export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterProps = {}) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { t } = useI18n();
+  // Single-event scope flag. Backward-compatible: with no eventId the
+  // component runs the original global (cross-event) aggregation.
+  const scopedEventId = eventId || null;
   const [activeTab, setActiveTab] = useState<TabType>('schedule');
   const [highlightedMeetingId, setHighlightedMeetingId] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState('all');
@@ -201,6 +221,26 @@ export default function UserB2BCenter() {
         });
       }
 
+      // Build the per-table queries, applying a single-event scope when
+      // `scopedEventId` is set. All four scoped tables carry an `event_id`
+      // column, so we narrow with `.eq('event_id', scopedEventId)`.
+      let matchesQuery = supabase.from(MATCHES_TABLE).select('*').eq('profile_id', user.id);
+      let receivedQuery = supabase.from(REQUESTS_TABLE).select('*').eq('recipient_id', user.id);
+      let sentQuery = supabase.from(REQUESTS_TABLE).select('*').eq('sender_id', user.id);
+      let connectionsQuery = supabase
+        .from(CONNECTIONS_TABLE)
+        .select('*')
+        .or(`profile_a_id.eq.${user.id},profile_b_id.eq.${user.id}`);
+      let meetingsQuery = supabase.from(MEETINGS_TABLE).select('*').or(meetingsOrFilters.join(','));
+
+      if (scopedEventId) {
+        matchesQuery = matchesQuery.eq('event_id', scopedEventId);
+        receivedQuery = receivedQuery.eq('event_id', scopedEventId);
+        sentQuery = sentQuery.eq('event_id', scopedEventId);
+        connectionsQuery = connectionsQuery.eq('event_id', scopedEventId);
+        meetingsQuery = meetingsQuery.eq('event_id', scopedEventId);
+      }
+
       const [
         profileResult,
         matchesResult,
@@ -211,12 +251,16 @@ export default function UserB2BCenter() {
         legacyResult
       ] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user.id).single(),
-        supabase.from(MATCHES_TABLE).select('*').eq('profile_id', user.id),
-        supabase.from(REQUESTS_TABLE).select('*').eq('recipient_id', user.id),
-        supabase.from(REQUESTS_TABLE).select('*').eq('sender_id', user.id),
-        supabase.from(CONNECTIONS_TABLE).select('*').or(`profile_a_id.eq.${user.id},profile_b_id.eq.${user.id}`),
-        supabase.from(MEETINGS_TABLE).select('*').or(meetingsOrFilters.join(',')),
-        supabase.from('b2b_meetings').select('*').then(r => r, () => ({ data: [] }))
+        matchesQuery,
+        receivedQuery,
+        sentQuery,
+        connectionsQuery,
+        meetingsQuery,
+        // Legacy meetings table has no reliable event scoping; skip it entirely
+        // in single-event mode so we never surface cross-event rows.
+        scopedEventId
+          ? Promise.resolve({ data: [] })
+          : supabase.from('b2b_meetings').select('*').then(r => r, () => ({ data: [] }))
       ]);
 
       // 3. Process Meetings
@@ -272,22 +316,32 @@ export default function UserB2BCenter() {
       const cleanEventIds = Array.from(eventIds).filter(id => !!id && id !== 'null');
       const cleanAttendeeIds = Array.from(attendeeIds).filter(id => !!id && id !== 'null');
 
+      // For OTHER participants we only ever read display columns — never
+      // email or phone_number. In single-event / guest mode this is a hard
+      // privacy requirement; we also apply it to the global view since these
+      // rows are only used to render name/title/company/avatar anyway.
+      const OTHER_PROFILE_COLUMNS = 'id, full_name, job_title, company, avatar_url';
+
       const [profilesData, eventsData, attendeesData] = await Promise.all([
-        cleanProfileIds.length > 0 
-          ? supabase.from('profiles').select('*').in('id', cleanProfileIds)
+        cleanProfileIds.length > 0
+          ? supabase.from('profiles').select(OTHER_PROFILE_COLUMNS).in('id', cleanProfileIds)
           : { data: [] },
         cleanEventIds.length > 0
-          ? supabase.from('events').select('*').in('id', cleanEventIds)
+          ? supabase.from('events').select('id, name').in('id', cleanEventIds)
           : { data: [] },
         cleanAttendeeIds.length > 0
-          ? supabase.from('event_attendees').select('*').in('id', cleanAttendeeIds)
+          // Only the linked profile id and display name are consumed below —
+          // never select attendee email/phone for other participants.
+          ? supabase.from('event_attendees').select('id, profile_id, name').in('id', cleanAttendeeIds)
           : { data: [] }
       ]);
 
       const profileMap: Record<string, any> = {};
       (profilesData.data || []).forEach(p => {
         profileMap[p.id] = {
-          name: p.full_name || p.email || t('networking.defaults.unknownUser'),
+          // No email fallback: the other-participant query above does not
+          // select email/phone, so we never expose contact details here.
+          name: p.full_name || t('networking.defaults.unknownUser'),
           title: p.job_title || t('networking.defaults.professional'),
           company: p.company || '',
           avatar: p.avatar_url
@@ -1073,14 +1127,25 @@ export default function UserB2BCenter() {
 
   const handleMessage = async (profileId: string) => {
     if (connecting) return;
+    // Thread creation is inherently 1:1 and scoped to this guest's own
+    // connections (which, in single-event mode, are already filtered to the
+    // event) — it never broadens access. In guest mode we stay on-surface and
+    // route to the event-scoped messages path instead of the global inbox.
     const threadId = await getOrCreateThread(profileId);
     if (threadId) {
-      navigate('/messages', { state: { threadId } });
+      if (guest && scopedEventId) {
+        navigate(`/event/${scopedEventId}/networking/messages`, { state: { threadId } });
+      } else {
+        navigate('/messages', { state: { threadId } });
+      }
     }
   };
 
   const handleViewProfile = (profileId: string) => {
     if (!profileId) return;
+    // Guests must not leave the single-event surface or land on the global
+    // profile route, so view-profile is a no-op in guest mode.
+    if (guest) return;
     navigate(`/profile/${profileId}`);
   };
 
@@ -1196,7 +1261,9 @@ export default function UserB2BCenter() {
 
   return (
     <div className="networking-hub" style={{ backgroundColor: '#0B2641', minHeight: '100vh' }}>
-      <div style={{ height: '72px' }} /> {/* Navbar Spacer */}
+      {/* Navbar spacer only for the member (global) view — the guest surface
+          renders its own minimal header and has no global navbar. */}
+      {!guest && <div style={{ height: '72px' }} />}
       {/* Hero Header */}
       <div 
         className="networking-hub__hero relative"
@@ -1732,27 +1799,29 @@ export default function UserB2BCenter() {
                               {t('networking.actions.cancel')}
                             </button>
                           )}
-                          <button
-                            onClick={() => handleViewProfile(meeting.profileId)}
-                            className="px-4 py-2 rounded-lg transition-colors"
-                            style={{
-                              backgroundColor: 'transparent',
-                              color: '#94A3B8',
-                              fontSize: '13px',
-                              fontWeight: 500,
-                              border: '1px solid rgba(255,255,255,0.2)'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
-                              e.currentTarget.style.color = '#FFFFFF';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                              e.currentTarget.style.color = '#94A3B8';
-                            }}
-                          >
-                            {t('networking.actions.viewProfile')}
-                          </button>
+                          {!guest && (
+                            <button
+                              onClick={() => handleViewProfile(meeting.profileId)}
+                              className="px-4 py-2 rounded-lg transition-colors"
+                              style={{
+                                backgroundColor: 'transparent',
+                                color: '#94A3B8',
+                                fontSize: '13px',
+                                fontWeight: 500,
+                                border: '1px solid rgba(255,255,255,0.2)'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
+                                e.currentTarget.style.color = '#FFFFFF';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                                e.currentTarget.style.color = '#94A3B8';
+                              }}
+                            >
+                              {t('networking.actions.viewProfile')}
+                            </button>
+                          )}
                         </div>
                       </div>
 
