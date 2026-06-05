@@ -10,6 +10,7 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   isLoading: boolean;
+  accountType: 'user' | 'event_guest';
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -105,9 +106,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (user) await fetchProfile(user);
   }, [user]);
 
+  const accountType = ((session?.user ?? user)?.app_metadata?.account_type ?? 'user') as 'user' | 'event_guest';
+
   const value = useMemo(() => ({
-    user, session, profile, isLoading, signOut, refreshProfile
-  }), [user, session, profile, isLoading, signOut, refreshProfile]);
+    user, session, profile, isLoading, accountType, signOut, refreshProfile
+  }), [user, session, profile, isLoading, accountType, signOut, refreshProfile]);
 
   return (
     <AuthContext.Provider value={value}>
