@@ -87,7 +87,8 @@ So each guest gets **one hidden, minimal `profiles` row**:
   registered in. Any other route (`/dashboard`, `/my-profile`, `/my-networking`,
   `/messages`, settings, other events) redirects back to their networking surface.
 - A guest registered in multiple events may reach each of those events' surfaces, and
-  only those.
+  only those. The guard determines the allowed event set by querying `event_attendees`
+  for rows matching the session's `profile_id`.
 
 ### Access control (RLS)
 
@@ -132,7 +133,12 @@ So each guest gets **one hidden, minimal `profiles` row**:
 - **Deletion cascade**: deleting the guest auth user must cleanly remove the hidden
   profile and orphaned B2B rows without breaking the retained `event_attendees` record
   or the other party's view of a past connection. Define cascade/retention precisely
-  in the plan.
+  in the plan (soft-delete vs hard-delete of the `profiles` row that
+  `event_b2b_meetings`/suggestions/threads point at).
+- **Meetings dual-key**: `event_b2b_meetings` has both `attendee_a_id/attendee_b_id`
+  and `profile_a_id/profile_b_id`. Since this design keys on `profile_id`, the plan
+  must ensure guest meetings populate the `profile_*` columns so guests appear in
+  meeting views.
 - **Where `guest_expires_at` lives** (profiles column vs a `event_guest_passes` table)
   — decide in the implementation plan; a dedicated table is cleaner for multi-event.
 - **Cleanup mechanism**: pg_cron vs scheduled Edge Function — pick based on what's
