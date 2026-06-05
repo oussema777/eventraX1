@@ -160,6 +160,7 @@ export default function BusinessManagementDashboard() {
         const { data, error } = await supabase
           .from('profiles')
           .select('id, full_name, email, avatar_url')
+          .neq('account_type', 'event_guest')
           .or(`email.ilike.%${query}%,full_name.ilike.%${query}%`)
           .limit(5);
 
@@ -735,6 +736,7 @@ export default function BusinessManagementDashboard() {
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
         .select('id, full_name, email, avatar_url')
+        .neq('account_type', 'event_guest')
         .or(`email.eq."${searchEmail.trim()}",full_name.ilike."%${searchEmail.trim()}%"`)
         .limit(1);
 

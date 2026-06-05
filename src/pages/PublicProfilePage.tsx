@@ -101,7 +101,12 @@ export default function PublicProfilePage() {
     );
   }
 
-  if (error || !profile) {
+  // Event guests must not be exposed on the public/member-facing profile page.
+  // The only exception is a guest viewing their own profile.
+  const isGuestProfile = (profile as any)?.account_type === 'event_guest';
+  const viewingOwnGuestProfile = isGuestProfile && currentUser?.id === userId;
+
+  if (error || !profile || (isGuestProfile && !viewingOwnGuestProfile)) {
     return (
       <div className="min-h-screen bg-[#0B2641] flex flex-col items-center justify-center text-white p-4">
         <h2 className="text-2xl font-bold mb-4">{t('publicProfilePage.notFound.title')}</h2>

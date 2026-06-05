@@ -28,6 +28,7 @@ async function fetchCommunitySectors(): Promise<string[]> {
     const { data, error } = await supabase
       .from('profiles')
       .select('industry, b2b_profile')
+      .neq('account_type', 'event_guest')
       .range(from, to);
 
     if (error) throw error;

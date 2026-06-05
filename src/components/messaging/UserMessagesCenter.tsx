@@ -485,6 +485,7 @@ export default function UserMessagesCenter({ initialThreadId }: UserMessagesCent
       const { data } = await supabase
         .from('profiles')
         .select('id, full_name, email, job_title, department, company')
+        .neq('account_type', 'event_guest')
         .ilike('full_name', `%${newMessageSearch.trim()}%`)
         .limit(6);
       const results =
@@ -507,6 +508,7 @@ export default function UserMessagesCenter({ initialThreadId }: UserMessagesCent
           .from('profiles')
           .select('id, full_name, email, job_title, department, company')
           .neq('id', user.id)
+          .neq('account_type', 'event_guest')
           .order('full_name', { ascending: true })
           .limit(8);
         if (error) throw error;

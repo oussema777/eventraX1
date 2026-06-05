@@ -88,8 +88,9 @@ export default function CommunityPeopleDiscovery() {
       let query = supabase
         .from('profiles')
         .select('*')
+        .neq('account_type', 'event_guest')
         .range(from, to);
-      
+
       if (currentUser?.id) {
         query = query.neq('id', currentUser.id);
       }
