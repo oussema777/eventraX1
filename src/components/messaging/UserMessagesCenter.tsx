@@ -47,7 +47,17 @@ const THREADS_TABLE = 'message_threads';
 const PARTICIPANTS_TABLE = 'message_thread_participants';
 const MESSAGES_TABLE = 'message_messages';
 
-export default function UserMessagesCenter() {
+interface UserMessagesCenterProps {
+  /**
+   * When provided, the messaging center opens with this thread focused. Used
+   * when the component is embedded (e.g. the guest in-surface message modal)
+   * where router `location.state` cannot carry a thread id. Falls back to the
+   * router `location.state.threadId` (member full-page route) when omitted.
+   */
+  initialThreadId?: string;
+}
+
+export default function UserMessagesCenter({ initialThreadId }: UserMessagesCenterProps = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
@@ -66,7 +76,7 @@ export default function UserMessagesCenter() {
   const [newMessageResults, setNewMessageResults] = useState<Array<{ id: string; name: string; title?: string }>>([]);
   const [suggestedUsers, setSuggestedUsers] = useState<Array<{ id: string; name: string; title?: string }>>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
-  const requestedThreadId = (location.state as any)?.threadId as string | undefined;
+  const requestedThreadId = initialThreadId ?? ((location.state as any)?.threadId as string | undefined);
 
   const activeConversation = conversations.find(c => c.id === activeConversationId);
 

@@ -27,6 +27,7 @@ import { sanitizeError } from '../../utils/errorHandler';
 import { createNotification } from '../../lib/notifications';
 import { useI18n } from '../../i18n/I18nContext';
 import { useMessageThread } from '../../hooks/useMessageThread';
+import UserMessagesCenter from '../messaging/UserMessagesCenter';
 import BookMeetingModal from './BookMeetingModal';
 import { sendEmail, generateMeetingConfirmationEmailHtml, sendMeetingConfirmationEmails, sendMeetingCancelledEmail, sendConnectionRequestEmail, sendConnectionAcceptedEmail } from '../../lib/email';
 
@@ -144,6 +145,11 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
   const [activeMeeting, setActiveMeeting] = useState<Meeting | null>(null);
   const [activeMeetingEventId, setActiveMeetingEventId] = useState<string | undefined>(undefined);
   const [qrModalMeeting, setQrModalMeeting] = useState<Meeting | null>(null);
+
+  // Guest in-surface messaging: guests are locked to the single-event surface
+  // and cannot use the global /messages page, so we open the messaging UI in a
+  // modal overlay focused on the just-created thread instead of navigating.
+  const [guestMessageThreadId, setGuestMessageThreadId] = useState<string | null>(null);
 
   const { getOrCreateThread, loading: connecting } = useMessageThread();
 
@@ -1133,8 +1139,11 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
     // route to the event-scoped messages path instead of the global inbox.
     const threadId = await getOrCreateThread(profileId);
     if (threadId) {
-      if (guest && scopedEventId) {
-        navigate(`/event/${scopedEventId}/networking/messages`, { state: { threadId } });
+      if (guest) {
+        // Guests stay on-surface: open the messaging UI in an in-surface modal
+        // focused on this thread rather than navigating off the single-event
+        // surface (the global /messages route is off-limits for guests).
+        setGuestMessageThreadId(threadId);
       } else {
         navigate('/messages', { state: { threadId } });
       }
@@ -2210,6 +2219,63 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
             >
               Print / Save Ticket
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Guest in-surface messaging overlay. Guests cannot reach the global
+          /messages route, so the full messaging center (event-scoped to the
+          guest's own connections) is embedded here, focused on the just-created
+          thread. Members are unaffected — this branch only renders for guests. */}
+      {guest && guestMessageThreadId && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center"
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(4px)'
+          }}
+          onClick={() => setGuestMessageThreadId(null)}
+        >
+          <div
+            className="relative rounded-2xl overflow-hidden"
+            style={{
+              width: 'min(1100px, 95vw)',
+              height: 'min(720px, 90vh)',
+              backgroundColor: '#0B2641',
+              border: '1px solid rgba(255,255,255,0.12)',
+              boxShadow: '0px 20px 60px rgba(0,0,0,0.6)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setGuestMessageThreadId(null)}
+              aria-label={t('common.close', 'Close')}
+              className="absolute top-3 right-3 z-[110] flex items-center justify-center rounded-full transition-colors"
+              style={{
+                width: '36px',
+                height: '36px',
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                color: '#FFFFFF'
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)')}
+            >
+              <X size={20} />
+            </button>
+            {/* Force the embedded messaging center to fill the modal rather
+                than the viewport. UserMessagesCenter's root uses an inline
+                height:100vh / paddingTop:90px tuned for its full-page route;
+                we override both here without touching that component. */}
+            <div className="guest-messages-embed w-full h-full overflow-hidden">
+              <UserMessagesCenter initialThreadId={guestMessageThreadId} />
+            </div>
+            <style>{`
+              .guest-messages-embed > .messages-center {
+                height: 100% !important;
+                padding-top: 0 !important;
+                max-width: none !important;
+              }
+            `}</style>
           </div>
         </div>
       )}
