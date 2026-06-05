@@ -1,8 +1,9 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useNavigate, useParams } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/navigation/ProtectedRoute';
 import AdminRoute from './components/auth/AdminRoute';
+import { GuestAllowedEventRoute, GuestLockout } from './components/auth/GuestRouteGuard';
 import { useEventWizard } from './hooks/useEventWizard';
 import { lazy, Suspense, useEffect } from 'react';
 import { HelmetProvider } from 'react-helmet-async';
@@ -42,6 +43,7 @@ const EventSectionPage = lazy(() => import('./pages/EventSectionPage'));
 const SponsorshipInquiryPage = lazy(() => import('./pages/38_Sponsorship_Inquiry_Page'));
 const EventRegistrationFlow = lazy(() => import('./pages/32_Event_Registration_Flow'));
 const PublicProfilePage = lazy(() => import('./pages/PublicProfilePage'));
+const EventGuestNetworkingPage = lazy(() => import('./pages/99_Event_Guest_Networking'));
 
 // Protected pages — Dashboard
 const MyEventsDashboard = lazy(() => import('./pages/02_My_Events_Dashboard'));
@@ -156,8 +158,26 @@ export default function App() {
             <Route path="/event/:eventId/register" element={<EventRegistrationFlow />} />
             <Route path="/profile/:userId" element={<PublicProfilePage />} />
 
-            {/* Protected Routes */}
+            {/* Protected Routes — require an authenticated session (members OR event guests) */}
             <Route element={<ProtectedRoute />}>
+              {/* Event-guest networking surface.
+                  Lives inside ProtectedRoute (guests have a session) but is
+                  intentionally OUTSIDE GuestLockout so guests are NOT bounced
+                  away from it. GuestAllowedEventRoute lets members through and
+                  restricts guests to events they registered in. */}
+              <Route
+                path="/event/:eventId/networking"
+                element={
+                  <GuestAllowedEventRoute>
+                    <EventGuestNetworkingPage />
+                  </GuestAllowedEventRoute>
+                }
+              />
+
+              {/* Everything below is the normal member app. A logged-in event
+                  guest hitting any of these is bounced to their networking
+                  surface by GuestLockout. */}
+              <Route element={<GuestLockout><Outlet /></GuestLockout>}>
               {/* Admin Routes */}
               <Route element={<AdminRoute />}>
                 <Route path="/admin" element={<AdminDashboard />} />
@@ -192,6 +212,7 @@ export default function App() {
               <Route path="/messages" element={<UserMessagesCenterPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/pricing" element={<PricingPage />} />
+              </Route>{/* end GuestLockout */}
             </Route>
 
             {/* 404 Catch-all */}
