@@ -1,10 +1,24 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { Resend } = require('resend');
 
+// Load environment from the .env next to this file.
+// Node 20.12+/22 has this built in — no dotenv dependency required.
+try {
+  process.loadEnvFile(path.join(__dirname, '.env'));
+} catch (e) {
+  /* .env is optional; env vars may already be provided by the process manager */
+}
+
 const app = express();
-const PORT = 5000; // Your Nginx is likely proxying to this port
-const RESEND_KEY = 're_ZMze45ed_7J5Jut3C5REzRxzPmy64t2Ez';
+const PORT = process.env.EMAIL_PORT || 5000; // Nginx proxies /api/send-email to this port
+const RESEND_KEY = process.env.RESEND_API_KEY;
+
+if (!RESEND_KEY) {
+  console.error('[PROD_EMAIL] WARNING: RESEND_API_KEY is not set (.env or env) — emails will fail.');
+}
+
 const resend = new Resend(RESEND_KEY);
 
 app.use(cors());
@@ -12,7 +26,7 @@ app.use(express.json());
 
 app.post('/api/send-email', async (req, res) => {
   const { to, subject, html } = req.body;
-  
+
   console.log(`[PROD_EMAIL] Sending to: ${to} | Subject: ${subject}`);
 
   try {
@@ -37,8 +51,6 @@ app.post('/api/send-email', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`
-🚀 PRODUCTION EMAIL SERVER RUNNING ON PORT ${PORT}`);
-  console.log(`Endpoint: http://localhost:${PORT}/api/send-email
-`);
+  console.log(`\n🚀 PRODUCTION EMAIL SERVER RUNNING ON PORT ${PORT}`);
+  console.log(`Endpoint: http://localhost:${PORT}/api/send-email\n`);
 });
