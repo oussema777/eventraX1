@@ -120,6 +120,7 @@ Deno.serve(async (req: Request) => {
         company_description,
         sector,
         social_url,
+        account_type: 'event_guest',  // queryable marker so member-facing surfaces can exclude guests
       }).eq('id', userId);
     }
     // Case 4: no existing profile + not opted in → userId stays null, no account created
