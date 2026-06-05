@@ -62,21 +62,23 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: 'Event not found' }, 404);
     }
 
-    // --- Check/create user (only when B2B opted in) ---
+    // --- Resolve identity ---
+    // Always look up an existing profile so registered members get linked
+    // regardless of b2b_opt_in. New account creation is gated on b2b_opt_in.
     let userId: string | null = null;
     let isNewUser = false;
 
-    if (b2b_opt_in) {
-      // Look up existing user by email in profiles table (indexed, scalable)
-      const { data: existingProfile } = await supabaseAdmin
-        .from('profiles')
-        .select('id, phone_number, company, company_description, sector, social_url')
-        .eq('email', email.toLowerCase())
-        .maybeSingle();
+    const { data: existingProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('id, phone_number, company, company_description, sector, social_url')
+      .eq('email', email.toLowerCase())
+      .maybeSingle();
 
-      if (existingProfile) {
-        userId = existingProfile.id;
+    if (existingProfile) {
+      // Case 1 & 2: existing member — always link
+      userId = existingProfile.id;
 
+      if (b2b_opt_in) {
         // Enrich profile — fill empty fields only
         const updates: Record<string, any> = {};
         if (!existingProfile.phone_number) updates.phone_number = phone;
@@ -91,39 +93,41 @@ Deno.serve(async (req: Request) => {
         if (Object.keys(updates).length > 0) {
           await supabaseAdmin.from('profiles').update(updates).eq('id', userId);
         }
-      } else {
-        // Create new user via admin API
-        const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-          email,
-          email_confirm: true,
-          user_metadata: { full_name, phone, company: company_name },
-          app_metadata: { account_type: 'event_guest' },
-        });
-
-        if (createError || !newUser?.user) {
-          return jsonResponse({ error: 'Failed to create user', details: createError?.message }, 500);
-        }
-
-        userId = newUser.user.id;
-        isNewUser = true;
-
-        // Wait briefly for DB trigger to create profile row, then enrich
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        await supabaseAdmin.from('profiles').update({
-          full_name,
-          phone_number: phone,
-          company: company_name,
-          company_description,
-          sector,
-          social_url,
-        }).eq('id', userId);
       }
-    }
+    } else if (b2b_opt_in) {
+      // Case 3: no existing profile + opted in → create a new guest account
+      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        email_confirm: true,
+        user_metadata: { full_name, phone, company: company_name },
+        app_metadata: { account_type: 'event_guest' },
+      });
 
-    // --- Compute guest expiry (opt-in only: event end + 7 days) ---
+      if (createError || !newUser?.user) {
+        return jsonResponse({ error: 'Failed to create user', details: createError?.message }, 500);
+      }
+
+      userId = newUser.user.id;
+      isNewUser = true;
+
+      // Wait briefly for DB trigger to create profile row, then enrich
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      await supabaseAdmin.from('profiles').update({
+        full_name,
+        phone_number: phone,
+        company: company_name,
+        company_description,
+        sector,
+        social_url,
+      }).eq('id', userId);
+    }
+    // Case 4: no existing profile + not opted in → userId stays null, no account created
+
+    // --- Compute guest expiry (new guests only: event end + 7 days) ---
+    // Members (linked existing profiles) must never receive an expiry.
     const endDate = event.end_date ? new Date(event.end_date) : new Date(event.start_date);
-    const guestExpiresAt = b2b_opt_in
+    const guestExpiresAt = (b2b_opt_in && isNewUser)
       ? new Date(endDate.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()
       : null;
 
@@ -194,9 +198,9 @@ Deno.serve(async (req: Request) => {
       await supabaseAdmin.from('event_attendee_sessions').insert(sessionRows);
     }
 
-    // --- Generate magic link if B2B opted in ---
+    // --- Generate magic link if B2B opted in and a profile exists ---
     let magicLink: string | null = null;
-    if (b2b_opt_in) {
+    if (b2b_opt_in && userId) {
       // Supabase ignores relative redirectTo paths and falls back to the Site URL,
       // so we must pass a full, allow-listed URL. Use the caller's origin when
       // provided (works on localhost + production), else fall back to production.
