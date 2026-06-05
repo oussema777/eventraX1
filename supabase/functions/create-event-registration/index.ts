@@ -23,6 +23,7 @@ interface RegistrationPayload {
   ticket_color?: string;
   price?: number;
   selected_sessions?: string[];
+  redirect_base?: string;
 }
 
 function jsonResponse(body: Record<string, any>, status = 200) {
@@ -48,12 +49,12 @@ Deno.serve(async (req: Request) => {
     const payload: RegistrationPayload = await req.json();
     const { event_id, email, full_name, phone, company_name, company_description,
             interests, sector, social_url, b2b_opt_in, custom_fields,
-            ticket_type, ticket_color, price, selected_sessions } = payload;
+            ticket_type, ticket_color, price, selected_sessions, redirect_base } = payload;
 
     // --- Validate event exists and is active ---
     const { data: event, error: eventError } = await supabaseAdmin
       .from('events')
-      .select('id, title, name, status, date, max_capacity, owner_id')
+      .select('id, name, event_status, start_date, capacity_limit, owner_id')
       .eq('id', event_id)
       .single();
 
@@ -68,7 +69,7 @@ Deno.serve(async (req: Request) => {
     // Look up existing user by email in profiles table (indexed, scalable)
     const { data: existingProfile } = await supabaseAdmin
       .from('profiles')
-      .select('id, phone, company, company_description, sector, social_url, interests')
+      .select('id, phone_number, company, company_description, sector, social_url')
       .eq('email', email.toLowerCase())
       .maybeSingle();
 
@@ -77,12 +78,14 @@ Deno.serve(async (req: Request) => {
 
       // Enrich profile — fill empty fields only
       const updates: Record<string, any> = {};
-      if (!existingProfile.phone) updates.phone = phone;
+      if (!existingProfile.phone_number) updates.phone_number = phone;
       if (!existingProfile.company) updates.company = company_name;
       if (!existingProfile.company_description) updates.company_description = company_description;
       if (!existingProfile.sector) updates.sector = sector;
       if (!existingProfile.social_url) updates.social_url = social_url;
-      if (!existingProfile.interests || existingProfile.interests.length === 0) updates.interests = interests;
+      // Note: interests is intentionally not written to profiles — there is no
+      // profiles.interests column. Interests are persisted in event_attendees.meta
+      // (below), which is where B2B matching reads them.
 
       if (Object.keys(updates).length > 0) {
         await supabaseAdmin.from('profiles').update(updates).eq('id', userId);
@@ -108,12 +111,11 @@ Deno.serve(async (req: Request) => {
 
       await supabaseAdmin.from('profiles').update({
         full_name,
-        phone,
+        phone_number: phone,
         company: company_name,
         company_description,
         sector,
         social_url,
-        interests,
       }).eq('id', userId);
     }
 
@@ -186,10 +188,15 @@ Deno.serve(async (req: Request) => {
     // --- Generate magic link if B2B opted in ---
     let magicLink: string | null = null;
     if (b2b_opt_in) {
+      // Supabase ignores relative redirectTo paths and falls back to the Site URL,
+      // so we must pass a full, allow-listed URL. Use the caller's origin when
+      // provided (works on localhost + production), else fall back to production.
+      const base = (redirect_base || 'https://eventra.cloud').replace(/\/+$/, '');
+      const redirectUrl = `${base}/event-auth?redirect=/b2b/${event_id}`;
       const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
         type: 'magiclink',
         email,
-        options: { redirectTo: `/event-auth?redirect=/b2b/${event_id}` },
+        options: { redirectTo: redirectUrl },
       });
       magicLink = linkData?.properties?.action_link || null;
     }

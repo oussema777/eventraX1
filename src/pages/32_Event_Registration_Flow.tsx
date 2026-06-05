@@ -15,14 +15,9 @@ import {
   CreditCard,
   Upload,
   Globe,
-  Handshake,
-  UserPlus,
-  LogIn,
   X
 } from 'lucide-react';
 import Logo from '../components/ui/Logo';
-import ModalLogin from '../components/modals/ModalLogin';
-import ModalRegistrationEntry from '../components/modals/ModalRegistrationEntry';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import { sanitizeError } from '../utils/errorHandler';
@@ -86,9 +81,6 @@ export default function EventRegistrationFlow() {
 
   const [currentStep, setCurrentStep] = useState<RegistrationStep>(1);
   const [needsAccessCode, setNeedsAccessCode] = useState(false);
-  const [needsAccount, setNeedsAccount] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const [enteredCode, setEnteredCode] = useState('');
   const [codeError, setCodeError] = useState('');
   const [event, setEvent] = useState<any>(null);
@@ -124,13 +116,7 @@ export default function EventRegistrationFlow() {
 
   const generateConfirmationCode = () => 'EV-' + generateAccessCode(6);
 
-  // When user logs in while on the account-required gate, re-fetch event data
-  useEffect(() => {
-    if (needsAccount && user) {
-      setNeedsAccount(false);
-      fetchEventData();
-    }
-  }, [user, needsAccount]);
+  // Account gate removed — Edge Function auto-creates accounts for guest registrants
 
   useEffect(() => {
     if (eventId) {
@@ -164,12 +150,7 @@ export default function EventRegistrationFlow() {
         return;
       }
 
-      // Check if B2B event requires an Eventra account
-      if (eventData.attendee_settings?.requireAccountForB2B && !user) {
-        setNeedsAccount(true);
-        setIsLoading(false);
-        return;
-      }
+      // Account gate removed — Edge Function auto-creates accounts for guest registrants
 
       // 2. Fetch Sessions
       const { data: sessionData } = await supabase
@@ -476,35 +457,114 @@ export default function EventRegistrationFlow() {
         }
       });
 
-      // Call Edge Function for registration + account creation
-      const { data, error } = await supabase.functions.invoke('create-event-registration', {
-        body: {
-          event_id: eventId,
-          full_name: systemFields.fullName,
-          email: systemFields.email,
-          phone: `${systemFields.phoneCountryCode} ${systemFields.phone}`.trim(),
-          company_name: systemFields.companyName,
-          company_description: systemFields.companyDescription,
-          interests: systemFields.interests,
-          sector: systemFields.sector,
-          social_url: systemFields.socialUrl,
-          b2b_opt_in: systemFields.b2bOptIn,
-          custom_fields: customFields,
-          ticket_type: 'General Admission',
-          ticket_color: '#0684F5',
-          price: 0,
-          selected_sessions: Array.from(selectedSessions),
-        },
-      });
+      // Build registration meta (all form data for audit + B2B matching)
+      const confirmCode = `EVT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const registrationMeta: Record<string, any> = {
+        fullName: systemFields.fullName,
+        email: systemFields.email,
+        phone: `${systemFields.phoneCountryCode} ${systemFields.phone}`.trim(),
+        companyName: systemFields.companyName,
+        companyDescription: systemFields.companyDescription,
+        interests: systemFields.interests,
+        sector: systemFields.sector,
+        socialUrl: systemFields.socialUrl,
+        b2bOptIn: systemFields.b2bOptIn,
+        confirmation_code: confirmCode,
+        ...customFields,
+      };
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      // Try Edge Function first (handles account creation + magic link)
+      let edgeFnData: any = null;
+      try {
+        const { data, error } = await supabase.functions.invoke('create-event-registration', {
+          body: {
+            event_id: eventId,
+            full_name: systemFields.fullName,
+            email: systemFields.email,
+            phone: `${systemFields.phoneCountryCode} ${systemFields.phone}`.trim(),
+            company_name: systemFields.companyName,
+            company_description: systemFields.companyDescription,
+            interests: systemFields.interests,
+            sector: systemFields.sector,
+            social_url: systemFields.socialUrl,
+            b2b_opt_in: systemFields.b2bOptIn,
+            custom_fields: customFields,
+            ticket_type: 'General Admission',
+            ticket_color: '#0684F5',
+            price: 0,
+            selected_sessions: Array.from(selectedSessions),
+            redirect_base: window.location.origin,
+          },
+        });
+        if (!error && data && !data.error) {
+          edgeFnData = data;
+        } else {
+          console.warn('Edge Function error, falling back to direct insert:', error || data?.error);
+        }
+      } catch (efErr) {
+        console.warn('Edge Function unavailable, falling back to direct insert:', efErr);
+      }
+
+      let attendeeId: string;
+      let finalConfirmCode: string;
+      let alreadyRegistered = false;
+
+      if (edgeFnData) {
+        // Edge Function succeeded
+        attendeeId = edgeFnData.attendee_id;
+        finalConfirmCode = edgeFnData.confirmation_code;
+        alreadyRegistered = !!edgeFnData.already_registered;
+      } else {
+        // Fallback: direct insert (no account creation, but registration works)
+        const { data: attendee, error: regError } = await supabase
+          .from('event_attendees')
+          .insert({
+            event_id: eventId,
+            profile_id: user?.id || null,
+            email: systemFields.email,
+            name: systemFields.fullName,
+            ticket_type: 'General Admission',
+            ticket_color: '#0684F5',
+            price: 0,
+            status: 'registered',
+            meta: registrationMeta,
+          })
+          .select('id')
+          .single();
+
+        if (regError?.code === '23505') {
+          // Already registered
+          const { data: existing } = await supabase
+            .from('event_attendees')
+            .select('id, meta')
+            .eq('event_id', eventId)
+            .eq('email', systemFields.email)
+            .single();
+          attendeeId = existing?.id;
+          finalConfirmCode = existing?.meta?.confirmation_code || confirmCode;
+          alreadyRegistered = true;
+        } else if (regError) {
+          throw regError;
+        } else {
+          attendeeId = attendee.id;
+          finalConfirmCode = confirmCode;
+
+          // Insert session selections
+          if (selectedSessions.size > 0) {
+            const sessionRows = Array.from(selectedSessions).map(sid => ({
+              attendee_id: attendeeId,
+              session_id: sid,
+            }));
+            await supabase.from('event_attendee_sessions').insert(sessionRows);
+          }
+        }
+      }
 
       // Store confirmation data
-      setRegisteredAttendeeId(data.attendee_id);
-      setConfirmationCode(data.confirmation_code);
+      setRegisteredAttendeeId(attendeeId);
+      setConfirmationCode(finalConfirmCode);
 
-      if (data.already_registered) {
+      if (alreadyRegistered) {
         toast.success(t('registrationFlow.toasts.alreadyRegistered', { defaultValue: 'You are already registered for this event.' }));
       }
 
@@ -552,18 +612,19 @@ export default function EventRegistrationFlow() {
       // Send confirmation email (client-side)
       if (regNotifSettings.is_email_enabled) {
         const mySessions = sessions.filter(s => selectedSessions.has(s.id));
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${data.attendee_id}`;
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${attendeeId}`;
+        const magicLink = edgeFnData?.magic_link || null;
         const emailHtml = generateRegistrationEmailHtml(
           event?.name || 'Event',
           systemFields.fullName || 'Attendee',
           qrUrl,
           mySessions,
           !user,
-          data.magic_link || null
+          magicLink
         );
         await sendEmail({
           to: systemFields.email,
-          subject: data.magic_link
+          subject: magicLink
             ? `Registration Confirmed + B2B Access: ${event?.name}`
             : `Registration Confirmed: ${event?.name}`,
           html: emailHtml,
@@ -648,10 +709,20 @@ export default function EventRegistrationFlow() {
         systemFields.companyDescription.trim().length <= 500 &&
         systemFields.interests.length > 0 &&
         systemFields.sector.trim().length > 0 &&
-        /^https?:\/\/.+/.test(systemFields.socialUrl);
+        systemFields.socialUrl.trim().length > 0;
 
-      // Custom field validation (existing logic)
-      const requiredFields = formFields.filter(f => f.required);
+      // Custom field validation (exclude fields already covered by system fields)
+      const isSystemDuplicate = (label: string, type: string) => {
+        const l = label.toLowerCase();
+        return l.includes('full name') || l === 'name' || l === 'nom' ||
+          l.includes('email') || l.includes('e-mail') ||
+          (type === 'phone' && (l.includes('phone') || l.includes('téléphone') || l.includes('هاتف'))) ||
+          (l.includes('company') && !l.includes('size') && !l.includes('stage')) ||
+          l.includes('campany') ||
+          (l.includes('sector') || l.includes('secteur') || l.includes('قطاع')) ||
+          l.includes('entreprise');
+      };
+      const requiredFields = formFields.filter(f => f.required && !isSystemDuplicate(f.label, f.type));
       const emptyRequired = requiredFields.filter(f => {
         if (f.type === 'phone') {
           return !f.phoneNumber || f.phoneNumber.trim() === '';
@@ -1020,116 +1091,6 @@ export default function EventRegistrationFlow() {
     );
   }
 
-  if (needsAccount) {
-    const handleSwitchToLogin = () => {
-      setShowRegistrationModal(false);
-      setShowLoginModal(true);
-    };
-    const handleSwitchToSignup = () => {
-      setShowLoginModal(false);
-      setShowRegistrationModal(true);
-    };
-
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#0B2641' }}>
-        <div className="w-full max-w-md mx-4 rounded-2xl overflow-hidden" style={{ backgroundColor: '#0D243B', border: '1px solid rgba(255,255,255,0.08)' }}>
-          {/* Top accent bar */}
-          <div style={{ height: '4px', background: 'linear-gradient(90deg, #0684F5, #8B5CF6)' }} />
-
-          <div className="p-8 text-center">
-            {/* Icon */}
-            <div className="mx-auto mb-5 w-16 h-16 rounded-full flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, rgba(6,132,245,0.15), rgba(139,92,246,0.15))' }}>
-              <Handshake size={28} style={{ color: '#0684F5' }} />
-            </div>
-
-            {/* Title */}
-            <h2 className="text-xl font-bold text-white mb-2">
-              {t('event.accountRequiredTitle', { defaultValue: 'Create an Account to Register' })}
-            </h2>
-            <p className="text-sm mb-6" style={{ color: '#9CA3AF', lineHeight: 1.6 }}>
-              {t('event.accountRequiredReason', { defaultValue: 'This event includes B2B networking and matchmaking. An account lets you connect with other attendees, schedule meetings, and more.' })}
-            </p>
-
-            {/* Feature highlights */}
-            <div className="grid grid-cols-1 gap-3 mb-8 text-left">
-              {[
-                { icon: Handshake, text: t('event.b2bFeature1', { defaultValue: 'B2B matchmaking & meetings' }) },
-                { icon: Globe, text: t('event.b2bFeature2', { defaultValue: 'Attendee networking directory' }) },
-                { icon: Calendar, text: t('event.b2bFeature3', { defaultValue: 'Personalized session schedule' }) }
-              ].map((item, i) => (
-                <div key={i} className="flex items-center gap-3 px-4 py-3 rounded-lg"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}>
-                  <item.icon size={16} style={{ color: '#0684F5', flexShrink: 0 }} />
-                  <span className="text-sm" style={{ color: '#D1D5DB' }}>{item.text}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Action buttons */}
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={() => setShowRegistrationModal(true)}
-                className="w-full h-12 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 transition-all"
-                style={{
-                  background: 'linear-gradient(135deg, #0684F5, #0574D4)',
-                  boxShadow: '0 4px 14px rgba(6, 132, 245, 0.3)'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 6px 20px rgba(6, 132, 245, 0.45)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(6, 132, 245, 0.3)'; e.currentTarget.style.transform = 'translateY(0)'; }}
-              >
-                <UserPlus size={18} />
-                {t('event.createAccount', { defaultValue: 'Create Account' })}
-              </button>
-              <button
-                onClick={() => setShowLoginModal(true)}
-                className="w-full h-12 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all"
-                style={{
-                  backgroundColor: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  color: '#D1D5DB'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'; }}
-              >
-                <LogIn size={18} />
-                {t('event.alreadyHaveAccount', { defaultValue: 'Already have an account? Sign in' })}
-              </button>
-            </div>
-
-            {/* Back link */}
-            <button
-              onClick={() => navigate(`/event/${eventId}/landing`)}
-              className="mt-5 text-xs transition-colors"
-              style={{ color: '#6B7280' }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = '#9CA3AF'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = '#6B7280'; }}
-            >
-              {t('event.backToEvent', { defaultValue: '← Back to event page' })}
-            </button>
-          </div>
-        </div>
-
-        {/* Auth Modals */}
-        <ModalRegistrationEntry
-          isOpen={showRegistrationModal}
-          onClose={() => setShowRegistrationModal(false)}
-          onGoogleSignup={async () => setShowRegistrationModal(false)}
-          onEmailSignup={async () => setShowRegistrationModal(false)}
-          onLoginClick={handleSwitchToLogin}
-        />
-
-        <ModalLogin
-          isOpen={showLoginModal}
-          onClose={() => setShowLoginModal(false)}
-          onGoogleLogin={async () => setShowLoginModal(false)}
-          onLoginSuccess={() => setShowLoginModal(false)}
-          onSignUpClick={handleSwitchToSignup}
-        />
-      </div>
-    );
-  }
-
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0B2641]">
@@ -1318,8 +1279,19 @@ export default function EventRegistrationFlow() {
                   </div>
                 )}
 
-                {/* Custom fields from event form builder */}
-                {formFields.map((field) => (
+                {/* Custom fields from event form builder (filter out fields covered by system fields) */}
+                {formFields.filter(field => {
+                  const label = field.label.toLowerCase();
+                  const isSystemDuplicate =
+                    label.includes('full name') || label === 'name' || label === 'nom' ||
+                    label.includes('email') || label.includes('e-mail') ||
+                    (field.type === 'phone' && (label.includes('phone') || label.includes('téléphone') || label.includes('هاتف'))) ||
+                    (label.includes('company') && !label.includes('size') && !label.includes('stage')) ||
+                    (label.includes('campany')) ||
+                    (label.includes('sector') || label.includes('secteur') || label.includes('قطاع')) ||
+                    label.includes('entreprise');
+                  return !isSystemDuplicate;
+                }).map((field) => (
                   <div key={field.id}>
                     <label
                       style={{
