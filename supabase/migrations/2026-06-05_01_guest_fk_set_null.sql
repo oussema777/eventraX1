@@ -77,7 +77,7 @@ BEGIN
     END IF;
 
     -- ── 3. Make the column NULLable if it is currently NOT NULL ─────────────
-    SELECT NOT attnotnull
+    SELECT attnotnull
     INTO col_notnull
     FROM pg_attribute
     JOIN pg_class     ON pg_class.oid     = pg_attribute.attrelid
@@ -86,7 +86,7 @@ BEGIN
       AND pg_class.relname     = target.column2
       AND pg_attribute.attname = target.column3;
 
-    IF NOT col_notnull THEN
+    IF col_notnull THEN
       EXECUTE format(
         'ALTER TABLE %I.%I ALTER COLUMN %I DROP NOT NULL',
         target.column1, target.column2, target.column3
