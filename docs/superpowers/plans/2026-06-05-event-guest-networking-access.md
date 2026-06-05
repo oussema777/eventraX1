@@ -58,10 +58,17 @@ join information_schema.key_column_usage kcu on kcu.constraint_name = rc.constra
 where kcu.column_name in
   ('profile_id','matched_profile_id','sender_id','recipient_id','profile_a_id','profile_b_id')
   and tc.table_name in
-  ('event_attendees','event_b2b_suggestions','event_b2b_meetings','message_thread_participants');
+  ('event_attendees','b2b_matches','b2b_requests','b2b_connections','event_b2b_meetings','message_thread_participants');
 ```
 
 Expected: rows showing each FK and its current `delete_rule` (likely `NO ACTION`/`CASCADE`).
+
+> **Real B2B table names** (confirmed in `src/components/networking/UserB2BCenter.tsx`):
+> the member networking surface uses **`b2b_matches`** (`profile_id`/`matched_profile_id`),
+> **`b2b_requests`** (`sender_id`/`recipient_id`), **`b2b_connections`**
+> (`profile_a_id`/`profile_b_id`), **`event_b2b_meetings`**, and
+> **`message_thread_participants`**. `event_b2b_suggestions` is the *organizer-side*
+> table — do NOT use it for the guest surface's FKs/RLS.
 
 - [ ] **Step 2: Write the migration to set each to `SET NULL`**
 
@@ -75,10 +82,12 @@ alter table event_attendees
   add constraint event_attendees_profile_id_fkey
   foreign key (profile_id) references profiles(id) on delete set null;
 
--- Repeat for: event_b2b_suggestions.profile_id, .matched_profile_id;
---             event_b2b_meetings.profile_a_id, .profile_b_id;
---             connection request sender_id/recipient_id table;
---             message_thread_participants.profile_id (if FK exists).
+-- Repeat for the REAL B2B tables (confirm exact constraint names from Step 1):
+--   b2b_matches.profile_id, b2b_matches.matched_profile_id
+--   b2b_requests.sender_id, b2b_requests.recipient_id
+--   b2b_connections.profile_a_id, b2b_connections.profile_b_id
+--   event_b2b_meetings.profile_a_id, event_b2b_meetings.profile_b_id
+--   message_thread_participants.profile_id (if a FK exists)
 -- Each column MUST be nullable first:
 -- alter table <t> alter column <col> drop not null;
 ```
@@ -155,15 +164,23 @@ drop policy if exists guest_read_co_attendee_profiles on profiles;
 create policy guest_read_co_attendee_profiles on profiles
   for select using ( shares_event_with(id) );
 
--- B2B tables: allow access to rows for an event the caller is registered in.
--- (Adds to existing self-ownership policies; does not replace them.)
-drop policy if exists guest_event_scoped_suggestions on event_b2b_suggestions;
-create policy guest_event_scoped_suggestions on event_b2b_suggestions
+-- B2B tables the guest surface (UserB2BCenter) actually reads/writes:
+--   b2b_matches, b2b_requests, b2b_connections, event_b2b_meetings,
+--   message_thread_participants / message_threads.
+-- Add an event-scoped policy to each (in ADDITION to existing self-ownership policies).
+-- Pattern for tables that carry event_id (b2b_matches, b2b_requests, b2b_connections,
+-- event_b2b_meetings) — apply for SELECT and, where the surface writes, INSERT/UPDATE:
+drop policy if exists guest_event_scoped_matches on b2b_matches;
+create policy guest_event_scoped_matches on b2b_matches
   for select using (
     event_id in (select event_id from event_attendees where profile_id = auth.uid())
   );
--- Repeat the same event_id-in-my-events pattern for event_b2b_meetings (select/insert/update)
--- and the connection-requests table (select/insert/update).
+-- Repeat the identical event_id-in-my-events pattern for b2b_requests, b2b_connections,
+-- and event_b2b_meetings (add `with check (...)` for INSERT/UPDATE policies).
+-- Messaging: message_threads / message_thread_participants are MEMBERSHIP-scoped, not
+-- event_id-scoped — a guest may read/write a thread only if they are a participant
+-- (participant.profile_id = auth.uid()). Reuse/verify the existing thread RLS rather
+-- than adding event scoping there.
 ```
 
 - [ ] **Step 2: Run it in the SQL editor**
@@ -190,7 +207,15 @@ select public.shares_event_with('<co-attendee-profile-id>');  -- run impersonati
 ```
 (If impersonation is awkward in SQL, defer the true end-to-end RLS check to Task 11's e2e leak test and note that here.)
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Verify guests can insert cross-type notifications**
+
+A guest connecting with / messaging a full member must be able to insert a row in
+`notifications` for that member (a prior attempt hit RLS `42501`). From a guest session,
+run the insert the connect/message flow performs; if denied, add/adjust the
+`notifications` INSERT policy to allow an authenticated user to notify someone they
+share an event with: `with check ( shares_event_with(recipient_id) )`.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add supabase/migrations/2026-06-05_03_guest_rls.sql supabase/migrations/_checks/guest_rls_checks.sql
@@ -373,7 +398,7 @@ Verify the function's `redirectUrl` is `${base}/event-auth?redirect=/event/${eve
 
 - [ ] **Step 2: Confirm `/event-auth` allows the redirect**
 
-Check `isValidRedirectUrl` in `src/utils/security.ts` accepts a relative `/event/<id>/networking` path. If it rejects it, extend the allowlist.
+`isValidRedirectUrl` in `src/utils/security.ts` already returns true for any relative path starting with `/`, so `/event/<id>/networking` is accepted — confirm this still holds (no allowlist change expected).
 
 - [ ] **Step 3: Deploy + commit (if changed)**
 

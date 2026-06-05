@@ -44,10 +44,11 @@ auto-destroyed row.
 ### Why a hidden profile row is required
 
 The entire B2B engine identifies people by **`profile_id`** (`= auth.users.id`):
-`event_b2b_suggestions` (`profile_id`/`matched_profile_id`), connection requests
-(`sender_id`/`recipient_id`), `event_b2b_meetings` (`profile_a_id`/`profile_b_id`),
-and messaging (thread participants). For a guest to be matchable and messageable,
-they must have a profile to point at.
+`b2b_matches` (`profile_id`/`matched_profile_id`), `b2b_requests`
+(`sender_id`/`recipient_id`), `b2b_connections` (`profile_a_id`/`profile_b_id`),
+`event_b2b_meetings` (`profile_a_id`/`profile_b_id`), and messaging (thread
+participants). (`event_b2b_suggestions` is the organizer-side matchmaking table.)
+For a guest to be matchable and messageable, they must have a profile to point at.
 
 So each guest gets **one hidden, minimal `profiles` row**:
 - Auto-filled from registration data only (`full_name`, `company`, `sector`,
@@ -147,10 +148,11 @@ This runs only once **all** of a multi-event guest's events have passed their wi
 destroy the records we keep:
 - `event_attendees.profile_id` → `ON DELETE SET NULL` (retain the attendance record,
   null the link).
-- B2B `profile_*` columns — `event_b2b_meetings.profile_a_id/profile_b_id`,
-  `event_b2b_suggestions.profile_id/matched_profile_id`, request `sender_id/recipient_id`,
-  thread participants — → `ON DELETE SET NULL`, **never `CASCADE`**, so a counterpart's
-  history survives (resolved to the `attendee_*` identity for display).
+- B2B `profile_*` columns — `b2b_matches.profile_id/matched_profile_id`,
+  `b2b_requests.sender_id/recipient_id`, `b2b_connections.profile_a_id/profile_b_id`,
+  `event_b2b_meetings.profile_a_id/profile_b_id`, `message_thread_participants` —
+  → `ON DELETE SET NULL`, **never `CASCADE`**, so a counterpart's history survives
+  (resolved to the `attendee_*` identity for display).
 
 ### Data retention & redaction
 
