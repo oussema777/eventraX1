@@ -90,6 +90,9 @@ alter table event_attendees
 --   message_thread_participants.profile_id (if a FK exists)
 -- Each column MUST be nullable first:
 -- alter table <t> alter column <col> drop not null;
+-- IMPORTANT: only the profile_* FKs get SET NULL. Do NOT touch the attendee_*
+-- FKs (event_b2b_meetings.attendee_a_id/attendee_b_id) — they reference the
+-- retained event_attendees rows and must keep their existing behavior.
 ```
 
 - [ ] **Step 3: Run the migration in the SQL editor**

@@ -89,9 +89,9 @@ must enumerate and gate each, item by item — a single missed query is a privac
 ### The guest networking surface
 
 - **New route:** `/event/:eventId/networking` — the only destination for a guest.
-- **Content (scoped to that `event_id`):** Matches (from `event_b2b_suggestions`),
-  Connections (requests sent/received/accepted), Meetings (`event_b2b_meetings`),
-  Messages (`message_threads`/`messages`, 1:1 with connections).
+- **Content (scoped to that `event_id`):** Matches (from `b2b_matches`),
+  Connections (`b2b_requests`/`b2b_connections`, sent/received/accepted), Meetings
+  (`event_b2b_meetings`), Messages (`message_threads`/`messages`, 1:1 with connections).
 - **Reuse where coupling permits:** `UserB2BCenter` is built for full members (global
   cross-event aggregation, profile assumptions, full-app chrome). Extract its
   match/connection/meeting/message sections into a single-event, guest-safe view.
