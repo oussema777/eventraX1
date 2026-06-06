@@ -188,8 +188,8 @@ test.describe.serial("event-guest networking flow", () => {
       new RegExp(`/event/${EVENT_ID}/networking`)
     );
 
-    // The guest networking surface renders its "Networking" header label.
-    await expect(page.getByText(/^Networking$/i).first()).toBeVisible({
+    // The guest networking surface renders its "Networking Hub" header label.
+    await expect(page.getByText(/Networking Hub/i).first()).toBeVisible({
       timeout: 20_000,
     });
 
