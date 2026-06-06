@@ -8,6 +8,7 @@ const ALLOWED_ORIGINS = [
   'https://app.eventra.cloud',
   'https://eventra.cloud',
   'http://localhost:3000',
+  'http://localhost:5173',
 ];
 
 const server = http.createServer((req, res) => {

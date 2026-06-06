@@ -108,47 +108,50 @@ export default function WeeklyDigestSection({ userId, userInterests = [], userIn
   if (isLoading || events.length === 0) return null;
 
   return (
-    <section 
-      style={{ 
-        padding: '80px 20px', 
+    <section
+      style={{
+        padding: '80px 24px',
         backgroundColor: '#0B2641',
-        borderTop: '1px solid rgba(255,255,255,0.1)'
+        borderTop: '1px solid rgba(255,255,255,0.06)'
       }}
+      className="digest-section"
     >
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
+        <div className="digest-header" style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '40px' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0684F5', fontWeight: 600, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>
-              <Sparkles size={18} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0684F5', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>
+              <Sparkles size={16} />
               {t('landing.digest.tagline', 'Personalized for you')}
             </div>
-            <h2 style={{ fontSize: '36px', fontWeight: 700, color: '#FFFFFF' }}>
+            <h2 style={{ fontSize: 'clamp(1.75rem, 3vw + 0.5rem, 2.25rem)', fontWeight: 700, color: '#F1F5F9', letterSpacing: '-0.01em' }}>
               {t('landing.digest.title', 'Your Weekly Digest')}
             </h2>
-            <p style={{ fontSize: '18px', color: '#94A3B8', marginTop: '12px' }}>
+            <p style={{ fontSize: '1rem', color: 'rgba(148, 163, 184, 0.7)', marginTop: '8px' }}>
               {t('landing.digest.subtitle', 'A selection of events matched to your interests.')}
             </p>
           </div>
           <button
             onClick={() => navigate('/browse-events')}
             style={{
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
               color: '#0684F5',
-              fontSize: '16px',
+              fontSize: '14px',
               fontWeight: 600,
               background: 'none',
               border: 'none',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              padding: 0,
+              alignSelf: 'flex-start',
             }}
           >
             {t('landing.digest.viewAll', 'View all events')}
-            <ArrowRight size={18} />
+            <ArrowRight size={16} />
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+        <div className="digest-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
           {events.map((event) => (
             <div
               key={event.id}
@@ -218,6 +221,27 @@ export default function WeeklyDigestSection({ userId, userInterests = [], userIn
           ))}
         </div>
       </div>
+
+      <style>{`
+        @media (min-width: 640px) {
+          .digest-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+          .digest-header {
+            flex-direction: row !important;
+            justify-content: space-between !important;
+            align-items: flex-end !important;
+          }
+        }
+        @media (min-width: 900px) {
+          .digest-grid {
+            grid-template-columns: repeat(3, 1fr) !important;
+          }
+          .digest-section {
+            padding: 80px 48px !important;
+          }
+        }
+      `}</style>
     </section>
   );
 }

@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Loader2, Lock, Handshake, UserPlus, LogIn, Globe, Calendar } from 'lucide-react';
-import ModalLogin from '../modals/ModalLogin';
-import ModalRegistrationEntry from '../modals/ModalRegistrationEntry';
+import { Loader2, Lock, Globe, Calendar } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext';
 import { supabase } from '../../lib/supabase';
 import HeroBlock from '../design-studio/blocks/HeroBlock';
@@ -135,10 +133,6 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
   const { t } = useI18n();
   const [isLoading, setIsLoading] = useState(true);
   const [showAccessCodeModal, setShowAccessCodeModal] = useState(false);
-  const [showAccountRequiredModal, setShowAccountRequiredModal] = useState(false);
-  const [pendingB2BRegister, setPendingB2BRegister] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const [enteredCode, setEnteredCode] = useState('');
   const [codeError, setCodeError] = useState('');
   const [event, setEvent] = useState<EventRecord | null>(null);
@@ -158,14 +152,6 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
 
   const handleRegister = () => {
     if (!eventId) return;
-    // Check B2B account requirement first
-    if ((event as any)?.attendee_settings?.requireAccountForB2B && !user) {
-      setShowAccountRequiredModal(true);
-      setPendingB2BRegister(true);
-      // Persist across page reloads (Google OAuth redirect loses React state)
-      localStorage.setItem('pendingB2BRegister', `/event/${eventId}/register`);
-      return;
-    }
     if (event?.access_code) {
       setShowAccessCodeModal(true);
       setEnteredCode('');
@@ -175,23 +161,6 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
     }
   };
 
-  // Redirect to registration after B2B auth completes (handles both Google OAuth & email flows)
-  // Only fires when: user is authenticated, profile is complete, and pendingB2BRegister is in localStorage
-  useEffect(() => {
-    if (isLoadingAuth) return;
-    if (!user) return;
-    const pendingUrl = localStorage.getItem('pendingB2BRegister');
-    if (!pendingUrl) return;
-    // Wait until profile is fully loaded and complete (profile setup done)
-    if (!profile || !profile.full_name || profile.full_name === 'New User') return;
-    // All conditions met — redirect to event registration
-    localStorage.removeItem('pendingB2BRegister');
-    setPendingB2BRegister(false);
-    setShowAccountRequiredModal(false);
-    setShowLoginModal(false);
-    setShowRegistrationModal(false);
-    navigate(pendingUrl);
-  }, [user, profile, isLoadingAuth]);
 
   const handleAccessCodeSubmit = () => {
     if (enteredCode.toUpperCase() === (event?.access_code || '').toUpperCase()) {
@@ -659,86 +628,6 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
         );
       })}
 
-      {/* Account Required Modal (B2B) */}
-      {showAccountRequiredModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md mx-4 rounded-2xl overflow-hidden" style={{ backgroundColor: '#0D243B', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <div style={{ height: '4px', background: 'linear-gradient(90deg, #0684F5, #8B5CF6)' }} />
-            <div className="p-8 text-center">
-              <div className="mx-auto mb-5 w-16 h-16 rounded-full flex items-center justify-center"
-                style={{ background: 'linear-gradient(135deg, rgba(6,132,245,0.15), rgba(139,92,246,0.15))' }}>
-                <Handshake size={28} style={{ color: '#0684F5' }} />
-              </div>
-              <h2 className="text-xl font-bold text-white mb-2">
-                {t('event.accountRequiredTitle', { defaultValue: 'Create an Account to Register' })}
-              </h2>
-              <p className="text-sm mb-6" style={{ color: '#9CA3AF', lineHeight: 1.6 }}>
-                {t('event.accountRequiredReason', { defaultValue: 'This event includes B2B networking and matchmaking. An account lets you connect with other attendees, schedule meetings, and more.' })}
-              </p>
-              <div className="grid grid-cols-1 gap-3 mb-8 text-left">
-                {[
-                  { icon: Handshake, text: t('event.b2bFeature1', { defaultValue: 'B2B matchmaking & meetings' }) },
-                  { icon: Globe, text: t('event.b2bFeature2', { defaultValue: 'Attendee networking directory' }) },
-                  { icon: Calendar, text: t('event.b2bFeature3', { defaultValue: 'Personalized session schedule' }) }
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-3 px-4 py-3 rounded-lg"
-                    style={{ backgroundColor: 'rgba(255,255,255,0.04)' }}>
-                    <item.icon size={16} style={{ color: '#0684F5', flexShrink: 0 }} />
-                    <span className="text-sm" style={{ color: '#D1D5DB' }}>{item.text}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={() => { setShowAccountRequiredModal(false); setShowRegistrationModal(true); }}
-                  className="w-full h-12 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 transition-all"
-                  style={{ background: 'linear-gradient(135deg, #0684F5, #0574D4)', boxShadow: '0 4px 14px rgba(6, 132, 245, 0.3)' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 6px 20px rgba(6, 132, 245, 0.45)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(6, 132, 245, 0.3)'; e.currentTarget.style.transform = 'translateY(0)'; }}
-                >
-                  <UserPlus size={18} />
-                  {t('event.createAccount', { defaultValue: 'Create Account' })}
-                </button>
-                <button
-                  onClick={() => { setShowAccountRequiredModal(false); setShowLoginModal(true); }}
-                  className="w-full h-12 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#D1D5DB' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'; }}
-                >
-                  <LogIn size={18} />
-                  {t('event.alreadyHaveAccount', { defaultValue: 'Already have an account? Sign in' })}
-                </button>
-              </div>
-              <button
-                onClick={() => { setShowAccountRequiredModal(false); setPendingB2BRegister(false); localStorage.removeItem('pendingB2BRegister'); }}
-                className="mt-5 text-xs transition-colors"
-                style={{ color: '#6B7280' }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = '#9CA3AF'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = '#6B7280'; }}
-              >
-                {t('common.cancel', { defaultValue: 'Cancel' })}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Auth Modals — redirect is handled by the useEffect watching user+profile */}
-      <ModalRegistrationEntry
-        isOpen={showRegistrationModal}
-        onClose={() => setShowRegistrationModal(false)}
-        onGoogleSignup={async () => setShowRegistrationModal(false)}
-        onEmailSignup={async () => setShowRegistrationModal(false)}
-        onLoginClick={() => { setShowRegistrationModal(false); setShowLoginModal(true); }}
-      />
-      <ModalLogin
-        isOpen={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-        onGoogleLogin={async () => setShowLoginModal(false)}
-        onLoginSuccess={() => setShowLoginModal(false)}
-        onSignUpClick={() => { setShowLoginModal(false); setShowRegistrationModal(true); }}
-      />
 
       {/* Access Code Modal */}
       {showAccessCodeModal && (

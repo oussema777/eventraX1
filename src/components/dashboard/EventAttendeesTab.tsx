@@ -73,7 +73,7 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
   const [activeFilterTab, setActiveFilterTab] = useState('all');
   const [selectedAttendees, setSelectedAttendees] = useState<string[]>([]);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
+  // Export modal removed — direct CSV export now
 
   // View State
   const [isAdding, setIsAdding] = useState(false);
@@ -99,7 +99,7 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
   const [importing, setImporting] = useState(false);
 
   // Export state
-  const [exportType, setExportType] = useState<'attendees' | 'form_responses' | 'full'>('attendees');
+  // exportType state removed — single full export
   const [exporting, setExporting] = useState(false);
 
   const importInputRef = useRef<HTMLInputElement | null>(null);
@@ -368,7 +368,7 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
     URL.revokeObjectURL(url);
   };
 
-  const handleExport = async () => {
+  const handleExportAll = async () => {
     setExporting(true);
     try {
       const { data, error } = await supabase
@@ -380,100 +380,62 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
       if (error) throw error;
       const rows = data || [];
 
-      if (exportType === 'attendees') {
-        const header = ['Name', 'Email', 'Company', 'Phone', 'Ticket Type', 'Price', 'Status', 'Checked In', 'Check-in Time', 'Confirmation Code', 'Registered At', 'VIP'];
-        const csvRows = rows.map(r => [
-          escapeCSV(r.name || r.meta?.name),
-          escapeCSV(r.email || r.meta?.email),
-          escapeCSV(r.company || r.meta?.company),
-          escapeCSV(r.phone || r.meta?.phone),
+      if (rows.length === 0) {
+        toast.error('No attendees to export');
+        return;
+      }
+
+      // Collect all unique meta keys (custom form fields) across all attendees
+      const allMetaKeys = new Set<string>();
+      const systemKeys = new Set([
+        'name', 'email', 'company', 'phone', 'ticketType', 'ticketColor', 'price',
+        'isNew', 'photo', 'photo_url', 'fullName', 'confirmationCode'
+      ]);
+      rows.forEach(r => {
+        if (r.meta && typeof r.meta === 'object') {
+          Object.keys(r.meta).forEach(k => {
+            if (!systemKeys.has(k) && !k.startsWith('_')) {
+              allMetaKeys.add(k);
+            }
+          });
+        }
+      });
+      const metaKeysArr = Array.from(allMetaKeys).sort();
+
+      const header = [
+        'Name', 'Email', 'Company', 'Phone', 'Country',
+        'Ticket Type', 'Price', 'Status', 'VIP',
+        'Checked In', 'Check-in Time',
+        'Confirmation Code', 'Registered At',
+        ...metaKeysArr
+      ];
+      const csvRows = rows.map(r => {
+        const meta = r.meta || {};
+        return [
+          escapeCSV(r.name || meta.name || meta.fullName),
+          escapeCSV(r.email || meta.email),
+          escapeCSV(r.company || meta.company),
+          escapeCSV(r.phone || meta.phone),
+          escapeCSV(r.country || meta.country || ''),
           escapeCSV(r.ticket_type),
           escapeCSV(r.price),
           escapeCSV(r.status),
+          escapeCSV(r.is_vip ? 'Yes' : 'No'),
           escapeCSV(r.checked_in ? 'Yes' : 'No'),
-          escapeCSV(r.check_in_at || ''),
-          escapeCSV(r.confirmation_code || r.meta?.confirmationCode),
-          escapeCSV(r.created_at),
-          escapeCSV(r.is_vip ? 'Yes' : 'No')
-        ]);
-        downloadCSV(`attendees-export-${new Date().toISOString().slice(0, 10)}.csv`, header, csvRows);
-        toast.success('Attendees exported successfully');
-
-      } else if (exportType === 'form_responses') {
-        // Collect all unique meta keys across all attendees
-        const allMetaKeys = new Set<string>();
-        const systemKeys = new Set([
-          'name', 'email', 'company', 'phone', 'ticketType', 'ticketColor', 'price',
-          'isNew', 'photo', 'photo_url', 'fullName'
-        ]);
-        rows.forEach(r => {
-          if (r.meta && typeof r.meta === 'object') {
-            Object.keys(r.meta).forEach(k => {
-              if (!systemKeys.has(k) && !k.startsWith('_')) {
-                allMetaKeys.add(k);
-              }
-            });
-          }
-        });
-        const metaKeysArr = Array.from(allMetaKeys).sort();
-        const header = ['Name', 'Email', 'Confirmation Code', ...metaKeysArr];
-        const csvRows = rows.map(r => {
-          const meta = r.meta || {};
-          return [
-            escapeCSV(r.name || meta.name),
-            escapeCSV(r.email || meta.email),
-            escapeCSV(r.confirmation_code || meta.confirmationCode || ''),
-            ...metaKeysArr.map(k => {
-              const val = meta[k];
-              if (val === null || val === undefined) return '';
-              if (typeof val === 'object') return escapeCSV(JSON.stringify(val));
-              return escapeCSV(val);
-            })
-          ];
-        });
-        downloadCSV(`form-responses-export-${new Date().toISOString().slice(0, 10)}.csv`, header, csvRows);
-        toast.success('Form responses exported successfully');
-
-      } else {
-        // Full export: attendee info + all meta
-        const allMetaKeys = new Set<string>();
-        rows.forEach(r => {
-          if (r.meta && typeof r.meta === 'object') {
-            Object.keys(r.meta).forEach(k => {
-              if (!k.startsWith('_')) allMetaKeys.add(k);
-            });
-          }
-        });
-        const metaKeysArr = Array.from(allMetaKeys).sort();
-        const header = ['Name', 'Email', 'Company', 'Phone', 'Ticket Type', 'Price', 'Status', 'Checked In', 'Check-in Time', 'Confirmation Code', 'Registered At', 'VIP', ...metaKeysArr];
-        const csvRows = rows.map(r => {
-          const meta = r.meta || {};
-          return [
-            escapeCSV(r.name || meta.name),
-            escapeCSV(r.email || meta.email),
-            escapeCSV(r.company || meta.company),
-            escapeCSV(r.phone || meta.phone),
-            escapeCSV(r.ticket_type),
-            escapeCSV(r.price),
-            escapeCSV(r.status),
-            escapeCSV(r.checked_in ? 'Yes' : 'No'),
-            escapeCSV(r.check_in_at || ''),
-            escapeCSV(r.confirmation_code || meta.confirmationCode),
-            escapeCSV(r.created_at),
-            escapeCSV(r.is_vip ? 'Yes' : 'No'),
-            ...metaKeysArr.map(k => {
-              const val = meta[k];
-              if (val === null || val === undefined) return '';
-              if (typeof val === 'object') return escapeCSV(JSON.stringify(val));
-              return escapeCSV(val);
-            })
-          ];
-        });
-        downloadCSV(`full-attendee-export-${new Date().toISOString().slice(0, 10)}.csv`, header, csvRows);
-        toast.success('Full data exported successfully');
-      }
-
-      setShowExportModal(false);
+          escapeCSV(r.check_in_at ? new Date(r.check_in_at).toLocaleString() : ''),
+          escapeCSV(r.confirmation_code || meta.confirmationCode),
+          escapeCSV(r.created_at ? new Date(r.created_at).toLocaleString() : ''),
+          ...metaKeysArr.map(k => {
+            const val = meta[k];
+            if (val === null || val === undefined) return '';
+            if (Array.isArray(val)) return escapeCSV(val.join('; '));
+            if (typeof val === 'object') return escapeCSV(JSON.stringify(val));
+            return escapeCSV(val);
+          })
+        ];
+      });
+      downloadCSV(`attendees-export-${new Date().toISOString().slice(0, 10)}.csv`, header, csvRows);
+      toast.success(`${rows.length} attendees exported successfully`);
     } catch (e) {
       console.error('Export error:', e);
       toast.error('Export failed. Please try again.');
@@ -581,18 +543,6 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
   const capacityPercent = eventCapacity ? Math.min(Math.round((counts.total / eventCapacity) * 100), 100) : null;
 
   // Collect unique form field count for stats
-  const formFieldCount = useMemo(() => {
-    const allKeys = new Set<string>();
-    const systemKeys = new Set(['name', 'email', 'company', 'phone', 'ticketType', 'ticketColor', 'price', 'isNew', 'photo', 'photo_url', 'fullName', 'confirmationCode', 'Full Name', 'Email Address']);
-    attendees.forEach(a => {
-      if (a.meta && typeof a.meta === 'object') {
-        Object.keys(a.meta).forEach(k => {
-          if (!systemKeys.has(k) && !k.startsWith('_') && typeof a.meta[k] !== 'object') allKeys.add(k);
-        });
-      }
-    });
-    return allKeys.size;
-  }, [attendees]);
 
   return (
     <div
@@ -627,7 +577,8 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             {/* Export Button */}
             <button
-              onClick={() => setShowExportModal(true)}
+              onClick={handleExportAll}
+              disabled={exporting}
               style={{
                 height: '42px',
                 padding: '0 18px',
@@ -646,8 +597,8 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
               onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; }}
               onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
             >
-              <Download size={16} />
-              Export
+              {exporting ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Download size={16} />}
+              {exporting ? 'Exporting...' : 'Export CSV'}
             </button>
 
             {/* Refresh */}
@@ -1419,173 +1370,7 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
           </div>
         )}
 
-        {/* ═══════════════════ EXPORT MODAL ═══════════════════ */}
-        {showExportModal && (
-          <div
-            style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}
-            onClick={() => setShowExportModal(false)}
-          >
-            <div
-              className="att-animate"
-              onClick={(e) => e.stopPropagation()}
-              style={{ backgroundColor: '#0D243B', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '16px', width: '100%', maxWidth: '520px', overflow: 'hidden', boxShadow: '0 25px 60px rgba(0,0,0,0.5)' }}
-            >
-              {/* Header */}
-              <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: 'rgba(6,132,245,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Download size={20} style={{ color: '#0684F5' }} />
-                  </div>
-                  <div>
-                    <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF' }}>Export Data</h3>
-                    <p style={{ fontSize: '13px', color: '#64748B' }}>{counts.total} attendees available</p>
-                  </div>
-                </div>
-                <button onClick={() => setShowExportModal(false)} style={{ padding: '8px', color: '#64748B', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', borderRadius: '8px' }}>
-                  <X size={20} />
-                </button>
-              </div>
-
-              {/* Export Options */}
-              <div style={{ padding: '24px' }}>
-                <p style={{ fontSize: '12px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '14px' }}>Choose export type</p>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {/* Attendees Basic */}
-                  <div
-                    onClick={() => setExportType('attendees')}
-                    style={{
-                      padding: '16px',
-                      borderRadius: '12px',
-                      border: exportType === 'attendees' ? '2px solid #0684F5' : '1px solid rgba(255,255,255,0.08)',
-                      backgroundColor: exportType === 'attendees' ? 'rgba(6,132,245,0.08)' : 'rgba(255,255,255,0.03)',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s',
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '14px'
-                    }}
-                  >
-                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: 'rgba(6,132,245,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Users size={18} style={{ color: '#0684F5' }} />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>Attendee List</p>
-                      <p style={{ fontSize: '12px', color: '#64748B', lineHeight: '1.4' }}>Names, emails, companies, tickets, status, check-in data</p>
-                    </div>
-                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: exportType === 'attendees' ? '2px solid #0684F5' : '2px solid #334155', backgroundColor: exportType === 'attendees' ? '#0684F5' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '2px' }}>
-                      {exportType === 'attendees' && <Check size={12} style={{ color: '#FFFFFF', strokeWidth: 3 }} />}
-                    </div>
-                  </div>
-
-                  {/* Form Responses */}
-                  <div
-                    onClick={() => setExportType('form_responses')}
-                    style={{
-                      padding: '16px',
-                      borderRadius: '12px',
-                      border: exportType === 'form_responses' ? '2px solid #8B5CF6' : '1px solid rgba(255,255,255,0.08)',
-                      backgroundColor: exportType === 'form_responses' ? 'rgba(139,92,246,0.08)' : 'rgba(255,255,255,0.03)',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s',
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '14px'
-                    }}
-                  >
-                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: 'rgba(139,92,246,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <FileText size={18} style={{ color: '#8B5CF6' }} />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>Registration Form Responses</p>
-                      <p style={{ fontSize: '12px', color: '#64748B', lineHeight: '1.4' }}>All custom form field answers from registration{formFieldCount > 0 ? ` (${formFieldCount} custom fields detected)` : ''}</p>
-                    </div>
-                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: exportType === 'form_responses' ? '2px solid #8B5CF6' : '2px solid #334155', backgroundColor: exportType === 'form_responses' ? '#8B5CF6' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '2px' }}>
-                      {exportType === 'form_responses' && <Check size={12} style={{ color: '#FFFFFF', strokeWidth: 3 }} />}
-                    </div>
-                  </div>
-
-                  {/* Full Export */}
-                  <div
-                    onClick={() => setExportType('full')}
-                    style={{
-                      padding: '16px',
-                      borderRadius: '12px',
-                      border: exportType === 'full' ? '2px solid #10B981' : '1px solid rgba(255,255,255,0.08)',
-                      backgroundColor: exportType === 'full' ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.03)',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s',
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '14px'
-                    }}
-                  >
-                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: 'rgba(16,185,129,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <FileSpreadsheet size={18} style={{ color: '#10B981' }} />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>Full Export</p>
-                      <p style={{ fontSize: '12px', color: '#64748B', lineHeight: '1.4' }}>Everything: attendee info + all form responses + metadata</p>
-                    </div>
-                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: exportType === 'full' ? '2px solid #10B981' : '2px solid #334155', backgroundColor: exportType === 'full' ? '#10B981' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '2px' }}>
-                      {exportType === 'full' && <Check size={12} style={{ color: '#FFFFFF', strokeWidth: 3 }} />}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Format info */}
-                <div style={{ marginTop: '16px', padding: '12px 14px', borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <FileSpreadsheet size={16} style={{ color: '#64748B', flexShrink: 0 }} />
-                  <p style={{ fontSize: '12px', color: '#64748B' }}>
-                    Exports as <strong style={{ color: '#94A3B8' }}>CSV</strong> format — compatible with Excel, Google Sheets, and other spreadsheet tools
-                  </p>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
-                <button
-                  onClick={() => setShowExportModal(false)}
-                  style={{ padding: '0 18px', height: '42px', borderRadius: '10px', backgroundColor: 'transparent', border: 'none', color: '#64748B', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleExport}
-                  disabled={exporting}
-                  style={{
-                    padding: '0 24px',
-                    height: '42px',
-                    borderRadius: '10px',
-                    backgroundColor: exportType === 'form_responses' ? '#8B5CF6' : exportType === 'full' ? '#10B981' : '#0684F5',
-                    border: 'none',
-                    color: '#FFFFFF',
-                    fontSize: '13px',
-                    fontWeight: 700,
-                    cursor: exporting ? 'default' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    opacity: exporting ? 0.7 : 1,
-                    boxShadow: `0 4px 12px ${exportType === 'form_responses' ? 'rgba(139,92,246,0.25)' : exportType === 'full' ? 'rgba(16,185,129,0.25)' : 'rgba(6,132,245,0.25)'}`
-                  }}
-                >
-                  {exporting ? (
-                    <>
-                      <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
-                      Exporting...
-                    </>
-                  ) : (
-                    <>
-                      <Download size={16} />
-                      Export CSV
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Export modal removed — direct one-click CSV export */}
       </div>
     </div>
   );
