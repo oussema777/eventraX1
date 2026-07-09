@@ -179,7 +179,7 @@ export default function LandingPage() {
         <FeaturesSection />
         <HowItWorksSection />
         <TestimonialsSection />
-        <FinalCTASection onCreateEventClick={handleCreateEventClick} />
+        <FinalCTASection />
       </main>
 
       {/* Footer */}
