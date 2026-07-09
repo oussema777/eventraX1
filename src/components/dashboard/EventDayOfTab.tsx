@@ -704,6 +704,20 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
       }
     }
 
+    // 3b. Try the confirmation code stored in JSONB meta.
+    //     create-event-registration writes the "EVT-XXXX-XXXX" code to
+    //     meta.confirmation_code (there is no top-level confirmation_code
+    //     column), so this is what a manually-entered / pasted code matches.
+    if (!attendee) {
+      const { data } = await supabase
+        .from('event_attendees')
+        .select('*')
+        .eq('event_id', eventId)
+        .eq('meta->>confirmation_code', raw)
+        .maybeSingle();
+      if (data) attendee = data;
+    }
+
     // 4. Fallback: try without event_id filter
     if (!attendee && isUuid) {
       const { data } = await supabase
