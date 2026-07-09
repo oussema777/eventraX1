@@ -708,12 +708,14 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
     //     create-event-registration writes the "EVT-XXXX-XXXX" code to
     //     meta.confirmation_code (there is no top-level confirmation_code
     //     column), so this is what a manually-entered / pasted code matches.
+    //     Codes are generated uppercase, so normalize the input to uppercase
+    //     to make check-in case-insensitive (staff may retype in any case).
     if (!attendee) {
       const { data } = await supabase
         .from('event_attendees')
         .select('*')
         .eq('event_id', eventId)
-        .eq('meta->>confirmation_code', raw)
+        .eq('meta->>confirmation_code', raw.toUpperCase())
         .maybeSingle();
       if (data) attendee = data;
     }
