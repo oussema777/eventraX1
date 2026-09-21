@@ -18,6 +18,9 @@ import { useI18n } from '../i18n/I18nContext';
 import SEOHead from '../components/SEOHead';
 import { generateOrganizationJsonLd, generateBreadcrumbJsonLd, canonicalUrl } from '../utils/seo';
 
+// Temporary presentation mode: keep the full landing page available for an easy restore.
+const SHOW_FULL_LANDING_PAGE = false;
+
 export default function LandingPage() {
   // Authentication state
   const { user, profile, isLoading, signOut } = useAuth();
@@ -168,18 +171,22 @@ export default function LandingPage() {
       <main>
         <HeroSection onCreateEventClick={handleCreateEventClick} />
         
-        {user && isWeeklyDigestEnabled && (
-          <WeeklyDigestSection 
-            userId={user.id} 
-            userInterests={Array.isArray(profile?.b2b_profile?.industries_of_interest) ? profile.b2b_profile.industries_of_interest : []}
-            userIndustry={profile?.industry}
-          />
-        )}
+        {SHOW_FULL_LANDING_PAGE && (
+          <>
+            {user && isWeeklyDigestEnabled && (
+              <WeeklyDigestSection
+                userId={user.id}
+                userInterests={Array.isArray(profile?.b2b_profile?.industries_of_interest) ? profile.b2b_profile.industries_of_interest : []}
+                userIndustry={profile?.industry}
+              />
+            )}
 
-        <FeaturesSection />
-        <HowItWorksSection />
-        <TestimonialsSection />
-        <FinalCTASection />
+            <FeaturesSection />
+            <HowItWorksSection />
+            <TestimonialsSection />
+            <FinalCTASection />
+          </>
+        )}
       </main>
 
       {/* Footer */}

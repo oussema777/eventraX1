@@ -364,7 +364,8 @@ export default {
         newsletter: {
           title: 'ابقَ على اطلاع',
           subtitle: 'احصل على آخر الأخبار والتحديثات',
-          placeholder: 'بريدك الإلكتروني'
+          placeholder: 'بريدك الإلكتروني',
+          button: 'اشترك'
         },
         legal: {
           copyright: '© 2024 إيفينترا. جميع الحقوق محفوظة.',

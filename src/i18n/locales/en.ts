@@ -576,7 +576,8 @@ export default {
         newsletter: {
           title: 'Stay Updated',
           subtitle: 'Get the latest news and updates',
-          placeholder: 'Your email'
+          placeholder: 'Your email',
+          button: 'Subscribe'
         },
         legal: {
           copyright: '(c) 2024 Eventra. All rights reserved.',

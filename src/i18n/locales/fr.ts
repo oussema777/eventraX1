@@ -561,7 +561,8 @@ export default {
         newsletter: {
           title: 'Restez informe',
           subtitle: 'Recevez les dernieres nouvelles et mises a jour',
-          placeholder: 'Votre email'
+          placeholder: 'Votre email',
+          button: 'S\'abonner'
         },
         legal: {
           copyright: '(c) 2024 Eventra. Tous droits reserves.',

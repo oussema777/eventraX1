@@ -1,5 +1,6 @@
-import { Sparkles, Linkedin, Twitter, Facebook, Mail } from 'lucide-react';
+import { Linkedin, Twitter, Facebook, Mail } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext';
+import Logo from '../ui/Logo';
 
 export default function Footer() {
   const { t, tList } = useI18n();
@@ -14,19 +15,8 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
           {/* Column 1: Brand */}
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div 
-                className="w-8 h-8 rounded-lg flex items-center justify-center"
-                style={{ backgroundColor: 'var(--primary)' }}
-              >
-                <Sparkles size={20} style={{ color: 'white' }} />
-              </div>
-              <span 
-                className="text-2xl tracking-tight"
-                style={{ fontWeight: 700, color: 'white' }}
-              >
-                {t('brand.name')}
-              </span>
+            <div className="flex items-center mb-4">
+              <Logo size="lg" />
             </div>
             <p 
               className="text-sm mb-6"
@@ -139,7 +129,7 @@ export default function Footer() {
                 }}
               />
               <button 
-                className="px-4 py-2 rounded-lg text-sm transition-all hover:scale-105"
+                className="inline-flex shrink-0 items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm transition-all hover:scale-105"
                 style={{ 
                   backgroundColor: 'var(--primary)',
                   color: 'white',
@@ -147,6 +137,7 @@ export default function Footer() {
                 }}
               >
                 <Mail size={16} />
+                {t('landing.footer.newsletter.button')}
               </button>
             </div>
           </div>
