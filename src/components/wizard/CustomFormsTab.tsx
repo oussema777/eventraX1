@@ -1328,15 +1328,24 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                       {/* Common Fields */}
                       <div>
                         <h4 className="text-xs mb-3" style={{ fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                          Common Fields
+                          {t('wizard.step3.customForms.builder.categories.common')}
                         </h4>
                         <div className="space-y-2">
                           {[
-                            { icon: Phone, label: 'Phone Number', type: 'phone', isEditable: true, isSystem: false },
-                            { icon: MapPin, label: 'Country', type: 'country', isEditable: true, isSystem: false },
-                            { icon: Calendar, label: 'Date of Birth', type: 'date', isEditable: true },
-                            { icon: Users, label: 'Gender', type: 'dropdown', options: ['Male', 'Female'], isEditable: true },
-                            { icon: Hash, label: 'Age', type: 'number', isEditable: true }
+                            { icon: Phone, label: t('wizard.step3.customForms.builder.commonFields.phone'), type: 'phone', isEditable: true, isSystem: false },
+                            { icon: MapPin, label: t('wizard.step3.customForms.builder.commonFields.country'), type: 'country', isEditable: true, isSystem: false },
+                            { icon: Calendar, label: t('wizard.step3.customForms.builder.commonFields.dateOfBirth'), type: 'date', isEditable: true },
+                            {
+                              icon: Users,
+                              label: t('wizard.step3.customForms.builder.commonFields.gender'),
+                              type: 'dropdown',
+                              options: [
+                                t('wizard.step3.customForms.builder.commonFields.male'),
+                                t('wizard.step3.customForms.builder.commonFields.female')
+                              ],
+                              isEditable: true
+                            },
+                            { icon: Hash, label: t('wizard.step3.customForms.builder.commonFields.age'), type: 'number', isEditable: true }
                           ].map((field, idx) => {
                             const FieldIcon = field.icon;
                             return (

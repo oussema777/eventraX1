@@ -36,8 +36,10 @@ export default function AboutBlock({ showEditControls = true, brandColor, onEdit
   const heading = event?.name
     ? t('wizard.designStudio.about.headingWithName', { name: event.name })
     : t('wizard.designStudio.about.heading');
-  const primaryText = event?.description || t('wizard.designStudio.about.primaryText');
-  const secondaryText = event?.tagline || t('wizard.designStudio.about.secondaryText');
+  // Placeholder copy is useful in the editor, but should never leak onto a
+  // published event page when the organizer left the content empty.
+  const primaryText = event ? (event.description || '') : t('wizard.designStudio.about.primaryText');
+  const secondaryText = event ? (event.tagline || '') : t('wizard.designStudio.about.secondaryText');
   
   // Use event features if available, otherwise show no features (empty) instead of static defaults
   const features = event?.features || [];
@@ -141,7 +143,7 @@ export default function AboutBlock({ showEditControls = true, brandColor, onEdit
               {heading}
             </h2>
 
-            {primaryText.includes('<') ? (
+            {primaryText && (primaryText.includes('<') ? (
               <div
                 style={{
                   fontSize: '16px',
@@ -167,19 +169,21 @@ export default function AboutBlock({ showEditControls = true, brandColor, onEdit
               >
                 {primaryText}
               </p>
-            )}
+            ))}
 
-            <p
-              style={{
-                fontSize: '16px',
-                color: '#6F767E',
-                lineHeight: 1.6,
-                marginBottom: '24px',
-                whiteSpace: 'pre-line'
-              }}
-            >
-              {secondaryText}
-            </p>
+            {secondaryText && (
+              <p
+                style={{
+                  fontSize: '16px',
+                  color: '#6F767E',
+                  lineHeight: 1.6,
+                  marginBottom: '24px',
+                  whiteSpace: 'pre-line'
+                }}
+              >
+                {secondaryText}
+              </p>
+            )}
 
             {/* Feature List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

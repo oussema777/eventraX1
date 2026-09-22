@@ -69,6 +69,11 @@ export default function AgendaBlock({
     }
   }, [agendaDays]);
 
+  const localizeDayLabel = (day: AgendaDay) => {
+    const localizedPrefix = t('wizard.designStudio.agenda.dayNumber', { day: day.day });
+    return day.label.replace(/^Day\s+\d+/i, localizedPrefix);
+  };
+
   return (
     <div
       className="agenda-block-container"
@@ -207,7 +212,7 @@ export default function AgendaBlock({
                 }
               }}
             >
-              {day.label}
+              {localizeDayLabel(day)}
             </button>
           ))}
         </div>

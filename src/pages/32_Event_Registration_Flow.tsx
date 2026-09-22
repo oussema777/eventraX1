@@ -15,7 +15,8 @@ import {
   CreditCard,
   Upload,
   Globe,
-  X
+  X,
+  Search
 } from 'lucide-react';
 import Logo from '../components/ui/Logo';
 import { supabase } from '../lib/supabase';
@@ -96,6 +97,7 @@ export default function EventRegistrationFlow() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fileUploading, setFileUploading] = useState<Record<string, boolean>>({});
   const [countrySearch, setCountrySearch] = useState('');
+  const [phoneCountrySearch, setPhoneCountrySearch] = useState('');
 
   // System fields state (mandatory, always present)
   const [systemFields, setSystemFields] = useState({
@@ -396,6 +398,7 @@ export default function EventRegistrationFlow() {
     setFormFields(formFields.map(field => {
       if (field.id === fieldId && !field.readonly) {
         if (part === 'countryCode') {
+          setPhoneCountrySearch('');
           return { ...field, phoneCountryCode: value, isPhoneDropdownOpen: false };
         }
         if (part === 'number') {
@@ -407,8 +410,11 @@ export default function EventRegistrationFlow() {
   };
 
   const togglePhoneCountryDropdown = (fieldId: string) => {
+    setPhoneCountrySearch('');
     setFormFields(formFields.map(field =>
-      field.id === fieldId ? { ...field, isPhoneDropdownOpen: !field.isPhoneDropdownOpen } : field
+      field.id === fieldId
+        ? { ...field, isPhoneDropdownOpen: !field.isPhoneDropdownOpen }
+        : { ...field, isPhoneDropdownOpen: false }
     ));
   };
 
@@ -802,29 +808,71 @@ export default function EventRegistrationFlow() {
             <div className="relative" style={{ minWidth: '110px' }}>
               <button
                 type="button"
-                onClick={() => setIsPhoneCountryOpen(!isPhoneCountryOpen)}
+                onClick={() => {
+                  setPhoneCountrySearch('');
+                  setIsPhoneCountryOpen(!isPhoneCountryOpen);
+                }}
                 className="w-full flex items-center gap-1.5 px-2 py-2.5 rounded-lg border text-sm"
                 style={fieldStyle}
               >
-                <span>{toFlagEmoji(countries.find(c => c.phoneCode === systemFields.phoneCountryCode)?.code || '') || '🌍'}</span>
                 <span className="text-white/70 text-xs">{systemFields.phoneCountryCode}</span>
                 <ChevronDown size={12} className="ml-auto text-white/50" />
               </button>
               {isPhoneCountryOpen && (
-                <div className="absolute z-50 mt-1 w-64 max-h-48 overflow-y-auto rounded-lg border shadow-xl"
-                  style={{ backgroundColor: '#0D243B', borderColor: 'rgba(255,255,255,0.15)' }}>
-                  {countries.map(c => (
-                    <button
-                      key={c.code}
-                      type="button"
-                      onClick={() => { updateSystemField('phoneCountryCode', c.phoneCode); setIsPhoneCountryOpen(false); }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white hover:bg-white/10"
-                    >
-                      <span>{toFlagEmoji(c.code)}</span>
-                      <span>{c.name}</span>
-                      <span className="ml-auto text-white/50">{c.phoneCode}</span>
-                    </button>
-                  ))}
+                <div
+                  className="absolute z-50 mt-1 w-72 rounded-lg border shadow-xl"
+                  style={{
+                    backgroundColor: '#0D243B',
+                    borderColor: 'rgba(255,255,255,0.15)',
+                    maxHeight: 'min(320px, 50vh)',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column'
+                  }}
+                >
+                  <div className="p-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div className="flex items-center gap-2 rounded-md px-2.5" style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}>
+                      <Search size={14} className="text-white/50" />
+                      <input
+                        type="search"
+                        value={phoneCountrySearch}
+                        onChange={(e) => setPhoneCountrySearch(e.target.value)}
+                        placeholder={t('registrationFlow.searchCountry', { defaultValue: 'Search country...' })}
+                        autoFocus
+                        className="w-full bg-transparent py-2 text-xs text-white outline-none placeholder:text-white/40"
+                      />
+                    </div>
+                  </div>
+                  <div style={{ overflowY: 'auto', overscrollBehavior: 'contain', scrollbarGutter: 'stable', minHeight: 0 }}>
+                    {countries
+                      .filter(c => {
+                        const query = phoneCountrySearch.trim().toLowerCase();
+                        return !query || c.name.toLowerCase().includes(query) || c.code.toLowerCase().includes(query) || c.phoneCode.includes(query);
+                      })
+                      .map(c => (
+                        <button
+                          key={c.code}
+                          type="button"
+                          onClick={() => {
+                            updateSystemField('phoneCountryCode', c.phoneCode);
+                            setPhoneCountrySearch('');
+                            setIsPhoneCountryOpen(false);
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white hover:bg-white/10"
+                        >
+                          <span>{c.name}</span>
+                          <span className="ml-auto text-white/50">{c.phoneCode}</span>
+                        </button>
+                      ))}
+                    {!countries.some(c => {
+                      const query = phoneCountrySearch.trim().toLowerCase();
+                      return !query || c.name.toLowerCase().includes(query) || c.code.toLowerCase().includes(query) || c.phoneCode.includes(query);
+                    }) && (
+                      <div className="px-3 py-4 text-center text-xs text-white/50">
+                        {t('registrationFlow.noCountriesFound', { defaultValue: 'No countries found' })}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -1438,7 +1486,6 @@ export default function EventRegistrationFlow() {
                               }}
                             >
                               <span className="flex items-center gap-2">
-                                <span>{toFlagEmoji(field.phoneCountryCode || 'US')}</span>
                                 <span>{countries.find(c => c.code === (field.phoneCountryCode || 'US'))?.phoneCode}</span>
                               </span>
                               <ChevronDown size={16} style={{ color: '#6B7280' }} />
@@ -1446,33 +1493,62 @@ export default function EventRegistrationFlow() {
 
                             {field.isPhoneDropdownOpen && (
                               <div
-                                className="absolute top-full left-0 mt-1 w-[280px] rounded-lg shadow-lg z-10"
+                                className="absolute top-full left-0 mt-1 w-[300px] rounded-lg shadow-lg z-50"
                                 style={{
                                   backgroundColor: '#FFFFFF',
                                   border: '1px solid #E5E7EB',
-                                  maxHeight: '200px',
-                                  overflowY: 'auto'
+                                  maxHeight: 'min(320px, 50vh)',
+                                  overflow: 'hidden',
+                                  display: 'flex',
+                                  flexDirection: 'column'
                                 }}
                               >
-                                {countries.map((country) => (
-                                  <button
-                                    key={country.code}
-                                    type="button"
-                                    onClick={() => updatePhoneField(field.id, 'countryCode', country.code)}
-                                    className="w-full flex items-center gap-3 px-4 py-2.5 transition-colors"
-                                    style={{
-                                      border: 'none',
-                                      backgroundColor: field.phoneCountryCode === country.code ? '#F3F4F6' : 'transparent',
-                                      cursor: 'pointer',
-                                      textAlign: 'left'
-                                    }}
-                                  >
-                                    <span style={{ fontSize: '20px' }}>{toFlagEmoji(country.code)}</span>
-                                    <span style={{ fontSize: '14px', color: '#374151' }}>
-                                      {country.name} ({country.phoneCode})
-                                    </span>
-                                  </button>
-                                ))}
+                                <div style={{ padding: '8px', borderBottom: '1px solid #E5E7EB' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 10px', borderRadius: '6px', backgroundColor: '#F3F4F6' }}>
+                                    <Search size={14} style={{ color: '#6B7280' }} />
+                                    <input
+                                      type="search"
+                                      value={phoneCountrySearch}
+                                      onChange={(e) => setPhoneCountrySearch(e.target.value)}
+                                      placeholder={t('registrationFlow.searchCountry', { defaultValue: 'Search country...' })}
+                                      autoFocus
+                                      style={{ width: '100%', padding: '8px 0', border: 'none', outline: 'none', background: 'transparent', color: '#111827', fontSize: '13px' }}
+                                    />
+                                  </div>
+                                </div>
+                                <div style={{ overflowY: 'auto', overscrollBehavior: 'contain', scrollbarGutter: 'stable', minHeight: 0 }}>
+                                  {countries
+                                    .filter(country => {
+                                      const query = phoneCountrySearch.trim().toLowerCase();
+                                      return !query || country.name.toLowerCase().includes(query) || country.code.toLowerCase().includes(query) || country.phoneCode.includes(query);
+                                    })
+                                    .map((country) => (
+                                      <button
+                                        key={country.code}
+                                        type="button"
+                                        onClick={() => updatePhoneField(field.id, 'countryCode', country.code)}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 transition-colors"
+                                        style={{
+                                          border: 'none',
+                                          backgroundColor: field.phoneCountryCode === country.code ? '#F3F4F6' : 'transparent',
+                                          cursor: 'pointer',
+                                          textAlign: 'left'
+                                        }}
+                                      >
+                                        <span style={{ fontSize: '14px', color: '#374151' }}>
+                                          {country.name} ({country.phoneCode})
+                                        </span>
+                                      </button>
+                                    ))}
+                                  {!countries.some(country => {
+                                    const query = phoneCountrySearch.trim().toLowerCase();
+                                    return !query || country.name.toLowerCase().includes(query) || country.code.toLowerCase().includes(query) || country.phoneCode.includes(query);
+                                  }) && (
+                                    <div style={{ padding: '16px', textAlign: 'center', color: '#6B7280', fontSize: '13px' }}>
+                                      {t('registrationFlow.noCountriesFound', { defaultValue: 'No countries found' })}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>

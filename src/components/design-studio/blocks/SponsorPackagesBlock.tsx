@@ -38,41 +38,19 @@ export default function SponsorPackagesBlock({
   showEditControls = true,
   isLocked = false
 }: SponsorPackagesBlockProps) {
-  const { t } = useI18n();
+  const { t, tList } = useI18n();
   const [isHovered, setIsHovered] = useState(false);
 
-  const title = settings?.title || 'Sponsorship Opportunities';
-  const subtitle = settings?.subtitle || 'Partner with us to gain exclusive exposure to our community of innovators and industry leaders.';
+  const title = settings?.title || t('wizard.designStudio.sponsorPackages.title');
+  const subtitle = settings?.subtitle || t('wizard.designStudio.sponsorPackages.subtitle');
 
   // Default packages if none provided
-  const defaultPackages: SponsorPackage[] = [
-    {
-      id: 'platinum',
-      name: 'Platinum',
-      value: 25000,
-      color: '#C0C0C0',
-      benefits: ['Logo on Website', '3 Speaking Slots', 'VIP Dinner Access', 'Social Media Mentions', 'Premium Placement']
-    },
-    {
-      id: 'gold',
-      name: 'Gold',
-      value: 15000,
-      color: '#FFD700',
-      benefits: ['Logo Placement', '2 Speaking Slots', 'Attendee List Access', 'Marketing Materials']
-    },
-    {
-      id: 'silver',
-      name: 'Silver',
-      value: 10000,
-      color: '#A8A8A8',
-      benefits: ['Logo Placement', 'Marketing Materials', 'Social Media Mention']
-    }
-  ];
+  const defaultPackages = tList<SponsorPackage>('wizard.designStudio.sponsorPackages.defaultPackages', []);
 
   const displayPackages = packages.length > 0 ? packages : defaultPackages;
 
-  const getPackageIcon = (name: string) => {
-    const n = name.toLowerCase();
+  const getPackageIcon = (pkg: SponsorPackage) => {
+    const n = `${pkg.id} ${pkg.name}`.toLowerCase();
     if (n.includes('platinum')) return <Crown size={24} />;
     if (n.includes('gold')) return <Star size={24} />;
     if (n.includes('silver')) return <ShieldCheck size={24} />;
@@ -129,7 +107,7 @@ export default function SponsorPackagesBlock({
       {/* Edit Module */}
       {isHovered && showEditControls && !isLocked && (
         <EditModule 
-          blockName="Sponsorship Packages" 
+          blockName={t('wizard.designStudio.sponsorPackages.blockName')}
           onEdit={onEdit} 
         />
       )}
@@ -180,7 +158,7 @@ export default function SponsorPackagesBlock({
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em'
                   }}>
-                    Most Popular
+                    {t('wizard.designStudio.sponsorPackages.mostPopular')}
                   </div>
                 )}
 
@@ -196,7 +174,7 @@ export default function SponsorPackagesBlock({
                     justifyContent: 'center',
                     marginBottom: '20px'
                   }}>
-                    {getPackageIcon(pkg.name)}
+                    {getPackageIcon(pkg)}
                   </div>
                   <h3 style={{ fontSize: '24px', fontWeight: 800, color: '#111827', marginBottom: '8px' }}>
                     {pkg.name}
@@ -206,14 +184,14 @@ export default function SponsorPackagesBlock({
                       ${pkg.value.toLocaleString()}
                     </span>
                     <span style={{ fontSize: '14px', color: '#6B7280', fontWeight: 500 }}>
-                      / package
+                      {t('wizard.designStudio.sponsorPackages.perPackage')}
                     </span>
                   </div>
                 </div>
 
                 <div style={{ flex: 1, marginBottom: '40px' }}>
                   <p style={{ fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    What's included:
+                    {t('wizard.designStudio.sponsorPackages.included')}
                   </p>
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {pkg.benefits.map((benefit, i) => (
@@ -271,7 +249,7 @@ export default function SponsorPackagesBlock({
                     e.currentTarget.style.transform = 'translateY(0)';
                   }}
                 >
-                  {settings?.ctaText || 'Get Started'}
+                  {settings?.ctaText || t('wizard.designStudio.sponsorPackages.cta')}
                   <ArrowRight size={18} />
                 </button>
               </div>

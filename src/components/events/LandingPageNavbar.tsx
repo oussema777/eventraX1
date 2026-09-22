@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Users, Calendar, Mic, Store, ArrowRight, Check, Heart, Sparkles, Ticket } from 'lucide-react';
+import { useI18n } from '../../i18n/I18nContext';
 
 interface LandingPageNavbarProps {
   activeSections: {
@@ -20,6 +21,7 @@ interface LandingPageNavbarProps {
 
 export default function LandingPageNavbar({ activeSections, brandColor = '#635BFF', logoUrl, isRegistered = false, onNavigate, onRegister }: LandingPageNavbarProps) {
   const [isSticky, setIsSticky] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -65,43 +67,43 @@ export default function LandingPageNavbar({ activeSections, brandColor = '#635BF
             {activeSections.agenda && (
               <button onClick={() => onNavigate('agenda')} className="nav-item">
                 <Calendar size={18} className="nav-icon" />
-                <span className="nav-label">Agenda</span>
+                <span className="nav-label">{t('wizard.designStudio.navbar.agenda')}</span>
               </button>
             )}
             {activeSections.speakers && (
               <button onClick={() => onNavigate('speakers')} className="nav-item">
                 <Mic size={18} className="nav-icon" />
-                <span className="nav-label">Speakers</span>
+                <span className="nav-label">{t('wizard.designStudio.navbar.speakers')}</span>
               </button>
             )}
             {activeSections.exhibitors && (
               <button onClick={() => onNavigate('exhibitors')} className="nav-item">
                 <Store size={18} className="nav-icon" />
-                <span className="nav-label">Exhibitors</span>
+                <span className="nav-label">{t('wizard.designStudio.navbar.exhibitors')}</span>
               </button>
             )}
             {activeSections.sponsors && (
               <button onClick={() => onNavigate('sponsors')} className="nav-item">
                 <Heart size={18} className="nav-icon" />
-                <span className="nav-label">Sponsors</span>
+                <span className="nav-label">{t('wizard.designStudio.navbar.sponsors')}</span>
               </button>
             )}
             {activeSections.packages && (
               <button onClick={() => onNavigate('packages')} className="nav-item">
                 <Sparkles size={18} className="nav-icon" />
-                <span className="nav-label">Packages</span>
+                <span className="nav-label">{t('wizard.designStudio.navbar.packages')}</span>
               </button>
             )}
             {activeSections.tickets && (
               <button onClick={() => onNavigate('tickets')} className="nav-item">
                 <Ticket size={18} className="nav-icon" />
-                <span className="nav-label">Tickets</span>
+                <span className="nav-label">{t('wizard.designStudio.navbar.tickets')}</span>
               </button>
             )}
             {activeSections.attendees && (
               <button onClick={() => onNavigate('attendees')} className="nav-item">
                 <Sparkles size={18} className="nav-icon" />
-                <span className="nav-label">B2B Networking</span>
+                <span className="nav-label">{t('wizard.designStudio.navbar.networking')}</span>
               </button>
             )}
           </div>
@@ -130,7 +132,7 @@ export default function LandingPageNavbar({ activeSections, brandColor = '#635BF
               }}
             >
               <Check size={18} />
-              <span className="btn-text-mobile">Registered</span>
+              <span className="btn-text-mobile">{t('wizard.designStudio.navbar.registered')}</span>
             </div>
           ) : (
             <button
@@ -154,7 +156,7 @@ export default function LandingPageNavbar({ activeSections, brandColor = '#635BF
                 transition: 'all 0.3s ease'
               }}
             >
-              <span className="btn-text-mobile">Register</span>
+              <span className="btn-text-mobile">{t('wizard.designStudio.navbar.register')}</span>
               <ArrowRight size={18} />
             </button>
           )}

@@ -712,7 +712,8 @@ export default {
         lastName: 'Dupont',
         phoneNumber: '06 12 34 56 78',
         country: 'Selectionnez votre pays',
-        searchCountry: 'Rechercher un pays...',
+        searchCountry: 'Rechercher un pays ou un indicatif...',
+        noCountriesFound: 'Aucun pays trouvé',
         jobTitle: 'ex: Chef de Produit',
         company: 'ex: Acme Inc.',
         industry: 'Selectionnez votre industrie',
@@ -783,6 +784,8 @@ export default {
       locked: 'Verrouillé',
       selectOption: 'Sélectionner une option...',
       selectCountry: 'Sélectionner un pays',
+      searchCountry: 'Rechercher un pays ou un indicatif...',
+      noCountriesFound: 'Aucun pays trouvé',
       phoneNumber: 'Numéro de téléphone',
       fileUploaded: 'Fichier téléchargé',
       clickToUpload: 'Cliquer pour télécharger',
@@ -4489,8 +4492,18 @@ export default {
             },
             categories: {
               basic: 'Champs de base',
+              common: 'Champs courants',
               choice: 'Champs de choix',
               advanced: 'Avances'
+            },
+            commonFields: {
+              phone: 'Numéro de téléphone',
+              country: 'Pays',
+              dateOfBirth: 'Date de naissance',
+              gender: 'Genre',
+              male: 'Homme',
+              female: 'Femme',
+              age: 'Âge'
             },
             fieldLabels: {
               shortText: 'Texte court',
@@ -5395,12 +5408,12 @@ export default {
           secondaryCta: 'En savoir plus'
         },
         about: {
-          blockName: 'A propos',
-          eyebrow: "A propos de l'evenement",
-          heading: "A propos de cet evenement",
-          headingWithName: 'A propos de {name}',
-          primaryText: "Racontez l'histoire de l'evenement et ce que les participants vont vivre.",
-          secondaryText: 'Mettez en avant les sujets, intervenants et points clefs.',
+          blockName: 'À propos',
+          eyebrow: "À propos de l'événement",
+          heading: "À propos de cet événement",
+          headingWithName: '{name}',
+          primaryText: "Racontez l'histoire de l'événement et ce que les participants vont vivre.",
+          secondaryText: 'Mettez en avant les sujets, intervenants et points clés.',
           features: [
             'Experts du secteur et panels',
             'Ateliers pratiques et reseautage',
@@ -5412,9 +5425,20 @@ export default {
           },
           imagePlaceholder: 'Image'
         },
+        navbar: {
+          agenda: 'Agenda',
+          speakers: 'Intervenants',
+          exhibitors: 'Exposants',
+          sponsors: 'Sponsors',
+          packages: 'Formules',
+          tickets: 'Billets',
+          networking: 'Réseautage B2B',
+          registered: 'Inscrit',
+          register: "S'inscrire"
+        },
         details: {
-          blockName: 'Details',
-          title: "Details de l'evenement",
+          blockName: 'Détails',
+          title: "Détails de l'événement",
           labels: {
             when: 'Quand',
             where: 'Ou',
@@ -5452,6 +5476,7 @@ export default {
           blockName: 'Agenda',
           title: 'Agenda',
           subtitle: 'Explorez les sessions et le programme.',
+          dayNumber: 'Jour {day}',
           actions: {
             addSession: 'Ajouter une session',
             manageSchedule: "Gerer l'agenda"
@@ -5488,6 +5513,35 @@ export default {
               location: 'Salle B',
               tags: ['Operations']
             }
+          ]
+        },
+        networkingBlock: {
+          blockName: 'Réseautage B2B',
+          live: 'Réseautage en direct',
+          title: 'Créez des connexions B2B à forte valeur',
+          subtitle: 'Mise en relation intelligente et rendez-vous individuels',
+          description: "Notre plateforme facilite des relations d'affaires pertinentes. Consultez la liste des participants, identifiez les contacts clés et planifiez des rendez-vous avant même le début de l'événement.",
+          cta: 'Explorer le centre de réseautage',
+          ready: 'Prêt à réseauter ?',
+          join: 'Rejoindre la communauté',
+          stats: {
+            participants: 'Participants',
+            meetings: 'Rendez-vous',
+            matchRate: 'Taux de correspondance'
+          }
+        },
+        sponsorPackages: {
+          blockName: 'Formules de sponsoring',
+          title: 'Opportunités de sponsoring',
+          subtitle: "Devenez partenaire pour bénéficier d'une visibilité exclusive auprès de notre communauté d'innovateurs et de leaders du secteur.",
+          mostPopular: 'Le plus populaire',
+          perPackage: '/ formule',
+          included: 'Ce qui est inclus :',
+          cta: 'Commencer',
+          defaultPackages: [
+            { id: 'platinum', name: 'Platine', value: 25000, color: '#C0C0C0', benefits: ['Logo sur le site web', '3 prises de parole', 'Accès au dîner VIP', 'Mentions sur les réseaux sociaux', 'Placement premium'] },
+            { id: 'gold', name: 'Or', value: 15000, color: '#FFD700', benefits: ['Placement du logo', '2 prises de parole', 'Accès à la liste des participants', 'Supports marketing'] },
+            { id: 'silver', name: 'Argent', value: 10000, color: '#A8A8A8', benefits: ['Placement du logo', 'Supports marketing', 'Mention sur les réseaux sociaux'] }
           ]
         },
         tickets: {

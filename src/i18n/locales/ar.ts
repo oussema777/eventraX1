@@ -2234,6 +2234,8 @@ export default {
       locked: 'مقفل',
       selectOption: 'اختر خيارًا...',
       selectCountry: 'اختر البلد',
+      searchCountry: 'ابحث عن دولة أو رمز اتصال...',
+      noCountriesFound: 'لم يتم العثور على دول',
       phoneNumber: 'رقم الهاتف',
       fileUploaded: 'تم رفع الملف',
       clickToUpload: 'انقر للرفع',
@@ -3197,8 +3199,18 @@ export default {
             },
             categories: {
               basic: 'حقول أساسية',
+              common: 'حقول شائعة',
               choice: 'حقول الاختيار',
               advanced: 'متقدم'
+            },
+            commonFields: {
+              phone: 'رقم الهاتف',
+              country: 'الدولة',
+              dateOfBirth: 'تاريخ الميلاد',
+              gender: 'الجنس',
+              male: 'ذكر',
+              female: 'أنثى',
+              age: 'العمر'
             },
             fieldLabels: {
               shortText: 'نص قصير',
@@ -4555,7 +4567,7 @@ export default {
           blockName: 'حول',
           eyebrow: 'حول الفعالية',
           heading: 'حول هذه الفعالية',
-          headingWithName: 'حول {name}',
+          headingWithName: '{name}',
           primaryText: 'شارك قصة فعاليتك وما يمكن أن يتوقعه الحضور.',
           secondaryText: 'أبرز المواضيع الرئيسية والمتحدثين والنتائج.',
           actions: {
@@ -4563,6 +4575,17 @@ export default {
             editContent: 'تعديل المحتوى'
           },
           imagePlaceholder: 'صورة'
+        },
+        navbar: {
+          agenda: 'البرنامج',
+          speakers: 'المتحدثون',
+          exhibitors: 'العارضون',
+          sponsors: 'الرعاة',
+          packages: 'الباقات',
+          tickets: 'التذاكر',
+          networking: 'تواصل الأعمال',
+          registered: 'مسجل',
+          register: 'سجل الآن'
         },
         details: {
           blockName: 'التفاصيل',
@@ -4599,10 +4622,40 @@ export default {
           blockName: 'جدول الأعمال',
           title: 'جدول الأعمال',
           subtitle: 'استكشف الجلسات والبرنامج.',
+          dayNumber: 'اليوم {day}',
           actions: {
             addSession: 'إضافة جلسة',
             manageSchedule: 'إدارة البرنامج'
           }
+        },
+        networkingBlock: {
+          blockName: 'تواصل الأعمال',
+          live: 'التواصل مباشر',
+          title: 'أنشئ علاقات أعمال عالية القيمة',
+          subtitle: 'مطابقة ذكية واجتماعات فردية',
+          description: 'تسهّل منصتنا بناء علاقات أعمال مفيدة. تصفح قائمة الحضور وحدد جهات الاتصال المهمة وجدول الاجتماعات قبل بدء الفعالية.',
+          cta: 'استكشف مركز التواصل',
+          ready: 'هل أنت مستعد للتواصل؟',
+          join: 'انضم إلى المجتمع',
+          stats: {
+            participants: 'المشاركون',
+            meetings: 'الاجتماعات',
+            matchRate: 'نسبة التطابق'
+          }
+        },
+        sponsorPackages: {
+          blockName: 'باقات الرعاية',
+          title: 'فرص الرعاية',
+          subtitle: 'كن شريكاً معنا واحصل على ظهور مميز أمام مجتمع المبتكرين وقادة القطاع.',
+          mostPopular: 'الأكثر شعبية',
+          perPackage: '/ باقة',
+          included: 'المزايا المتضمنة:',
+          cta: 'ابدأ الآن',
+          defaultPackages: [
+            { id: 'platinum', name: 'بلاتيني', value: 25000, color: '#C0C0C0', benefits: ['الشعار على الموقع', '3 فرص للتحدث', 'دخول عشاء VIP', 'ذكر على شبكات التواصل', 'موضع مميز'] },
+            { id: 'gold', name: 'ذهبي', value: 15000, color: '#FFD700', benefits: ['عرض الشعار', 'فرصتان للتحدث', 'الوصول إلى قائمة الحضور', 'مواد تسويقية'] },
+            { id: 'silver', name: 'فضي', value: 10000, color: '#A8A8A8', benefits: ['عرض الشعار', 'مواد تسويقية', 'ذكر على شبكات التواصل'] }
+          ]
         },
         tickets: {
           blockName: 'التذاكر',

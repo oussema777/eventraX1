@@ -31,15 +31,15 @@ export default function NetworkingBlock({
   const { t } = useI18n();
   const [isHovered, setIsHovered] = useState(false);
 
-  const title = settings?.title || 'Unlock High-Value B2B Connections';
-  const subtitle = settings?.subtitle || 'AI-Powered Matchmaking & 1-on-1 Meetings';
-  const description = settings?.description || 'Our platform facilitates meaningful business relationships. Browse the attendee list, identify key stakeholders, and schedule meetings before the event even starts.';
-  const ctaText = settings?.ctaText || 'Explore Networking Center';
+  const title = settings?.title || t('wizard.designStudio.networkingBlock.title');
+  const subtitle = settings?.subtitle || t('wizard.designStudio.networkingBlock.subtitle');
+  const description = settings?.description || t('wizard.designStudio.networkingBlock.description');
+  const ctaText = settings?.ctaText || t('wizard.designStudio.networkingBlock.cta');
 
   const stats = [
-    { icon: <Users size={20} />, label: 'Participants', value: '500+' },
-    { icon: <Handshake size={20} />, label: 'Meetings', value: '200+' },
-    { icon: <Zap size={20} />, label: 'Match Rate', value: '85%' }
+    { icon: <Users size={20} />, label: t('wizard.designStudio.networkingBlock.stats.participants'), value: '500+' },
+    { icon: <Handshake size={20} />, label: t('wizard.designStudio.networkingBlock.stats.meetings'), value: '200+' },
+    { icon: <Zap size={20} />, label: t('wizard.designStudio.networkingBlock.stats.matchRate'), value: '85%' }
   ];
 
   return (
@@ -106,7 +106,7 @@ export default function NetworkingBlock({
       {/* Edit Module */}
       {isHovered && showEditControls && !isLocked && (
         <EditModule 
-          blockName="B2B Networking" 
+          blockName={t('wizard.designStudio.networkingBlock.blockName')}
           onEdit={onEdit} 
         />
       )}
@@ -118,7 +118,7 @@ export default function NetworkingBlock({
           <div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 16px', borderRadius: '100px', backgroundColor: `${brandColor}20`, color: brandColor, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '24px' }}>
               <MessageSquare size={14} />
-              Networking Live
+              {t('wizard.designStudio.networkingBlock.live')}
             </div>
             
             <h2 className="networking-block__title">
@@ -214,8 +214,8 @@ export default function NetworkingBlock({
               <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                 <Zap size={20} fill="currentColor" />
               </div>
-              <div style={{ fontSize: '16px', fontWeight: 700, color: '#FFFFFF' }}>Ready to network?</div>
-              <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>Join the community</div>
+              <div style={{ fontSize: '16px', fontWeight: 700, color: '#FFFFFF' }}>{t('wizard.designStudio.networkingBlock.ready')}</div>
+              <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>{t('wizard.designStudio.networkingBlock.join')}</div>
             </div>
           </div>
 

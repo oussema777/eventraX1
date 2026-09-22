@@ -727,7 +727,8 @@ export default {
         lastName: 'Doe',
         phoneNumber: '234 567 8900',
         country: 'Select your country',
-        searchCountry: 'Search country...',
+        searchCountry: 'Search country or calling code...',
+        noCountriesFound: 'No countries found',
         jobTitle: 'e.g., Product Manager',
         company: 'e.g., Acme Inc.',
         industry: 'Select your industry',
@@ -2927,6 +2928,8 @@ export default {
       locked: 'Locked',
       selectOption: 'Select an option...',
       selectCountry: 'Select country',
+      searchCountry: 'Search country or calling code...',
+      noCountriesFound: 'No countries found',
       phoneNumber: 'Phone Number',
       fileUploaded: 'File uploaded',
       clickToUpload: 'Click to upload',
@@ -4563,8 +4566,18 @@ export default {
             },
             categories: {
               basic: 'Basic Fields',
+              common: 'Common Fields',
               choice: 'Choice Fields',
               advanced: 'Advanced'
+            },
+            commonFields: {
+              phone: 'Phone Number',
+              country: 'Country',
+              dateOfBirth: 'Date of Birth',
+              gender: 'Gender',
+              male: 'Male',
+              female: 'Female',
+              age: 'Age'
             },
             fieldLabels: {
               shortText: 'Short Text',
@@ -5498,7 +5511,7 @@ export default {
           blockName: 'About',
           eyebrow: 'About the event',
           heading: 'About this event',
-          headingWithName: 'About {name}',
+          headingWithName: '{name}',
           primaryText: 'Share the story behind your event and what attendees can expect.',
           secondaryText: 'Highlight key topics, speakers, and takeaways.',
           features: [
@@ -5511,6 +5524,17 @@ export default {
             editContent: 'Edit content'
           },
           imagePlaceholder: 'Image'
+        },
+        navbar: {
+          agenda: 'Agenda',
+          speakers: 'Speakers',
+          exhibitors: 'Exhibitors',
+          sponsors: 'Sponsors',
+          packages: 'Packages',
+          tickets: 'Tickets',
+          networking: 'B2B Networking',
+          registered: 'Registered',
+          register: 'Register'
         },
         details: {
           blockName: 'Details',
@@ -5552,6 +5576,7 @@ export default {
           blockName: 'Agenda',
           title: 'Agenda',
           subtitle: 'Explore the sessions and schedule.',
+          dayNumber: 'Day {day}',
           actions: {
             addSession: 'Add session',
             manageSchedule: 'Manage schedule'
@@ -5588,6 +5613,35 @@ export default {
               location: 'Room B',
               tags: ['Operations']
             }
+          ]
+        },
+        networkingBlock: {
+          blockName: 'B2B Networking',
+          live: 'Networking Live',
+          title: 'Unlock High-Value B2B Connections',
+          subtitle: 'AI-Powered Matchmaking & 1-on-1 Meetings',
+          description: 'Our platform facilitates meaningful business relationships. Browse the attendee list, identify key stakeholders, and schedule meetings before the event even starts.',
+          cta: 'Explore Networking Center',
+          ready: 'Ready to network?',
+          join: 'Join the community',
+          stats: {
+            participants: 'Participants',
+            meetings: 'Meetings',
+            matchRate: 'Match Rate'
+          }
+        },
+        sponsorPackages: {
+          blockName: 'Sponsorship Packages',
+          title: 'Sponsorship Opportunities',
+          subtitle: 'Partner with us to gain exclusive exposure to our community of innovators and industry leaders.',
+          mostPopular: 'Most Popular',
+          perPackage: '/ package',
+          included: "What's included:",
+          cta: 'Get Started',
+          defaultPackages: [
+            { id: 'platinum', name: 'Platinum', value: 25000, color: '#C0C0C0', benefits: ['Logo on Website', '3 Speaking Slots', 'VIP Dinner Access', 'Social Media Mentions', 'Premium Placement'] },
+            { id: 'gold', name: 'Gold', value: 15000, color: '#FFD700', benefits: ['Logo Placement', '2 Speaking Slots', 'Attendee List Access', 'Marketing Materials'] },
+            { id: 'silver', name: 'Silver', value: 10000, color: '#A8A8A8', benefits: ['Logo Placement', 'Marketing Materials', 'Social Media Mention'] }
           ]
         },
         tickets: {
