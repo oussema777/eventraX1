@@ -6579,6 +6579,6 @@ export default {
         b2bOptInDescription: 'Soyez mis en relation avec des participants pertinents pour le réseautage professionnel',
       },
       additionalFields: 'Informations complémentaires',
-      customFormsInfo: "Chaque formulaire d'inscription comprend 8 champs obligatoires par défaut. Les champs personnalisés apparaissent après.",
+      customFormsInfo: "Faites glisser les champs dans l'ordre souhaité pour les participants. Les champs obligatoires restent obligatoires.",
     },
   };

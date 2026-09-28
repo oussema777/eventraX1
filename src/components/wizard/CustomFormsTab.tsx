@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { usePlan } from '../../hooks/usePlan';
 import { useI18n } from '../../i18n/I18nContext';
+import { REGISTRATION_SYSTEM_FIELDS, getRegistrationFieldOrder, isVisibleRegistrationCustomField } from '../../utils/registrationFieldOrder';
 import {
   Plus,
   Search,
@@ -218,14 +219,20 @@ const colorForFormType = (formType: string) => {
 const rowToCard = (row: DbEventFormRow, fallbackLabel: string): FormCard => {
   const fields = (row?.schema?.fields || []) as CustomField[];
   const type = (row.form_type || 'custom') as FormCard['type'];
+  const displayFields = type === 'registration'
+    ? getRegistrationFieldOrder(
+        fields.filter(isVisibleRegistrationCustomField).map(field => field.id),
+        Array.isArray(row?.schema?.fieldOrder) ? row.schema.fieldOrder : []
+      ).map(id => fields.find(field => field.id === id) || REGISTRATION_SYSTEM_FIELDS.find(field => field.id === id)!)
+    : fields;
   return {
     id: row.id,
     title: row.title,
     description: row.description || '',
     type,
     status: (row.status as any) || 'draft',
-    totalFields: fields?.length || 0,
-    defaultFields: buildFieldSummary(fields, fallbackLabel),
+    totalFields: displayFields.length,
+    defaultFields: buildFieldSummary(displayFields as CustomField[], fallbackLabel),
     isDefault: !!row.is_default,
     isTemplate: !!row.is_template,
     isFree: row.is_free !== false,
@@ -256,6 +263,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
   // Form Builder States
 
   const [formFields, setFormFields] = useState<CustomField[]>([]);
+  const [registrationFieldOrder, setRegistrationFieldOrder] = useState<string[]>([]);
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [showFieldEditor, setShowFieldEditor] = useState(false);
@@ -504,6 +512,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
     setCurrentFormRow(r);
     const fields = (r?.schema?.fields || []) as CustomField[];
     setFormFields(Array.isArray(fields) ? fields : []);
+    setRegistrationFieldOrder(Array.isArray(r?.schema?.fieldOrder) ? r.schema.fieldOrder : []);
     setSelectedForm({ ...card, dbId: r?.id || card.dbId, formKey: r?.form_key || card.formKey });
     setBuilderTitle(r?.title || card.title || '');
     setBuilderDescription((r?.description ?? card.description) || '');
@@ -528,7 +537,12 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
         description: builderDescription || '',
         form_type: builderType || 'custom',
         status: builderStatus || 'draft',
-        schema: { fields: formFields || [] }
+        schema: {
+          fields: formFields || [],
+          ...(builderType === 'registration' ? {
+            fieldOrder: getRegistrationFieldOrder(formFields.filter(isVisibleRegistrationCustomField).map(field => field.id), registrationFieldOrder)
+          } : {})
+        }
       };
 
       const { data, error } = await supabase
@@ -594,7 +608,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
     return () => {
       if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     };
-  }, [showFormBuilder, currentFormRow?.id, builderTitle, builderDescription, builderType, formFields]);
+  }, [showFormBuilder, currentFormRow?.id, builderTitle, builderDescription, builderType, formFields, registrationFieldOrder]);
 
   const closeBuilder = async () => {
     try {
@@ -710,6 +724,17 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
     e.preventDefault();
     if (!draggedField || draggedField === targetFieldId) return;
 
+    if (builderType === 'registration') {
+      const order = getRegistrationFieldOrder(formFields.filter(isVisibleRegistrationCustomField).map(field => field.id), registrationFieldOrder);
+      const draggedIndex = order.indexOf(draggedField);
+      const targetIndex = order.indexOf(targetFieldId);
+      if (draggedIndex === -1 || targetIndex === -1) return;
+      const next = [...order];
+      next.splice(targetIndex, 0, next.splice(draggedIndex, 1)[0]);
+      setRegistrationFieldOrder(next);
+      return;
+    }
+
     const draggedIndex = formFields.findIndex(f => f.id === draggedField);
     const targetIndex = formFields.findIndex(f => f.id === targetFieldId);
 
@@ -747,7 +772,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
       ],
       totalFields: 8,
       lastEdited: t('wizard.step3.customForms.defaults.registration.lastEdited'),
-      infoNote: t('registration.customFormsInfo', { defaultValue: 'Every registration form includes 8 mandatory fields (name, email, phone, company, etc.) by default. Custom fields appear after these.' }),
+      infoNote: t('registration.customFormsInfo', { defaultValue: 'Drag registration fields into the order attendees should see. Required fields remain required.' }),
       icon: ClipboardList,
       iconColor: '#0684F5'
     }
@@ -1198,6 +1223,18 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
   };
 
   if (showFormBuilder) {
+    const registrationFields: CustomField[] = REGISTRATION_SYSTEM_FIELDS.map(field => ({
+      ...field,
+      type: field.type as CustomField['type'],
+      label: t(`registration.systemFields.${field.id.replace('system-', '')}`, { defaultValue: field.label }),
+      isPro: false,
+      isSystem: true,
+    }));
+    const builderFields = builderType === 'registration'
+      ? getRegistrationFieldOrder(formFields.filter(isVisibleRegistrationCustomField).map(field => field.id), registrationFieldOrder)
+          .map(id => registrationFields.find(field => field.id === id) || formFields.find(field => field.id === id))
+          .filter((field): field is CustomField => !!field)
+      : formFields;
     return (
       <div className="form-builder-container" style={{ backgroundColor: '#0B2641', minHeight: '100%', paddingBottom: '40px' }}>
         <style>{`
@@ -1646,7 +1683,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                     </div>
                   )}
 
-                  {formFields?.length === 0 ? (
+                  {builderFields.length === 0 ? (
                     // Empty State
                     <div className="flex flex-col items-center justify-center py-20">
                       <div
@@ -1671,7 +1708,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                     // Form Fields
                     <div className="space-y-6">
                       {/* Helpful Tip Banner */}
-                      {formFields?.length > 0 && formFields?.length <= 2 && (
+                      {builderFields.length > 0 && builderFields.length <= 2 && (
                         <div 
                           className="flex items-start gap-3 p-4 rounded-lg mb-4"
                           style={{ backgroundColor: 'rgba(6,132,245,0.1)', border: '1px solid rgba(6,132,245,0.3)' }}
@@ -1685,7 +1722,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                         </div>
                       )}
                       
-                      {formFields.map((field, index) => (
+                      {builderFields.map((field, index) => (
                         <div
                           key={field.id}
                           draggable

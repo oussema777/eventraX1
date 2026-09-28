@@ -31,6 +31,7 @@ import { useI18n } from '../i18n/I18nContext';
 import { PLATFORM_INTERESTS, PLATFORM_SECTORS } from '../constants/platformFields';
 import SEOHead from '../components/SEOHead';
 import { truncateDescription, canonicalUrl } from '../utils/seo';
+import { getRegistrationFieldOrder, isRegistrationSystemField, isVisibleRegistrationCustomField } from '../utils/registrationFieldOrder';
 
 const toFlagEmoji = (code: string) => {
   if (!code || code.length !== 2) return '';
@@ -86,6 +87,7 @@ export default function EventRegistrationFlow() {
   const [codeError, setCodeError] = useState('');
   const [event, setEvent] = useState<any>(null);
   const [formFields, setFormFields] = useState<FormField[]>([]);
+  const [registrationFieldOrder, setRegistrationFieldOrder] = useState<string[]>([]);
   const [sessions, setSessions] = useState<Session[]>(new Array());
   const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set());
   const [freeTicketId, setFreeTicketId] = useState<string | null>(null);
@@ -231,6 +233,7 @@ export default function EventRegistrationFlow() {
       ];
 
       if (formData?.schema?.fields && Array.isArray(formData.schema.fields) && formData.schema.fields.length > 0) {
+        setRegistrationFieldOrder(Array.isArray(formData.schema.fieldOrder) ? formData.schema.fieldOrder : []);
         const mappedFields = formData.schema.fields.map((f: any) => {
           let defaultValue = '';
           let isReadonly = false;
@@ -347,6 +350,7 @@ export default function EventRegistrationFlow() {
         console.log('[REGISTRATION_DEBUG] Final Fields:', finalFields);
         setFormFields(finalFields);
       } else {
+        setRegistrationFieldOrder([]);
         console.log('[REGISTRATION_DEBUG] No custom form found, using default fields');
         setFormFields(defaultFields);
       }
@@ -753,8 +757,7 @@ export default function EventRegistrationFlow() {
     return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const renderSystemFields = () => {
-    const isReadOnly = !!profile;
+  const renderSystemFields = (fieldId: string) => {
     const fieldStyle = {
       backgroundColor: '#0D243B',
       borderColor: 'rgba(255,255,255,0.15)',
@@ -768,7 +771,7 @@ export default function EventRegistrationFlow() {
     return (
       <>
         {/* 1. Full Name */}
-        <div className="mb-4">
+        {fieldId === 'system-fullName' && <div className="mb-4">
           <label className="block text-sm font-medium text-white mb-1.5">
             {t('registration.systemFields.fullName', { defaultValue: 'Full Name' })} <span className="text-red-400">*</span>
           </label>
@@ -776,15 +779,15 @@ export default function EventRegistrationFlow() {
             type="text"
             value={systemFields.fullName}
             onChange={e => updateSystemField('fullName', e.target.value)}
-            readOnly={isReadOnly && !!systemFields.fullName}
+            readOnly={!!profile?.full_name}
             className="w-full px-3 py-2.5 rounded-lg border text-sm"
             style={fieldStyle}
             placeholder="John Doe"
           />
-        </div>
+        </div>}
 
         {/* 2. Email */}
-        <div className="mb-4">
+        {fieldId === 'system-email' && <div className="mb-4">
           <label className="block text-sm font-medium text-white mb-1.5">
             {t('registration.systemFields.email', { defaultValue: 'Email Address' })} <span className="text-red-400">*</span>
           </label>
@@ -792,15 +795,15 @@ export default function EventRegistrationFlow() {
             type="email"
             value={systemFields.email}
             onChange={e => updateSystemField('email', e.target.value)}
-            readOnly={isReadOnly && !!systemFields.email}
+            readOnly={!!(user?.email || profile?.email)}
             className="w-full px-3 py-2.5 rounded-lg border text-sm"
             style={fieldStyle}
             placeholder="john@company.com"
           />
-        </div>
+        </div>}
 
         {/* 3. Phone with country code */}
-        <div className="mb-4">
+        {fieldId === 'system-phone' && <div className="mb-4">
           <label className="block text-sm font-medium text-white mb-1.5">
             {t('registration.systemFields.phone', { defaultValue: 'Phone Number' })} <span className="text-red-400">*</span>
           </label>
@@ -880,16 +883,16 @@ export default function EventRegistrationFlow() {
               type="tel"
               value={systemFields.phone}
               onChange={e => updateSystemField('phone', e.target.value)}
-              readOnly={isReadOnly && !!systemFields.phone}
+              readOnly={!!profile?.phone}
               className="flex-1 px-3 py-2.5 rounded-lg border text-sm"
               style={fieldStyle}
               placeholder="12345678"
             />
           </div>
-        </div>
+        </div>}
 
         {/* 4. Company Name */}
-        <div className="mb-4">
+        {fieldId === 'system-companyName' && <div className="mb-4">
           <label className="block text-sm font-medium text-white mb-1.5">
             {t('registration.systemFields.companyName', { defaultValue: 'Company Name' })} <span className="text-red-400">*</span>
           </label>
@@ -897,22 +900,22 @@ export default function EventRegistrationFlow() {
             type="text"
             value={systemFields.companyName}
             onChange={e => updateSystemField('companyName', e.target.value)}
-            readOnly={isReadOnly && !!systemFields.companyName}
+            readOnly={!!profile?.company}
             className="w-full px-3 py-2.5 rounded-lg border text-sm"
             style={fieldStyle}
             placeholder="Acme Corp"
           />
-        </div>
+        </div>}
 
         {/* 5. Short Company Description */}
-        <div className="mb-4">
+        {fieldId === 'system-companyDescription' && <div className="mb-4">
           <label className="block text-sm font-medium text-white mb-1.5">
             {t('registration.systemFields.companyDescription', { defaultValue: 'Short Company Description' })} <span className="text-red-400">*</span>
           </label>
           <textarea
             value={systemFields.companyDescription}
             onChange={e => updateSystemField('companyDescription', e.target.value)}
-            readOnly={isReadOnly && !!systemFields.companyDescription}
+            readOnly={!!profile?.company_description}
             className="w-full px-3 py-2.5 rounded-lg border text-sm resize-none"
             style={fieldStyle}
             rows={3}
@@ -922,10 +925,10 @@ export default function EventRegistrationFlow() {
           <p className="text-xs mt-1" style={{ color: systemFields.companyDescription.length < 10 ? '#EF4444' : 'rgba(255,255,255,0.4)' }}>
             {systemFields.companyDescription.length}/500
           </p>
-        </div>
+        </div>}
 
         {/* 6. Interests (multi-select) */}
-        <div className="mb-4">
+        {fieldId === 'system-interests' && <div className="mb-4">
           <label className="block text-sm font-medium text-white mb-1.5">
             {t('registration.systemFields.interests', { defaultValue: 'Interests' })} <span className="text-red-400">*</span>
           </label>
@@ -984,10 +987,10 @@ export default function EventRegistrationFlow() {
               </div>
             )}
           </div>
-        </div>
+        </div>}
 
         {/* 7. Sector (single-select) */}
-        <div className="mb-4">
+        {fieldId === 'system-sector' && <div className="mb-4">
           <label className="block text-sm font-medium text-white mb-1.5">
             {t('registration.systemFields.sector', { defaultValue: 'Sector' })} <span className="text-red-400">*</span>
           </label>
@@ -1019,10 +1022,10 @@ export default function EventRegistrationFlow() {
               </div>
             )}
           </div>
-        </div>
+        </div>}
 
         {/* 8. Social URL */}
-        <div className="mb-4">
+        {fieldId === 'system-socialUrl' && <div className="mb-4">
           <label className="block text-sm font-medium text-white mb-1.5">
             {t('registration.systemFields.socialUrl', { defaultValue: 'Social / Website URL' })} <span className="text-red-400">*</span>
           </label>
@@ -1030,15 +1033,15 @@ export default function EventRegistrationFlow() {
             type="url"
             value={systemFields.socialUrl}
             onChange={e => updateSystemField('socialUrl', e.target.value)}
-            readOnly={isReadOnly && !!systemFields.socialUrl}
+            readOnly={!!(profile?.social_url || profile?.linkedin_url)}
             className="w-full px-3 py-2.5 rounded-lg border text-sm"
             style={fieldStyle}
             placeholder={t('registration.systemFields.socialUrlPlaceholder', { defaultValue: 'https://linkedin.com/in/yourprofile' })}
           />
-        </div>
+        </div>}
 
         {/* B2B Toggle */}
-        <div className="mb-6 p-4 rounded-lg" style={{ backgroundColor: 'rgba(6,132,245,0.08)', border: '1px solid rgba(6,132,245,0.2)' }}>
+        {fieldId === 'system-b2bOptIn' && <div className="mb-6 p-4 rounded-lg" style={{ backgroundColor: 'rgba(6,132,245,0.08)', border: '1px solid rgba(6,132,245,0.2)' }}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-white">
@@ -1058,10 +1061,18 @@ export default function EventRegistrationFlow() {
                 style={{ transform: systemFields.b2bOptIn ? 'translateX(20px)' : 'translateX(0)' }} />
             </button>
           </div>
-        </div>
+        </div>}
       </>
     );
   };
+
+  const visibleCustomFields = formFields.filter(isVisibleRegistrationCustomField);
+  const orderedRegistrationFields: FormField[] = getRegistrationFieldOrder(
+    visibleCustomFields.map(field => field.id), registrationFieldOrder
+  ).map(id => isRegistrationSystemField(id)
+    ? { id, label: '', type: '__system', required: false, value: '' }
+    : visibleCustomFields.find(field => field.id === id)!
+  );
 
   if (needsAccessCode) {
     return (
@@ -1315,31 +1326,9 @@ export default function EventRegistrationFlow() {
               </div>
 
               <div className="space-y-6">
-                {/* System fields (mandatory, always present) */}
-                {renderSystemFields()}
-
-                {/* Divider between system fields and custom fields */}
-                {formFields.length > 0 && (
-                  <div className="border-t border-white/10 my-6 pt-4">
-                    <p className="text-sm text-white/50 mb-4">
-                      {t('registration.additionalFields', { defaultValue: 'Additional Information' })}
-                    </p>
-                  </div>
-                )}
-
-                {/* Custom fields from event form builder (filter out fields covered by system fields) */}
-                {formFields.filter(field => {
-                  const label = field.label.toLowerCase();
-                  const isSystemDuplicate =
-                    label.includes('full name') || label === 'name' || label === 'nom' ||
-                    label.includes('email') || label.includes('e-mail') ||
-                    (field.type === 'phone' && (label.includes('phone') || label.includes('téléphone') || label.includes('هاتف'))) ||
-                    (label.includes('company') && !label.includes('size') && !label.includes('stage')) ||
-                    (label.includes('campany')) ||
-                    (label.includes('sector') || label.includes('secteur') || label.includes('قطاع')) ||
-                    label.includes('entreprise');
-                  return !isSystemDuplicate;
-                }).map((field) => (
+                {orderedRegistrationFields.map((field) => field.type === '__system'
+                  ? <div key={field.id}>{renderSystemFields(field.id)}</div>
+                  : (
                   <div key={field.id}>
                     <label
                       style={{

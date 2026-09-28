@@ -6833,6 +6833,6 @@ export default {
         b2bOptInDescription: 'Get matched with relevant attendees for business networking',
       },
       additionalFields: 'Additional Information',
-      customFormsInfo: 'Every registration form includes 8 mandatory fields (name, email, phone, company, etc.) by default. Custom fields appear after these.',
+      customFormsInfo: 'Drag registration fields into the order attendees should see. Required fields remain required.',
     },
   };
