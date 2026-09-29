@@ -1,5 +1,17 @@
 export default {
     agendaBooking: {
+      selectionCount: "Sélections : {count}",
+      chooseHint: "Choisissez les sessions auxquelles vous souhaitez assister.",
+      clearBulk: "Désélectionner ces sessions",
+      clearAll: "Tout effacer",
+      removeChoice: "Retirer {title}",
+      timezone: "Horaires affichés en {zone}",
+      dayCount: "Sessions : {count}",
+      datePending: "Date à confirmer",
+      timePending: "Horaire à confirmer",
+      selected: "Sélectionnée",
+      limitHintCard: "Limite d’ateliers atteinte. Modifiez votre choix pour participer à cette session.",
+      replaceWorkshop: "Choisir cet atelier à la place",
       title: 'Inscriptions aux sessions',
       hint: 'Gérez les réservations des sessions de cet événement. Les réservations existantes sont conservées.',
       open: 'Ouverte aux inscriptions',

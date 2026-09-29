@@ -32,7 +32,8 @@ import { PLATFORM_INTERESTS, PLATFORM_SECTORS } from '../constants/platformField
 import SEOHead from '../components/SEOHead';
 import { truncateDescription, canonicalUrl } from '../utils/seo';
 import { getRegistrationFieldOrder, isRegistrationSystemField, isVisibleRegistrationCustomField } from '../utils/registrationFieldOrder';
-import { getBulkSessionIds, getWorkshopLimit, isSessionOpen, validateSessionSelection } from '../utils/sessionBooking';
+import RegistrationAgenda from '../components/events/RegistrationAgenda';
+import { getWorkshopLimit, isSessionOpen, validateSessionSelection } from '../utils/sessionBooking';
 
 const toFlagEmoji = (code: string) => {
   if (!code || code.length !== 2) return '';
@@ -439,29 +440,7 @@ export default function EventRegistrationFlow() {
     }
   };
 
-  const toggleSession = (sessionId: string) => {
-    const next = new Set(selectedSessions);
-    if (next.has(sessionId)) {
-      next.delete(sessionId);
-      setSelectedSessions(next);
-      return;
-    }
-    next.add(sessionId);
-    const issue = validateSessionSelection(sessions, next, workshopLimit);
-    if (issue) {
-      toast.error(t(`agendaBooking.${issue === 'workshopLimitReached' && workshopLimit === 1 ? 'workshopLimitReachedSingle' : issue}`, { count: workshopLimit || 0 }));
-      return;
-    }
-    setSelectedSessions(next);
-  };
-
   const workshopLimit = getWorkshopLimit(event?.workshop_selection_limit);
-  const bulkSessionIds = getBulkSessionIds(sessions, workshopLimit);
-  const allBulkSelected = bulkSessionIds.length > 0 && bulkSessionIds.every(id => selectedSessions.has(id));
-
-  const toggleAllSessions = () => {
-    setSelectedSessions(allBulkSelected ? new Set() : new Set([...selectedSessions, ...bulkSessionIds]));
-  };
 
   const handleCompleteRegistration = async () => {
     if (isSubmitting) return;
@@ -1803,108 +1782,8 @@ export default function EventRegistrationFlow() {
                 </p>
               </div>
 
-              {sessions.length === 0 ? (
-                <div 
-                  className="text-center py-12 rounded-xl border border-dashed"
-                  style={{ borderColor: 'rgba(255, 255, 255, 0.15)', backgroundColor: 'rgba(255, 255, 255, 0.02)' }}
-                >
-                  <Calendar className="mx-auto h-10 w-10 mb-3" style={{ color: 'rgba(255, 255, 255, 0.3)' }} />
-                  <p style={{ color: 'rgba(255, 255, 255, 0.5)' }}>{t('registrationFlow.noSessionsAvailable')}</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {workshopLimit !== null && (
-                    <div className="rounded-lg border border-blue-400/30 bg-blue-500/10 p-4 text-sm text-white" role="note">
-                      <p>{t(workshopLimit === 1 ? 'agendaBooking.workshopRuleSingle' : 'agendaBooking.workshopRule', { count: workshopLimit })}</p>
-                      <p className="mt-1 text-white/60">{t('agendaBooking.bulkHint')}</p>
-                    </div>
-                  )}
-                  {bulkSessionIds.length > 0 && <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={toggleAllSessions}
-                      className="rounded-lg px-3 py-2 text-sm font-semibold transition-colors hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0684F5]"
-                      style={{ color: '#FFFFFF' }}
-                    >
-                      {allBulkSelected
-                        ? t('registrationFlow.deselectAllSessions')
-                        : t(workshopLimit === null ? 'registrationFlow.selectAllSessions' : 'agendaBooking.bulkSelect')}
-                    </button>
-                  </div>}
-                  {sessions.map((session) => {
-                    const isSelected = selectedSessions.has(session.id);
-                    const isOpen = isSessionOpen(session);
-                    return (
-                      <div
-                        key={session.id}
-                        role="checkbox"
-                        aria-checked={isSelected}
-                        aria-disabled={!isOpen}
-                        tabIndex={isOpen ? 0 : -1}
-                        className={`p-4 rounded-xl border transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0684F5] ${isOpen ? 'cursor-pointer' : 'opacity-60 cursor-not-allowed'}`}
-                        style={{
-                          backgroundColor: isSelected ? 'rgba(6, 132, 245, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                          borderColor: isSelected ? '#0684F5' : 'rgba(255, 255, 255, 0.1)',
-                          borderWidth: '1px'
-                        }}
-                        onClick={() => { if (isOpen) toggleSession(session.id); }}
-                        onKeyDown={e => {
-                          if (isOpen && (e.key === ' ' || e.key === 'Enter')) {
-                            e.preventDefault();
-                            toggleSession(session.id);
-                          }
-                        }}
-                      >
-                        <div className="flex items-start gap-4">
-                          <div 
-                            className="mt-1 w-5 h-5 rounded border flex items-center justify-center transition-colors"
-                            style={{
-                              backgroundColor: isSelected ? '#0684F5' : 'transparent',
-                              borderColor: isSelected ? '#0684F5' : 'rgba(255, 255, 255, 0.3)'
-                            }}
-                          >
-                            {isSelected && <Check size={14} style={{ color: '#FFFFFF' }} />}
-                          </div>
-                          
-                          <div className="flex-1">
-                            <div className="flex justify-between items-start mb-1">
-                              <h3 className="text-base font-bold" style={{ color: '#FFFFFF' }}>{session.title}</h3>
-                              <span 
-                                className="text-xs font-semibold px-2 py-1 rounded"
-                                style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)', color: 'rgba(255, 255, 255, 0.8)' }}
-                              >
-                                {formatTime(session.starts_at)} - {formatTime(session.ends_at)}
-                              </span>
-                            </div>
-                            
-                            {!isOpen && <p className="mt-2 text-sm text-amber-200">{t('agendaBooking.closed')}</p>}
-                            {session.type === 'workshop' && <p className="mt-2 text-xs text-blue-200">{t('wizard.step3.sessions.types.workshop')}</p>}
-                            <div className="flex items-center gap-4 text-sm mt-2">
-                              {session.speaker_name && (
-                                <div className="flex items-center gap-1.5" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-                                  <div 
-                                    className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold"
-                                    style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)', color: '#FFFFFF' }}
-                                  >
-                                    {session.speaker_name[0]}
-                                  </div>
-                                  <span style={{ fontWeight: 500 }}>{session.speaker_name}</span>
-                                </div>
-                              )}
-                              {session.location && (
-                                <div className="flex items-center gap-1.5" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
-                                  <MapPin size={14} style={{ color: 'rgba(255, 255, 255, 0.4)' }} />
-                                  <span style={{ fontWeight: 500 }}>{session.location}</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <RegistrationAgenda sessions={sessions} selected={selectedSessions} onChange={setSelectedSessions}
+                workshopLimit={workshopLimit} timeZone={event?.timezone} />
             </div>
           )}
 

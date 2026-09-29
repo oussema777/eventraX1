@@ -1,5 +1,17 @@
 export default {
     agendaBooking: {
+      selectionCount: "Selected: {count}",
+      chooseHint: "Select the sessions you want to attend.",
+      clearBulk: "Clear these sessions",
+      clearAll: "Clear all",
+      removeChoice: "Remove {title}",
+      timezone: "Times shown in {zone}",
+      dayCount: "Sessions: {count}",
+      datePending: "Date to be confirmed",
+      timePending: "Time to be confirmed",
+      selected: "Selected",
+      limitHintCard: "Workshop limit reached. Change your choice to attend this session.",
+      replaceWorkshop: "Choose this workshop instead",
       title: 'Agenda registration',
       hint: 'Control session booking for this event. Existing bookings are kept when these settings change.',
       open: 'Open for registration',

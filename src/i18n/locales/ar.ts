@@ -1,5 +1,17 @@
 export default {
     agendaBooking: {
+      selectionCount: "الجلسات المختارة: {count}",
+      chooseHint: "اختر الجلسات التي ترغب في حضورها.",
+      clearBulk: "إلغاء اختيار هذه الجلسات",
+      clearAll: "إلغاء الكل",
+      removeChoice: "إزالة {title}",
+      timezone: "التوقيت حسب {zone}",
+      dayCount: "الجلسات: {count}",
+      datePending: "سيتم تحديد التاريخ",
+      timePending: "سيتم تحديد الوقت",
+      selected: "تم الاختيار",
+      limitHintCard: "بلغت الحد الأقصى للورش. غيّر اختيارك لحضور هذه الجلسة.",
+      replaceWorkshop: "اختيار هذه الورشة بدلاً من السابقة",
       title: 'التسجيل في الجلسات',
       hint: 'تحكم في حجز جلسات هذا الحدث. تبقى الحجوزات السابقة محفوظة عند تغيير الإعدادات.',
       open: 'متاحة للتسجيل',
