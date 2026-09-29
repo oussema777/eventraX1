@@ -7,6 +7,7 @@ import { usePlan } from '../../hooks/usePlan';
 import { useI18n } from '../../i18n/I18nContext';
 import { useEventWizard } from '../../hooks/useEventWizard';
 import { escapeHTML, escapeCSV } from '../../utils/security';
+import AgendaBookingSettings, { SessionBookingToggle } from '../events/AgendaBookingSettings';
 
 type ViewMode = 'timeline' | 'list';
 type SessionType = 'keynote' | 'workshop' | 'panel' | 'break' | 'hackathon' | 'pitching' | 'training' | 'other';
@@ -279,6 +280,7 @@ export default function SessionsTab({ eventId, eventStartDate, eventEndDate }: S
           </div>
         </div>
 
+        <AgendaBookingSettings eventId={eventId} />
         {/* Filter Bar with Dropdowns */} 
         <div className="sessions-controls-row flex items-center justify-between" style={{ marginBottom: '24px' }}>
           {/* Filters - Compact Dropdowns */} 
@@ -627,6 +629,7 @@ function SessionCard({ session, onEdit, onDelete, compact = false }: SessionCard
               <h3 className="session-card-title" style={{ fontSize: compact ? '18px' : '24px', fontWeight: 600, color: '#0B2641' }}>
                 {session.title}
               </h3>
+              {!session.registrationOpen && <p className="mt-1 text-xs text-amber-700">{t('agendaBooking.closed')}</p>}
             </div>
 
             {/* Action Buttons (Inline) */}
@@ -925,6 +928,7 @@ function SessionTableRow({ session, onEdit, onDelete }: SessionTableRowProps) {
             <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
               {session.title}
             </h4>
+            {!session.registrationOpen && <p className="mb-1 text-xs text-amber-200">{t('agendaBooking.closed')}</p>}
             <p style={{ fontSize: '12px', color: '#94A3B8' }}>
               {session.speakers.length > 0 ? session.speakers.map(s => s.name).join(', ') : t('wizard.step3.sessions.table.noSpeakers')}
             </p>
@@ -1085,6 +1089,7 @@ function AddSessionModal({
 
   const [selectedVenue, setSelectedVenue] = useState(initialData?.venue || '');
   const [capacity, setCapacity] = useState(initialData?.capacity?.toString() || '');
+  const [registrationOpen, setRegistrationOpen] = useState(initialData?.registrationOpen ?? true);
   
   const [tags, setTags] = useState<string[]>(initialData?.tags || []);
   const [tagInput, setTagInput] = useState('');
@@ -1231,6 +1236,7 @@ function AddSessionModal({
         endTime: endDateTime.toISOString(),
         venue: finalVenue,
         capacity: parseInt(capacity) || 0,
+        registrationOpen,
         tags,
         speakers: selectedSpeakersForSession.map(s => s.id),
         status: sessionStatus,
@@ -1590,6 +1596,7 @@ function AddSessionModal({
                 </div>
 
                 <div>
+                  <div className="mb-4"><SessionBookingToggle open={registrationOpen} onChange={setRegistrationOpen} /></div>
                   <label htmlFor="capacity" style={{ fontSize: '14px', fontWeight: 500, color: '#FFFFFF', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Users size={14} style={{ color: '#0684F5' }} /> {t('wizard.step3.sessions.modal.capacity')}
                   </label>

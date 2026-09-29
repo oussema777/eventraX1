@@ -231,10 +231,8 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
       const confirmationCode = generateConfirmationCode();
       const metaData = { ...formData, confirmationCode };
 
-      const { data: newAttendee, error } = await supabase
-        .from('event_attendees')
-        .insert([
-          {
+      const { error } = await supabase
+        .rpc('create_event_attendee_with_sessions', { p_attendee: {
             event_id: eventId,
             name: name,
             email: email,
@@ -245,20 +243,9 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
             checked_in: false,
             confirmation_code: confirmationCode,
             meta: metaData
-          }
-        ])
-        .select()
-        .single();
+          }, p_session_ids: Array.from(selectedSessions) });
 
       if (error) throw error;
-
-      if (selectedSessions.size > 0 && newAttendee) {
-        const sessionInserts = Array.from(selectedSessions).map(sessionId => ({
-          attendee_id: newAttendee.id,
-          session_id: sessionId
-        }));
-        await supabase.from('event_attendee_sessions').insert(sessionInserts);
-      }
 
       toast.success(t('wizard.step3.attendeesTab.toasts.addSuccess'));
       setIsAdding(false);
@@ -270,7 +257,7 @@ export default function AttendeesTab({ eventId }: AttendeesTabProps) {
       if (error.code === '23505') {
         toast.error(t('wizard.step3.attendeesTab.toasts.duplicateEmail'));
       } else {
-        toast.error(t('wizard.step3.attendeesTab.toasts.addFailed'));
+        toast.error(t('agendaBooking.bookingRejected'));
       }
     }
   };

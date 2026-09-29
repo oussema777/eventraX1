@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { User, MapPin, Calendar, Plus, Check, Clock, Bookmark, BookmarkCheck } from 'lucide-react';
 import EditModule from './EditModule';
 import { useI18n } from '../../../i18n/I18nContext';
@@ -29,6 +29,8 @@ interface AgendaSession {
   location?: string;
   tags?: string[];
   is_selected?: boolean;
+  registration_open?: boolean;
+  status?: string;
 }
 
 interface AgendaBlockProps {
@@ -40,6 +42,7 @@ interface AgendaBlockProps {
   sessions?: AgendaSession[];
   onToggleSession?: (sessionId: string) => void;
   isRegistered?: boolean;
+  bookingPending?: boolean;
   showSpeakerTags?: boolean;
 }
 
@@ -52,6 +55,7 @@ export default function AgendaBlock({
   sessions,
   onToggleSession,
   isRegistered = false,
+  bookingPending = false,
   showSpeakerTags = true
 }: AgendaBlockProps) {
   const { t, tList } = useI18n();
@@ -60,14 +64,9 @@ export default function AgendaBlock({
   const defaultDays = tList<AgendaDay>('wizard.designStudio.agenda.days', []);
   const agendaSessions = sessions !== undefined ? sessions : [];
   const agendaDays = days && days.length > 0 ? days : defaultDays;
-  const [activeDay, setActiveDay] = useState(agendaDays[0]?.day || 1);
+  const [requestedDay, setActiveDay] = useState(agendaDays[0]?.day || 1);
+  const activeDay = agendaDays.some(day => day.day === requestedDay) ? requestedDay : (agendaDays[0]?.day || 1);
   const [isHovered, setIsHovered] = useState(false);
-
-  useEffect(() => {
-    if (agendaDays.length > 0 && !agendaDays.find(d => d.day === activeDay)) {
-      setActiveDay(agendaDays[0]?.day || 1);
-    }
-  }, [agendaDays]);
 
   const localizeDayLabel = (day: AgendaDay) => {
     const localizedPrefix = t('wizard.designStudio.agenda.dayNumber', { day: day.day });
@@ -339,11 +338,15 @@ export default function AgendaBlock({
               </div>
 
               {/* Action Button */}
+              {(session.registration_open === false || session.status === 'cancelled') && (
+                <p className="text-sm font-semibold text-amber-700">{t('agendaBooking.closed')}</p>
+              )}
               {isRegistered && onToggleSession && (
                 <div className="session-action-mobile">
                   <button 
                     className={`session-action-btn ${session.is_selected ? 'selected' : ''}`}
                     onClick={() => onToggleSession(session.id)}
+                    disabled={bookingPending || (!session.is_selected && (session.registration_open === false || session.status === 'cancelled'))}
                     title={session.is_selected ? 'Remove from schedule' : 'Add to schedule'}
                   >
                     {session.is_selected ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}

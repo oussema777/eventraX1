@@ -54,12 +54,30 @@ Deno.serve(async (req: Request) => {
     // --- Validate event exists and is active ---
     const { data: event, error: eventError } = await supabaseAdmin
       .from('events')
-      .select('id, name, event_status, start_date, end_date, capacity_limit, owner_id')
+      .select('id, name, event_status, start_date, end_date, capacity_limit, owner_id, workshop_selection_limit')
       .eq('id', event_id)
       .single();
 
     if (eventError || !event) {
       return jsonResponse({ error: 'Event not found' }, 404);
+    }
+
+    // Check current rules before creating accounts or editing profiles.
+    // The database repeats these checks transactionally when selections are saved.
+    if (selected_sessions !== undefined && (!Array.isArray(selected_sessions) || selected_sessions.some(id => typeof id !== 'string'))) {
+      return jsonResponse({ error: 'Invalid session selection' }, 400);
+    }
+    const sessionIds = [...new Set(selected_sessions || [])];
+    if (sessionIds.length) {
+      const { data: chosen, error: sessionError } = await supabaseAdmin.from('event_sessions')
+        .select('id, type, registration_open, status').eq('event_id', event_id).in('id', sessionIds);
+      if (sessionError) return jsonResponse({ error: 'Unable to check sessions' }, 400);
+      if (!chosen || chosen.length !== sessionIds.length || chosen.some(s => !s.registration_open || s.status === 'cancelled')) {
+        return jsonResponse({ error: 'SESSION_REGISTRATION_CLOSED' }, 409);
+      }
+      if (event.workshop_selection_limit !== null && chosen.filter(s => s.type === 'workshop').length > event.workshop_selection_limit) {
+        return jsonResponse({ error: 'WORKSHOP_SELECTION_LIMIT' }, 409);
+      }
     }
 
     // --- Resolve identity ---
@@ -150,10 +168,9 @@ Deno.serve(async (req: Request) => {
       ...custom_fields,
     };
 
-    // --- Insert event_attendees ---
+    // --- Insert attendee and sessions atomically ---
     const { data: attendee, error: attendeeError } = await supabaseAdmin
-      .from('event_attendees')
-      .insert({
+      .rpc('create_event_attendee_with_sessions', { p_attendee: {
         event_id,
         profile_id: userId,
         email,
@@ -164,9 +181,7 @@ Deno.serve(async (req: Request) => {
         status: 'registered',
         guest_expires_at: guestExpiresAt,
         meta,
-      })
-      .select('id')
-      .single();
+      }, p_session_ids: sessionIds });
 
     // Handle duplicate registration (unique constraint on email + event_id)
     if (attendeeError?.code === '23505') {
@@ -188,15 +203,6 @@ Deno.serve(async (req: Request) => {
 
     if (attendeeError) {
       return jsonResponse({ error: 'Failed to register', details: attendeeError.message }, 500);
-    }
-
-    // --- Insert session selections ---
-    if (selected_sessions && selected_sessions.length > 0) {
-      const sessionRows = selected_sessions.map(sessionId => ({
-        attendee_id: attendee.id,
-        session_id: sessionId,
-      }));
-      await supabaseAdmin.from('event_attendee_sessions').insert(sessionRows);
     }
 
     // --- Generate magic link if B2B opted in and a profile exists ---

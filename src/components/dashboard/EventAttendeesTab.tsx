@@ -255,9 +255,8 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
       const confirmationCode = generateConfirmationCode();
       const metaData = { ...formData, confirmationCode };
 
-      const { data: newAttendee, error } = await supabase
-        .from('event_attendees')
-        .insert([{
+      const { error } = await supabase
+        .rpc('create_event_attendee_with_sessions', { p_attendee: {
           event_id: eventId,
           name: name,
           email: email,
@@ -268,19 +267,9 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
           checked_in: false,
           confirmation_code: confirmationCode,
           meta: metaData
-        }])
-        .select()
-        .single();
+        }, p_session_ids: Array.from(selectedSessions) });
 
       if (error) throw error;
-
-      if (selectedSessions.size > 0 && newAttendee) {
-        const sessionInserts = Array.from(selectedSessions).map(sessionId => ({
-          attendee_id: newAttendee.id,
-          session_id: sessionId
-        }));
-        await supabase.from('event_attendee_sessions').insert(sessionInserts);
-      }
 
       toast.success('Attendee added successfully');
       setIsAdding(false);
@@ -289,7 +278,7 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
       loadAttendees();
     } catch (error) {
       console.error('Error adding attendee:', error);
-      toast.error('Failed to add attendee');
+      toast.error(t('agendaBooking.bookingRejected'));
     }
   };
 

@@ -26,6 +26,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
 import { useI18n } from '../../i18n/I18nContext';
+import AgendaBookingSettings, { SessionBookingToggle } from '../events/AgendaBookingSettings';
 
 interface EventScheduleTabProps {
   eventId?: string;
@@ -47,6 +48,8 @@ interface Session {
   status: SessionStatus;
   track: string;
   description: string;
+  type: string;
+  registrationOpen: boolean;
   starts_at: string | null;
   ends_at: string | null;
 }
@@ -149,6 +152,8 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
     startTime: '',
     endTime: '',
     capacity: 0,
+    type: 'other',
+    registrationOpen: true,
     description: ''
   });
 
@@ -283,6 +288,8 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
             status,
             track: row.track || '',
             description: row.description || '',
+            type: row.type || 'other',
+            registrationOpen: row.registration_open !== false,
             starts_at: row.starts_at || null,
             ends_at: row.ends_at || null
           };
@@ -480,7 +487,9 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
       startTime: s.startTime,
       endTime: s.endTime,
       capacity: s.capacity || 0,
-      description: s.description
+      description: s.description,
+      type: s.type,
+      registrationOpen: s.registrationOpen
     });
     setEditOpen(true);
   };
@@ -498,6 +507,8 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
       const statusToStore = editForm.status === 'full' ? 'confirmed' : editForm.status;
       const payload: any = {
         title: editForm.title.trim(),
+        type: editForm.type,
+        registration_open: editForm.registrationOpen,
         description: editForm.description || '',
         location: editForm.location || '',
         track: editForm.track || '',
@@ -543,6 +554,8 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
           status,
           track: row.track || '',
           description: row.description || '',
+          type: row.type || 'other',
+          registrationOpen: row.registration_open !== false,
           starts_at: row.starts_at || null,
           ends_at: row.ends_at || null
         };
@@ -820,6 +833,7 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
           </div>
         </div>
 
+        <AgendaBookingSettings eventId={eventId} />
         {/* QUICK STATS */}
         <div className="grid grid-cols-4 gap-6 mb-8">
           <div className="rounded-xl p-6 border" style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', borderColor: 'rgba(255, 255, 255, 0.1)' }}>
@@ -950,6 +964,7 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex-1">
                               <h4 style={{ fontSize: '16px', fontWeight: 700, color: '#FFFFFF', marginBottom: '8px', lineHeight: '1.4' }}>{session.title}</h4>
+                              {!session.registrationOpen && <p className="mb-2 text-xs text-amber-200">{t('agendaBooking.closed')}</p>}
                               <div className="flex items-center gap-2 mb-2">
                                 <img
                                   src={session.speakerPhoto}
@@ -1073,6 +1088,7 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
 
                     <div style={{ width: '25%', minWidth: '250px' }}>
                       <p style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>{session.title}</p>
+                      {!session.registrationOpen && <p className="mb-1 text-xs text-amber-200">{t('agendaBooking.closed')}</p>}
                       {session.track && (
                         <span className="inline-block px-2 py-0.5 rounded" style={{ backgroundColor: 'rgba(6, 132, 245, 0.15)', color: '#0684F5', fontSize: '11px', fontWeight: 600 }}>{session.track}</span>
                       )}
@@ -1279,7 +1295,7 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
 
         {editOpen && activeSession && (
           <div className="fixed inset-0 z-[220] flex items-center justify-center p-6" style={{ backgroundColor: 'rgba(11, 38, 65, 0.85)' }}>
-            <div className=" max-w-[860px] rounded-2xl border" style={{ backgroundColor: '#0D3052', borderColor: 'rgba(255, 255, 255, 0.12)' }}>
+            <div className="w-full rounded-2xl border" style={{ maxWidth: '860px', maxHeight: '90vh', overflowY: 'auto', backgroundColor: '#0D3052', borderColor: 'rgba(255, 255, 255, 0.12)' }}>
               <div className="flex items-center justify-between px-6 py-5 border-b" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
                 <div>
                   <div style={{ fontSize: '18px', fontWeight: 800, color: '#FFFFFF' }}>{t('manageEvent.agenda.modals.edit.title')}</div>
@@ -1295,6 +1311,21 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
               </div>
 
               <div className="p-6 grid grid-cols-2 gap-5">
+                <div className="col-span-2">
+                  <SessionBookingToggle open={editForm.registrationOpen} onChange={registrationOpen => setEditForm(p => ({ ...p, registrationOpen }))} />
+                </div>
+                <div className="col-span-2">
+                  <label className="mb-2 block text-sm text-white" htmlFor="agenda-session-type">{t('agendaBooking.sessionType')}</label>
+                  <select id="agenda-session-type" value={editForm.type} onChange={e => setEditForm(p => ({ ...p, type: e.target.value }))}
+                    className="w-full rounded-lg border px-3 py-2 text-white" style={{ backgroundColor: '#0D243B', borderColor: 'rgba(255,255,255,0.2)' }}>
+                    {['keynote', 'workshop', 'panel', 'break', 'hackathon', 'pitching', 'training', 'other'].map(type => (
+                      <option key={type} value={type}>{t(`wizard.step3.sessions.types.${type}`)}</option>
+                    ))}
+                    {!['keynote', 'workshop', 'panel', 'break', 'hackathon', 'pitching', 'training', 'other'].includes(editForm.type) && (
+                      <option value={editForm.type}>{editForm.type}</option>
+                    )}
+                  </select>
+                </div>
                 <div className="col-span-2">
                   <label style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', display: 'block' }}>{t('manageEvent.agenda.modals.edit.fields.title')}</label>
                   <input

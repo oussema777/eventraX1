@@ -34,6 +34,7 @@ export const PLATFORM_SECTORS = [
   'Retail & Commerce',
   'Tourism & Hospitality',
   'Creative Industries',
+  'Entrepreneuriat',
   'Logistics & Transport',
   'Real Estate',
   'Telecommunications',

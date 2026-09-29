@@ -32,6 +32,7 @@ import { PLATFORM_INTERESTS, PLATFORM_SECTORS } from '../constants/platformField
 import SEOHead from '../components/SEOHead';
 import { truncateDescription, canonicalUrl } from '../utils/seo';
 import { getRegistrationFieldOrder, isRegistrationSystemField, isVisibleRegistrationCustomField } from '../utils/registrationFieldOrder';
+import { getBulkSessionIds, getWorkshopLimit, isSessionOpen, validateSessionSelection } from '../utils/sessionBooking';
 
 const toFlagEmoji = (code: string) => {
   if (!code || code.length !== 2) return '';
@@ -56,6 +57,9 @@ interface Session {
   location?: string;
   speaker_name?: string;
   day?: number;
+  type?: string;
+  registration_open?: boolean;
+  status?: string;
 }
 
 interface FormField {
@@ -67,10 +71,8 @@ interface FormField {
   value: string;
   readonly?: boolean;
   isSystem?: boolean;
-  isDropdownOpen?: boolean; // For country field dropdown
   phoneCountryCode?: string;
   phoneNumber?: string;
-  isPhoneDropdownOpen?: boolean; // For phone field country code dropdown
 }
 
 export default function EventRegistrationFlow() {
@@ -88,7 +90,7 @@ export default function EventRegistrationFlow() {
   const [event, setEvent] = useState<any>(null);
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [registrationFieldOrder, setRegistrationFieldOrder] = useState<string[]>([]);
-  const [sessions, setSessions] = useState<Session[]>(new Array());
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set());
   const [freeTicketId, setFreeTicketId] = useState<string | null>(null);
   const [registeredAttendeeId, setRegisteredAttendeeId] = useState<string | null>(null);
@@ -114,9 +116,38 @@ export default function EventRegistrationFlow() {
     socialUrl: '',
     b2bOptIn: false,
   });
-  const [isInterestsOpen, setIsInterestsOpen] = useState(false);
-  const [isSectorOpen, setIsSectorOpen] = useState(false);
-  const [isPhoneCountryOpen, setIsPhoneCountryOpen] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!openDropdown) return;
+
+    const handleOutsidePointerDown = (event: PointerEvent) => {
+      const dropdown = event.target instanceof Element
+        ? event.target.closest('[data-registration-dropdown]')
+        : null;
+      if (dropdown?.getAttribute('data-registration-dropdown') !== openDropdown) {
+        setOpenDropdown(null);
+      }
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpenDropdown(null);
+    };
+
+    document.addEventListener('pointerdown', handleOutsidePointerDown);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('pointerdown', handleOutsidePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [openDropdown]);
+
+  useEffect(() => setOpenDropdown(null), [currentStep]);
+
+  const toggleDropdown = (id: string) => {
+    setCountrySearch('');
+    setPhoneCountrySearch('');
+    setOpenDropdown(current => current === id ? null : id);
+  };
 
   const generateConfirmationCode = () => 'EV-' + generateAccessCode(6);
 
@@ -302,10 +333,8 @@ export default function EventRegistrationFlow() {
             value: isPhoneField ? '' : defaultValue, 
             readonly: isReadonly, 
             isSystem: f.isSystem,
-            isDropdownOpen: false, 
             phoneCountryCode: isPhoneField ? initialPhoneCountryCode : undefined,
             phoneNumber: isPhoneField ? initialPhoneNumber : undefined,
-            isPhoneDropdownOpen: false 
           };
         });
 
@@ -384,26 +413,19 @@ export default function EventRegistrationFlow() {
     ));
   };
 
-  const toggleCountryDropdown = (fieldId: string) => {
-    setFormFields(prev => prev.map(field =>
-      field.id === fieldId ? { ...field, isDropdownOpen: !field.isDropdownOpen } : field
-    ));
-    setCountrySearch('');
-  };
-
   const selectCountry = (fieldId: string, countryCode: string) => {
     setFormFields(prev => prev.map(field =>
-      field.id === fieldId ? { ...field, value: countryCode, isDropdownOpen: false } : field
+      field.id === fieldId ? { ...field, value: countryCode } : field
     ));
     setCountrySearch('');
+    setOpenDropdown(null);
   };
 
   const updatePhoneField = (fieldId: string, part: 'countryCode' | 'number', value: string) => {
-    setFormFields(formFields.map(field => {
+    setFormFields(prev => prev.map(field => {
       if (field.id === fieldId && !field.readonly) {
         if (part === 'countryCode') {
-          setPhoneCountrySearch('');
-          return { ...field, phoneCountryCode: value, isPhoneDropdownOpen: false };
+          return { ...field, phoneCountryCode: value };
         }
         if (part === 'number') {
           return { ...field, phoneNumber: value };
@@ -411,27 +433,34 @@ export default function EventRegistrationFlow() {
       }
       return field;
     }));
-  };
-
-  const togglePhoneCountryDropdown = (fieldId: string) => {
-    setPhoneCountrySearch('');
-    setFormFields(formFields.map(field =>
-      field.id === fieldId
-        ? { ...field, isPhoneDropdownOpen: !field.isPhoneDropdownOpen }
-        : { ...field, isPhoneDropdownOpen: false }
-    ));
+    if (part === 'countryCode') {
+      setPhoneCountrySearch('');
+      setOpenDropdown(null);
+    }
   };
 
   const toggleSession = (sessionId: string) => {
-    setSelectedSessions(prev => {
-      const next = new Set(prev);
-      if (next.has(sessionId)) {
-        next.delete(sessionId);
-      } else {
-        next.add(sessionId);
-      }
-      return next;
-    });
+    const next = new Set(selectedSessions);
+    if (next.has(sessionId)) {
+      next.delete(sessionId);
+      setSelectedSessions(next);
+      return;
+    }
+    next.add(sessionId);
+    const issue = validateSessionSelection(sessions, next, workshopLimit);
+    if (issue) {
+      toast.error(t(`agendaBooking.${issue === 'workshopLimitReached' && workshopLimit === 1 ? 'workshopLimitReachedSingle' : issue}`, { count: workshopLimit || 0 }));
+      return;
+    }
+    setSelectedSessions(next);
+  };
+
+  const workshopLimit = getWorkshopLimit(event?.workshop_selection_limit);
+  const bulkSessionIds = getBulkSessionIds(sessions, workshopLimit);
+  const allBulkSelected = bulkSessionIds.length > 0 && bulkSessionIds.every(id => selectedSessions.has(id));
+
+  const toggleAllSessions = () => {
+    setSelectedSessions(allBulkSelected ? new Set() : new Set([...selectedSessions, ...bulkSessionIds]));
   };
 
   const handleCompleteRegistration = async () => {
@@ -439,6 +468,22 @@ export default function EventRegistrationFlow() {
     setIsSubmitting(true);
 
     try {
+      const [latestSessions, latestEvent] = await Promise.all([
+        supabase.from('event_sessions').select('*').eq('event_id', eventId).order('starts_at', { ascending: true }),
+        supabase.from('events').select('workshop_selection_limit').eq('id', eventId).single(),
+      ]);
+      if (latestSessions.error || latestEvent.error) throw new Error(t('agendaBooking.validationError'));
+      const freshSessions: Session[] = latestSessions.data || [];
+      const freshLimit = getWorkshopLimit(latestEvent.data?.workshop_selection_limit);
+      setSessions(freshSessions);
+      setEvent((prev: any) => ({ ...prev, workshop_selection_limit: freshLimit }));
+      const issue = validateSessionSelection(freshSessions, selectedSessions, freshLimit);
+      if (issue) {
+        // Clear choices that were just closed; keep the remaining choices for review.
+        setSelectedSessions(new Set(freshSessions.filter(s => isSessionOpen(s) && selectedSessions.has(s.id)).map(s => s.id)));
+        toast.error(t(`agendaBooking.${issue === 'workshopLimitReached' && freshLimit === 1 ? 'workshopLimitReachedSingle' : issue}`, { count: freshLimit || 0 }));
+        return;
+      }
       // Fetch notification settings for event_registration
       let regNotifSettings = { is_email_enabled: true, is_bell_enabled: true };
       if (eventId) {
@@ -525,12 +570,11 @@ export default function EventRegistrationFlow() {
         finalConfirmCode = edgeFnData.confirmation_code;
         alreadyRegistered = !!edgeFnData.already_registered;
       } else {
-        // Fallback: direct insert (no account creation, but registration works)
+        // Transactional fallback: attendee and session choices succeed or fail together.
         const { data: attendee, error: regError } = await supabase
-          .from('event_attendees')
-          .insert({
+          .rpc('create_event_attendee_with_sessions', { p_attendee: {
             event_id: eventId,
-            profile_id: user?.id || null,
+            profile_id: user?.email?.toLowerCase() === systemFields.email.trim().toLowerCase() ? user.id : null,
             email: systemFields.email,
             name: systemFields.fullName,
             ticket_type: 'General Admission',
@@ -538,9 +582,7 @@ export default function EventRegistrationFlow() {
             price: 0,
             status: 'registered',
             meta: registrationMeta,
-          })
-          .select('id')
-          .single();
+          }, p_session_ids: Array.from(selectedSessions) });
 
         if (regError?.code === '23505') {
           // Already registered
@@ -559,14 +601,6 @@ export default function EventRegistrationFlow() {
           attendeeId = attendee.id;
           finalConfirmCode = confirmCode;
 
-          // Insert session selections
-          if (selectedSessions.size > 0) {
-            const sessionRows = Array.from(selectedSessions).map(sid => ({
-              attendee_id: attendeeId,
-              session_id: sid,
-            }));
-            await supabase.from('event_attendee_sessions').insert(sessionRows);
-          }
         }
       }
 
@@ -658,6 +692,10 @@ export default function EventRegistrationFlow() {
       setCurrentStep(3);
     } catch (error: any) {
       console.error('Registration error:', error);
+      if (['SESSION_REGISTRATION_CLOSED', 'SESSION_EVENT_MISMATCH', 'WORKSHOP_SELECTION_LIMIT'].some(code => error?.message?.includes(code))) {
+        toast.error(t('agendaBooking.bookingRejected'));
+        return;
+      }
       toast.error(sanitizeError(error, t('registrationFlow.toasts.registrationError', { defaultValue: 'Registration failed. Please try again.' })));
     } finally {
       setIsSubmitting(false);
@@ -779,7 +817,6 @@ export default function EventRegistrationFlow() {
             type="text"
             value={systemFields.fullName}
             onChange={e => updateSystemField('fullName', e.target.value)}
-            readOnly={!!profile?.full_name}
             className="w-full px-3 py-2.5 rounded-lg border text-sm"
             style={fieldStyle}
             placeholder="John Doe"
@@ -795,7 +832,6 @@ export default function EventRegistrationFlow() {
             type="email"
             value={systemFields.email}
             onChange={e => updateSystemField('email', e.target.value)}
-            readOnly={!!(user?.email || profile?.email)}
             className="w-full px-3 py-2.5 rounded-lg border text-sm"
             style={fieldStyle}
             placeholder="john@company.com"
@@ -808,23 +844,22 @@ export default function EventRegistrationFlow() {
             {t('registration.systemFields.phone', { defaultValue: 'Phone Number' })} <span className="text-red-400">*</span>
           </label>
           <div className="flex gap-2">
-            <div className="relative" style={{ minWidth: '110px' }}>
+            <div className="relative" style={{ minWidth: '110px' }} data-registration-dropdown="system-phone">
               <button
                 type="button"
-                onClick={() => {
-                  setPhoneCountrySearch('');
-                  setIsPhoneCountryOpen(!isPhoneCountryOpen);
-                }}
+                onClick={() => toggleDropdown('system-phone')}
+                aria-expanded={openDropdown === 'system-phone'}
                 className="w-full flex items-center gap-1.5 px-2 py-2.5 rounded-lg border text-sm"
                 style={fieldStyle}
               >
                 <span className="text-white/70 text-xs">{systemFields.phoneCountryCode}</span>
                 <ChevronDown size={12} className="ml-auto text-white/50" />
               </button>
-              {isPhoneCountryOpen && (
+              {openDropdown === 'system-phone' && (
                 <div
-                  className="absolute z-50 mt-1 w-72 rounded-lg border shadow-xl"
+                  className="absolute z-50 mt-1 w-72 max-w-[calc(100vw-3rem)] rounded-lg border shadow-xl"
                   style={{
+                    maxWidth: 'calc(100vw - 3rem)',
                     backgroundColor: '#0D243B',
                     borderColor: 'rgba(255,255,255,0.15)',
                     maxHeight: 'min(320px, 50vh)',
@@ -859,7 +894,7 @@ export default function EventRegistrationFlow() {
                           onClick={() => {
                             updateSystemField('phoneCountryCode', c.phoneCode);
                             setPhoneCountrySearch('');
-                            setIsPhoneCountryOpen(false);
+                            setOpenDropdown(null);
                           }}
                           className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white hover:bg-white/10"
                         >
@@ -900,7 +935,6 @@ export default function EventRegistrationFlow() {
             type="text"
             value={systemFields.companyName}
             onChange={e => updateSystemField('companyName', e.target.value)}
-            readOnly={!!profile?.company}
             className="w-full px-3 py-2.5 rounded-lg border text-sm"
             style={fieldStyle}
             placeholder="Acme Corp"
@@ -915,7 +949,6 @@ export default function EventRegistrationFlow() {
           <textarea
             value={systemFields.companyDescription}
             onChange={e => updateSystemField('companyDescription', e.target.value)}
-            readOnly={!!profile?.company_description}
             className="w-full px-3 py-2.5 rounded-lg border text-sm resize-none"
             style={fieldStyle}
             rows={3}
@@ -946,10 +979,11 @@ export default function EventRegistrationFlow() {
               ))}
             </div>
           )}
-          <div className="relative">
+          <div className="relative" data-registration-dropdown="system-interests">
             <button
               type="button"
-              onClick={() => setIsInterestsOpen(!isInterestsOpen)}
+              onClick={() => toggleDropdown('system-interests')}
+              aria-expanded={openDropdown === 'system-interests'}
               className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border text-sm"
               style={fieldStyle}
             >
@@ -958,7 +992,7 @@ export default function EventRegistrationFlow() {
               </span>
               <ChevronDown size={14} className="text-white/50" />
             </button>
-            {isInterestsOpen && (
+            {openDropdown === 'system-interests' && (
               <div className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border shadow-xl"
                 style={{ backgroundColor: '#0D243B', borderColor: 'rgba(255,255,255,0.15)' }}>
                 {PLATFORM_INTERESTS.map(interest => {
@@ -994,10 +1028,11 @@ export default function EventRegistrationFlow() {
           <label className="block text-sm font-medium text-white mb-1.5">
             {t('registration.systemFields.sector', { defaultValue: 'Sector' })} <span className="text-red-400">*</span>
           </label>
-          <div className="relative">
+          <div className="relative" data-registration-dropdown="system-sector">
             <button
               type="button"
-              onClick={() => setIsSectorOpen(!isSectorOpen)}
+              onClick={() => toggleDropdown('system-sector')}
+              aria-expanded={openDropdown === 'system-sector'}
               className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border text-sm"
               style={fieldStyle}
             >
@@ -1006,14 +1041,14 @@ export default function EventRegistrationFlow() {
               </span>
               <ChevronDown size={14} className="text-white/50" />
             </button>
-            {isSectorOpen && (
+            {openDropdown === 'system-sector' && (
               <div className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border shadow-xl"
                 style={{ backgroundColor: '#0D243B', borderColor: 'rgba(255,255,255,0.15)' }}>
                 {PLATFORM_SECTORS.map(s => (
                   <button
                     key={s}
                     type="button"
-                    onClick={() => { updateSystemField('sector', s); setIsSectorOpen(false); }}
+                    onClick={() => { updateSystemField('sector', s); setOpenDropdown(null); }}
                     className={`w-full text-left px-3 py-2 text-xs hover:bg-white/10 ${systemFields.sector === s ? 'text-[#0684F5]' : 'text-white'}`}
                   >
                     {s}
@@ -1033,7 +1068,6 @@ export default function EventRegistrationFlow() {
             type="url"
             value={systemFields.socialUrl}
             onChange={e => updateSystemField('socialUrl', e.target.value)}
-            readOnly={!!(profile?.social_url || profile?.linkedin_url)}
             className="w-full px-3 py-2.5 rounded-lg border text-sm"
             style={fieldStyle}
             placeholder={t('registration.systemFields.socialUrlPlaceholder', { defaultValue: 'https://linkedin.com/in/yourprofile' })}
@@ -1168,6 +1202,7 @@ export default function EventRegistrationFlow() {
         />
       )}
       <style>{`
+        .registration-card { padding: 40px; }
         @media print {
           @page {
             margin: 0;
@@ -1210,7 +1245,15 @@ export default function EventRegistrationFlow() {
           .reg-help-btn button { padding: 8px !important; border: none !important; }
         }
         @media (max-width: 640px) {
+          .registration-card { padding: 20px; }
           .h-full.flex.items-center { padding-left: 16px !important; padding-right: 16px !important; }
+          .reg-progress { gap: 8px; }
+          .reg-step-connector { display: none; }
+          .reg-step-label { font-size: 10px !important; }
+          .reg-logo { height: 24px !important; }
+        }
+        @media (max-width: 360px) {
+          .reg-step-label { display: none; }
         }
       `}</style>
       {/* Header */}
@@ -1225,10 +1268,10 @@ export default function EventRegistrationFlow() {
       >
         <div className="h-full flex items-center justify-between px-10" style={{ gap: '12px' }}>
           <div style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => navigate('/')}>
-            <Logo />
+            <Logo className="reg-logo" />
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="reg-progress flex items-center gap-4">
             {steps.map((step, index) => (
               <div key={step.number} className="flex items-center">
                 <div className="flex flex-col items-center">
@@ -1247,7 +1290,7 @@ export default function EventRegistrationFlow() {
                     {currentStep > step.number ? <Check size={16} /> : step.number}
                   </div>
                   <span
-                    className="mt-1.5"
+                    className="reg-step-label mt-1.5"
                     style={{
                       fontSize: '12px',
                       fontWeight: 600,
@@ -1259,6 +1302,7 @@ export default function EventRegistrationFlow() {
                 </div>
                 {index < steps.length - 1 && (
                   <div
+                    className="reg-step-connector"
                     style={{
                       width: '40px',
                       height: '2px',
@@ -1305,7 +1349,7 @@ export default function EventRegistrationFlow() {
       {/* Main Content */}
       <main className="pt-10 pb-10 px-6 flex-grow">
         <div
-          className="mx-auto rounded-2xl p-10"
+          className="registration-card mx-auto rounded-2xl"
           style={{
             maxWidth: '800px',
             backgroundColor: 'rgba(255, 255, 255, 0.03)',
@@ -1373,10 +1417,11 @@ export default function EventRegistrationFlow() {
                           {field.options?.map(opt => <option key={opt} value={opt} style={{ color: '#000' }}>{opt}</option>)}
                         </select>
                       ) : field.type === 'country' ? (
-                        <div className="relative">
+                        <div className="relative" data-registration-dropdown={`country:${field.id}`}>
                           <button
                             type="button"
-                            onClick={() => toggleCountryDropdown(field.id)}
+                            onClick={() => toggleDropdown(`country:${field.id}`)}
+                            aria-expanded={openDropdown === `country:${field.id}`}
                             className="w-full flex items-center justify-between transition-all"
                             style={{
                               height: '48px',
@@ -1403,7 +1448,7 @@ export default function EventRegistrationFlow() {
                             <ChevronDown size={20} style={{ color: '#6B7280' }} />
                           </button>
 
-                          {field.isDropdownOpen && (
+                          {openDropdown === `country:${field.id}` && (
                             <div
                               className="absolute top-full left-0 mt-1 w-full rounded-lg shadow-lg z-10"
                               style={{
@@ -1458,10 +1503,11 @@ export default function EventRegistrationFlow() {
                         </div>
                       ) : field.type === 'phone' ? (
                         <div className="flex gap-2">
-                          <div className="relative" style={{ width: '120px' }}>
+                          <div className="relative" style={{ width: '120px' }} data-registration-dropdown={`phone:${field.id}`}>
                             <button
                               type="button"
-                              onClick={() => togglePhoneCountryDropdown(field.id)}
+                              onClick={() => toggleDropdown(`phone:${field.id}`)}
+                              aria-expanded={openDropdown === `phone:${field.id}`}
                               className="w-full flex items-center justify-between transition-all"
                               style={{
                                 height: '48px',
@@ -1480,10 +1526,11 @@ export default function EventRegistrationFlow() {
                               <ChevronDown size={16} style={{ color: '#6B7280' }} />
                             </button>
 
-                            {field.isPhoneDropdownOpen && (
+                            {openDropdown === `phone:${field.id}` && (
                               <div
-                                className="absolute top-full left-0 mt-1 w-[300px] rounded-lg shadow-lg z-50"
+                                className="absolute top-full left-0 mt-1 w-[300px] max-w-[calc(100vw-3rem)] rounded-lg shadow-lg z-50"
                                 style={{
+                                  maxWidth: 'calc(100vw - 3rem)',
                                   backgroundColor: '#FFFFFF',
                                   border: '1px solid #E5E7EB',
                                   maxHeight: 'min(320px, 50vh)',
@@ -1766,18 +1813,47 @@ export default function EventRegistrationFlow() {
                 </div>
               ) : (
                 <div className="space-y-4">
+                  {workshopLimit !== null && (
+                    <div className="rounded-lg border border-blue-400/30 bg-blue-500/10 p-4 text-sm text-white" role="note">
+                      <p>{t(workshopLimit === 1 ? 'agendaBooking.workshopRuleSingle' : 'agendaBooking.workshopRule', { count: workshopLimit })}</p>
+                      <p className="mt-1 text-white/60">{t('agendaBooking.bulkHint')}</p>
+                    </div>
+                  )}
+                  {bulkSessionIds.length > 0 && <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={toggleAllSessions}
+                      className="rounded-lg px-3 py-2 text-sm font-semibold transition-colors hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0684F5]"
+                      style={{ color: '#FFFFFF' }}
+                    >
+                      {allBulkSelected
+                        ? t('registrationFlow.deselectAllSessions')
+                        : t(workshopLimit === null ? 'registrationFlow.selectAllSessions' : 'agendaBooking.bulkSelect')}
+                    </button>
+                  </div>}
                   {sessions.map((session) => {
                     const isSelected = selectedSessions.has(session.id);
+                    const isOpen = isSessionOpen(session);
                     return (
                       <div
                         key={session.id}
-                        className={`p-4 rounded-xl border transition-all cursor-pointer`}
+                        role="checkbox"
+                        aria-checked={isSelected}
+                        aria-disabled={!isOpen}
+                        tabIndex={isOpen ? 0 : -1}
+                        className={`p-4 rounded-xl border transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0684F5] ${isOpen ? 'cursor-pointer' : 'opacity-60 cursor-not-allowed'}`}
                         style={{
                           backgroundColor: isSelected ? 'rgba(6, 132, 245, 0.15)' : 'rgba(255, 255, 255, 0.03)',
                           borderColor: isSelected ? '#0684F5' : 'rgba(255, 255, 255, 0.1)',
                           borderWidth: '1px'
                         }}
-                        onClick={() => toggleSession(session.id)}
+                        onClick={() => { if (isOpen) toggleSession(session.id); }}
+                        onKeyDown={e => {
+                          if (isOpen && (e.key === ' ' || e.key === 'Enter')) {
+                            e.preventDefault();
+                            toggleSession(session.id);
+                          }
+                        }}
                       >
                         <div className="flex items-start gap-4">
                           <div 
@@ -1801,6 +1877,8 @@ export default function EventRegistrationFlow() {
                               </span>
                             </div>
                             
+                            {!isOpen && <p className="mt-2 text-sm text-amber-200">{t('agendaBooking.closed')}</p>}
+                            {session.type === 'workshop' && <p className="mt-2 text-xs text-blue-200">{t('wizard.step3.sessions.types.workshop')}</p>}
                             <div className="flex items-center gap-4 text-sm mt-2">
                               {session.speaker_name && (
                                 <div className="flex items-center gap-1.5" style={{ color: 'rgba(255, 255, 255, 0.6)' }}>
@@ -1847,7 +1925,7 @@ export default function EventRegistrationFlow() {
               <p className="mb-10 max-w-md mx-auto no-print" style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '16px' }}>
                 {isPaidEvent
                   ? t('registrationFlow.paidConfirmationDesc').replace('{eventName}', event?.name || '')
-                  : t('registrationFlow.freeConfirmationDesc').replace('{eventName}', event?.name || '').replace('{email}', user?.email || '')
+                  : t('registrationFlow.freeConfirmationDesc').replace('{eventName}', event?.name || '').replace('{email}', systemFields.email)
                 }
               </p>
 
@@ -2005,7 +2083,7 @@ export default function EventRegistrationFlow() {
                       
                       <div className="text-center">
                         <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold mb-1">{t('registrationFlow.voucher.attendee')}</p>
-                        <p className="text-lg font-bold mb-4">{profile?.full_name || user?.email?.split('@')[0]}</p>
+                        <p className="text-lg font-bold mb-4">{systemFields.fullName}</p>
                         
                         {confirmationCode && (
                           <div className="inline-block px-4 py-2 bg-blue-50 rounded-lg">

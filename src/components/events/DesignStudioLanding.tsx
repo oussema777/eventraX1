@@ -20,6 +20,8 @@ import LandingPageNavbar from './LandingPageNavbar';
 import { useAuth } from '../../contexts/AuthContext';
 import SEOHead from '../SEOHead';
 import { generateEventJsonLd, generateBreadcrumbJsonLd, truncateDescription, canonicalUrl } from '../../utils/seo';
+import { toast } from 'sonner';
+import { getWorkshopLimit, isSessionOpen } from '../../utils/sessionBooking';
 
 interface EventRecord {
   id: string;
@@ -34,6 +36,7 @@ interface EventRecord {
   timezone?: string;
   location_address?: string;
   capacity_limit?: number;
+  workshop_selection_limit?: number | null;
   branding_settings?: any;
   access_code?: string | null;
 }
@@ -55,6 +58,10 @@ interface SpeakerCard {
 }
 
 interface AgendaSession {
+  id: string;
+  type?: string;
+  registration_open?: boolean;
+  status?: string;
   day: number;
   time: string;
   duration: string;
@@ -148,6 +155,7 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
   const [attendeesCount, setAttendeesCount] = useState(0);
   const [attendeesList, setAttendeesList] = useState<{ id: string; name: string; company?: string; avatar?: string }[]>([]);
   const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
+  const [isBookingSession, setIsBookingSession] = useState(false);
   const [attendeeId, setAttendeeId] = useState<string | null>(null);
 
   const handleRegister = () => {
@@ -181,6 +189,7 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
   };
 
   const handleToggleSession = async (sessionId: string) => {
+    if (isBookingSession) return;
     if (!user || !attendeeId) {
       navigate(`/event/${eventId}/register`);
       return;
@@ -189,26 +198,45 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
     const isSelected = selectedSessionIds.has(sessionId);
     const newSelected = new Set(selectedSessionIds);
 
+    if (!isSelected) {
+      const session = sessions.find(s => s.id === sessionId);
+      if (!session || !isSessionOpen(session)) {
+        toast.error(t('agendaBooking.sessionUnavailable'));
+        return;
+      }
+      const limit = getWorkshopLimit(event?.workshop_selection_limit);
+      if (session.type === 'workshop' && limit !== null && sessions.filter(s => s.type === 'workshop' && selectedSessionIds.has(s.id)).length >= limit) {
+        toast.error(t(limit === 1 ? 'agendaBooking.workshopLimitReachedSingle' : 'agendaBooking.workshopLimitReached', { count: limit }));
+        return;
+      }
+    }
+
     try {
+      setIsBookingSession(true);
       if (isSelected) {
         newSelected.delete(sessionId);
-        await supabase
+        const { error } = await supabase
           .from('event_attendee_sessions')
           .delete()
           .eq('attendee_id', attendeeId)
           .eq('session_id', sessionId);
+        if (error) throw error;
       } else {
         newSelected.add(sessionId);
-        await supabase
+        const { error } = await supabase
           .from('event_attendee_sessions')
           .insert({
             attendee_id: attendeeId,
             session_id: sessionId
           });
+        if (error) throw error;
       }
       setSelectedSessionIds(newSelected);
     } catch (err) {
       console.error('Failed to toggle session:', err);
+      toast.error(t('agendaBooking.bookingRejected'));
+    } finally {
+      setIsBookingSession(false);
     }
   };
 
@@ -355,6 +383,9 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
 
           return {
             id: row.id,
+            type: row.type,
+            registration_open: row.registration_open !== false,
+            status: row.status,
             day: dayIndex,
             time: formatTime(row.starts_at),
             duration: formatDuration(row.starts_at, row.ends_at),
@@ -527,6 +558,7 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
             days={days}
             isRegistered={isRegistered}
             onToggleSession={handleToggleSession}
+            bookingPending={isBookingSession}
             showSpeakerTags={block.settings?.showSpeakerTags !== false}
           />
         );
@@ -697,4 +729,3 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
     </div>
   );
 }
-                    

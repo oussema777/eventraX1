@@ -18,6 +18,7 @@ export interface Session {
   speakers: string[]; // array of UUIDs
   tags: string[];
   type: string;      // keynote, workshop, etc.
+  registrationOpen: boolean;
   status: 'confirmed' | 'tentative';
 
   // Pro features
@@ -74,6 +75,7 @@ function mapSession(s: any): Session {
     speakers: s.speaker_ids || [],
     tags: s.tags || [],
     type: s.type || 'presentation',
+    registrationOpen: s.registration_open !== false,
     status: s.status || 'confirmed',
     enableCheckIn: s.enable_check_in || false,
     showInPublicSchedule: s.is_public !== false, // default true
@@ -122,6 +124,7 @@ export function useSessions(manualEventId?: string) {
         location: session.venue,
         capacity: session.capacity,
         type: session.type,
+        registration_open: session.registrationOpen ?? true,
         tags: session.tags,
         speaker_ids: session.speakers,
         status: session.status || 'confirmed'
@@ -142,6 +145,7 @@ export function useSessions(manualEventId?: string) {
     } catch (error: any) {
       console.error('Error creating session:', error);
       toast.error(sanitizeError(error, 'Failed to create session'));
+      throw error;
     }
   };
 
@@ -155,6 +159,7 @@ export function useSessions(manualEventId?: string) {
       if (session.venue !== undefined) dbPayload.location = session.venue;
       if (session.capacity !== undefined) dbPayload.capacity = session.capacity;
       if (session.type !== undefined) dbPayload.type = session.type;
+      if (session.registrationOpen !== undefined) dbPayload.registration_open = session.registrationOpen;
       if (session.tags !== undefined) dbPayload.tags = session.tags;
       if (session.speakers !== undefined) dbPayload.speaker_ids = session.speakers;
       if (session.status !== undefined) dbPayload.status = session.status;
@@ -175,6 +180,7 @@ export function useSessions(manualEventId?: string) {
     } catch (error: any) {
       console.error('Error updating session:', error);
       toast.error(sanitizeError(error, 'Failed to update session'));
+      throw error;
     }
   };
 
