@@ -29,6 +29,7 @@ import { useI18n } from '../../i18n/I18nContext';
 import { useMessageThread } from '../../hooks/useMessageThread';
 import UserMessagesCenter from '../messaging/UserMessagesCenter';
 import BookMeetingModal from './BookMeetingModal';
+import EventNetworkingPeople from './EventNetworkingPeople';
 import { sendEmail, generateMeetingConfirmationEmailHtml, sendMeetingConfirmationEmails, sendMeetingCancelledEmail, sendConnectionRequestEmail, sendConnectionAcceptedEmail } from '../../lib/email';
 
 const MATCHES_TABLE = 'b2b_matches';
@@ -36,7 +37,7 @@ const REQUESTS_TABLE = 'b2b_requests';
 const CONNECTIONS_TABLE = 'b2b_connections';
 const MEETINGS_TABLE = 'event_b2b_meetings';
 
-type TabType = 'schedule' | 'matches' | 'requests' | 'connections';
+type TabType = 'people' | 'schedule' | 'matches' | 'requests' | 'connections';
 
 interface Meeting {
   id: string;
@@ -104,8 +105,8 @@ interface UserB2BCenterProps {
   /**
    * When provided, scopes the entire networking surface to a single event:
    * every data query is filtered with `.eq('event_id', eventId)` and the
-   * component renders only the four core sections (matches, connections,
-   * meetings, messages) with no global app chrome. When omitted the
+   * component opens on participant discovery alongside matches, connections,
+   * meetings and messages, with no global app chrome. When omitted the
    * component behaves exactly as before (member-wide global view).
    */
   eventId?: string;
@@ -125,7 +126,7 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
   // Single-event scope flag. Backward-compatible: with no eventId the
   // component runs the original global (cross-event) aggregation.
   const scopedEventId = eventId || null;
-  const [activeTab, setActiveTab] = useState<TabType>('schedule');
+  const [activeTab, setActiveTab] = useState<TabType>(eventId ? 'people' : 'schedule');
   const [highlightedMeetingId, setHighlightedMeetingId] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState('all');
   const [showPastMeetings, setShowPastMeetings] = useState(true);
@@ -796,7 +797,7 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
     }
   };
 
-  const handleScheduleMeeting = async (profileId: string, defaultEventId?: string | null, meeting?: Meeting | null) => {
+  const handleScheduleMeeting = async (profileId: string, defaultEventId?: string | null, meeting?: Meeting | null, participantName?: string) => {
     let resolvedProfileId = profileId;
 
     // If profileId is empty (bulk matches without profile IDs), resolve from attendee record
@@ -821,7 +822,7 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
       return;
     }
 
-    const name = profileNameMap.get(resolvedProfileId) || (meeting?.name) || t('networking.defaults.user');
+    const name = participantName || profileNameMap.get(resolvedProfileId) || (meeting?.name) || t('networking.defaults.user');
     const existing = meetingByProfileId.get(resolvedProfileId) || meeting || null;
 
     // For unscheduled bulk matches (no start time), pass meeting ID but mark as unscheduled
@@ -1393,6 +1394,15 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
           className="networking-hub__tabs flex items-center gap-2 md:gap-8 mb-8"
           style={{ borderBottom: '2px solid rgba(255,255,255,0.1)' }}
         >
+          {scopedEventId && (
+            <button onClick={() => setActiveTab('people')}
+              aria-pressed={activeTab === 'people'}
+              className="pb-4 transition-colors relative flex items-center justify-center gap-2 flex-1"
+              style={{ fontSize: '16px', fontWeight: 600, color: activeTab === 'people' ? '#FFFFFF' : '#94A3B8', backgroundColor: 'transparent', border: 'none', cursor: 'pointer' }}>
+              <Users size={18} />{t('networking.people.tab')}
+              {activeTab === 'people' && <div style={{ position: 'absolute', bottom: '-2px', left: 0, right: 0, height: '2px', backgroundColor: '#0684F5' }} />}
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('schedule')}
             className="pb-4 transition-colors relative flex items-center gap-2"
@@ -1543,6 +1553,10 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
         </div>
 
         {/* Tab Content */}
+        {activeTab === 'people' && scopedEventId && user && (
+          <EventNetworkingPeople eventId={scopedEventId} userId={user.id}
+            onRequestMeeting={person => handleScheduleMeeting(person.id, scopedEventId, null, person.name)} />
+        )}
         {activeTab === 'schedule' && (
           <div>
             {/* Filters */}

@@ -264,6 +264,15 @@ export default {
       }
     },
     networking: {
+      people: {
+        tab: 'Participants', title: 'Rencontrez les participants',
+        subtitle: 'Découvrez les participants B2B et demandez un rendez-vous pour échanger.',
+        search: 'Nom, entreprise ou centres d’intérêt', loading: 'Chargement des participants…',
+        error: 'Impossible de charger les participants. Veuillez réessayer.', retry: 'Réessayer',
+        empty: 'Aucun autre participant B2B pour le moment. Revenez après de nouvelles inscriptions.',
+        noResults: 'Aucun participant ne correspond à votre recherche.', count: '{count} participants',
+        requestMeeting: 'Demander un rendez-vous'
+      },
       title: 'Centre de reseautage',
       subtitle: 'Gerez vos rendez-vous et connexions.',
       stats: {

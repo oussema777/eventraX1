@@ -279,6 +279,15 @@ export default {
       }
     },
     networking: {
+      people: {
+        tab: 'People', title: 'Meet people at this event',
+        subtitle: 'Discover B2B participants and request a meeting to start a conversation.',
+        search: 'Search name, company or interests', loading: 'Loading participants…',
+        error: 'We could not load participants. Please try again.', retry: 'Try again',
+        empty: 'No other B2B participants yet. Check back as more people join.',
+        noResults: 'No participants match your search.', count: '{count} participants',
+        requestMeeting: 'Request meeting'
+      },
       title: 'Networking Hub',
       subtitle: 'Manage your meetings and connections.',
       stats: {

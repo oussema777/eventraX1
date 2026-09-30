@@ -1,0 +1,31 @@
+.networking-people { color: #fff; }
+.networking-people-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
+.networking-people h2 { font-size: 22px; font-weight: 600; }
+.networking-people-header p { margin-top: 8px; font-size: 14px; color: #94a3b8; }
+.networking-people-search { position: relative; width: 320px; flex-shrink: 0; }
+.networking-people-search svg { position: absolute; left: 12px; top: 13px; color: #94a3b8; }
+.networking-people-search input { width: 100%; padding: 12px 12px 12px 40px; border: 1px solid #ffffff33; border-radius: 8px; background: #ffffff0d; color: #fff; font-size: 14px; }
+.networking-people :is(input, button):focus-visible { outline: 2px solid #93c5fd; outline-offset: 3px; }
+.networking-people-count { color: #94a3b8; font-size: 14px; margin-bottom: 16px; }
+.networking-people-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.networking-people-card { display: flex; flex-direction: column; gap: 16px; padding: 20px; border: 1px solid #ffffff1a; border-radius: 12px; background: #ffffff0d; overflow-wrap: anywhere; }
+.networking-people-identity { display: flex; align-items: center; gap: 12px; }
+.networking-people-identity h3 { font-size: 16px; font-weight: 600; }
+.networking-people-identity p { color: #94a3b8; font-size: 14px; margin-top: 4px; }
+.networking-people-avatar { width: 48px; height: 48px; flex-shrink: 0; border-radius: 50%; object-fit: cover; display: flex; align-items: center; justify-content: center; background: #0684f533; color: #93c5fd; font-weight: 600; }
+.networking-people-company { display: flex; gap: 8px; align-items: center; font-size: 14px; color: #cbd5e1; }
+.networking-people-company svg { flex-shrink: 0; }
+.networking-people-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.networking-people-tags span { border-radius: 24px; background: #ffffff0d; padding: 4px 10px; color: #cbd5e1; font-size: 12px; }
+.networking-people-request { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: auto; padding: 12px 16px; border: 0; border-radius: 8px; background: #0684f5; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
+.networking-people-request:hover { background: #0572d4; }
+.networking-people-state { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 48px 24px; border: 1px solid #ffffff1a; border-radius: 12px; color: #94a3b8; text-align: center; }
+.networking-people-retry { color: #93c5fd; background: transparent; border: 0; text-decoration: underline; cursor: pointer; }
+@media (max-width: 1000px) {
+  .networking-people-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .networking-people-header { align-items: stretch; flex-direction: column; gap: 16px; }
+  .networking-people-search { width: 100%; }
+}
+@media (max-width: 600px) {
+  .networking-people-grid { grid-template-columns: minmax(0, 1fr); }
+}
