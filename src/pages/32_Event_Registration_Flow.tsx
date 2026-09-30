@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { generateAccessCode } from '../utils/codeGenerator';
 import {
@@ -81,7 +81,8 @@ export default function EventRegistrationFlow() {
   const navigate = useNavigate();
   const location = useLocation();
   const accessCodeVerified = (location.state as any)?.accessCodeVerified;
-  const { user, profile } = useAuth();
+  const { user, profile, isLoading: isAuthLoading } = useAuth();
+  const initializedRegistration = useRef<string | null>(null);
   const { t } = useI18n();
 
   const [currentStep, setCurrentStep] = useState<RegistrationStep>(1);
@@ -156,10 +157,16 @@ export default function EventRegistrationFlow() {
   // Account gate removed — Edge Function auto-creates accounts for guest registrants
 
   useEffect(() => {
-    if (eventId) {
-      fetchEventData();
-    }
-  }, [eventId, user, profile]);
+    if (!eventId || isAuthLoading) return;
+    if (user && profile?.id !== user.id) return;
+
+    // Supabase can emit SIGNED_IN again when a tab regains focus. New user
+    // and profile objects for the same account must not reset an active form.
+    const registrationKey = JSON.stringify([eventId, user?.id ?? null]);
+    if (initializedRegistration.current === registrationKey) return;
+    initializedRegistration.current = registrationKey;
+    fetchEventData();
+  }, [eventId, user, profile, isAuthLoading]);
 
   const handleDownloadTicket = async () => {
     if (!registeredAttendeeId) return;
