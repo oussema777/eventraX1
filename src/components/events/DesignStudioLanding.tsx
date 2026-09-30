@@ -567,6 +567,7 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
       case 'sponsors':
         return <SponsorsBlock key={block.id} {...sharedProps} sponsors={sponsors} packages={sponsorPackages} settings={block.settings} />;
       case 'sponsor-packages':
+        if (sponsorPackages.length === 0) return null;
         return <SponsorPackagesBlock key={block.id} {...sharedProps} packages={sponsorPackages} settings={block.settings} onSelectPackage={(pkg) => navigate(`/event/${eventId}/sponsor-inquiry/${pkg.id || pkg.name}`)} />;
       case 'networking':
         return <NetworkingBlock key={block.id} {...sharedProps} settings={block.settings} onNavigate={() => navigate(`/event/${eventId}/attendees`)} />;
@@ -642,7 +643,7 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
           exhibitors: exhibitors.length > 0,
           attendees: attendeesCount > 0,
           sponsors: sponsors.length > 0,
-          packages: sponsorPackages.length > 0,
+          packages: sponsorPackages.length > 0 && orderedBlocks.some(block => block.isVisible && (block.blockId || block.type) === 'sponsor-packages'),
           tickets: tickets.length > 0
         }}
         brandColor={design.brandColor}

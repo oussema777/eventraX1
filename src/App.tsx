@@ -28,6 +28,7 @@ const queryClient = new QueryClient({
 const LandingPage = lazy(() => import('./pages/01_Landing_Page'));
 const AuthFlowDemo = lazy(() => import('./pages/00_Auth_Flow_Demo'));
 const AuthCallback = lazy(() => import('./pages/99_Auth_Callback'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const EventAuthBridge = lazy(() => import('./pages/98_Event_Auth_Bridge'));
 const FormResponsePage = lazy(() => import('./pages/FormResponsePage'));
 const BrowseEventsDiscoveryPage = lazy(() => import('./pages/24_Browse_Events_Discovery'));
@@ -135,6 +136,7 @@ export default function App() {
             <Route path="/register" element={<LandingPage />} />
             <Route path="/auth-flow-demo" element={<AuthFlowDemo />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/event-auth" element={<EventAuthBridge />} />
             <Route path="/forms/:formId" element={<FormResponsePage />} />
             <Route path="/browse-events" element={<BrowseEventsDiscoveryPage />} />

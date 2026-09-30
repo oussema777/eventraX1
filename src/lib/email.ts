@@ -1,4 +1,5 @@
 import { escapeHTML } from '../utils/security';
+import { groupAgendaSessions, resolveAgendaTimeZone } from '../utils/agendaDates';
 
 interface SendEmailParams {
   to: string;
@@ -30,34 +31,55 @@ export async function sendEmail({ to, subject, html }: SendEmailParams): Promise
   }
 }
 
-export function generateRegistrationEmailHtml(eventName: string, attendeeName: string, qrCodeUrl: string, sessions: any[], isAnonymous: boolean = false, magicLink?: string | null) {
+export function generateRegistrationEmailHtml(eventName: string, attendeeName: string, qrCodeUrl: string, sessions: any[], isAnonymous: boolean = false, magicLink?: string | null, timeZone?: string) {
   const safeEventName = escapeHTML(eventName);
   const safeAttendeeName = escapeHTML(attendeeName);
-
-  const sessionList = (sessions || []).map(s =>
-    `<li style="margin-bottom: 8px;">
-       <strong>${escapeHTML(s.title)}</strong><br/>
-       <span style="font-size: 12px; color: #666;">${s.starts_at ? new Date(s.starts_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'TBD'} - ${escapeHTML(s.location || 'Main Hall')}</span>
-     </li>`
-  ).join('');
+  const zone = resolveAgendaTimeZone(timeZone);
+  const groups = groupAgendaSessions(sessions || [], zone, 'en');
+  const dayFormatter = new Intl.DateTimeFormat('en', { timeZone: zone, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const timeFormatter = new Intl.DateTimeFormat('en', { timeZone: zone, hour: '2-digit', minute: '2-digit', hour12: false });
+  const formatTime = (value?: string) => value && Number.isFinite(Date.parse(value)) ? timeFormatter.format(new Date(value)) : '';
+  const sessionList = groups.map(group => `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 20px 0;">
+      <tr><td style="padding:10px 14px;background-color:#EAF4FF;color:#0B2641;font-size:14px;font-weight:700;">${group.date ? dayFormatter.format(group.date) : 'Date to be announced'}</td></tr>
+      ${group.sessions.map(session => `
+        <tr><td style="padding:13px 14px;border-bottom:1px solid #E5E7EB;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+            <tr>
+              <td width="92" valign="top" style="width:92px;padding:2px 12px 0 0;color:#0684F5;font-size:13px;font-weight:700;white-space:nowrap;">${formatTime(session.starts_at) || 'TBD'}</td>
+              <td valign="top" style="color:#0B2641;font-size:14px;line-height:1.5;word-break:break-word;">
+                <strong>${escapeHTML(session.title || 'Session')}</strong>
+                ${formatTime(session.ends_at) ? `<br/><span style="color:#64748B;font-size:12px;">Until ${formatTime(session.ends_at)}</span>` : ''}
+                ${session.location ? `<br/><span style="color:#64748B;font-size:12px;">${escapeHTML(session.location)}</span>` : ''}
+              </td>
+            </tr>
+          </table>
+        </td></tr>
+      `).join('')}
+    </table>
+  `).join('');
 
   return `
-    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #000000; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
-      <h1 style="color: #0B2641;">You're going to ${safeEventName}!</h1>
-      <p>Hi ${safeAttendeeName},</p>
-      <p>Thanks for registering. Here is your recap and check-in details.</p>
-      
-      <div style="background: #F3F4F6; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0; border: 1px solid #E5E7EB;">
-        <p style="margin-bottom: 10px; font-weight: bold; color: #000000;">Your Check-in QR Code</p>
-        <img src="${qrCodeUrl}" alt="Check-in QR Code" style="width: 200px; height: 200px; background: white; padding: 10px; border-radius: 4px;" />
-        <p style="font-size: 12px; color: #4B5563; margin-top: 10px;">Show this code at the entrance.</p>
+    <div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;color:#1F2937;padding:20px;background-color:#FFFFFF;border:1px solid #E5E7EB;">
+      <div style="padding:18px 22px;background-color:#0B2641;color:#FFFFFF;font-size:20px;font-weight:700;">Eventra</div>
+      <div style="padding:22px 8px 0;">
+        <p style="margin:0 0 8px;color:#0684F5;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Registration confirmed</p>
+        <h1 style="margin:0 0 16px;color:#0B2641;font-size:24px;line-height:1.3;word-break:break-word;">${safeEventName}</h1>
+        <p style="margin:0;color:#475569;font-size:14px;line-height:1.6;">Hi ${safeAttendeeName}, your place is confirmed. Keep this email for check-in and your selected program.</p>
       </div>
 
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;background-color:#F8FAFC;border:1px solid #E2E8F0;margin:22px 0;">
+        <tr><td align="center" style="padding:20px;">
+          <p style="margin:0 0 12px;color:#0B2641;font-size:15px;font-weight:700;">Your check-in QR code</p>
+          <img src="${escapeHTML(qrCodeUrl)}" width="180" height="180" alt="Check-in QR code" style="display:block;width:180px;height:180px;border:0;background-color:#FFFFFF;" />
+          <p style="margin:12px 0 0;color:#64748B;font-size:12px;line-height:1.5;">Show this code at the entrance.</p>
+        </td></tr>
+      </table>
+
       ${(sessions || []).length > 0 ? `
-        <h3 style="border-bottom: 2px solid #0B2641; padding-bottom: 8px; color: #0B2641;">Your Selected Agenda</h3>
-        <ul style="padding-left: 20px; list-style-type: none;">
-          ${sessionList}
-        </ul>
+        <h2 style="margin:0 0 6px;color:#0B2641;font-size:18px;">Your selected agenda</h2>
+        <p style="margin:0 0 16px;color:#64748B;font-size:12px;">${sessions.length} ${sessions.length === 1 ? 'session' : 'sessions'} selected &middot; Times shown in ${escapeHTML(zone.replace(/_/g, ' '))}</p>
+        ${sessionList}
       ` : ''}
 
       ${magicLink ? `

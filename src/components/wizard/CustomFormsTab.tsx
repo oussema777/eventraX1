@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { usePlan } from '../../hooks/usePlan';
 import { useI18n } from '../../i18n/I18nContext';
-import { REGISTRATION_SYSTEM_FIELDS, getRegistrationFieldOrder, isVisibleRegistrationCustomField } from '../../utils/registrationFieldOrder';
+import { REGISTRATION_SYSTEM_FIELDS, getRegistrationFieldOrder, isRegistrationSystemFieldRequired, isVisibleRegistrationCustomField } from '../../utils/registrationFieldOrder';
 import {
   Plus,
   Search,
@@ -264,6 +264,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
 
   const [formFields, setFormFields] = useState<CustomField[]>([]);
   const [registrationFieldOrder, setRegistrationFieldOrder] = useState<string[]>([]);
+  const [systemRequired, setSystemRequired] = useState<Record<string, boolean>>({});
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [showFieldEditor, setShowFieldEditor] = useState(false);
@@ -513,6 +514,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
     const fields = (r?.schema?.fields || []) as CustomField[];
     setFormFields(Array.isArray(fields) ? fields : []);
     setRegistrationFieldOrder(Array.isArray(r?.schema?.fieldOrder) ? r.schema.fieldOrder : []);
+    setSystemRequired(r?.schema?.systemRequired && typeof r.schema.systemRequired === 'object' ? r.schema.systemRequired : {});
     setSelectedForm({ ...card, dbId: r?.id || card.dbId, formKey: r?.form_key || card.formKey });
     setBuilderTitle(r?.title || card.title || '');
     setBuilderDescription((r?.description ?? card.description) || '');
@@ -540,7 +542,8 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
         schema: {
           fields: formFields || [],
           ...(builderType === 'registration' ? {
-            fieldOrder: getRegistrationFieldOrder(formFields.filter(isVisibleRegistrationCustomField).map(field => field.id), registrationFieldOrder)
+            fieldOrder: getRegistrationFieldOrder(formFields.filter(isVisibleRegistrationCustomField).map(field => field.id), registrationFieldOrder),
+            systemRequired
           } : {})
         }
       };
@@ -608,7 +611,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
     return () => {
       if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     };
-  }, [showFormBuilder, currentFormRow?.id, builderTitle, builderDescription, builderType, formFields, registrationFieldOrder]);
+  }, [showFormBuilder, currentFormRow?.id, builderTitle, builderDescription, builderType, formFields, registrationFieldOrder, systemRequired]);
 
   const closeBuilder = async () => {
     try {
@@ -772,7 +775,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
       ],
       totalFields: 8,
       lastEdited: t('wizard.step3.customForms.defaults.registration.lastEdited'),
-      infoNote: t('registration.customFormsInfo', { defaultValue: 'Drag registration fields into the order attendees should see. Required fields remain required.' }),
+      infoNote: t('registration.customFormsInfo', { defaultValue: 'Drag fields to reorder them. Use Required to choose which built-in fields attendees must complete.' }),
       icon: ClipboardList,
       iconColor: '#0684F5'
     }
@@ -1225,6 +1228,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
   if (showFormBuilder) {
     const registrationFields: CustomField[] = REGISTRATION_SYSTEM_FIELDS.map(field => ({
       ...field,
+      required: isRegistrationSystemFieldRequired(field.id, systemRequired),
       type: field.type as CustomField['type'],
       label: t(`registration.systemFields.${field.id.replace('system-', '')}`, { defaultValue: field.label }),
       isPro: false,
@@ -1798,6 +1802,18 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                                 )}
                               </div>
                             </div>
+
+                            {field.isSystem && field.id !== 'system-fullName' && field.id !== 'system-email' && field.id !== 'system-b2bOptIn' && (
+                              <label className="mb-3 inline-flex items-center gap-2 text-xs text-slate-300">
+                                <input
+                                  type="checkbox"
+                                  checked={field.required}
+                                  onChange={() => setSystemRequired(prev => ({ ...prev, [field.id]: !field.required }))}
+                                  className="accent-[#0684F5]"
+                                />
+                                {t('wizard.step3.customForms.fieldSettings.labels.requiredField')}
+                              </label>
+                            )}
 
                           
                           {/* Help Text */}

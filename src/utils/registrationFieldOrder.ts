@@ -13,6 +13,12 @@ export const REGISTRATION_SYSTEM_FIELDS = [
 export const isRegistrationSystemField = (id: string) =>
   REGISTRATION_SYSTEM_FIELDS.some(field => field.id === id);
 
+export const isRegistrationSystemFieldRequired = (id: string, overrides: Record<string, boolean> = {}) => {
+  if (id === 'system-fullName' || id === 'system-email') return true;
+  const field = REGISTRATION_SYSTEM_FIELDS.find(item => item.id === id);
+  return typeof overrides[id] === 'boolean' ? overrides[id] : (field?.required ?? false);
+};
+
 // Older registration forms store name and email as custom fields, even though
 // the attendee page already renders them as built-in fields.
 export const isLegacyRegistrationField = (id: string) =>

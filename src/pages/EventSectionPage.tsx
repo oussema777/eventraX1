@@ -494,7 +494,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
           exhibitors: counts.exhibitors > 0,
           attendees: counts.attendees > 0,
           sponsors: counts.sponsors > 0,
-          packages: counts.packages > 0,
+          packages: counts.packages > 0 && event?.branding_settings?.design_studio?.activeBlocks?.some((block: any) => block.isVisible && (block.blockId || block.type) === 'sponsor-packages'),
           tickets: counts.tickets > 0
         }}
         brandColor={brandColor}
@@ -1482,4 +1482,3 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
     </div>
   );
 }
-            

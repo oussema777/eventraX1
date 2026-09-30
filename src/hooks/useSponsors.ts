@@ -100,7 +100,7 @@ async function fetchPackages(eventId: string): Promise<SponsorPackage[]> {
 
   if (error) return DEFAULT_PACKAGES;
 
-  if (data?.sponsorship_settings && Array.isArray(data.sponsorship_settings) && data.sponsorship_settings.length > 0) {
+  if (Array.isArray(data?.sponsorship_settings)) {
     return data.sponsorship_settings;
   }
   return DEFAULT_PACKAGES;

@@ -657,17 +657,29 @@ export default {
         submit: 'Envoyer le lien',
         sending: 'Envoi...', 
         backToLogin: 'Retour a la connexion',
-        toastSuccess: 'Lien envoye a votre email',
+        toastSuccess: 'Si un compte existe pour cet email, un lien de reinitialisation arrivera bientot.',
         toastError: 'Echec de l\'envoi du lien'
       },
       passwordResetSent: {
         title: 'Verifiez votre email',
-        subtitle: 'Nous avons envoye un lien de reinitialisation a :',
+        subtitle: 'Si un compte existe, un lien de reinitialisation sera envoye a :',
         instructions: 'Cliquez sur le lien dans l\'email pour creer un nouveau mot de passe',
         resend: 'Renvoyer l\'email',
         resending: 'Renvoi...', 
         backToLogin: 'Retour a la connexion',
         help: "Vous n'avez pas recu l\'email ? Verifiez vos spams"
+      },
+      resetPassword: {
+        title: 'Creer un nouveau mot de passe',
+        checking: 'Verification du lien de reinitialisation...',
+        invalidLink: 'Ce lien est invalide ou a expire. Demandez un nouveau lien depuis la page de connexion.',
+        newPassword: 'Nouveau mot de passe',
+        confirmPassword: 'Confirmer le nouveau mot de passe',
+        tooShort: 'Utilisez au moins 8 caracteres.',
+        noMatch: 'Les mots de passe ne correspondent pas.',
+        submit: 'Enregistrer le mot de passe',
+        saving: 'Enregistrement...',
+        complete: 'Votre mot de passe a ete mis a jour. Vous pouvez maintenant vous connecter.'
       },
       emailRegistration: {
         title: 'Creez votre compte',
@@ -6615,6 +6627,6 @@ export default {
         b2bOptInDescription: 'Soyez mis en relation avec des participants pertinents pour le réseautage professionnel',
       },
       additionalFields: 'Informations complémentaires',
-      customFormsInfo: "Faites glisser les champs dans l'ordre souhaité pour les participants. Les champs obligatoires restent obligatoires.",
+      customFormsInfo: "Faites glisser les champs pour les reordonner. Utilisez Obligatoire pour choisir les champs a remplir.",
     },
   };

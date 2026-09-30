@@ -672,17 +672,29 @@ export default {
         submit: 'Send Reset Link',
         sending: 'Sending...', 
         backToLogin: 'Back to Login',
-        toastSuccess: 'Reset link sent to your email',
+        toastSuccess: 'If an account exists for this email, a reset link will arrive shortly.',
         toastError: 'Failed to send reset link'
       },
       passwordResetSent: {
         title: 'Check your email',
-        subtitle: 'We sent a password reset link to:',
+        subtitle: 'If an account exists, a password reset link will be sent to:',
         instructions: 'Click the link in the email to create a new password',
         resend: 'Resend Email',
         resending: 'Resending...', 
         backToLogin: 'Back to Login',
         help: "Didn't receive the email? Check your spam folder"
+      },
+      resetPassword: {
+        title: 'Create a new password',
+        checking: 'Checking your reset link...',
+        invalidLink: 'This reset link is invalid or has expired. Request a new link from the login page.',
+        newPassword: 'New password',
+        confirmPassword: 'Confirm new password',
+        tooShort: 'Use at least 8 characters.',
+        noMatch: 'The passwords do not match.',
+        submit: 'Save new password',
+        saving: 'Saving...',
+        complete: 'Your password has been updated. You can now log in.'
       },
       emailRegistration: {
         title: 'Create your account',
@@ -6869,6 +6881,6 @@ export default {
         b2bOptInDescription: 'Get matched with relevant attendees for business networking',
       },
       additionalFields: 'Additional Information',
-      customFormsInfo: 'Drag registration fields into the order attendees should see. Required fields remain required.',
+      customFormsInfo: 'Drag fields to reorder them. Use Required to choose which built-in fields attendees must complete.',
     },
   };

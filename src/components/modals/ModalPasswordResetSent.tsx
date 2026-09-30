@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { X, Mail, ArrowLeft, Loader2 } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext';
+import { supabase } from '../../lib/supabase';
+import { toast } from 'sonner';
 
 interface ModalPasswordResetSentProps {
   isOpen: boolean;
@@ -23,13 +25,17 @@ export default function ModalPasswordResetSent({
   // Handle resend email
   const handleResend = async () => {
     setIsResending(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    setIsResending(false);
-    
-    console.log('Password reset link resent to:', email);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast.success(t('auth.forgotPassword.toastSuccess'));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('auth.forgotPassword.toastError'));
+    } finally {
+      setIsResending(false);
+    }
   };
 
   return (

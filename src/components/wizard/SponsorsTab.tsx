@@ -634,7 +634,7 @@ export default function SponsorsTab() {
         {editingPackage && (
           <EditPackageModal
             pkg={editingPackage}
-            canDelete={packages.length > 1}
+            canDelete={true}
             onClose={() => setEditingPackage(null)}
             onSave={handleSaveSinglePackage}
             onDelete={async () => {
@@ -1815,8 +1815,8 @@ function ManagePackagesModal({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {formData.map((pkg, index) => (
               <div key={pkg.id} style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '24px', position: 'relative', border: '1px solid rgba(255,255,255,0.1)' }}>
-                {/* Delete Button — available when more than 1 package exists */}
-                {formData.length > 1 && (
+                {/* Allow the final package to be removed. */}
+                {formData.length > 0 && (
                   <button
                     onClick={() => handleRemovePackage(index)}
                     style={{

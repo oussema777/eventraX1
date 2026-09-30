@@ -31,7 +31,7 @@ import { useI18n } from '../i18n/I18nContext';
 import { PLATFORM_INTERESTS, PLATFORM_SECTORS } from '../constants/platformFields';
 import SEOHead from '../components/SEOHead';
 import { truncateDescription, canonicalUrl } from '../utils/seo';
-import { getRegistrationFieldOrder, isRegistrationSystemField, isVisibleRegistrationCustomField } from '../utils/registrationFieldOrder';
+import { getRegistrationFieldOrder, isRegistrationSystemField, isRegistrationSystemFieldRequired, isVisibleRegistrationCustomField } from '../utils/registrationFieldOrder';
 import RegistrationAgenda from '../components/events/RegistrationAgenda';
 import { getWorkshopLimit, isSessionOpen, validateSessionSelection } from '../utils/sessionBooking';
 
@@ -91,6 +91,7 @@ export default function EventRegistrationFlow() {
   const [event, setEvent] = useState<any>(null);
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [registrationFieldOrder, setRegistrationFieldOrder] = useState<string[]>([]);
+  const [systemRequired, setSystemRequired] = useState<Record<string, boolean>>({});
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set());
   const [freeTicketId, setFreeTicketId] = useState<string | null>(null);
@@ -244,6 +245,8 @@ export default function EventRegistrationFlow() {
           formData = formsData[0];
         }
       }
+
+      setSystemRequired(formData?.schema?.systemRequired && typeof formData.schema.systemRequired === 'object' ? formData.schema.systemRequired : {});
 
       const defaultFields: FormField[] = [
         { 
@@ -493,10 +496,11 @@ export default function EventRegistrationFlow() {
 
       // Build registration meta (all form data for audit + B2B matching)
       const confirmCode = `EVT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const phoneValue = systemFields.phone.trim() ? `${systemFields.phoneCountryCode} ${systemFields.phone.trim()}` : '';
       const registrationMeta: Record<string, any> = {
         fullName: systemFields.fullName,
         email: systemFields.email,
-        phone: `${systemFields.phoneCountryCode} ${systemFields.phone}`.trim(),
+        phone: phoneValue,
         companyName: systemFields.companyName,
         companyDescription: systemFields.companyDescription,
         interests: systemFields.interests,
@@ -515,7 +519,7 @@ export default function EventRegistrationFlow() {
             event_id: eventId,
             full_name: systemFields.fullName,
             email: systemFields.email,
-            phone: `${systemFields.phoneCountryCode} ${systemFields.phone}`.trim(),
+            phone: phoneValue,
             company_name: systemFields.companyName,
             company_description: systemFields.companyDescription,
             interests: systemFields.interests,
@@ -643,7 +647,8 @@ export default function EventRegistrationFlow() {
           qrUrl,
           mySessions,
           !user,
-          magicLink
+          magicLink,
+          event?.timezone
         );
         await sendEmail({
           to: systemFields.email,
@@ -730,13 +735,13 @@ export default function EventRegistrationFlow() {
       const systemValid =
         systemFields.fullName.trim().length >= 2 &&
         systemFields.email.trim().length > 0 && /\S+@\S+\.\S+/.test(systemFields.email) &&
-        systemFields.phone.replace(/\D/g, '').length >= 7 &&
-        systemFields.companyName.trim().length >= 2 &&
-        systemFields.companyDescription.trim().length >= 10 &&
+        ((!isRegistrationSystemFieldRequired('system-phone', systemRequired) && !systemFields.phone.trim()) || systemFields.phone.replace(/\D/g, '').length >= 7) &&
+        ((!isRegistrationSystemFieldRequired('system-companyName', systemRequired) && !systemFields.companyName.trim()) || systemFields.companyName.trim().length >= 2) &&
+        ((!isRegistrationSystemFieldRequired('system-companyDescription', systemRequired) && !systemFields.companyDescription.trim()) || systemFields.companyDescription.trim().length >= 10) &&
         systemFields.companyDescription.trim().length <= 500 &&
-        systemFields.interests.length > 0 &&
-        systemFields.sector.trim().length > 0 &&
-        systemFields.socialUrl.trim().length > 0;
+        (!isRegistrationSystemFieldRequired('system-interests', systemRequired) || systemFields.interests.length > 0) &&
+        (!isRegistrationSystemFieldRequired('system-sector', systemRequired) || systemFields.sector.trim().length > 0) &&
+        (!isRegistrationSystemFieldRequired('system-socialUrl', systemRequired) || systemFields.socialUrl.trim().length > 0);
 
       // Custom field validation (exclude fields already covered by system fields)
       const isSystemDuplicate = (label: string, type: string) => {
@@ -820,7 +825,7 @@ export default function EventRegistrationFlow() {
         {/* 3. Phone with country code */}
         {fieldId === 'system-phone' && <div className="mb-4">
           <label className="block text-sm font-medium text-white mb-1.5">
-            {t('registration.systemFields.phone', { defaultValue: 'Phone Number' })} <span className="text-red-400">*</span>
+            {t('registration.systemFields.phone', { defaultValue: 'Phone Number' })} {isRegistrationSystemFieldRequired('system-phone', systemRequired) && <span className="text-red-400">*</span>}
           </label>
           <div className="flex gap-2">
             <div className="relative" style={{ minWidth: '110px' }} data-registration-dropdown="system-phone">
@@ -908,7 +913,7 @@ export default function EventRegistrationFlow() {
         {/* 4. Company Name */}
         {fieldId === 'system-companyName' && <div className="mb-4">
           <label className="block text-sm font-medium text-white mb-1.5">
-            {t('registration.systemFields.companyName', { defaultValue: 'Company Name' })} <span className="text-red-400">*</span>
+            {t('registration.systemFields.companyName', { defaultValue: 'Company Name' })} {isRegistrationSystemFieldRequired('system-companyName', systemRequired) && <span className="text-red-400">*</span>}
           </label>
           <input
             type="text"
@@ -923,7 +928,7 @@ export default function EventRegistrationFlow() {
         {/* 5. Short Company Description */}
         {fieldId === 'system-companyDescription' && <div className="mb-4">
           <label className="block text-sm font-medium text-white mb-1.5">
-            {t('registration.systemFields.companyDescription', { defaultValue: 'Short Company Description' })} <span className="text-red-400">*</span>
+            {t('registration.systemFields.companyDescription', { defaultValue: 'Short Company Description' })} {isRegistrationSystemFieldRequired('system-companyDescription', systemRequired) && <span className="text-red-400">*</span>}
           </label>
           <textarea
             value={systemFields.companyDescription}
@@ -934,7 +939,7 @@ export default function EventRegistrationFlow() {
             maxLength={500}
             placeholder={t('registration.systemFields.companyDescriptionPlaceholder', { defaultValue: 'Briefly describe what your company does (10-500 characters)' })}
           />
-          <p className="text-xs mt-1" style={{ color: systemFields.companyDescription.length < 10 ? '#EF4444' : 'rgba(255,255,255,0.4)' }}>
+          <p className="text-xs mt-1" style={{ color: systemFields.companyDescription.length < 10 && (isRegistrationSystemFieldRequired('system-companyDescription', systemRequired) || systemFields.companyDescription.length > 0) ? '#EF4444' : 'rgba(255,255,255,0.4)' }}>
             {systemFields.companyDescription.length}/500
           </p>
         </div>}
@@ -942,7 +947,7 @@ export default function EventRegistrationFlow() {
         {/* 6. Interests (multi-select) */}
         {fieldId === 'system-interests' && <div className="mb-4">
           <label className="block text-sm font-medium text-white mb-1.5">
-            {t('registration.systemFields.interests', { defaultValue: 'Interests' })} <span className="text-red-400">*</span>
+            {t('registration.systemFields.interests', { defaultValue: 'Interests' })} {isRegistrationSystemFieldRequired('system-interests', systemRequired) && <span className="text-red-400">*</span>}
           </label>
           {systemFields.interests.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-2">
@@ -1005,7 +1010,7 @@ export default function EventRegistrationFlow() {
         {/* 7. Sector (single-select) */}
         {fieldId === 'system-sector' && <div className="mb-4">
           <label className="block text-sm font-medium text-white mb-1.5">
-            {t('registration.systemFields.sector', { defaultValue: 'Sector' })} <span className="text-red-400">*</span>
+            {t('registration.systemFields.sector', { defaultValue: 'Sector' })} {isRegistrationSystemFieldRequired('system-sector', systemRequired) && <span className="text-red-400">*</span>}
           </label>
           <div className="relative" data-registration-dropdown="system-sector">
             <button
@@ -1041,7 +1046,7 @@ export default function EventRegistrationFlow() {
         {/* 8. Social URL */}
         {fieldId === 'system-socialUrl' && <div className="mb-4">
           <label className="block text-sm font-medium text-white mb-1.5">
-            {t('registration.systemFields.socialUrl', { defaultValue: 'Social / Website URL' })} <span className="text-red-400">*</span>
+            {t('registration.systemFields.socialUrl', { defaultValue: 'Social / Website URL' })} {isRegistrationSystemFieldRequired('system-socialUrl', systemRequired) && <span className="text-red-400">*</span>}
           </label>
           <input
             type="url"
