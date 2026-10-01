@@ -1,5 +1,7 @@
+import { eventPublicPath } from '../utils/eventLinks';
+import { useEventRouteParams } from '../components/navigation/EventPublicRoute';
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Loader2, User, MapPin, Check, Heart, Sparkles, Users, CreditCard, Building, Share2, Ticket, Calendar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
@@ -18,7 +20,7 @@ import { canonicalUrl } from '../utils/seo';
 type SectionType = 'agenda' | 'speakers' | 'exhibitors' | 'attendees' | 'sponsors' | 'packages' | 'tickets';
 
 export default function EventSectionPage({ type }: { type: SectionType }) {
-  const { eventId } = useParams();
+  const { eventId } = useEventRouteParams();
   const navigate = useNavigate();
   const { user, isLoading: isLoadingAuth, signOut } = useAuth();
   const { getOrCreateThread, loading: isMessageLoading } = useMessageThread();
@@ -358,7 +360,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
   }, [eventId, user, isLoadingAuth]);
 
   const handleNavigate = (section: string) => {
-    navigate(`/event/${eventId}/${section}`);
+    navigate(eventPublicPath(event || { id: eventId! }, section));
   };
 
   const handleRegister = () => {
@@ -438,7 +440,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
         <SEOHead
           title={`${type.charAt(0).toUpperCase() + type.slice(1)} — ${event.name || 'Event'}`}
           description={`View the ${type} for ${event.name} on Eventra.`}
-          canonicalUrl={canonicalUrl(`/event/${eventId}/${type}`)}
+          canonicalUrl={canonicalUrl(eventPublicPath(event, type))}
         />
       )}
       <style>{`

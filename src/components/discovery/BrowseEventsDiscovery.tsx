@@ -1,3 +1,4 @@
+import { eventPublicPath } from '../../utils/eventLinks';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Search,
@@ -16,6 +17,7 @@ import { useI18n } from '../../i18n/I18nContext';
 // No Slider import here as it's being reverted
 
 interface EventCard {
+  seo_slug?: string | null;
   id: string;
   title: string;
   image: string;
@@ -116,7 +118,7 @@ export default function BrowseEventsDiscovery() {
 
         let query = supabase
           .from('events')
-          .select('id, name, description, event_type, event_format, event_status, start_date, location_address, cover_image_url, branding_settings, is_approved, status, access_code');
+          .select('id, seo_slug, name, description, event_type, event_format, event_status, start_date, location_address, cover_image_url, branding_settings, is_approved, status, access_code');
 
         // Filtering based on role
         if (!isAdmin) {
@@ -188,6 +190,7 @@ export default function BrowseEventsDiscovery() {
 
           return {
             id: event.id,
+            seo_slug: event.seo_slug,
             title: event.name || t('browseEventsPage.event.untitled'),
             image: resolvedImage,
             date: { month, day },
@@ -261,9 +264,9 @@ export default function BrowseEventsDiscovery() {
   };
 
 
-  const handleEventClick = (eventId: string) => {
+  const handleEventClick = (event: EventCard) => {
     // Navigate to event detail page
-    navigate(`/event/${eventId}/landing`);
+    navigate(eventPublicPath(event));
   };
 
   const filteredEvents = useMemo(() => {
@@ -917,7 +920,7 @@ export default function BrowseEventsDiscovery() {
                     backgroundColor: 'rgba(255,255,255,0.05)',
                     border: '1px solid rgba(255,255,255,0.1)'
                   }}
-                  onClick={() => handleEventClick(event.id)}
+                  onClick={() => handleEventClick(event)}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
                     e.currentTarget.style.transform = 'translateY(-4px)';

@@ -1,3 +1,4 @@
+import { publicEventPath } from './event-preview.js';
 import { createClient } from '@supabase/supabase-js';
 import { writeFileSync } from 'fs';
 import { resolve } from 'path';
@@ -38,7 +39,7 @@ async function generateSitemap() {
 
   // Event pages
   const eventPages = (events || []).map(event => ({
-    url: `/event/${event.id}/landing`,
+    url: publicEventPath(event),
     priority: '0.9',
     changefreq: 'weekly',
   }));

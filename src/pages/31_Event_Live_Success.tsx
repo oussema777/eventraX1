@@ -1,3 +1,5 @@
+import { supabase } from '../lib/supabase';
+import { eventPublicPath } from '../utils/eventLinks';
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -80,7 +82,15 @@ export default function EventLiveSuccess() {
   const eventId = searchParams.get('eventId');
   const { baseStats } = useEventStats(eventId || undefined);
 
-  const previewUrl = eventId ? `${window.location.origin}/event/${eventId}/landing` : '';
+  const [publicEvent, setPublicEvent] = useState<{ id: string; seo_slug?: string | null } | null>(null);
+  useEffect(() => {
+    let active = true;
+    setPublicEvent(null);
+    if (eventId) supabase.from('events').select('id, seo_slug').eq('id', eventId).maybeSingle()
+      .then(({ data }) => { if (active) setPublicEvent(data); });
+    return () => { active = false; };
+  }, [eventId]);
+  const previewUrl = eventId ? `${window.location.origin}${eventPublicPath(publicEvent?.id === eventId ? publicEvent : { id: eventId })}` : '';
 
   // Hide confetti after 4 seconds
   useEffect(() => {
@@ -111,7 +121,7 @@ export default function EventLiveSuccess() {
 
   const handleOpenPreview = () => {
     if (eventId) {
-      window.open(`/event/${eventId}/landing`, '_blank');
+      window.open(previewUrl, '_blank');
     }
   };
 

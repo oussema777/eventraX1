@@ -1,5 +1,5 @@
+import { useEventRouteParams } from '../components/navigation/EventPublicRoute';
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { LogOut, Network } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,7 +18,7 @@ import UserB2BCenter from '../components/networking/UserB2BCenter';
  * NOTE: route wiring is intentionally NOT done here — that is a separate task.
  */
 export default function EventGuestNetworkingPage() {
-  const { eventId } = useParams();
+  const { eventId } = useEventRouteParams();
   const { signOut } = useAuth();
   const { t } = useI18n();
   const [eventName, setEventName] = useState('');

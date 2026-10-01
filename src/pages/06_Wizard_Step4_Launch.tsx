@@ -1,3 +1,4 @@
+import { eventPublicPath } from '../utils/eventLinks';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
@@ -52,13 +53,14 @@ export default function WizardStep4Launch() {
         // If fresh fetch fails, fall back to eventData (best effort)
       }
 
-      await saveDraft({
+      const published = await saveDraft({
         status: 'published',
         ...(isAlreadyApproved
           ? {} // Keep existing approval — don't reset once approved
           : { is_public: false, is_approved: false, moderation_status: 'pending' }),
         access_code: eventData.access_code || null
       });
+      if (!published) return;
       if (user?.id) {
         try {
           await createNotification({
@@ -107,7 +109,7 @@ export default function WizardStep4Launch() {
 
   const handlePreview = () => {
     if (eventData.id) {
-      window.open(`/event/${eventData.id}/landing`, '_blank');
+      window.open(eventPublicPath({ ...eventData, id: eventData.id }), '_blank');
     } else {
       toast.error(t('wizard.step4.errors.saveFirst', 'Please save event details first.'));
     }

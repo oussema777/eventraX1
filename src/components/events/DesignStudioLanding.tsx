@@ -1,5 +1,7 @@
+import { eventPublicPath } from '../../utils/eventLinks';
+import { useEventRouteParams } from '../navigation/EventPublicRoute';
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Loader2, Lock, Globe, Calendar } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext';
 import { supabase } from '../../lib/supabase';
@@ -24,6 +26,7 @@ import { toast } from 'sonner';
 import { getWorkshopLimit, isSessionOpen } from '../../utils/sessionBooking';
 
 interface EventRecord {
+  seo_slug?: string | null;
   id: string;
   name?: string;
   tagline?: string;
@@ -134,7 +137,7 @@ const formatPrice = (price?: number, currency?: string) => {
 };
 
 export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterRequest?: () => void }) {
-  const { eventId } = useParams();
+  const { eventId } = useEventRouteParams();
   const navigate = useNavigate();
   const { user, profile, isLoading: isLoadingAuth } = useAuth();
   const { t } = useI18n();
@@ -181,11 +184,11 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
 
   const handleNavigate = (section: string) => {
     if (section === 'landing') {
-      navigate(`/event/${eventId}/landing`);
+      navigate(eventPublicPath(event || { id: eventId! }));
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
-    navigate(`/event/${eventId}/${section}`);
+    navigate(eventPublicPath(event || { id: eventId! }, section));
   };
 
   const handleToggleSession = async (sessionId: string) => {
@@ -615,7 +618,7 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
           title={`${event.name || 'Event'} | ${event.location_address || 'Eventra'}`}
           description={truncateDescription(event.description || event.tagline || `Join ${event.name} on Eventra`, 160)}
           ogImage={design.coverUrl || undefined}
-          canonicalUrl={canonicalUrl(`/event/${event.id}/landing`)}
+          canonicalUrl={canonicalUrl(eventPublicPath(event))}
           keywords={`${event.name}, ${event.event_type || 'event'}, ${event.location_address || ''}`}
           jsonLd={[
             generateEventJsonLd({

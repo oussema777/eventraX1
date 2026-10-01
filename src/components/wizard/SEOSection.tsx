@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Check, X } from 'lucide-react';
+import { X } from 'lucide-react';
+import EventUrlSettings from './EventUrlSettings';
 import { useI18n } from '../../i18n/I18nContext';
 import type { EventDraft } from '../../hooks/useEventWizard';
 
 interface SEOSectionProps {
   draft: EventDraft;
-  updateDraft: (updates: Partial<EventDraft>) => void;
+  updateDraft: (updates: Partial<EventDraft>) => Promise<EventDraft | null>;
 }
 
 export default function SEOSection({ draft, updateDraft }: SEOSectionProps) {
@@ -14,7 +15,6 @@ export default function SEOSection({ draft, updateDraft }: SEOSectionProps) {
 
   const metaTitle = draft.seo_title || '';
   const metaDescription = draft.seo_description || '';
-  const urlSlug = draft.seo_slug || '';
   const keywords = draft.seo_keywords || [];
 
   const addKeyword = () => {
@@ -113,40 +113,7 @@ export default function SEOSection({ draft, updateDraft }: SEOSectionProps) {
           </div>
         </div>
 
-        {/* Custom URL Slug */}
-        <div>
-          <label
-            className="block text-sm mb-2"
-            style={{ fontWeight: 500, color: '#6B7280' }}
-          >
-            {t('wizard.step4.seo.fields.url.label')}
-          </label>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 flex items-center h-11 px-4 rounded-lg border" style={{ borderColor: '#E5E7EB' }}>
-              <span className="text-sm" style={{ color: '#6B7280' }}>
-                {t('wizard.step4.seo.fields.url.prefix')}
-              </span>
-              <input
-                type="text"
-                value={urlSlug}
-                onChange={(e) => updateDraft({ seo_slug: e.target.value })}
-                className="flex-1 outline-none text-sm"
-                style={{ color: '#0B2641' }}
-              />
-              <Check size={16} style={{ color: 'var(--success)' }} />
-            </div>
-            <button
-              className="px-4 h-11 rounded-lg border transition-colors hover:bg-gray-50"
-              style={{
-                borderColor: '#E5E7EB',
-                color: '#0B2641',
-                fontWeight: 500
-              }}
-            >
-              {t('wizard.step4.seo.fields.url.check')}
-            </button>
-          </div>
-        </div>
+        <EventUrlSettings draft={draft} onSave={updateDraft} />
 
         {/* Keywords */}
         <div>

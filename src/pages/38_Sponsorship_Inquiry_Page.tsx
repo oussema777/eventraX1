@@ -1,5 +1,6 @@
+import { useEventRouteParams } from '../components/navigation/EventPublicRoute';
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Check, CreditCard, Loader2, Share2, ArrowLeft, Building, Mail, User, MessageSquare, Heart } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,7 +10,7 @@ import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';
 import { useI18n } from '../i18n/I18nContext';
 
 export default function SponsorshipInquiryPage() {
-  const { eventId, packageId } = useParams();
+  const { eventId, packageId } = useEventRouteParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t } = useI18n();

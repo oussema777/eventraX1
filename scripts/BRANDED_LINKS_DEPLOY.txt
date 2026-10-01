@@ -1,0 +1,51 @@
+Branded event links: production deployment
+
+1. In the production Supabase SQL Editor, run:
+   supabase/migrations/20261001090000_event_url_aliases.sql
+   This is a one-time migration. It leaves event IDs, registrations and published
+   status unchanged. If it reports invalid legacy slugs, review those values
+   before proceeding; the transaction will have rolled back.
+
+2. In PuTTY (the path follows this repository's VPS setup guide):
+   cd /var/www/eventraX1
+   git pull --ff-only origin main
+   bash scripts/deploy-branded-event-links.sh
+
+   The script assumes Nginx serves this repository's build/ directory and PM2
+   runs the existing og-server process. Verify your deployment path if different.
+   It builds into a separate folder, keeps old hashed assets for active browser
+   tabs, and swaps index.html only after the new assets are available.
+   No package dependencies changed. Existing node_modules are sufficient.
+
+3. After the app deployment, run this in the production Supabase SQL Editor:
+   database/scripts/sql_activate_investissement_link.sql
+
+4. Back in PuTTY:
+   npm run generate-sitemap
+
+5. Verify both URLs in a fresh browser tab:
+   https://eventra.cloud/event/l-investissement
+   https://eventra.cloud/event/769d7854-9bae-49e6-9db9-c88c0586a402/landing
+   Verify agenda, tickets and registration, without submitting a fake live registration.
+   Verify social metadata:
+   curl -fsS -A 'facebookexternalhit/1.1' https://eventra.cloud/event/l-investissement
+   The returned title should contain L'INVESTISSEMENT and the canonical URL
+   should end with /event/l-investissement.
+
+Future or existing events: Launch settings > Branded event link > Save link.
+No republishing required. Previous aliases stay reserved and continue to work.
+
+Registration country-selector investigation:
+Live mobile-sized Chromium: selecting Tunisia preserved the entered name,
+with no additional event-data fetch and no JavaScript errors.
+Local French desktop/mobile-sized Chromium: country search, Enter, selection
+and reselection preserved name, company and custom answers, without navigation.
+The reported reset was not reproduced; no speculative selector change was made.
+Actual iOS/Android device behavior has not been verified.
+
+Rollback:
+Each deployment prints the saved previous-index.html path. Copy it into
+build/index.html.next, then mv it over build/index.html. Keep the old and new
+assets, database columns and aliases. Rolling back to an app version without
+alias support will temporarily make branded links unavailable; ID links work.
+The additive database migration does not need to be removed for an app rollback.

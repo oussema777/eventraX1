@@ -1,5 +1,6 @@
 import http from 'http';
 import https from 'https';
+import { resolveEventPreview } from './scripts/event-preview.js';
 
 const PORT = 5002;
 const BASE_URL = 'https://eventra.cloud';
@@ -95,11 +96,11 @@ ${jsonLd ? `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script
 // Route handlers
 async function handleEventPage(eventId, section) {
   try {
-    const rows = await supabaseGet('events', `id=eq.${eventId}&select=id,name,description,tagline,cover_image_url,start_date,end_date,location_address,event_format,branding_settings`);
-    const event = Array.isArray(rows) ? rows[0] : null;
+    const preview = await resolveEventPreview(supabaseGet, eventId, section);
+    const event = preview?.event;
     if (!event) return null;
 
-    const path = section ? `/event/${eventId}/${section}` : `/event/${eventId}/landing`;
+    const path = preview.path;
     const title = `${event.name || 'Event'} | Eventra`;
     const desc = event.description || event.tagline || `Join ${event.name || 'this event'} on Eventra`;
 
@@ -189,7 +190,7 @@ const server = http.createServer(async (req, res) => {
   let html = null;
 
   // /event/:id/landing or /event/:id/section
-  const eventMatch = path.match(/^\/event\/([a-f0-9-]+)(?:\/(\w+))?$/);
+  const eventMatch = path.match(/^\/event\/([a-z0-9-]+)(?:\/(\w+))?$/);
   if (eventMatch) {
     html = await handleEventPage(eventMatch[1], eventMatch[2]);
   }

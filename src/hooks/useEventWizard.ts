@@ -31,7 +31,7 @@ export interface EventDraft {
   owner_id?: string;
   seo_title?: string;
   seo_description?: string;
-  seo_slug?: string;
+  seo_slug?: string | null;
   seo_keywords?: string[];
   access_code?: string | null;
 }
@@ -179,7 +179,9 @@ export function useEventWizard(initialEventId?: string) {
       return result.data;
     } catch (err: any) {
       console.error('Save failed:', err);
-      toast.error('Failed to save event changes');
+      toast.error(err?.code === '23505' && 'seo_slug' in data
+        ? 'That event link is already reserved. Choose another name.'
+        : 'Failed to save event changes');
       return null;
     } finally {
       setIsSaving(false);

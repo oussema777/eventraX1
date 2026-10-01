@@ -16,7 +16,7 @@ test('returning to registration preserves edited answers after session recovery'
     let data = [];
     if (table === 'events') {
       eventReads++;
-      data = { id: 'focus-test', name: 'Registration focus test', status: 'published' };
+      data = { id: '11111111-2222-4333-8444-555555555555', name: 'Registration focus test', status: 'published' };
     } else if (table === 'profiles') {
       profileReads++;
       data = { ...user, full_name: 'Original Name', company: 'Original Company' };
@@ -28,7 +28,7 @@ test('returning to registration preserves edited answers after session recovery'
     return route.fulfill({ json: data });
   });
 
-  await page.goto('/event/focus-test/register');
+  await page.goto('/event/11111111-2222-4333-8444-555555555555/register');
   await expect(page.getByPlaceholder('John Doe')).toBeVisible();
   // Establish a fake session against the mocked auth endpoint; no real account.
   await page.evaluate(async () => {

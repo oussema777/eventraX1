@@ -1,3 +1,4 @@
+import { eventPublicPath } from '../utils/eventLinks';
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
@@ -296,7 +297,7 @@ export default function EventManagementDashboard() {
         </div>
 
         <div className="event-dashboard__header-actions flex items-center gap-3">
-          <button onClick={() => window.open(`/event/${event.id}/landing`, '_blank')} className="flex items-center gap-2 px-4 h-10 rounded-lg border border-white/10 text-[#E2E8F0] font-semibold text-sm hover:bg-white/10 transition-colors">
+          <button onClick={() => window.open(eventPublicPath(event), '_blank')} className="flex items-center gap-2 px-4 h-10 rounded-lg border border-white/10 text-[#E2E8F0] font-semibold text-sm hover:bg-white/10 transition-colors">
             <Eye size={16} /> {t('manageEvent.header.viewLive')}
           </button>
           <button onClick={() => navigate(`/create/details/${event.id}`)} className="flex items-center gap-2 px-4 h-10 rounded-lg border border-white/10 text-[#E2E8F0] font-semibold text-sm hover:bg-white/10 transition-colors">

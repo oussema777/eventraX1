@@ -1,5 +1,7 @@
+import { eventPublicPath } from '../utils/eventLinks';
+import { useEventRouteParams } from '../components/navigation/EventPublicRoute';
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { generateAccessCode } from '../utils/codeGenerator';
 import {
   Check,
@@ -77,7 +79,7 @@ interface FormField {
 }
 
 export default function EventRegistrationFlow() {
-  const { eventId } = useParams();
+  const { eventId } = useEventRouteParams();
   const navigate = useNavigate();
   const location = useLocation();
   const accessCodeVerified = (location.state as any)?.accessCodeVerified;
@@ -700,7 +702,7 @@ export default function EventRegistrationFlow() {
       setCurrentStep((currentStep + 1) as RegistrationStep);
       window.scrollTo(0, 0);
     } else {
-      navigate(`/event/${eventId}/landing`);
+      navigate(eventPublicPath(event || { id: eventId! }));
     }
   };
 
@@ -1146,7 +1148,7 @@ export default function EventRegistrationFlow() {
 
           <div className="flex gap-3 mt-4">
             <button
-              onClick={() => navigate(`/event/${eventId}/landing`)}
+              onClick={() => navigate(eventPublicPath(event || { id: eventId! }))}
               className="flex-1 h-10 rounded-lg border text-sm"
               style={{ borderColor: 'rgba(255,255,255,0.15)', color: '#9CA3AF' }}
             >
@@ -1189,7 +1191,7 @@ export default function EventRegistrationFlow() {
         <SEOHead
           title={`Register for ${event.name || 'Event'}`}
           description={truncateDescription(`Register for ${event.name}. Secure your spot and select your sessions.`, 160)}
-          canonicalUrl={canonicalUrl(`/event/${eventId}/register`)}
+          canonicalUrl={canonicalUrl(eventPublicPath(event || { id: eventId! }, 'register'))}
         />
       )}
       <style>{`
@@ -1903,7 +1905,7 @@ export default function EventRegistrationFlow() {
                 )}
 
                 <button
-                  onClick={() => navigate(`/event/${eventId}/landing`)}
+                  onClick={() => navigate(eventPublicPath(event || { id: eventId! }))}
                   style={{
                     display: 'flex',
                     alignItems: 'center',

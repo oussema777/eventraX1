@@ -10,6 +10,8 @@ import { HelmetProvider } from 'react-helmet-async';
 import { I18nProvider } from './i18n/I18nContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ErrorBoundary from './components/ErrorBoundary';
+import EventPublicRoute from './components/navigation/EventPublicRoute';
+import { EVENT_ID_PATTERN } from './utils/eventLinks';
 
 // ─── React Query Client ─────────────────────────────────────────
 const queryClient = new QueryClient({
@@ -119,6 +121,13 @@ function RedirectLegacyWizard() {
   return null;
 }
 
+function EventRootEntry() {
+  const { eventId = '' } = useParams();
+  // UUID roots remain authenticated organizer dashboards; names are public pages.
+  return EVENT_ID_PATTERN.test(eventId) ? <Outlet /> :
+    <EventPublicRoute><SingleEventLandingPage /></EventPublicRoute>;
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -148,16 +157,23 @@ export default function App() {
             <Route path="/business/:businessId/offerings/:productId" element={<BusinessProductPage />} />
 
             <Route path="/business/:businessId" element={<BusinessProfilePageRoute />} />
-            <Route path="/event/:eventId/landing" element={<SingleEventLandingPage />} />
-            <Route path="/event/:eventId/agenda" element={<EventSectionPage type="agenda" />} />
-            <Route path="/event/:eventId/speakers" element={<EventSectionPage type="speakers" />} />
-            <Route path="/event/:eventId/sponsors" element={<EventSectionPage type="sponsors" />} />
-            <Route path="/event/:eventId/packages" element={<EventSectionPage type="packages" />} />
-            <Route path="/event/:eventId/tickets" element={<EventSectionPage type="tickets" />} />
-            <Route path="/event/:eventId/sponsor-inquiry/:packageId" element={<SponsorshipInquiryPage />} />
-            <Route path="/event/:eventId/exhibitors" element={<EventSectionPage type="exhibitors" />} />
-            <Route path="/event/:eventId/attendees" element={<EventSectionPage type="attendees" />} />
-            <Route path="/event/:eventId/register" element={<EventRegistrationFlow />} />
+            <Route path="/event/:eventId" element={<EventRootEntry />}>
+              <Route element={<ProtectedRoute />}>
+                <Route index element={<GuestLockout><EventManagementDashboard /></GuestLockout>} />
+              </Route>
+            </Route>
+            <Route element={<EventPublicRoute />}>
+              <Route path="/event/:eventId/landing" element={<SingleEventLandingPage />} />
+              <Route path="/event/:eventId/agenda" element={<EventSectionPage type="agenda" />} />
+              <Route path="/event/:eventId/speakers" element={<EventSectionPage type="speakers" />} />
+              <Route path="/event/:eventId/sponsors" element={<EventSectionPage type="sponsors" />} />
+              <Route path="/event/:eventId/packages" element={<EventSectionPage type="packages" />} />
+              <Route path="/event/:eventId/tickets" element={<EventSectionPage type="tickets" />} />
+              <Route path="/event/:eventId/sponsor-inquiry/:packageId" element={<SponsorshipInquiryPage />} />
+              <Route path="/event/:eventId/exhibitors" element={<EventSectionPage type="exhibitors" />} />
+              <Route path="/event/:eventId/attendees" element={<EventSectionPage type="attendees" />} />
+              <Route path="/event/:eventId/register" element={<EventRegistrationFlow />} />
+            </Route>
             <Route path="/profile/:userId" element={<PublicProfilePage />} />
 
             {/* Protected Routes — require an authenticated session (members OR event guests) */}
@@ -170,9 +186,11 @@ export default function App() {
               <Route
                 path="/event/:eventId/networking"
                 element={
-                  <GuestAllowedEventRoute>
-                    <EventGuestNetworkingPage />
-                  </GuestAllowedEventRoute>
+                  <EventPublicRoute>
+                    <GuestAllowedEventRoute>
+                      <EventGuestNetworkingPage />
+                    </GuestAllowedEventRoute>
+                  </EventPublicRoute>
                 }
               />
 
@@ -187,7 +205,6 @@ export default function App() {
 
               <Route path="/dashboard" element={<MyEventsDashboard />} />
               <Route path="/my-events" element={<MyEventsDashboard />} />
-              <Route path="/event/:eventId" element={<EventManagementDashboard />} />
               <Route path="/event/:eventId/preview" element={<ViewCreatedEvent />} />
 
               {/* New Event Creation Wizard with Sidebar Navigation */}

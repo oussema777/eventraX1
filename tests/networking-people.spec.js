@@ -13,7 +13,7 @@ async function openHub(page, { empty = false, fail = false } = {}) {
     const url = new URL(route.request().url());
     const table = url.pathname.split('/').pop();
     let data = [];
-    if (table === 'events') data = { id: 'people-test', name: 'Business Forum', start_date: '2026-12-01' };
+    if (table === 'events') data = { id: '22222222-2222-4333-8444-555555555555', name: 'Business Forum', start_date: '2026-12-01' };
     if (table === 'profiles') {
       if (url.searchParams.get('id')?.startsWith('in.')) {
         expect(url.searchParams.get('select')).not.toMatch(/email|phone|\*/);
@@ -25,13 +25,13 @@ async function openHub(page, { empty = false, fail = false } = {}) {
         directoryRequests.push(Object.fromEntries(url.searchParams));
         if (fail) return route.fulfill({ status: 500, json: { message: 'Temporary error' } });
         data = empty ? [] : participants.map(person => ({ profile_id: person.id }));
-      } else if (url.searchParams.get('select') === 'event_id') data = { event_id: 'people-test' };
+      } else if (url.searchParams.get('select') === 'event_id') data = { event_id: '22222222-2222-4333-8444-555555555555' };
       else data = [{ id: 'self-attendee' }];
     }
     if (table === 'event_b2b_settings') data = null;
     return route.fulfill({ json: data });
   });
-  await page.goto('/event/people-test/register');
+  await page.goto('/event/22222222-2222-4333-8444-555555555555/register');
   await page.evaluate(async () => {
     const { supabase } = await import('/src/lib/supabase.ts');
     const encode = value => btoa(JSON.stringify(value)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
@@ -41,7 +41,7 @@ async function openHub(page, { empty = false, fail = false } = {}) {
     });
     if (error) throw error;
   });
-  await page.goto('/event/people-test/networking');
+  await page.goto('/event/22222222-2222-4333-8444-555555555555/networking');
   return directoryRequests;
 }
 
@@ -54,7 +54,7 @@ test('event guests discover opted-in participants, search, and request a meeting
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: testInfo.outputPath('people-mobile.png'), fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  expect(requests[0]).toMatchObject({ event_id: 'eq.people-test', status: 'eq.registered', 'meta->>b2bOptIn': 'eq.true', profile_id: 'neq.11111111-1111-4111-8111-111111111111' });
+  expect(requests[0]).toMatchObject({ event_id: 'eq.22222222-2222-4333-8444-555555555555', status: 'eq.registered', 'meta->>b2bOptIn': 'eq.true', profile_id: 'neq.11111111-1111-4111-8111-111111111111' });
   await page.getByRole('searchbox').fill('Solar');
   await expect(page.getByRole('heading', { name: 'Sami Ben Ali' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Request meeting', exact: true }).click();

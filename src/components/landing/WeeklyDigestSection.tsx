@@ -1,3 +1,4 @@
+import { eventPublicPath } from '../../utils/eventLinks';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Calendar, Clock, Heart, ArrowRight, Sparkles } from 'lucide-react';
@@ -6,6 +7,7 @@ import { useI18n } from '../../i18n/I18nContext';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 
 interface EventCard {
+  seo_slug?: string | null;
   id: string;
   title: string;
   image: string;
@@ -40,7 +42,7 @@ export default function WeeklyDigestSection({ userId, userInterests = [], userIn
         // Build query for events matching interests or industry
         let query = supabase
           .from('events')
-          .select('id, name, event_type, event_format, event_status, start_date, location_address, cover_image_url')
+          .select('id, seo_slug, name, event_type, event_format, event_status, start_date, location_address, cover_image_url')
           .eq('status', 'published')
           .eq('is_approved', true)
           .gte('start_date', new Date().toISOString())
@@ -63,7 +65,7 @@ export default function WeeklyDigestSection({ userId, userInterests = [], userIn
         if (error || !data || data.length === 0) {
           const { data: fallbackData } = await supabase
             .from('events')
-            .select('id, name, event_type, event_format, event_status, start_date, location_address, cover_image_url')
+            .select('id, seo_slug, name, event_type, event_format, event_status, start_date, location_address, cover_image_url')
             .eq('status', 'published')
             .eq('is_approved', true)
             .gte('start_date', new Date().toISOString())
@@ -83,6 +85,7 @@ export default function WeeklyDigestSection({ userId, userInterests = [], userIn
             
             return {
               id: event.id,
+              seo_slug: event.seo_slug,
               title: event.name || 'Untitled Event',
               image: event.cover_image_url || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800',
               date: { month, day },
@@ -152,7 +155,7 @@ export default function WeeklyDigestSection({ userId, userInterests = [], userIn
           {events.map((event) => (
             <div
               key={event.id}
-              onClick={() => navigate(`/event/${event.id}/landing`)}
+              onClick={() => navigate(eventPublicPath(event))}
               style={{
                 backgroundColor: 'rgba(255,255,255,0.05)',
                 borderRadius: '20px',

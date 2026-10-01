@@ -1,5 +1,6 @@
+import { useEventRouteParams } from '../navigation/EventPublicRoute';
 import { ReactNode, useEffect, useState } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 
@@ -20,7 +21,7 @@ import { supabase } from '../../lib/supabase';
  */
 export function GuestAllowedEventRoute({ children }: { children: ReactNode }) {
   const { user, accountType } = useAuth();
-  const { eventId } = useParams();
+  const { eventId } = useEventRouteParams();
   // null = still checking, true/false = decision made
   const [allowed, setAllowed] = useState<boolean | null>(null);
 

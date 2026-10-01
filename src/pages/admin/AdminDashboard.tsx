@@ -1,3 +1,4 @@
+import { eventPublicPath } from '../../utils/eventLinks';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import NavbarLoggedIn from '../../components/navigation/NavbarLoggedIn';
@@ -534,7 +535,7 @@ export default function AdminDashboard() {
                 {/* Actions */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                   <button
-                    onClick={() => window.open(`/event/${event.id}/landing`, '_blank')}
+                    onClick={() => window.open(eventPublicPath(event), '_blank')}
                     title="Preview Event"
                     style={{
                       width: '38px', height: '38px', borderRadius: '10px',
