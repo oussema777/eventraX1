@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Building2, Calendar, Loader2, Search, Users } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { loadEventNetworkingParticipants } from '../../lib/eventNetworkingParticipants';
 import { useI18n } from '../../i18n/I18nContext';
 import './EventNetworkingPeople.css';
 
@@ -36,32 +36,8 @@ export default function EventNetworkingPeople({ eventId, userId, onRequestMeetin
     setSearch('');
     const load = async () => {
       try {
-        const ids = new Set<string>();
-        // Page through registrations so discovery is not capped by the API row limit.
-        for (let offset = 0; ; offset += 500) {
-          const { data, error } = await supabase.from('event_attendees')
-            .select('profile_id')
-            .eq('event_id', eventId)
-            .eq('status', 'registered')
-            .eq('meta->>b2bOptIn', 'true')
-            .neq('profile_id', userId)
-            .order('id')
-            .range(offset, offset + 499);
-          if (error) throw error;
-          if (cancelled) return;
-          for (const row of data || []) if (row.profile_id) ids.add(row.profile_id);
-          if (!data || data.length < 500) break;
-        }
-        const profiles: Participant[] = [];
-        const profileIds = [...ids];
-        for (let offset = 0; offset < profileIds.length; offset += 100) {
-          const { data, error } = await supabase.from('profiles')
-            .select('id, full_name, job_title, company, avatar_url, sector, interests')
-            .in('id', profileIds.slice(offset, offset + 100));
-          if (error) throw error;
-          if (cancelled) return;
-          profiles.push(...(data || []));
-        }
+        const participants = await loadEventNetworkingParticipants(eventId);
+        const profiles = participants.filter(person => person.id !== userId);
         if (!cancelled) setPeople(profiles.sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '')));
       } catch {
         if (!cancelled) setFailed(true);

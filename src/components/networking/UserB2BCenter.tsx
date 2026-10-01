@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { 
   Calendar, 
   UserPlus, 
@@ -30,6 +30,7 @@ import { useMessageThread } from '../../hooks/useMessageThread';
 import UserMessagesCenter from '../messaging/UserMessagesCenter';
 import BookMeetingModal from './BookMeetingModal';
 import EventNetworkingPeople from './EventNetworkingPeople';
+import { loadEventNetworkingParticipants } from '../../lib/eventNetworkingParticipants';
 import { sendEmail, generateMeetingConfirmationEmailHtml, sendMeetingConfirmationEmails, sendMeetingCancelledEmail, sendConnectionRequestEmail, sendConnectionAcceptedEmail } from '../../lib/email';
 
 const MATCHES_TABLE = 'b2b_matches';
@@ -138,7 +139,6 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
   const [connections, setConnections] = useState<Connection[]>([]);
   const [eventOptions, setEventOptions] = useState<Array<{ id: string; name: string }>>([]);
   const [currentUserName, setCurrentUserName] = useState(t('networking.defaults.someone'));
-  const didGenerateMatchesRef = useRef(false);
   
   // Meeting Modal State
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
@@ -269,6 +269,16 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
           ? Promise.resolve({ data: [] })
           : supabase.from('b2b_meetings').select('*').then(r => r, () => ({ data: [] }))
       ]);
+
+      if (matchesResult.error) throw matchesResult.error;
+      if (scopedEventId && !matchesResult.data?.length) {
+        try {
+          matchesResult.data = await maybeGenerateMatches(matchesResult.data || []);
+        } catch (error) {
+          // Discovery failure must not hide existing meetings or requests.
+          toast.error(sanitizeError(error, t('networking.errors.generateMatches')));
+        }
+      }
 
       // 3. Process Meetings
       const allRawMeetings = [
@@ -651,23 +661,18 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
   };
 
   const maybeGenerateMatches = async (existingMatches: Array<any>) => {
-    if (didGenerateMatchesRef.current) return [];
-    if (!user?.id || existingMatches.length > 0) return [];
+    if (!scopedEventId || !user?.id || existingMatches.length > 0) return [];
 
-    const { data: selfProfile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-
-    const selfSignals = extractProfileSignals(selfProfile);
-    if (!selfSignals.enabled) return [];
-
-    const { data: others } = await supabase
-      .from('profiles')
-      .select('*')
-      .neq('id', user.id)
-      .limit(60);
+    const participants = await loadEventNetworkingParticipants(scopedEventId);
+    const selfProfile = participants.find(profile => profile.id === user.id);
+    if (!selfProfile) return []; // Only opted-in event participants receive suggestions.
+    const asMatchingProfile = (profile: (typeof participants)[number]) => ({
+      ...profile,
+      industry: profile.sector,
+      b2b_profile: { interests: profile.interests }
+    });
+    const selfSignals = extractProfileSignals(asMatchingProfile(selfProfile));
+    const others = participants.filter(profile => profile.id !== user.id).map(asMatchingProfile);
 
     const matchesToInsert: Array<any> = [];
     const fallbackCandidates: Array<any> = [];
@@ -745,14 +750,20 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
 
     const { data: inserted, error } = await supabase
       .from(MATCHES_TABLE)
-      .insert(topMatches)
+      .upsert(topMatches.map(match => ({ ...match, event_id: scopedEventId })), {
+        onConflict: 'profile_id,matched_profile_id,event_id', ignoreDuplicates: true
+      })
       .select('*');
     if (error) {
       toast.error(sanitizeError(error, t('networking.errors.generateMatches')));
       return [];
     }
-    didGenerateMatchesRef.current = true;
-    return inserted || [];
+    // Another tab may have generated these simultaneously. Read persisted rows
+    // so ignored conflicts still render, without resetting dismissed matches.
+    const { data: saved, error: readError } = await supabase.from(MATCHES_TABLE)
+      .select('*').eq('profile_id', user.id).eq('event_id', scopedEventId);
+    if (readError) throw readError;
+    return saved || inserted || [];
   };
 
   const refreshExistingMatches = async (
