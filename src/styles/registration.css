@@ -1,0 +1,123 @@
+.registration-shell { min-height: 100dvh; }
+.registration-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(11, 38, 65, .97);
+  border-bottom: 1px solid rgba(255, 255, 255, .1);
+  backdrop-filter: blur(10px);
+}
+.registration-header-inner {
+  max-width: 1120px;
+  min-height: 76px;
+  padding: 12px 24px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+.registration-event-link { display: flex; align-items: center; gap: 12px; color: #fff; text-decoration: none; min-width: 0; }
+.registration-event-link > svg { flex-shrink: 0; }
+.registration-event-logo { width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }
+.registration-event-identity { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.registration-back-label { font-size: 12px; color: #adbdce; }
+.registration-event-name { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.registration-language { display: flex; align-items: center; gap: 8px; flex-shrink: 0; color: #c8d4e0; }
+.registration-language select { min-height: 44px; max-width: 125px; padding: 0 8px; border: 1px solid #4b6178; border-radius: 8px; color: #fff; background: #12314e; font-size: 14px; cursor: pointer; }
+.registration-event-link:focus-visible, .registration-language select:focus-visible { outline: 2px solid #77baff; outline-offset: 4px; }
+.registration-shell .registration-main { width: 100%; padding: 32px 24px 48px; flex: 1; }
+.registration-progress { max-width: 560px; padding: 0; margin: 0 auto 28px; display: flex; justify-content: space-between; gap: 16px; list-style: none; }
+.registration-progress li { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #a8bbcf; }
+.registration-progress li[aria-current="step"] { color: #fff; font-weight: 600; }
+.registration-step-number { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid #526a82; border-radius: 50%; font-size: 13px; }
+.registration-step-number.is-active { background: #0684f5; border-color: #0684f5; color: #fff; }
+.registration-shell .registration-card { padding: 32px; }
+.registration-shell .registration-actions { margin-top: 32px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,.12); }
+.registration-action-buttons { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.registration-action-buttons > button { min-height: 44px; justify-content: center; }
+.registration-shell input, .registration-shell select, .registration-shell textarea { scroll-margin-top: 100px; }
+.registration-shell input[type="tel"] { min-width: 0; }
+
+/* Shared treatment for built-in and organizer-defined registration fields.
+   Scoped overrides reconcile legacy inline styles without changing their behavior. */
+.registration-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+.registration-fields > * { min-width: 0; }
+.registration-field > label {
+  display: block;
+  margin: 0 0 8px !important;
+  color: #e2eaf3 !important;
+  font-size: 14px !important;
+  line-height: 20px;
+  font-weight: 500 !important;
+}
+.registration-fields :where(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea, [data-registration-dropdown] > button) {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 48px;
+  height: 48px;
+  padding: 12px 14px !important;
+  border: 1px solid #41576e !important;
+  border-radius: 8px !important;
+  background-color: #102c46 !important;
+  color: #f1f5f9 !important;
+  font-family: inherit;
+  font-size: 16px !important;
+  line-height: 22px !important;
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.registration-shell .registration-fields textarea { height: auto; min-height: 112px; resize: vertical; }
+.registration-field .relative > svg + :is(input, textarea) { padding-left: 44px !important; }
+.registration-fields input::placeholder, .registration-fields textarea::placeholder { color: #99adc2; opacity: 1; }
+.registration-fields [data-registration-dropdown] > button > span { font-size: 16px; line-height: 22px; color: inherit; }
+.registration-fields [data-empty="true"], .registration-fields [data-empty="true"] > span { color: #99adc2 !important; }
+.registration-fields [data-registration-dropdown] > button > svg { width: 18px; height: 18px; flex-shrink: 0; color: #99adc2 !important; }
+.registration-fields :is(input, textarea, select):focus,
+.registration-fields [data-registration-dropdown] > button:focus-visible {
+  border-color: #58aaff !important;
+  box-shadow: 0 0 0 3px rgba(6,132,245,.2);
+}
+.registration-fields :is(input, textarea, select):disabled,
+.registration-fields input[readonly] {
+  background-color: #0c2237 !important;
+  color: #a8bbcf !important;
+  cursor: not-allowed;
+}
+.registration-fields input[type="date"] { color-scheme: dark; }
+.registration-fields select option { background: #102c46; color: #f1f5f9 !important; }
+.registration-fields :is(input[type="checkbox"], input[type="radio"]) { width: 20px; height: 20px; flex-shrink: 0; accent-color: #0684f5; }
+.registration-fields [data-registration-dropdown] > div {
+  background-color: #102c46 !important;
+  border-color: #41576e !important;
+  border-radius: 8px;
+  color: #f1f5f9;
+}
+.registration-fields [data-registration-dropdown] > div button {
+  min-height: 44px;
+  font-size: 14px;
+  line-height: 20px;
+  color: #e2eaf3 !important;
+}
+.registration-fields [data-registration-dropdown] > div button span { color: inherit !important; }
+.registration-fields [data-registration-dropdown] > div button:hover,
+.registration-fields [data-registration-dropdown] > div button:focus-visible { background-color: #204764 !important; }
+.registration-fields [data-registration-dropdown] > div div { overscroll-behavior: contain; }
+@media (max-width: 640px) {
+  .registration-header-inner { min-height: 72px; padding: 12px 16px; gap: 12px; }
+  .registration-event-link { gap: 8px; }
+  .registration-event-logo { display: none; }
+  .registration-event-name { font-size: 13px; }
+  .registration-back-label { font-size: 11px; }
+  .registration-language { gap: 0; }
+  .registration-language > svg { display: none; }
+  .registration-language select { max-width: 104px; font-size: 16px; padding: 0 4px; }
+  .registration-shell .registration-main { padding: 24px 16px 32px; }
+  .registration-progress { margin-bottom: 24px; gap: 8px; }
+  .registration-progress li { font-size: 12px; gap: 6px; }
+  .registration-shell .registration-card { padding: 24px 20px; }
+  .registration-shell .registration-actions { margin-top: 24px; padding-top: 20px; }
+  .registration-action-buttons > button { padding-left: 14px; padding-right: 14px; font-size: 14px; }
+  .registration-shell input, .registration-shell select, .registration-shell textarea { font-size: 16px !important; }
+}
+@media print { .registration-progress, .registration-header, .registration-actions { display: none !important; } }

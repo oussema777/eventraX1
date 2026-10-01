@@ -45,6 +45,33 @@ for (const mobile of [false, true]) {
     await expect(company).toHaveValue('Example Company');
     await expect(notes).toHaveValue('Keep these answers');
     await expect(country.locator('button').first()).toContainText('France');
+    // Language changes only translate the interface; they must not reinitialize answers.
+    const language = page.locator('.registration-language select');
+    for (const locale of ['en', 'ar', 'fr']) {
+      await language.selectOption(locale);
+      await expect(page.locator('html')).toHaveAttribute('lang', locale);
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+        locale === 'fr' ? 'Vos coordonnées' : locale === 'ar' ? 'بياناتك' : 'Your details');
+      await expect(name).toHaveValue('Example Attendee');
+      await expect(company).toHaveValue('Example Company');
+      await expect(notes).toHaveValue('Keep these answers');
+      await expect(country.locator('button').first()).toContainText('France');
+      await expect(page.locator('.registration-progress [aria-current="step"]')).toContainText('1');
+    }
+    await expect(page.locator('.registration-event-link')).toHaveAttribute('href', `/event/${id}/landing`);
+    const layout = await page.evaluate(() => {
+      const card = document.querySelector('.registration-card').getBoundingClientRect();
+      const footer = document.querySelector('.registration-actions').getBoundingClientRect();
+      const phone = document.querySelector('input[type="tel"]').getBoundingClientRect();
+      return { overflow: document.documentElement.scrollWidth > window.innerWidth,
+        actionsInsideCard: footer.bottom <= card.bottom && footer.top > card.top,
+        phoneInsideCard: phone.right <= card.right };
+    });
+    expect(layout).toEqual({ overflow: false, actionsInsideCard: true, phoneInsideCard: true });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: `.tmp/registration-ux-${mobile ? 'mobile' : 'desktop'}-top.png` });
+    await page.locator('.registration-actions').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `.tmp/registration-ux-${mobile ? 'mobile' : 'desktop'}-bottom.png` });
     expect(eventReads).toBe(readsBefore);
     expect(documents).toBe(documentsBefore);
     await context.close();

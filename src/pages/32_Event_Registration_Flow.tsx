@@ -1,4 +1,5 @@
 import { eventPublicPath } from '../utils/eventLinks';
+import { eventAuthReturnUrl } from '../utils/authRedirect';
 import { useEventRouteParams } from '../components/navigation/EventPublicRoute';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -9,7 +10,6 @@ import {
   Calendar,
   Clock,
   MapPin,
-  HelpCircle,
   Loader2,
   Lock,
   ChevronDown,
@@ -20,7 +20,8 @@ import {
   X,
   Search
 } from 'lucide-react';
-import Logo from '../components/ui/Logo';
+import RegistrationNavigation from '../components/events/RegistrationNavigation';
+import '../styles/registration.css';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import { sanitizeError } from '../utils/errorHandler';
@@ -650,6 +651,8 @@ export default function EventRegistrationFlow() {
         const mySessions = sessions.filter(s => selectedSessions.has(s.id));
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${attendeeId}`;
         const magicLink = edgeFnData?.magic_link || null;
+        const networkingUrl = systemFields.b2bOptIn && eventId
+          ? eventAuthReturnUrl(`/event/${eventId}/networking`, window.location.origin) : null;
         const emailHtml = generateRegistrationEmailHtml(
           event?.name || 'Event',
           systemFields.fullName || 'Attendee',
@@ -657,11 +660,12 @@ export default function EventRegistrationFlow() {
           mySessions,
           !user,
           magicLink,
-          event?.timezone
+          event?.timezone,
+          networkingUrl
         );
         await sendEmail({
           to: systemFields.email,
-          subject: magicLink
+          subject: networkingUrl || magicLink
             ? `Registration Confirmed + B2B Access: ${event?.name}`
             : `Registration Confirmed: ${event?.name}`,
           html: emailHtml,
@@ -802,7 +806,7 @@ export default function EventRegistrationFlow() {
     return (
       <>
         {/* 1. Full Name */}
-        {fieldId === 'system-fullName' && <div className="mb-4">
+        {fieldId === 'system-fullName' && <div className="registration-field">
           <label className="block text-sm font-medium text-white mb-1.5">
             {t('registration.systemFields.fullName', { defaultValue: 'Full Name' })} <span className="text-red-400">*</span>
           </label>
@@ -817,7 +821,7 @@ export default function EventRegistrationFlow() {
         </div>}
 
         {/* 2. Email */}
-        {fieldId === 'system-email' && <div className="mb-4">
+        {fieldId === 'system-email' && <div className="registration-field">
           <label className="block text-sm font-medium text-white mb-1.5">
             {t('registration.systemFields.email', { defaultValue: 'Email Address' })} <span className="text-red-400">*</span>
           </label>
@@ -832,7 +836,7 @@ export default function EventRegistrationFlow() {
         </div>}
 
         {/* 3. Phone with country code */}
-        {fieldId === 'system-phone' && <div className="mb-4">
+        {fieldId === 'system-phone' && <div className="registration-field">
           <label className="block text-sm font-medium text-white mb-1.5">
             {t('registration.systemFields.phone', { defaultValue: 'Phone Number' })} {isRegistrationSystemFieldRequired('system-phone', systemRequired) && <span className="text-red-400">*</span>}
           </label>
@@ -920,7 +924,7 @@ export default function EventRegistrationFlow() {
         </div>}
 
         {/* 4. Company Name */}
-        {fieldId === 'system-companyName' && <div className="mb-4">
+        {fieldId === 'system-companyName' && <div className="registration-field">
           <label className="block text-sm font-medium text-white mb-1.5">
             {t('registration.systemFields.companyName', { defaultValue: 'Company Name' })} {isRegistrationSystemFieldRequired('system-companyName', systemRequired) && <span className="text-red-400">*</span>}
           </label>
@@ -935,7 +939,7 @@ export default function EventRegistrationFlow() {
         </div>}
 
         {/* 5. Short Company Description */}
-        {fieldId === 'system-companyDescription' && <div className="mb-4">
+        {fieldId === 'system-companyDescription' && <div className="registration-field">
           <label className="block text-sm font-medium text-white mb-1.5">
             {t('registration.systemFields.companyDescription', { defaultValue: 'Short Company Description' })} {isRegistrationSystemFieldRequired('system-companyDescription', systemRequired) && <span className="text-red-400">*</span>}
           </label>
@@ -954,7 +958,7 @@ export default function EventRegistrationFlow() {
         </div>}
 
         {/* 6. Interests (multi-select) */}
-        {fieldId === 'system-interests' && <div className="mb-4">
+        {fieldId === 'system-interests' && <div className="registration-field">
           <label className="block text-sm font-medium text-white mb-1.5">
             {t('registration.systemFields.interests', { defaultValue: 'Interests' })} {isRegistrationSystemFieldRequired('system-interests', systemRequired) && <span className="text-red-400">*</span>}
           </label>
@@ -977,6 +981,7 @@ export default function EventRegistrationFlow() {
               type="button"
               onClick={() => toggleDropdown('system-interests')}
               aria-expanded={openDropdown === 'system-interests'}
+              data-empty={true}
               className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border text-sm"
               style={fieldStyle}
             >
@@ -1017,7 +1022,7 @@ export default function EventRegistrationFlow() {
         </div>}
 
         {/* 7. Sector (single-select) */}
-        {fieldId === 'system-sector' && <div className="mb-4">
+        {fieldId === 'system-sector' && <div className="registration-field">
           <label className="block text-sm font-medium text-white mb-1.5">
             {t('registration.systemFields.sector', { defaultValue: 'Sector' })} {isRegistrationSystemFieldRequired('system-sector', systemRequired) && <span className="text-red-400">*</span>}
           </label>
@@ -1026,6 +1031,7 @@ export default function EventRegistrationFlow() {
               type="button"
               onClick={() => toggleDropdown('system-sector')}
               aria-expanded={openDropdown === 'system-sector'}
+              data-empty={!systemFields.sector}
               className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border text-sm"
               style={fieldStyle}
             >
@@ -1053,7 +1059,7 @@ export default function EventRegistrationFlow() {
         </div>}
 
         {/* 8. Social URL */}
-        {fieldId === 'system-socialUrl' && <div className="mb-4">
+        {fieldId === 'system-socialUrl' && <div className="registration-field">
           <label className="block text-sm font-medium text-white mb-1.5">
             {t('registration.systemFields.socialUrl', { defaultValue: 'Social / Website URL' })} {isRegistrationSystemFieldRequired('system-socialUrl', systemRequired) && <span className="text-red-400">*</span>}
           </label>
@@ -1103,7 +1109,9 @@ export default function EventRegistrationFlow() {
 
   if (needsAccessCode) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#0B2641' }}>
+      <div className="registration-shell flex flex-col" style={{ backgroundColor: '#0B2641' }}>
+        {event && <RegistrationNavigation event={event} />}
+        <main className="registration-main flex items-center justify-center">
         <div className="w-full max-w-sm mx-4 rounded-2xl p-6" style={{ backgroundColor: '#0D243B', border: '1px solid rgba(255,255,255,0.1)' }}>
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)' }}>
@@ -1173,6 +1181,7 @@ export default function EventRegistrationFlow() {
             </button>
           </div>
         </div>
+        </main>
       </div>
     );
   }
@@ -1186,7 +1195,7 @@ export default function EventRegistrationFlow() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#0B2641', color: '#FFFFFF' }}>
+    <div className="registration-shell min-h-screen flex flex-col" style={{ backgroundColor: '#0B2641', color: '#FFFFFF' }}>
       {event && (
         <SEOHead
           title={`Register for ${event.name || 'Event'}`}
@@ -1195,7 +1204,6 @@ export default function EventRegistrationFlow() {
         />
       )}
       <style>{`
-        .registration-card { padding: 40px; }
         @media print {
           @page {
             margin: 0;
@@ -1233,114 +1241,20 @@ export default function EventRegistrationFlow() {
             display: none !important;
           }
         }
-        @media (max-width: 768px) {
-          .reg-help-text { display: none; }
-          .reg-help-btn button { padding: 8px !important; border: none !important; }
-        }
-        @media (max-width: 640px) {
-          .registration-card { padding: 20px; }
-          .h-full.flex.items-center { padding-left: 16px !important; padding-right: 16px !important; }
-          .reg-progress { gap: 8px; }
-          .reg-step-connector { display: none; }
-          .reg-step-label { font-size: 10px !important; }
-          .reg-logo { height: 24px !important; }
-        }
-        @media (max-width: 360px) {
-          .reg-step-label { display: none; }
-        }
       `}</style>
-      {/* Header */}
-      <header
-        className="sticky top-0 z-50 no-print"
-        style={{
-          backgroundColor: 'rgba(11, 38, 65, 0.95)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-          height: '80px',
-          backdropFilter: 'blur(10px)'
-        }}
-      >
-        <div className="h-full flex items-center justify-between px-10" style={{ gap: '12px' }}>
-          <div style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => navigate('/')}>
-            <Logo className="reg-logo" />
-          </div>
+      {event && <RegistrationNavigation event={event} />}
 
-          <div className="reg-progress flex items-center gap-4">
-            {steps.map((step, index) => (
-              <div key={step.number} className="flex items-center">
-                <div className="flex flex-col items-center">
-                  <div
-                    className="flex items-center justify-center rounded-full transition-all"
-                    style={{
-                      width: '32px',
-                      height: '32px',
-                      backgroundColor: currentStep >= step.number ? '#0684F5' : 'rgba(255, 255, 255, 0.1)',
-                      color: '#FFFFFF',
-                      fontSize: '14px',
-                      fontWeight: 600,
-                      border: currentStep >= step.number ? 'none' : '2px solid rgba(255, 255, 255, 0.2)'
-                    }}
-                  >
-                    {currentStep > step.number ? <Check size={16} /> : step.number}
-                  </div>
-                  <span
-                    className="reg-step-label mt-1.5"
-                    style={{
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      color: currentStep >= step.number ? '#FFFFFF' : 'rgba(255, 255, 255, 0.5)'
-                    }}
-                  >
-                    {step.label}
-                  </span>
-                </div>
-                {index < steps.length - 1 && (
-                  <div
-                    className="reg-step-connector"
-                    style={{
-                      width: '40px',
-                      height: '2px',
-                      backgroundColor: currentStep > step.number ? '#0684F5' : 'rgba(255, 255, 255, 0.1)',
-                      margin: '0 12px',
-                      marginBottom: '20px'
-                    }}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div className="reg-help-btn" style={{ minWidth: '40px', textAlign: 'right', flexShrink: 0 }}>
-            <button
-              className="flex items-center gap-2 transition-colors ml-auto"
-              style={{
-                color: 'rgba(255, 255, 255, 0.7)',
-                fontSize: '14px',
-                fontWeight: 500,
-                background: 'transparent',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                padding: '8px 16px',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#FFFFFF';
-                e.currentTarget.style.color = '#FFFFFF';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-                e.currentTarget.style.color = 'rgba(255, 255, 255, 0.7)';
-              }}
-            >
-              <HelpCircle size={16} />
-              <span className="reg-help-text">{t('registrationFlow.help')}</span>
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="pt-10 pb-10 px-6 flex-grow">
+      <main className="registration-main">
+        <ol className="registration-progress no-print" aria-label={t('registrationFlow.progress')}>
+          {steps.map(step => (
+            <li key={step.number} aria-current={currentStep === step.number ? 'step' : undefined}>
+              <span className={`registration-step-number${currentStep >= step.number ? ' is-active' : ''}`}>
+                {currentStep > step.number ? <Check size={15} aria-hidden="true" /> : step.number}
+              </span>
+              <span>{step.label}</span>
+            </li>
+          ))}
+        </ol>
         <div
           className="registration-card mx-auto rounded-2xl"
           style={{
@@ -1355,18 +1269,18 @@ export default function EventRegistrationFlow() {
             <div>
               <div className="mb-8">
                 <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#FFFFFF', marginBottom: '8px' }}>
-                  {t('registrationFlow.welcomeBack').replace('{name}', profile?.full_name?.split(' ')[0] || t('registrationFlow.guest'))}
+                  {profile?.full_name ? t('registrationFlow.welcomeBack').replace('{name}', profile.full_name.split(' ')[0]) : t('registrationFlow.yourDetails')}
                 </h1>
                 <p style={{ fontSize: '15px', color: 'rgba(255, 255, 255, 0.6)' }}>
                   {t('registrationFlow.confirmDetails').replace('{eventName}', '')} <span style={{ color: '#FFFFFF', fontWeight: 600 }}>{event?.name}</span>
                 </p>
               </div>
 
-              <div className="space-y-6">
+              <div className="registration-fields">
                 {orderedRegistrationFields.map((field) => field.type === '__system'
                   ? <div key={field.id}>{renderSystemFields(field.id)}</div>
                   : (
-                  <div key={field.id}>
+                  <div key={field.id} className="registration-field">
                     <label
                       style={{
                         display: 'block',
@@ -1394,6 +1308,7 @@ export default function EventRegistrationFlow() {
                     <div className="relative">
                       {(field.type === 'select' || field.type === 'dropdown') ? (
                         <select
+                          data-empty={!field.value}
                           value={field.value}
                           onChange={(e) => updateFormField(field.id, e.target.value)}
                           disabled={field.readonly}
@@ -1415,6 +1330,7 @@ export default function EventRegistrationFlow() {
                             type="button"
                             onClick={() => toggleDropdown(`country:${field.id}`)}
                             aria-expanded={openDropdown === `country:${field.id}`}
+                            data-empty={!field.value}
                             className="w-full flex items-center justify-between transition-all"
                             style={{
                               height: '48px',
@@ -1481,7 +1397,7 @@ export default function EventRegistrationFlow() {
                                     className="w-full flex items-center gap-3 px-4 py-2.5 transition-colors"
                                     style={{
                                       border: 'none',
-                                      backgroundColor: field.value === country.code ? '#F3F4F6' : 'transparent',
+                                      backgroundColor: field.value === country.code ? 'rgba(6,132,245,0.2)' : 'transparent',
                                       cursor: 'pointer',
                                       textAlign: 'left'
                                     }}
@@ -1559,7 +1475,7 @@ export default function EventRegistrationFlow() {
                                         className="w-full flex items-center gap-3 px-4 py-2.5 transition-colors"
                                         style={{
                                           border: 'none',
-                                          backgroundColor: field.phoneCountryCode === country.code ? '#F3F4F6' : 'transparent',
+                                          backgroundColor: field.phoneCountryCode === country.code ? 'rgba(6,132,245,0.2)' : 'transparent',
                                           cursor: 'pointer',
                                           textAlign: 'left'
                                         }}
@@ -1779,8 +1695,6 @@ export default function EventRegistrationFlow() {
                 ))}
               </div>
               
-              {/* Spacer for better visual flow before the bottom navigation bar */}
-              <div className="h-12" />
             </div>
           )}
 
@@ -2048,20 +1962,10 @@ export default function EventRegistrationFlow() {
               </div>
             </div>
           )}
-        </div>
-      </main>
-
-      {/* Footer Navigation */}
+      {/* Form actions stay attached to the current step. */}
       {currentStep < 3 && (
-        <footer
-          className="mt-auto px-6 py-8"
-          style={{
-            backgroundColor: 'rgba(11, 38, 65, 0.95)',
-            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-            backdropFilter: 'blur(10px)'
-          }}
-        >
-          <div className="max-w-[800px] mx-auto flex items-center justify-between">
+        <footer className="registration-actions no-print">
+          <div className="registration-action-buttons">
             <button
               onClick={handleBack}
               className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold"
@@ -2118,6 +2022,8 @@ export default function EventRegistrationFlow() {
           </div>
         </footer>
       )}
+        </div>
+      </main>
     </div>
   );
 }

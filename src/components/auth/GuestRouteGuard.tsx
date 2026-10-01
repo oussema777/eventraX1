@@ -1,6 +1,7 @@
 import { useEventRouteParams } from '../navigation/EventPublicRoute';
 import { ReactNode, useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { eventAuthPath } from '../../utils/authRedirect';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 
@@ -17,51 +18,65 @@ import { supabase } from '../../lib/supabase';
  *
  * - Members ('user') always see the page.
  * - Guests only see it if they are registered (have an `event_attendees`
- *   row) for the current `:eventId`; otherwise they are sent home.
+ *   row) for the current `:eventId`; otherwise show an account-recovery screen.
  */
 export function GuestAllowedEventRoute({ children }: { children: ReactNode }) {
-  const { user, accountType } = useAuth();
+  const { user, accountType, signOut } = useAuth();
+  const navigate = useNavigate();
   const { eventId } = useEventRouteParams();
-  // null = still checking, true/false = decision made
-  const [allowed, setAllowed] = useState<boolean | null>(null);
+  // Key the result to the current identity/event so stale access is never reused.
+  const key = `${user?.id || ''}:${eventId || ''}`;
+  const [check, setCheck] = useState<{ key: string; allowed: boolean; error?: boolean } | null>(null);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     // Members are always allowed — no lookup needed.
     if (accountType !== 'event_guest') {
-      setAllowed(true);
       return;
     }
 
     let active = true;
     if (!user || !eventId) {
-      setAllowed(false);
+      setCheck({ key, allowed: false });
       return;
     }
 
     (async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('event_attendees')
         .select('event_id')
         .eq('profile_id', user.id)
         .eq('event_id', eventId)
         .maybeSingle();
-      if (active) setAllowed(!!data);
-    })();
+      if (active) setCheck({ key, allowed: !!data, error: !!error });
+    })().catch(() => { if (active) setCheck({ key, allowed: false, error: true }); });
 
     return () => {
       active = false;
     };
-  }, [accountType, user, eventId]);
+  }, [accountType, user, eventId, key, retry]);
 
   if (accountType !== 'event_guest') {
     return <>{children}</>;
   }
 
-  if (allowed === null) {
+  if (!check || check.key !== key) {
     return null;
   }
 
-  return allowed ? <>{children}</> : <Navigate to="/" replace />;
+  if (check.allowed) return <>{children}</>;
+  return <div className="min-h-screen flex items-center justify-center bg-[#0B2641] text-white p-6">
+    <div style={{ maxWidth: 460 }}>
+      <h1 className="text-xl font-semibold mb-3">{check.error ? 'Unable to check event access' : 'Use your registration account'}</h1>
+      <p className="mb-5">{check.error ? 'Please try again. Your registration has not changed.' : 'This account is not registered for this event. Sign in with the email address used for your registration.'}</p>
+      {check.error ? <button onClick={() => setRetry(value => value + 1)}>Try again</button>
+        : <button onClick={async () => {
+          await signOut();
+          navigate(eventAuthPath(`/event/${eventId}/networking`), { replace: true });
+        }}>Sign in with another account</button>}
+      <p className="mt-5"><Link to={`/event/${eventId}/landing`}>Back to event</Link></p>
+    </div>
+  </div>;
 }
 
 /**

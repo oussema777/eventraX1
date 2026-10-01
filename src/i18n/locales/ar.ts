@@ -2270,6 +2270,10 @@ export default {
       }
     },
     registrationFlow: {
+        eventNavigation: "تصفح الفعالية",
+        progress: "خطوات التسجيل",
+        yourDetails: "بياناتك",
+
       help: 'تحتاج مساعدة؟ تواصل مع منظم الفعالية.',
       welcomeBack: 'مرحبًا بعودتك',
       guest: 'ضيف',

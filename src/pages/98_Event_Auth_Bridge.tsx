@@ -1,50 +1,69 @@
 import { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { isValidRedirectUrl } from '../utils/security';
+import { useAuth } from '../contexts/AuthContext';
+import { eventAuthReturnUrl, safeAuthPath } from '../utils/authRedirect';
 
 export default function EventAuthBridge() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, isLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [googlePending, setGooglePending] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const params = new URLSearchParams(location.search);
   const rawRedirect = params.get('redirect') || '';
-  const redirectUrl = isValidRedirectUrl(rawRedirect) ? rawRedirect : '';
+  const candidate = safeAuthPath(rawRedirect, window.location.origin);
+  const redirectUrl = candidate && !/^\/(event-auth|auth\/callback)(?:[/?#]|$)/.test(candidate) ? candidate : null;
+  const expired = new URLSearchParams(location.hash.slice(1)).has('error') || params.has('error');
+  const returnUrl = redirectUrl ? eventAuthReturnUrl(redirectUrl, window.location.origin) : '';
 
   useEffect(() => {
-    const autoStart = async () => {
-      if (!redirectUrl) return;
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        window.location.replace(redirectUrl);
-      }
-    };
-    void autoStart();
-  }, [redirectUrl]);
+    if (!isLoading && user && redirectUrl) navigate(redirectUrl, { replace: true });
+  }, [isLoading, user, redirectUrl, navigate]);
 
   const handleGoogleLogin = async () => {
-    if (!redirectUrl) return;
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: redirectUrl }
-    });
+    if (!returnUrl || googlePending) return;
+    setGooglePending(true);
+    setErrorMessage('');
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: returnUrl }
+      });
+      if (error) throw error;
+    } catch {
+      setGooglePending(false);
+      setErrorMessage('Google sign-in could not start. Please try again.');
+    }
   };
 
   const handleMagicLink = async () => {
-    if (!redirectUrl || !email.trim()) return;
+    if (!returnUrl || !email.trim() || status === 'sending') return;
     setStatus('sending');
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: redirectUrl }
-    });
-    if (error) {
-      console.error(error);
+    setErrorMessage('');
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        // Registration already created/linked the account. Do not create a
+        // different account if the returning attendee mistypes their email.
+        options: { emailRedirectTo: returnUrl, shouldCreateUser: false }
+      });
+      if (error) throw error;
+      setStatus('sent');
+    } catch {
       setStatus('error');
-      return;
+      setErrorMessage('Could not send a sign-in link. Check that this is your registration email, then try again.');
     }
-    setStatus('sent');
   };
+
+  if (isLoading || (user && redirectUrl)) return <div role="status" className="min-h-screen flex items-center justify-center bg-[#0B2641] text-white">Opening your event…</div>;
+  if (!redirectUrl) return <div className="min-h-screen flex flex-col items-center justify-center bg-[#0B2641] text-white">
+    <p>This event sign-in link is incomplete. Open the networking link in your registration email.</p>
+    <Link to="/">Back to Eventra</Link>
+  </div>;
 
   return (
     <div
@@ -68,13 +87,15 @@ export default function EventAuthBridge() {
           color: '#FFFFFF'
         }}
       >
-        <h1 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '8px' }}>Sign in to Eventra</h1>
+        <h1 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '8px' }}>Access your event networking hub</h1>
         <p style={{ color: '#94A3B8', marginBottom: '24px' }}>
-          Continue to the event registration experience.
+          Sign in with the same email you used to register. We’ll take you directly to this event’s networking hub.
         </p>
+        {expired && <p role="status" style={{ color: '#FCD34D', marginBottom: '16px' }}>This sign-in link has expired or was already used. Request a fresh link below; your registration is still saved.</p>}
 
         <button
           onClick={handleGoogleLogin}
+          disabled={googlePending || status === 'sending'}
           style={{
             width: '100%',
             height: '44px',
@@ -94,8 +115,12 @@ export default function EventAuthBridge() {
           Or use a magic link
         </div>
 
+        <form onSubmit={e => { e.preventDefault(); void handleMagicLink(); }}>
         <input
           type="email"
+          required
+          autoComplete="email"
+          aria-label="Registration email address"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Email address"
@@ -111,7 +136,8 @@ export default function EventAuthBridge() {
           }}
         />
         <button
-          onClick={handleMagicLink}
+          type="submit"
+          disabled={status === 'sending' || googlePending || !email.trim()}
           style={{
             width: '100%',
             height: '44px',
@@ -125,14 +151,15 @@ export default function EventAuthBridge() {
         >
           {status === 'sending' ? 'Sending...' : 'Send magic link'}
         </button>
+        </form>
         {status === 'sent' && (
-          <div style={{ marginTop: '12px', fontSize: '13px', color: '#10B981' }}>
-            Magic link sent. Check your inbox.
+          <div role="status" style={{ marginTop: '12px', fontSize: '13px', color: '#10B981' }}>
+            Check your inbox for a fresh sign-in link. It will return you to this event’s networking hub.
           </div>
         )}
-        {status === 'error' && (
-          <div style={{ marginTop: '12px', fontSize: '13px', color: '#EF4444' }}>
-            Failed to send magic link.
+        {errorMessage && (
+          <div role="alert" style={{ marginTop: '12px', fontSize: '13px', color: '#EF4444' }}>
+            {errorMessage}
           </div>
         )}
       </div>

@@ -2976,6 +2976,10 @@ export default {
       }
     },
     registrationFlow: {
+        eventNavigation: "Event navigation",
+        progress: "Registration progress",
+        yourDetails: "Your details",
+
       help: 'Need help? Contact the event organizer.',
       welcomeBack: 'Welcome back',
       guest: 'Guest',

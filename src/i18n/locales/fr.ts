@@ -832,6 +832,10 @@ export default {
       ]
     },
     registrationFlow: {
+        eventNavigation: "Navigation de l’événement",
+        progress: "Étapes de l’inscription",
+        yourDetails: "Vos coordonnées",
+
       help: 'Besoin d\'aide ? Contactez l\'organisateur de l\'événement.',
       welcomeBack: 'Bon retour',
       guest: 'Invité',
