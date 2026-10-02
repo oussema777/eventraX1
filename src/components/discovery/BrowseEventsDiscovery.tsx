@@ -1,4 +1,5 @@
 import { eventPublicPath } from '../../utils/eventLinks';
+import { resolveEventImage } from '../../utils/eventImage';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Search,
@@ -182,11 +183,7 @@ export default function BrowseEventsDiscovery() {
             : (event.location_address || t('browseEventsPage.event.tbd'));
 
           // Resolve the best available image
-          const brandingSettings = event?.branding_settings;
-          const designStudioLogo = brandingSettings?.design_studio?.logoUrl;
-          const brandingLogo = brandingSettings?.logoUrl;
-          const logoUrl = event?.logo_url || designStudioLogo || brandingLogo;
-          const resolvedImage = event.cover_image_url || logoUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800';
+          const resolvedImage = resolveEventImage(event, 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800');
 
           return {
             id: event.id,

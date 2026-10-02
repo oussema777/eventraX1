@@ -1,4 +1,5 @@
 import EventCard from './EventCard';
+import { resolveEventImage } from '../../utils/eventImage';
 import { Plus, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCallback, useState } from 'react';
@@ -23,11 +24,7 @@ export default function EventsGrid({ events, isLoading, refreshEvents }: EventsG
   const fallbackCover = 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&q=80';
 
   const resolveCoverImage = (event: any) => {
-    const brandingSettings = event?.branding_settings;
-    const designStudioLogo = brandingSettings?.design_studio?.logoUrl;
-    const brandingLogo = brandingSettings?.logoUrl;
-    const logoUrl = event?.logo_url || event?.event_logo_url || designStudioLogo || brandingLogo;
-    return event?.cover_image_url || logoUrl || fallbackCover;
+    return resolveEventImage(event, fallbackCover);
   };
 
   const handleCreateEvent = useCallback(async () => {

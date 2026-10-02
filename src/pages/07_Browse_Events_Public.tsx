@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { resolveEventImage } from '../utils/eventImage';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -71,7 +72,7 @@ export default function BrowseEventsPublic() {
 
         return {
           id: event.id,
-          image: event.cover_image_url || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800',
+          image: resolveEventImage(event, 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800'),
           status,
           date: startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
           location: event.event_format === 'virtual' ? 'Online Event' : (event.location || 'TBD'),
