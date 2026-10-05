@@ -1,5 +1,6 @@
 import { eventPublicPath } from '../../utils/eventLinks';
 import { resolveEventImage } from '../../utils/eventImage';
+import { resolveEventCountry } from '../../utils/eventCountry';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Search,
@@ -27,6 +28,7 @@ interface EventCard {
     day: string;
   };
   location: string;
+  country: { code: string; name: string } | null;
   time: string;
   price: string;
   priceValue: number;
@@ -48,7 +50,7 @@ interface Filters {
 
 export default function BrowseEventsDiscovery() {
   const navigate = useNavigate();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const pageSize = 9;
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -119,7 +121,7 @@ export default function BrowseEventsDiscovery() {
 
         let query = supabase
           .from('events')
-          .select('id, seo_slug, name, description, event_type, event_format, event_status, start_date, location_address, cover_image_url, branding_settings, is_approved, status, access_code');
+          .select('id, seo_slug, name, description, event_type, event_format, event_status, start_date, location_address, country, cover_image_url, branding_settings, is_approved, status, access_code');
 
         // Filtering based on role
         if (!isAdmin) {
@@ -192,6 +194,7 @@ export default function BrowseEventsDiscovery() {
             image: resolvedImage,
             date: { month, day },
             location: locationLabel,
+            country: event.event_format === 'virtual' ? null : resolveEventCountry(event.country, locale),
             time: timeLabel,
             price: priceLabel,
             priceValue,
@@ -216,7 +219,7 @@ export default function BrowseEventsDiscovery() {
     return () => {
       mounted = false;
     };
-  }, [t, timeFilter]);
+  }, [t, locale, timeFilter]);
 
   const resetPagination = () => {
     setVisibleCount(pageSize);
@@ -945,6 +948,22 @@ export default function BrowseEventsDiscovery() {
                         objectFit: 'cover'
                       }}
                     />
+
+                    {/* Country flag */}
+                    {event.country && (
+                      <img
+                        src={`https://flagcdn.com/64x48/${event.country.code.toLowerCase()}.png`}
+                        alt={event.country.name}
+                        title={event.country.name}
+                        loading="lazy"
+                        width={32}
+                        height={24}
+                        onError={e => { e.currentTarget.style.display = 'none'; }}
+                        style={{ position: 'absolute', bottom: 12, right: 12, width: 32, height: 24,
+                          padding: 4, boxSizing: 'content-box', objectFit: 'contain', backgroundColor: '#FFFFFF',
+                          borderRadius: 6, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}
+                      />
+                    )}
 
                     {/* Date Badge */}
                     <div
