@@ -1,6 +1,6 @@
 import { eventPublicPath } from '../utils/eventLinks';
 import { useEventRouteParams } from '../components/navigation/EventPublicRoute';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, User, MapPin, Check, Heart, Sparkles, Users, CreditCard, Building, Share2, Ticket, Calendar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -16,6 +16,8 @@ import { toast } from 'sonner';
 import { useI18n } from '../i18n/I18nContext';
 import SEOHead from '../components/SEOHead';
 import { canonicalUrl } from '../utils/seo';
+import { getWorkshopLimit, isSessionOpen } from '../utils/sessionBooking';
+import { groupAgendaSessions, resolveAgendaTimeZone } from '../utils/agendaDates';
 
 type SectionType = 'agenda' | 'speakers' | 'exhibitors' | 'attendees' | 'sponsors' | 'packages' | 'tickets';
 
@@ -24,7 +26,9 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
   const navigate = useNavigate();
   const { user, isLoading: isLoadingAuth, signOut } = useAuth();
   const { getOrCreateThread, loading: isMessageLoading } = useMessageThread();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const [isBookingSession, setIsBookingSession] = useState(false);
+  const bookingLock = useRef(false);
   
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -387,21 +391,51 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
   };
 
   const handleToggleSession = async (sessionId: string) => {
+    if (bookingLock.current) return;
     if (!user) {
       setShowLoginModal(true);
       return;
     }
-    if (!attendeeId) return;
+    if (!attendeeId) { handleRegister(); return; }
     const isAdded = mySessionIds.has(sessionId);
     const nextSet = new Set(mySessionIds);
-    if (isAdded) {
-      nextSet.delete(sessionId);
+    if (!isAdded) {
+      const session = (data || []).find((s: any) => s.id === sessionId);
+      if (!session || !isSessionOpen(session)) {
+        toast.error(t('agendaBooking.sessionUnavailable'));
+        return;
+      }
+      const limit = getWorkshopLimit(event?.workshop_selection_limit);
+      const workshops = (data || []).filter((s: any) => s.type === 'workshop' && mySessionIds.has(s.id)).length;
+      if (session.type === 'workshop' && limit !== null && workshops >= limit) {
+        toast.error(t(limit === 1 ? 'agendaBooking.workshopLimitReachedSingle' : 'agendaBooking.workshopLimitReached', { count: limit }));
+        return;
+      }
+    }
+    bookingLock.current = true;
+    setIsBookingSession(true);
+    try {
+      const { error } = isAdded
+        ? await supabase.from('event_attendee_sessions').delete().eq('attendee_id', attendeeId).eq('session_id', sessionId)
+        : await supabase.from('event_attendee_sessions').insert({ attendee_id: attendeeId, session_id: sessionId });
+      if (error) throw error;
+      if (isAdded) nextSet.delete(sessionId); else nextSet.add(sessionId);
       setMySessionIds(nextSet);
-      await supabase.from('event_attendee_sessions').delete().eq('attendee_id', attendeeId).eq('session_id', sessionId);
-    } else {
-      nextSet.add(sessionId);
-      setMySessionIds(nextSet);
-      await supabase.from('event_attendee_sessions').insert({ attendee_id: attendeeId, session_id: sessionId });
+    } catch {
+      toast.error(t('agendaBooking.bookingRejected'));
+      // Reconcile concurrent bookings or organizer changes without showing a
+      // successful selection when the database rejected it.
+      const [bookings, sessions, rules] = await Promise.all([
+        supabase.from('event_attendee_sessions').select('session_id').eq('attendee_id', attendeeId),
+        supabase.from('event_sessions').select('id, type, registration_open, status').eq('event_id', eventId),
+        supabase.from('events').select('workshop_selection_limit').eq('id', eventId).single()
+      ]);
+      if (!bookings.error && bookings.data) setMySessionIds(new Set(bookings.data.map(r => r.session_id)));
+      if (!sessions.error && sessions.data) setData((previous: any[]) => (previous || []).map(s => ({ ...s, ...sessions.data.find(fresh => fresh.id === s.id) })));
+      if (!rules.error && rules.data) setEvent((previous: any) => ({ ...previous, ...rules.data }));
+    } finally {
+      bookingLock.current = false;
+      setIsBookingSession(false);
     }
   };
 
@@ -433,6 +467,9 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
 
   const brandColor = event?.branding_settings?.design_studio?.brandColor || '#635BFF';
   const logoUrl = event?.branding_settings?.design_studio?.logoUrl;
+  const workshopLimit = getWorkshopLimit(event?.workshop_selection_limit);
+  const selectedWorkshops = type === 'agenda' ? (data || []).filter((s: any) => s.type === 'workshop' && mySessionIds.has(s.id)).length : 0;
+  const agendaZone = resolveAgendaTimeZone(event?.timezone);
 
   return (
     <div style={{ backgroundColor: '#0B2641', minHeight: '100vh', color: '#FFFFFF' }}>
@@ -509,7 +546,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
       <div style={{ padding: '60px 24px', maxWidth: '1200px', margin: '0 auto' }}>
         {type !== 'sponsors' && (
           <h1 style={{ fontSize: '32px', fontWeight: 700, color: '#FFFFFF', marginBottom: '40px', textTransform: 'capitalize' }}>
-            {type === 'attendees' ? 'B2B Networking Center' : type}
+            {type === 'attendees' ? 'B2B Networking Center' : t(`wizard.designStudio.navbar.${type}`, { defaultValue: type })}
           </h1>
         )}
 
@@ -609,34 +646,41 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
 
         {type === 'agenda' && (
           <div className="space-y-8">
+             {workshopLimit !== null && (data || []).some((s: any) => s.type === 'workshop') && (
+               <div role="status" style={{ padding: 16, borderRadius: 12, border: '1px solid #3B82F6', background: 'rgba(59,130,246,0.1)' }}>
+                 <strong>{t(workshopLimit === 1 ? 'agendaBooking.workshopRuleSingle' : 'agendaBooking.workshopRule', { count: workshopLimit })}</strong>
+                 {isRegistered && <span style={{ marginInlineStart: 12 }}>{selectedWorkshops} / {workshopLimit}</span>}
+                 {isRegistered && selectedWorkshops >= workshopLimit && <p style={{ marginTop: 8 }}>{t('agendaBooking.limitHintCard')}</p>}
+               </div>
+             )}
+             <p style={{ color: '#94A3B8', fontSize: 13 }}>{t('agendaBooking.timezone', { zone: agendaZone })}</p>
              {(() => {
                if (!data || data.length === 0) {
                  return (
                    <div className="text-center py-20 rounded-3xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)' }}>
                      <Calendar size={48} style={{ color: 'rgba(255,255,255,0.1)', marginBottom: '16px' }} />
-                     <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#FFFFFF' }}>No sessions scheduled</h3>
-                     <p style={{ fontSize: '14px', color: '#94A3B8' }}>The event schedule is being finalized. Please check back soon.</p>
+                     <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#FFFFFF' }}>{t('agendaBooking.noSessions')}</h3>
+                     <p style={{ fontSize: '14px', color: '#94A3B8' }}>{t('agendaBooking.schedulePending')}</p>
                    </div>
                  );
                }
 
-               const grouped: Record<string, any[]> = {};
-               (data || []).forEach((s: any) => {
-                 const date = s.starts_at ? new Date(s.starts_at).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) : 'TBD';
-                 if (!grouped[date]) grouped[date] = [];
-                 grouped[date].push(s);
-               });
+               const grouped = groupAgendaSessions(data || [], agendaZone, locale);
 
-               return Object.entries(grouped).map(([date, sessions]) => (
-                 <div key={date}>
+               return grouped.map(({ key, date, sessions }) => (
+                 <div key={key}>
                    <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#94A3B8', marginBottom: '20px', paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                     {date}
+                     {date ? new Intl.DateTimeFormat(locale, { timeZone: agendaZone, weekday: 'long', month: 'long', day: 'numeric' }).format(date) : t('agendaBooking.datePending')}
                    </h3>
                    <div style={{ backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden' }}>
                      {sessions.map((s: any, index: number) => {
                        const start = s.starts_at ? new Date(s.starts_at) : null;
                        const end = s.ends_at ? new Date(s.ends_at) : null;
                        const sessionSpeakers = s.speaker_details || [];
+                       const isSelected = mySessionIds.has(s.id);
+                       const sessionOpen = isSessionOpen(s);
+                       const atWorkshopLimit = s.type === 'workshop' && workshopLimit !== null && selectedWorkshops >= workshopLimit;
+                       const sessionDisabled = isBookingSession || (!isSelected && (!sessionOpen || atWorkshopLimit));
 
                        return (
                          <div key={s.id} className="agenda-card">
@@ -647,8 +691,8 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                                </div>
                                <div>
-                                 <div style={{ fontSize: '15px' }}>{start ? start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'TBD'}</div>
-                                 <div style={{ fontSize: '12px', color: '#94A3B8' }}>{end ? end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''}</div>
+                                 <div style={{ fontSize: '15px' }}>{start ? start.toLocaleTimeString(locale, { timeZone: agendaZone, hour: '2-digit', minute: '2-digit', hour12: false }) : 'TBD'}</div>
+                                 <div style={{ fontSize: '12px', color: '#94A3B8' }}>{end ? end.toLocaleTimeString(locale, { timeZone: agendaZone, hour: '2-digit', minute: '2-digit', hour12: false }) : ''}</div>
                                </div>
                              </div>
                            </div>
@@ -657,8 +701,10 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                            <div style={{ flex: 1, minWidth: 0 }}>
                              {s.track && <span style={{ display: 'inline-block', marginBottom: '6px', padding: '2px 8px', borderRadius: '4px', backgroundColor: `${brandColor}20`, color: brandColor, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}>{s.track}</span>}
                              <h4 style={{ fontSize: '17px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px', wordBreak: 'break-word', lineHeight: '1.4' }}>{s.title}</h4>
+                             {!sessionOpen && <p style={{ color: '#FCD34D', fontSize: 13 }}>{t('agendaBooking.closed')}</p>}
+                             {isRegistered && sessionOpen && !isSelected && atWorkshopLimit && <p style={{ color: '#93C5FD', fontSize: 13 }}>{t('agendaBooking.limitHintCard')}</p>}
                              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-                               {s.type && <span style={{ fontSize: '12px', color: '#94A3B8', textTransform: 'capitalize' }}>{s.type.replace('_', ' ')}</span>}
+                               {s.type && <span style={{ fontSize: '12px', color: '#94A3B8', textTransform: 'capitalize' }}>{t(`wizard.step3.sessions.types.${s.type}`, { defaultValue: s.type.replace('_', ' ') })}</span>}
                                {s.location && (
                                  <div className="md:hidden" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#94A3B8' }}>
                                    <MapPin size={12} color="#94A3B8" />
@@ -706,7 +752,11 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                            {/* Action Column */}
                            <div style={{ width: '50px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
                              {isRegistered && (
-                               <button onClick={() => handleToggleSession(s.id)} title={mySessionIds.has(s.id) ? "Remove from my agenda" : "Add to my agenda"} style={{ width: '40px', height: '40px', borderRadius: '10px', border: '1px solid', borderColor: mySessionIds.has(s.id) ? 'transparent' : 'rgba(255,255,255,0.2)', backgroundColor: mySessionIds.has(s.id) ? '#10B981' : 'rgba(255,255,255,0.05)', color: mySessionIds.has(s.id) ? '#FFFFFF' : '#94A3B8', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2', boxShadow: mySessionIds.has(s.id) ? '0 2px 4px rgba(16, 185, 129, 0.3)' : 'none' }}>
+                               <button onClick={() => handleToggleSession(s.id)} disabled={sessionDisabled}
+                                 aria-pressed={isSelected}
+                                 aria-label={t(isSelected ? 'agendaBooking.removeSession' : 'agendaBooking.addSession', { title: s.title })}
+                                 title={t(isSelected ? 'agendaBooking.removeSession' : 'agendaBooking.addSession', { title: s.title })}
+                                 style={{ opacity: sessionDisabled ? 0.5 : 1, width: '40px', height: '40px', borderRadius: '10px', border: '1px solid', borderColor: mySessionIds.has(s.id) ? 'transparent' : 'rgba(255,255,255,0.2)', backgroundColor: mySessionIds.has(s.id) ? '#10B981' : 'rgba(255,255,255,0.05)', color: mySessionIds.has(s.id) ? '#FFFFFF' : '#94A3B8', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2', boxShadow: mySessionIds.has(s.id) ? '0 2px 4px rgba(16, 185, 129, 0.3)' : 'none' }}>
                                  {mySessionIds.has(s.id) ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>}
                                </button>
                              )}

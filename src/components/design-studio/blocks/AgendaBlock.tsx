@@ -19,6 +19,7 @@ interface SpeakerDetail {
 
 interface AgendaSession {
   id: string;
+  type?: string;
   day: number;
   time: string;
   duration: string;
@@ -43,6 +44,7 @@ interface AgendaBlockProps {
   onToggleSession?: (sessionId: string) => void;
   isRegistered?: boolean;
   bookingPending?: boolean;
+  workshopLimit?: number | null;
   showSpeakerTags?: boolean;
 }
 
@@ -56,6 +58,7 @@ export default function AgendaBlock({
   onToggleSession,
   isRegistered = false,
   bookingPending = false,
+  workshopLimit = null,
   showSpeakerTags = true
 }: AgendaBlockProps) {
   const { t, tList } = useI18n();
@@ -63,6 +66,7 @@ export default function AgendaBlock({
   const baseRadius = Number.isFinite(buttonRadius) ? buttonRadius : 12;
   const defaultDays = tList<AgendaDay>('wizard.designStudio.agenda.days', []);
   const agendaSessions = sessions !== undefined ? sessions : [];
+  const selectedWorkshops = agendaSessions.filter(s => s.type === 'workshop' && s.is_selected).length;
   const agendaDays = days && days.length > 0 ? days : defaultDays;
   const [requestedDay, setActiveDay] = useState(agendaDays[0]?.day || 1);
   const activeDay = agendaDays.some(day => day.day === requestedDay) ? requestedDay : (agendaDays[0]?.day || 1);
@@ -180,6 +184,14 @@ export default function AgendaBlock({
             {t('wizard.designStudio.agenda.subtitle')}
           </p>
         </div>
+
+        {workshopLimit !== null && agendaSessions.some(s => s.type === 'workshop') && (
+          <div role="status" style={{ padding: 16, borderRadius: 12, marginBottom: 24, background: '#EFF6FF', color: '#1E3A8A', border: '1px solid #BFDBFE' }}>
+            <strong>{t(workshopLimit === 1 ? 'agendaBooking.workshopRuleSingle' : 'agendaBooking.workshopRule', { count: workshopLimit })}</strong>
+            {isRegistered && <span style={{ marginInlineStart: 12 }}>{selectedWorkshops} / {workshopLimit}</span>}
+            {isRegistered && selectedWorkshops >= workshopLimit && <p style={{ marginTop: 8 }}>{t('agendaBooking.limitHintCard')}</p>}
+          </div>
+        )}
 
         {/* Day Tabs */}
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '40px', flexWrap: 'wrap' }}>
@@ -346,8 +358,10 @@ export default function AgendaBlock({
                   <button 
                     className={`session-action-btn ${session.is_selected ? 'selected' : ''}`}
                     onClick={() => onToggleSession(session.id)}
-                    disabled={bookingPending || (!session.is_selected && (session.registration_open === false || session.status === 'cancelled'))}
-                    title={session.is_selected ? 'Remove from schedule' : 'Add to schedule'}
+                    disabled={bookingPending || (!session.is_selected && (session.registration_open === false || session.status === 'cancelled' || (session.type === 'workshop' && workshopLimit !== null && selectedWorkshops >= workshopLimit)))}
+                    aria-pressed={!!session.is_selected}
+                    aria-label={t(session.is_selected ? 'agendaBooking.removeSession' : 'agendaBooking.addSession', { title: session.title })}
+                    title={t(session.is_selected ? 'agendaBooking.removeSession' : 'agendaBooking.addSession', { title: session.title })}
                   >
                     {session.is_selected ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}
                   </button>

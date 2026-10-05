@@ -1,5 +1,9 @@
 export default {
     agendaBooking: {
+      addSession: 'إضافة إلى برنامجي: {title}',
+      removeSession: 'إزالة من برنامجي: {title}',
+      noSessions: 'لا توجد جلسات مجدولة',
+      schedulePending: 'يجري إعداد برنامج الفعالية. يرجى العودة قريباً.',
       selectionCount: "الجلسات المختارة: {count}",
       chooseHint: "اختر الجلسات التي ترغب في حضورها.",
       clearBulk: "إلغاء اختيار هذه الجلسات",

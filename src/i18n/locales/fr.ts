@@ -1,5 +1,9 @@
 export default {
     agendaBooking: {
+      addSession: 'Ajouter à mon agenda : {title}',
+      removeSession: 'Retirer de mon agenda : {title}',
+      noSessions: 'Aucune session programmée',
+      schedulePending: 'Le programme est en cours de finalisation. Revenez bientôt.',
       selectionCount: "Sélections : {count}",
       chooseHint: "Choisissez les sessions auxquelles vous souhaitez assister.",
       clearBulk: "Désélectionner ces sessions",

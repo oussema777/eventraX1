@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Users, Calendar, Mic, Store, ArrowRight, Check, Heart, Sparkles, Ticket } from 'lucide-react';
-import { useI18n } from '../../i18n/I18nContext';
+import { Users, Calendar, Mic, Store, ArrowRight, Check, Heart, Sparkles, Ticket, Globe } from 'lucide-react';
+import { useI18n, type Locale } from '../../i18n/I18nContext';
 
 interface LandingPageNavbarProps {
   activeSections: {
@@ -21,7 +21,7 @@ interface LandingPageNavbarProps {
 
 export default function LandingPageNavbar({ activeSections, brandColor = '#635BFF', logoUrl, isRegistered = false, onNavigate, onRegister }: LandingPageNavbarProps) {
   const [isSticky, setIsSticky] = useState(false);
-  const { t } = useI18n();
+  const { t, locale, setLocale } = useI18n();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -62,7 +62,7 @@ export default function LandingPageNavbar({ activeSections, brandColor = '#635BF
         </div>
 
         {/* Navigation Links - Scrollable Container */}
-        <div className="landing-navbar-scroll-area" style={{ flex: 1, overflowX: 'auto', display: 'flex', alignItems: 'center', height: '100%', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <div className="landing-navbar-scroll-area" style={{ flex: 1, minWidth: 0, overflowX: 'auto', display: 'flex', alignItems: 'center', height: '100%', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           <div className="landing-navbar-links" style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '0 12px' }}>
             {activeSections.agenda && (
               <button onClick={() => onNavigate('agenda')} className="nav-item">
@@ -108,6 +108,16 @@ export default function LandingPageNavbar({ activeSections, brandColor = '#635BF
             )}
           </div>
         </div>
+
+        <label className="event-language-switcher" style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, color: '#374151' }}>
+          <Globe size={16} aria-hidden="true" />
+          <select aria-label={t('nav.language.label')} value={locale} onChange={e => setLocale(e.target.value as Locale)}
+            style={{ background: '#FFFFFF', color: '#111827', border: '1px solid #D1D5DB', borderRadius: 8, padding: '8px 4px', fontSize: 13, cursor: 'pointer', maxWidth: 94 }}>
+            <option value="en" lang="en">English</option>
+            <option value="fr" lang="fr">Français</option>
+            <option value="ar" lang="ar">العربية</option>
+          </select>
+        </label>
 
         {/* Action */}
         <div className="action-container" style={{ padding: '0 24px', flexShrink: 0, backgroundColor: '#FFFFFF' }}>
@@ -202,6 +212,7 @@ export default function LandingPageNavbar({ activeSections, brandColor = '#635BF
         }
 
         @media (max-width: 768px) {
+          .event-language-switcher > svg { display: none; }
           .landing-navbar-inner {
             padding: 0 !important;
             height: 56px !important;

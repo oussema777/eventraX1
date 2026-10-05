@@ -562,6 +562,7 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
             isRegistered={isRegistered}
             onToggleSession={handleToggleSession}
             bookingPending={isBookingSession}
+            workshopLimit={getWorkshopLimit(event?.workshop_selection_limit)}
             showSpeakerTags={block.settings?.showSpeakerTags !== false}
           />
         );
