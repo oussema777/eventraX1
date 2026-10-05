@@ -521,7 +521,7 @@ export default function EventRegistrationFlow() {
         ...customFields,
       };
 
-      // Try Edge Function first (handles account creation + magic link)
+      // Try the registration service first (creates and links B2B accounts).
       let edgeFnData: any = null;
       try {
         const { data, error } = await supabase.functions.invoke('create-event-registration', {
@@ -547,10 +547,19 @@ export default function EventRegistrationFlow() {
         if (!error && data && !data.error) {
           edgeFnData = data;
         } else {
-          console.warn('Edge Function error, falling back to direct insert:', error || data?.error);
+          console.warn('Registration service error:', error || data?.error);
         }
       } catch (efErr) {
-        console.warn('Edge Function unavailable, falling back to direct insert:', efErr);
+        console.warn('Registration service unavailable:', efErr);
+      }
+
+      // A database-only fallback cannot provision B2B sign-in access. Never
+      // confirm networking access unless the server linked the attendee account.
+      if (systemFields.b2bOptIn && !edgeFnData?.user_id) {
+        toast.error(t('registrationFlow.toasts.b2bAccessUnavailable', {
+          defaultValue: 'We could not finish setting up your B2B access. Please try again. Your form entries are still here.'
+        }));
+        return;
       }
 
       let attendeeId: string;
@@ -661,7 +670,8 @@ export default function EventRegistrationFlow() {
           !user,
           magicLink,
           event?.timezone,
-          networkingUrl
+          networkingUrl,
+          new URL(`/event/${eventId}/register`, window.location.origin).href
         );
         await sendEmail({
           to: systemFields.email,
@@ -1087,6 +1097,9 @@ export default function EventRegistrationFlow() {
             <button
               type="button"
               onClick={() => updateSystemField('b2bOptIn', !systemFields.b2bOptIn)}
+              role="switch"
+              aria-checked={systemFields.b2bOptIn}
+              aria-label={t('registration.systemFields.b2bOptIn', { defaultValue: 'Want B2B Matching?' })}
               className="relative w-11 h-6 rounded-full transition-colors"
               style={{ backgroundColor: systemFields.b2bOptIn ? '#0684F5' : 'rgba(255,255,255,0.2)' }}
             >

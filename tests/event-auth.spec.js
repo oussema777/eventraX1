@@ -41,10 +41,12 @@ test('expired email link sends a fresh magic link with an absolute event return 
   await page.goto(`${bridge}#error=access_denied&error_code=otp_expired`);
   await expect(page.getByText(/expired or was already used/)).toBeVisible();
   await page.getByRole('textbox', { name: 'Registration email address' }).fill(user.email);
-  await page.getByRole('button', { name: 'Send magic link' }).click();
+  await page.getByRole('button', { name: 'Email me a sign-in link' }).click();
   await expect(page.getByText(/Check your inbox for a fresh sign-in link/)).toBeVisible();
   expect(new URL(otpRequest.url).searchParams.get('redirect_to')).toBe(`http://127.0.0.1:3000${bridge}`);
   expect(otpRequest.body.create_user).toBe(false);
+  await expect(page.getByRole('button', { name: /Send again in/ })).toBeDisabled();
+  await expect(page.getByText(/expired or was already used/)).toHaveCount(0);
   // Completion can happen after the bridge has mounted (session recovery).
   await signIn(page);
   await expect(page).toHaveURL(new RegExp(`${destination}$`));
@@ -107,4 +109,52 @@ test('invalid redirects are rejected and confirmation emails contain reusable hu
   expect(email).toContain(`href="http://127.0.0.1:3000${bridge}"`);
   expect(email).not.toContain('href="https://example.test/one-time-token"');
   expect(email).not.toContain('Create Your Free Account');
+});
+
+test('registration email returns non-B2B guests to their event to enable networking', async ({ page }) => {
+  await mock(page);
+  await page.goto(bridge);
+  const email = await page.evaluate(async ({ eventId }) => {
+    const { generateRegistrationEmailHtml } = await import('/src/lib/email.ts');
+    return generateRegistrationEmailHtml('Event', 'Guest', 'https://example.test/qr.png', [], true,
+      null, 'UTC', null, `${location.origin}/event/${eventId}/register`);
+  }, { eventId });
+  expect(email).toContain(`href="http://127.0.0.1:3000/event/${eventId}/register"`);
+  expect(email).toContain('Enable Event B2B Networking');
+  expect(email).not.toContain('app.eventra.cloud');
+});
+
+for (const failure of [
+  { code: 'over_email_send_rate_limit', status: 429, message: /Too many sign-in requests/ },
+  { code: 'otp_disabled', status: 422, message: /return to event registration and submit again/ },
+  { code: 'unexpected_failure', status: 500, message: /contact the event organizer/ },
+]) {
+  test(`sign-in recovery explains ${failure.code}`, async ({ page }) => {
+    await mock(page);
+    let calls = 0;
+    await page.route('**/auth/v1/otp**', route => {
+      calls++;
+      return route.fulfill({ status: failure.status, headers: {
+        'x-supabase-api-version': '2024-01-01',
+        'access-control-expose-headers': 'X-Supabase-Api-Version'
+      }, json: { code: failure.code, msg: 'Auth request failed' } });
+    });
+    await page.goto(bridge);
+    await expect(page.getByText('Test Networking Event', { exact: true })).toBeVisible();
+    await page.getByRole('textbox', { name: 'Registration email address' }).fill('GUEST@example.test');
+    await page.getByRole('button', { name: 'Email me a sign-in link' }).click();
+    await expect(page.getByRole('alert')).toContainText(failure.message);
+    await expect(page.getByRole('link', { name: 'Return to event registration' })).toHaveAttribute('href', `/event/${eventId}/register`);
+    if (failure.status === 429) {
+      await expect(page.getByRole('button', { name: /Send again in/ })).toBeDisabled();
+      expect(calls).toBe(1);
+    }
+  });
+}
+
+test('other callback errors are not mislabeled as expired links', async ({ page }) => {
+  await mock(page);
+  await page.goto(`${bridge}#error=server_error&error_code=unexpected_failure`);
+  await expect(page.getByText(/could not complete sign-in from this link/)).toBeVisible();
+  await expect(page.getByText(/expired or was already used/)).toHaveCount(0);
 });

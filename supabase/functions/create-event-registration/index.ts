@@ -47,9 +47,13 @@ Deno.serve(async (req: Request) => {
     );
 
     const payload: RegistrationPayload = await req.json();
-    const { event_id, email, full_name, phone, company_name, company_description,
+    const { event_id, full_name, phone, company_name, company_description,
             interests, sector, social_url, b2b_opt_in, custom_fields,
-            ticket_type, ticket_color, price, selected_sessions, redirect_base } = payload;
+            ticket_type, ticket_color, price, selected_sessions } = payload;
+    const email = typeof payload.email === 'string' ? payload.email.trim().toLowerCase() : '';
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return jsonResponse({ error: 'Invalid email address' }, 400);
+    }
 
     // --- Validate event exists and is active ---
     const { data: event, error: eventError } = await supabaseAdmin
@@ -86,11 +90,13 @@ Deno.serve(async (req: Request) => {
     let userId: string | null = null;
     let isNewUser = false;
 
-    const { data: existingProfile } = await supabaseAdmin
+    const { data: existingProfile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('id, phone_number, company, company_description, sector, social_url')
       .eq('email', email.toLowerCase())
       .maybeSingle();
+
+    if (profileError) return jsonResponse({ error: 'Unable to check registration account' }, 503);
 
     if (existingProfile) {
       // Case 1 & 2: existing member — always link
@@ -185,12 +191,30 @@ Deno.serve(async (req: Request) => {
 
     // Handle duplicate registration (unique constraint on email + event_id)
     if (attendeeError?.code === '23505') {
-      const { data: existing } = await supabaseAdmin
+      const { data: existing, error: existingError } = await supabaseAdmin
         .from('event_attendees')
-        .select('id, meta')
+        .select('id, meta, profile_id')
         .eq('event_id', event_id)
         .eq('email', email)
         .single();
+
+      if (existingError || !existing) return jsonResponse({ error: 'Unable to check existing registration' }, 503);
+      // Repair registrations saved by the old database-only fallback. Only
+      // attach an unlinked row; never replace a different participant identity.
+      if (b2b_opt_in && userId) {
+        if (existing.profile_id && existing.profile_id !== userId) {
+          return jsonResponse({ error: 'Registration account mismatch' }, 409);
+        }
+        const { data: linked, error: linkError } = await supabaseAdmin
+          .from('event_attendees')
+          .update({ profile_id: userId, meta: { ...existing.meta, b2bOptIn: true },
+            ...(guestExpiresAt ? { guest_expires_at: guestExpiresAt } : {}) })
+          .eq('id', existing.id)
+          .or(`profile_id.is.null,profile_id.eq.${userId}`)
+          .select('id')
+          .single();
+        if (linkError || !linked) return jsonResponse({ error: 'Unable to finish B2B access' }, 503);
+      }
 
       return jsonResponse({
         success: true,
@@ -205,21 +229,8 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: 'Failed to register', details: attendeeError.message }, 500);
     }
 
-    // --- Generate magic link if B2B opted in and a profile exists ---
-    let magicLink: string | null = null;
-    if (b2b_opt_in && userId) {
-      // Supabase ignores relative redirectTo paths and falls back to the Site URL,
-      // so we must pass a full, allow-listed URL. Use the caller's origin when
-      // provided (works on localhost + production), else fall back to production.
-      const base = (redirect_base || 'https://eventra.cloud').replace(/\/+$/, '');
-      const redirectUrl = `${base}/event-auth?redirect=/event/${event_id}/networking`;
-      const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'magiclink',
-        email,
-        options: { redirectTo: redirectUrl },
-      });
-      magicLink = linkData?.properties?.action_link || null;
-    }
+    // The confirmation email uses a reusable event URL. Authentication links
+    // are requested separately and delivered only by the auth email service.
 
     // --- Return success ---
     return jsonResponse({
@@ -228,7 +239,7 @@ Deno.serve(async (req: Request) => {
       confirmation_code: confirmationCode,
       already_registered: false,
       is_new_user: isNewUser,
-      magic_link: magicLink,
+      magic_link: null,
       user_id: userId,
     });
 

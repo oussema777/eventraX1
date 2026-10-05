@@ -31,7 +31,7 @@ export async function sendEmail({ to, subject, html }: SendEmailParams): Promise
   }
 }
 
-export function generateRegistrationEmailHtml(eventName: string, attendeeName: string, qrCodeUrl: string, sessions: any[], isAnonymous: boolean = false, magicLink?: string | null, timeZone?: string, networkingUrl?: string | null) {
+export function generateRegistrationEmailHtml(eventName: string, attendeeName: string, qrCodeUrl: string, sessions: any[], isAnonymous: boolean = false, magicLink?: string | null, timeZone?: string, networkingUrl?: string | null, eventRegistrationUrl?: string | null) {
   const safeEventName = escapeHTML(eventName);
   const safeAttendeeName = escapeHTML(attendeeName);
   const zone = resolveAgendaTimeZone(timeZone);
@@ -98,7 +98,7 @@ export function generateRegistrationEmailHtml(eventName: string, attendeeName: s
       <div style="background: linear-gradient(135deg, #EFF6FF, #F0F9FF); padding: 24px; border-radius: 12px; margin: 24px 0; border: 1px solid #BFDBFE;">
         <h3 style="margin-top: 0; margin-bottom: 12px; color: #0B2641; font-size: 16px;">Get more from this event</h3>
         <p style="font-size: 14px; color: #4B5563; line-height: 1.6; margin: 0 0 16px 0;">
-          Create a free Eventra account to unlock powerful networking features:
+          ${eventRegistrationUrl ? 'Return to your event registration and select B2B networking to enable access for this event.' : 'Create a free Eventra account to unlock powerful networking features:'}
         </p>
         <ul style="padding: 0; margin: 0 0 20px 0; list-style: none; font-size: 13px; color: #4B5563;">
           <li style="margin-bottom: 8px;">&#x1f91d; <strong>B2B Networking</strong> — Connect with attendees & exhibitors</li>
@@ -107,7 +107,7 @@ export function generateRegistrationEmailHtml(eventName: string, attendeeName: s
           <li style="margin-bottom: 0;">&#x26a1; <strong>Smart Check-in</strong> — Your personal QR code for instant access</li>
         </ul>
         <div style="text-align: center;">
-          <a href="https://app.eventra.cloud/signup" style="display: inline-block; padding: 12px 28px; background-color: #0684F5; color: #FFFFFF; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">Create Your Free Account</a>
+          <a href="${escapeHTML(eventRegistrationUrl || new URL('/register', window.location.origin).href)}" style="display: inline-block; padding: 12px 28px; background-color: #0684F5; color: #FFFFFF; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">${eventRegistrationUrl ? 'Enable Event B2B Networking' : 'Create Your Free Account'}</a>
         </div>
       </div>
       ` : ''}
