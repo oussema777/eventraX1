@@ -593,6 +593,8 @@ export default {
       },
       footer: {
         description: 'Plateforme de gestion d\'evenements professionnelle pour les entreprises du monde entier',
+        explore: 'Explorer Eventra',
+        contact: 'Contact',
         product: {
           title: 'Produit',
           items: ['Fonctionnalites', 'Tarifs', 'Modeles', 'Integrations']
@@ -608,7 +610,7 @@ export default {
           button: 'S\'abonner'
         },
         legal: {
-          copyright: '(c) 2024 Eventra. Tous droits reserves.',
+          copyright: '© {year} Eventra. Tous droits réservés.',
           privacyPolicy: 'Politique de Confidentialite',
           terms: 'Conditions d\'Utilisation'
         }

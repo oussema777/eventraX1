@@ -608,6 +608,8 @@ export default {
       },
       footer: {
         description: 'Professional event management platform for businesses worldwide',
+        explore: 'Explore Eventra',
+        contact: 'Contact',
         product: {
           title: 'Product',
           items: ['Features', 'Pricing', 'Templates', 'Integrations']
@@ -623,7 +625,7 @@ export default {
           button: 'Subscribe'
         },
         legal: {
-          copyright: '(c) 2024 Eventra. All rights reserved.',
+          copyright: '© {year} Eventra. All rights reserved.',
           privacyPolicy: 'Privacy Policy',
           terms: 'Terms of Service'
         }
