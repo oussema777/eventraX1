@@ -1,5 +1,10 @@
 export default {
     agendaBooking: {
+      switchHint: 'Already chose a workshop? Select another to change your choice.',
+      replaceConfirm: 'You selected “{current}”. Replace it with “{next}”? Your other sessions will stay selected.',
+      keepWorkshop: 'Keep my current workshop',
+      workshopChanged: 'Your workshop choice has been updated.',
+      replaceFailed: 'We could not change your workshop. Your previous choice has not been removed. Please refresh your agenda and try again.',
       addSession: 'Add to my agenda: {title}',
       removeSession: 'Remove from my agenda: {title}',
       noSessions: 'No sessions scheduled',

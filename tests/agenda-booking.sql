@@ -76,6 +76,27 @@ begin
     if sqlerrm <> 'WORKSHOP_SELECTION_LIMIT' then raise; end if;
   end;
 
+  -- Replace the selected workshop in one statement, preserving unrelated sessions.
+  update event_attendee_sessions set session_id = '10000000-0000-0000-0000-000000000002'
+    where attendee_id = attendee and session_id = '10000000-0000-0000-0000-000000000001';
+  if (select count(*) from event_attendee_sessions where attendee_id = attendee) <> 2
+    or not exists (select 1 from event_attendee_sessions where attendee_id = attendee and session_id = '10000000-0000-0000-0000-000000000002')
+    or not exists (select 1 from event_attendee_sessions where attendee_id = attendee and session_id = '10000000-0000-0000-0000-000000000004')
+    then raise exception 'Workshop replacement did not preserve the selection'; end if;
+
+  update event_sessions set registration_open = false where id = '10000000-0000-0000-0000-000000000001';
+  begin
+    update event_attendee_sessions set session_id = '10000000-0000-0000-0000-000000000001'
+      where attendee_id = attendee and session_id = '10000000-0000-0000-0000-000000000002';
+    raise exception 'Replacement with a closed workshop was accepted';
+  exception when check_violation then
+    if sqlerrm <> 'SESSION_REGISTRATION_CLOSED' then raise; end if;
+  end;
+  if not exists (select 1 from event_attendee_sessions where attendee_id = attendee and session_id = '10000000-0000-0000-0000-000000000002')
+    then raise exception 'Failed replacement lost the original workshop'; end if;
+  update event_sessions set registration_open = true where id = '10000000-0000-0000-0000-000000000001';
+  update event_attendee_sessions set session_id = '10000000-0000-0000-0000-000000000001'
+    where attendee_id = attendee and session_id = '10000000-0000-0000-0000-000000000002';
   update event_sessions set registration_open = false where id = '10000000-0000-0000-0000-000000000001';
   if (select count(*) from event_attendee_sessions where attendee_id = attendee) <> 2 then raise exception 'Closing a session removed existing bookings'; end if;
 

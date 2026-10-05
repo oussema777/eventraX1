@@ -1,5 +1,10 @@
 export default {
     agendaBooking: {
+      switchHint: 'اخترت ورشة بالفعل؟ اختر ورشة أخرى لتغيير اختيارك.',
+      replaceConfirm: 'لقد اخترت «{current}». هل تريد استبدالها بـ «{next}»؟ ستبقى جلساتك الأخرى محددة.',
+      keepWorkshop: 'الاحتفاظ بورشتي الحالية',
+      workshopChanged: 'تم تحديث اختيار الورشة.',
+      replaceFailed: 'تعذر تغيير الورشة. لم تتم إزالة اختيارك السابق. حدّث البرنامج وحاول مرة أخرى.',
       addSession: 'إضافة إلى برنامجي: {title}',
       removeSession: 'إزالة من برنامجي: {title}',
       noSessions: 'لا توجد جلسات مجدولة',

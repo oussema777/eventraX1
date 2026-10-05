@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { User, MapPin, Calendar, Plus, Check, Clock, Bookmark, BookmarkCheck } from 'lucide-react';
 import EditModule from './EditModule';
 import { useI18n } from '../../../i18n/I18nContext';
+import WorkshopReplacementPrompt from '../../events/WorkshopReplacementPrompt';
 
 interface AgendaDay {
   day: number;
@@ -42,6 +43,7 @@ interface AgendaBlockProps {
   days?: AgendaDay[];
   sessions?: AgendaSession[];
   onToggleSession?: (sessionId: string) => void;
+  onReplaceSession?: (sessionId: string) => Promise<boolean>;
   isRegistered?: boolean;
   bookingPending?: boolean;
   workshopLimit?: number | null;
@@ -56,6 +58,7 @@ export default function AgendaBlock({
   days,
   sessions,
   onToggleSession,
+  onReplaceSession,
   isRegistered = false,
   bookingPending = false,
   workshopLimit = null,
@@ -67,6 +70,9 @@ export default function AgendaBlock({
   const defaultDays = tList<AgendaDay>('wizard.designStudio.agenda.days', []);
   const agendaSessions = sessions !== undefined ? sessions : [];
   const selectedWorkshops = agendaSessions.filter(s => s.type === 'workshop' && s.is_selected).length;
+  const currentWorkshop = agendaSessions.find(s => s.type === 'workshop' && s.is_selected);
+  const canReplace = workshopLimit === 1 && selectedWorkshops === 1 && !!onReplaceSession;
+  const [replacementSessionId, setReplacementSessionId] = useState<string | null>(null);
   const agendaDays = days && days.length > 0 ? days : defaultDays;
   const [requestedDay, setActiveDay] = useState(agendaDays[0]?.day || 1);
   const activeDay = agendaDays.some(day => day.day === requestedDay) ? requestedDay : (agendaDays[0]?.day || 1);
@@ -150,7 +156,7 @@ export default function AgendaBlock({
              order: -1;
              display: flex;
              justify-content: flex-end;
-             margin-bottom: -40px;
+             margin-bottom: 0;
           }
         }
       `}</style>
@@ -189,7 +195,7 @@ export default function AgendaBlock({
           <div role="status" style={{ padding: 16, borderRadius: 12, marginBottom: 24, background: '#EFF6FF', color: '#1E3A8A', border: '1px solid #BFDBFE' }}>
             <strong>{t(workshopLimit === 1 ? 'agendaBooking.workshopRuleSingle' : 'agendaBooking.workshopRule', { count: workshopLimit })}</strong>
             {isRegistered && <span style={{ marginInlineStart: 12 }}>{selectedWorkshops} / {workshopLimit}</span>}
-            {isRegistered && selectedWorkshops >= workshopLimit && <p style={{ marginTop: 8 }}>{t('agendaBooking.limitHintCard')}</p>}
+            {isRegistered && selectedWorkshops >= workshopLimit && <p style={{ marginTop: 8 }}>{t(canReplace ? 'agendaBooking.switchHint' : 'agendaBooking.limitHintCard')}</p>}
           </div>
         )}
 
@@ -357,14 +363,25 @@ export default function AgendaBlock({
                 <div className="session-action-mobile">
                   <button 
                     className={`session-action-btn ${session.is_selected ? 'selected' : ''}`}
-                    onClick={() => onToggleSession(session.id)}
-                    disabled={bookingPending || (!session.is_selected && (session.registration_open === false || session.status === 'cancelled' || (session.type === 'workshop' && workshopLimit !== null && selectedWorkshops >= workshopLimit)))}
+                    onClick={() => {
+                      if (canReplace && session.type === 'workshop' && !session.is_selected) { setReplacementSessionId(session.id); return; }
+                      setReplacementSessionId(null);
+                      onToggleSession(session.id);
+                    }}
+                    disabled={bookingPending || (!session.is_selected && (session.registration_open === false || session.status === 'cancelled' || (session.type === 'workshop' && workshopLimit !== null && selectedWorkshops >= workshopLimit && !canReplace)))}
                     aria-pressed={!!session.is_selected}
                     aria-label={t(session.is_selected ? 'agendaBooking.removeSession' : 'agendaBooking.addSession', { title: session.title })}
                     title={t(session.is_selected ? 'agendaBooking.removeSession' : 'agendaBooking.addSession', { title: session.title })}
                   >
                     {session.is_selected ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}
                   </button>
+                </div>
+              )}
+              {replacementSessionId === session.id && !session.is_selected && session.registration_open !== false && session.status !== 'cancelled' && canReplace && currentWorkshop && (
+                <div style={{ gridColumn: '1 / -1', minWidth: 0 }}>
+                  <WorkshopReplacementPrompt currentTitle={currentWorkshop.title} nextTitle={session.title} pending={bookingPending}
+                    onConfirm={() => { void onReplaceSession!(session.id).then(changed => { if (changed) setReplacementSessionId(null); }); }}
+                    onCancel={() => setReplacementSessionId(null)} />
                 </div>
               )}
             </div>

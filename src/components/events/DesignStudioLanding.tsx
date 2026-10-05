@@ -1,6 +1,6 @@
 import { eventPublicPath } from '../../utils/eventLinks';
 import { useEventRouteParams } from '../navigation/EventPublicRoute';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Lock, Globe, Calendar } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext';
@@ -24,6 +24,7 @@ import SEOHead from '../SEOHead';
 import { generateEventJsonLd, generateBreadcrumbJsonLd, truncateDescription, canonicalUrl } from '../../utils/seo';
 import { toast } from 'sonner';
 import { getWorkshopLimit, isSessionOpen } from '../../utils/sessionBooking';
+import { replaceWorkshopBooking } from '../../lib/sessionBookings';
 
 interface EventRecord {
   seo_slug?: string | null;
@@ -159,6 +160,7 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
   const [attendeesList, setAttendeesList] = useState<{ id: string; name: string; company?: string; avatar?: string }[]>([]);
   const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
   const [isBookingSession, setIsBookingSession] = useState(false);
+  const bookingLock = useRef(false);
   const [attendeeId, setAttendeeId] = useState<string | null>(null);
 
   const handleRegister = () => {
@@ -192,7 +194,7 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
   };
 
   const handleToggleSession = async (sessionId: string) => {
-    if (isBookingSession) return;
+    if (bookingLock.current) return;
     if (!user || !attendeeId) {
       navigate(`/event/${eventId}/register`);
       return;
@@ -215,6 +217,7 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
     }
 
     try {
+      bookingLock.current = true;
       setIsBookingSession(true);
       if (isSelected) {
         newSelected.delete(sessionId);
@@ -239,6 +242,33 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
       console.error('Failed to toggle session:', err);
       toast.error(t('agendaBooking.bookingRejected'));
     } finally {
+      bookingLock.current = false;
+      setIsBookingSession(false);
+    }
+  };
+
+  const handleReplaceWorkshop = async (sessionId: string): Promise<boolean> => {
+    if (bookingLock.current || !attendeeId) return false;
+    const current = sessions.filter(s => s.type === 'workshop' && selectedSessionIds.has(s.id));
+    const target = sessions.find(s => s.id === sessionId);
+    if (current.length !== 1 || !target || target.type !== 'workshop' || !isSessionOpen(target)) return false;
+    bookingLock.current = true;
+    setIsBookingSession(true);
+    try {
+      await replaceWorkshopBooking(attendeeId, current[0].id, sessionId);
+      setSelectedSessionIds(previous => {
+        const next = new Set(previous);
+        next.delete(current[0].id);
+        next.add(sessionId);
+        return next;
+      });
+      toast.success(t('agendaBooking.workshopChanged'));
+      return true;
+    } catch {
+      toast.error(t('agendaBooking.replaceFailed'));
+      return false;
+    } finally {
+      bookingLock.current = false;
       setIsBookingSession(false);
     }
   };
@@ -561,6 +591,7 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
             days={days}
             isRegistered={isRegistered}
             onToggleSession={handleToggleSession}
+            onReplaceSession={handleReplaceWorkshop}
             bookingPending={isBookingSession}
             workshopLimit={getWorkshopLimit(event?.workshop_selection_limit)}
             showSpeakerTags={block.settings?.showSpeakerTags !== false}

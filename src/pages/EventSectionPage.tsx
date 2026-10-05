@@ -18,6 +18,8 @@ import SEOHead from '../components/SEOHead';
 import { canonicalUrl } from '../utils/seo';
 import { getWorkshopLimit, isSessionOpen } from '../utils/sessionBooking';
 import { groupAgendaSessions, resolveAgendaTimeZone } from '../utils/agendaDates';
+import { replaceWorkshopBooking } from '../lib/sessionBookings';
+import WorkshopReplacementPrompt from '../components/events/WorkshopReplacementPrompt';
 
 type SectionType = 'agenda' | 'speakers' | 'exhibitors' | 'attendees' | 'sponsors' | 'packages' | 'tickets';
 
@@ -29,6 +31,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
   const { t, locale } = useI18n();
   const [isBookingSession, setIsBookingSession] = useState(false);
   const bookingLock = useRef(false);
+  const [replacementSessionId, setReplacementSessionId] = useState<string | null>(null);
   
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -408,6 +411,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
       const limit = getWorkshopLimit(event?.workshop_selection_limit);
       const workshops = (data || []).filter((s: any) => s.type === 'workshop' && mySessionIds.has(s.id)).length;
       if (session.type === 'workshop' && limit !== null && workshops >= limit) {
+        if (limit === 1 && workshops === 1) { setReplacementSessionId(sessionId); return; }
         toast.error(t(limit === 1 ? 'agendaBooking.workshopLimitReachedSingle' : 'agendaBooking.workshopLimitReached', { count: limit }));
         return;
       }
@@ -421,6 +425,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
       if (error) throw error;
       if (isAdded) nextSet.delete(sessionId); else nextSet.add(sessionId);
       setMySessionIds(nextSet);
+      setReplacementSessionId(null);
     } catch {
       toast.error(t('agendaBooking.bookingRejected'));
       // Reconcile concurrent bookings or organizer changes without showing a
@@ -433,6 +438,31 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
       if (!bookings.error && bookings.data) setMySessionIds(new Set(bookings.data.map(r => r.session_id)));
       if (!sessions.error && sessions.data) setData((previous: any[]) => (previous || []).map(s => ({ ...s, ...sessions.data.find(fresh => fresh.id === s.id) })));
       if (!rules.error && rules.data) setEvent((previous: any) => ({ ...previous, ...rules.data }));
+    } finally {
+      bookingLock.current = false;
+      setIsBookingSession(false);
+    }
+  };
+
+  const handleReplaceWorkshop = async (sessionId: string) => {
+    if (bookingLock.current || !attendeeId) return;
+    const current = (data || []).filter((s: any) => s.type === 'workshop' && mySessionIds.has(s.id));
+    const target = (data || []).find((s: any) => s.id === sessionId);
+    if (current.length !== 1 || !target || target.type !== 'workshop' || !isSessionOpen(target)) return;
+    bookingLock.current = true;
+    setIsBookingSession(true);
+    try {
+      await replaceWorkshopBooking(attendeeId, current[0].id, sessionId);
+      setMySessionIds(previous => {
+        const next = new Set(previous);
+        next.delete(current[0].id);
+        next.add(sessionId);
+        return next;
+      });
+      setReplacementSessionId(null);
+      toast.success(t('agendaBooking.workshopChanged'));
+    } catch {
+      toast.error(t('agendaBooking.replaceFailed'));
     } finally {
       bookingLock.current = false;
       setIsBookingSession(false);
@@ -469,6 +499,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
   const logoUrl = event?.branding_settings?.design_studio?.logoUrl;
   const workshopLimit = getWorkshopLimit(event?.workshop_selection_limit);
   const selectedWorkshops = type === 'agenda' ? (data || []).filter((s: any) => s.type === 'workshop' && mySessionIds.has(s.id)).length : 0;
+  const currentWorkshop = type === 'agenda' ? (data || []).find((s: any) => s.type === 'workshop' && mySessionIds.has(s.id)) : null;
   const agendaZone = resolveAgendaTimeZone(event?.timezone);
 
   return (
@@ -650,7 +681,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                <div role="status" style={{ padding: 16, borderRadius: 12, border: '1px solid #3B82F6', background: 'rgba(59,130,246,0.1)' }}>
                  <strong>{t(workshopLimit === 1 ? 'agendaBooking.workshopRuleSingle' : 'agendaBooking.workshopRule', { count: workshopLimit })}</strong>
                  {isRegistered && <span style={{ marginInlineStart: 12 }}>{selectedWorkshops} / {workshopLimit}</span>}
-                 {isRegistered && selectedWorkshops >= workshopLimit && <p style={{ marginTop: 8 }}>{t('agendaBooking.limitHintCard')}</p>}
+                 {isRegistered && selectedWorkshops >= workshopLimit && <p style={{ marginTop: 8 }}>{t(workshopLimit === 1 && selectedWorkshops === 1 ? 'agendaBooking.switchHint' : 'agendaBooking.limitHintCard')}</p>}
                </div>
              )}
              <p style={{ color: '#94A3B8', fontSize: 13 }}>{t('agendaBooking.timezone', { zone: agendaZone })}</p>
@@ -680,7 +711,8 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                        const isSelected = mySessionIds.has(s.id);
                        const sessionOpen = isSessionOpen(s);
                        const atWorkshopLimit = s.type === 'workshop' && workshopLimit !== null && selectedWorkshops >= workshopLimit;
-                       const sessionDisabled = isBookingSession || (!isSelected && (!sessionOpen || atWorkshopLimit));
+                       const canReplace = workshopLimit === 1 && selectedWorkshops === 1;
+                       const sessionDisabled = isBookingSession || (!isSelected && (!sessionOpen || (atWorkshopLimit && !canReplace)));
 
                        return (
                          <div key={s.id} className="agenda-card">
@@ -702,7 +734,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                              {s.track && <span style={{ display: 'inline-block', marginBottom: '6px', padding: '2px 8px', borderRadius: '4px', backgroundColor: `${brandColor}20`, color: brandColor, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase' }}>{s.track}</span>}
                              <h4 style={{ fontSize: '17px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px', wordBreak: 'break-word', lineHeight: '1.4' }}>{s.title}</h4>
                              {!sessionOpen && <p style={{ color: '#FCD34D', fontSize: 13 }}>{t('agendaBooking.closed')}</p>}
-                             {isRegistered && sessionOpen && !isSelected && atWorkshopLimit && <p style={{ color: '#93C5FD', fontSize: 13 }}>{t('agendaBooking.limitHintCard')}</p>}
+                             {isRegistered && sessionOpen && !isSelected && atWorkshopLimit && <p style={{ color: '#93C5FD', fontSize: 13 }}>{t(canReplace ? 'agendaBooking.switchHint' : 'agendaBooking.limitHintCard')}</p>}
                              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
                                {s.type && <span style={{ fontSize: '12px', color: '#94A3B8', textTransform: 'capitalize' }}>{t(`wizard.step3.sessions.types.${s.type}`, { defaultValue: s.type.replace('_', ' ') })}</span>}
                                {s.location && (
@@ -761,6 +793,12 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                                </button>
                              )}
                            </div>
+                           {replacementSessionId === s.id && !isSelected && sessionOpen && canReplace && currentWorkshop && (
+                             <div style={{ gridColumn: '1 / -1', minWidth: 0 }}>
+                               <WorkshopReplacementPrompt dark currentTitle={currentWorkshop.title} nextTitle={s.title} pending={isBookingSession}
+                                 onConfirm={() => { void handleReplaceWorkshop(s.id); }} onCancel={() => setReplacementSessionId(null)} />
+                             </div>
+                           )}
                          </div>
                        );
                      })}
