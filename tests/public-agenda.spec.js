@@ -166,3 +166,27 @@ for (const section of ['agenda', 'landing']) {
     expect(state.writes).toEqual(['PATCH', 'PATCH']);
   });
 }
+
+for (const section of ['agenda', 'landing']) {
+  test(`${section}: session card click gives a red warning and second click confirms on mobile`, async ({ page }) => {
+    const state = await setup(page, { selected: ['w1', 'talk'] });
+    if (section === 'landing') await page.goto(`/event/${eventId}/landing`);
+    await page.setViewportSize({ width: 390, height: 844 });
+    const title = page.getByText('Workshop Two', { exact: true });
+    await title.click();
+    const warning = page.locator('.workshop-replacement-prompt');
+    await expect(warning).toBeInViewport();
+    await expect(warning).toBeFocused();
+    await expect(warning).toHaveCSS('border-top-color', section === 'agenda' ? 'rgb(255, 118, 126)' : 'rgb(252, 165, 165)');
+    await expect(warning).toContainText('Click this session again');
+    expect(state.writes).toEqual([]);
+    expect([...state.selected].sort()).toEqual(['talk', 'w1']);
+    await warning.screenshot({ path: `.tmp/workshop-red-warning-${section}.png` });
+    await title.click();
+    await expect(warning).toHaveCount(0);
+    expect(state.writes).toEqual(['PATCH']);
+    expect([...state.selected].sort()).toEqual(['talk', 'w2']);
+    await page.getByText('Closed Training', { exact: true }).click();
+    expect(state.writes).toEqual(['PATCH']);
+  });
+}

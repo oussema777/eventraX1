@@ -73,6 +73,18 @@ export default function AgendaBlock({
   const currentWorkshop = agendaSessions.find(s => s.type === 'workshop' && s.is_selected);
   const canReplace = workshopLimit === 1 && selectedWorkshops === 1 && !!onReplaceSession;
   const [replacementSessionId, setReplacementSessionId] = useState<string | null>(null);
+  const chooseSession = (session: AgendaSession) => {
+    if (!isRegistered || !onToggleSession || bookingPending) return;
+    if (!session.is_selected && (session.registration_open === false || session.status === 'cancelled')) return;
+    if (canReplace && session.type === 'workshop' && !session.is_selected) {
+      if (replacementSessionId === session.id) {
+        void onReplaceSession!(session.id).then(changed => { if (changed) setReplacementSessionId(null); });
+      } else setReplacementSessionId(session.id);
+      return;
+    }
+    setReplacementSessionId(null);
+    onToggleSession(session.id);
+  };
   const agendaDays = days && days.length > 0 ? days : defaultDays;
   const [requestedDay, setActiveDay] = useState(agendaDays[0]?.day || 1);
   const activeDay = agendaDays.some(day => day.day === requestedDay) ? requestedDay : (agendaDays[0]?.day || 1);
@@ -240,8 +252,13 @@ export default function AgendaBlock({
             <div
               key={session.id || idx}
               className="agenda-session-card"
+              onClick={(e) => {
+                if (!(e.target as HTMLElement).closest('button, a, .workshop-replacement-prompt')) chooseSession(session);
+              }}
               style={{
-                borderLeft: `4px solid ${session.is_selected ? '#10B981' : accentColor}`,
+                cursor: isRegistered && !bookingPending ? 'pointer' : undefined,
+                outline: replacementSessionId === session.id ? '2px solid #FF767E' : undefined,
+                borderLeft: `4px solid ${replacementSessionId === session.id ? '#FF767E' : session.is_selected ? '#10B981' : accentColor}`,
                 boxShadow: session.is_selected ? '0px 4px 16px rgba(16, 185, 129, 0.1)' : 'none'
               }}
             >
@@ -363,11 +380,7 @@ export default function AgendaBlock({
                 <div className="session-action-mobile">
                   <button 
                     className={`session-action-btn ${session.is_selected ? 'selected' : ''}`}
-                    onClick={() => {
-                      if (canReplace && session.type === 'workshop' && !session.is_selected) { setReplacementSessionId(session.id); return; }
-                      setReplacementSessionId(null);
-                      onToggleSession(session.id);
-                    }}
+                    onClick={() => chooseSession(session)}
                     disabled={bookingPending || (!session.is_selected && (session.registration_open === false || session.status === 'cancelled' || (session.type === 'workshop' && workshopLimit !== null && selectedWorkshops >= workshopLimit && !canReplace)))}
                     aria-pressed={!!session.is_selected}
                     aria-label={t(session.is_selected ? 'agendaBooking.removeSession' : 'agendaBooking.addSession', { title: session.title })}

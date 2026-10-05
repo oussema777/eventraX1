@@ -411,7 +411,11 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
       const limit = getWorkshopLimit(event?.workshop_selection_limit);
       const workshops = (data || []).filter((s: any) => s.type === 'workshop' && mySessionIds.has(s.id)).length;
       if (session.type === 'workshop' && limit !== null && workshops >= limit) {
-        if (limit === 1 && workshops === 1) { setReplacementSessionId(sessionId); return; }
+        if (limit === 1 && workshops === 1) {
+          if (replacementSessionId === sessionId) await handleReplaceWorkshop(sessionId);
+          else setReplacementSessionId(sessionId);
+          return;
+        }
         toast.error(t(limit === 1 ? 'agendaBooking.workshopLimitReachedSingle' : 'agendaBooking.workshopLimitReached', { count: limit }));
         return;
       }
@@ -715,7 +719,13 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                        const sessionDisabled = isBookingSession || (!isSelected && (!sessionOpen || (atWorkshopLimit && !canReplace)));
 
                        return (
-                         <div key={s.id} className="agenda-card">
+                         <div key={s.id} className="agenda-card"
+                           onClick={(e) => {
+                             if (isRegistered && !sessionDisabled && !(e.target as HTMLElement).closest('button, a, .workshop-replacement-prompt')) void handleToggleSession(s.id);
+                           }}
+                           style={{ cursor: isRegistered && !sessionDisabled ? 'pointer' : undefined,
+                             outline: replacementSessionId === s.id ? '2px solid #FF767E' : undefined,
+                             backgroundColor: replacementSessionId === s.id ? '#3A2A39' : undefined }}>
                            {/* Time Column */}
                            <div className="agenda-time-col" style={{ width: '140px', flexShrink: 0 }}>
                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#FFFFFF', fontWeight: 600 }}>

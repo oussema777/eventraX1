@@ -1,7 +1,7 @@
 export default {
     agendaBooking: {
       switchHint: 'Vous avez déjà choisi un atelier ? Sélectionnez-en un autre pour changer votre choix.',
-      replaceConfirm: 'Vous avez choisi « {current} ». Le remplacer par « {next} » ? Vos autres sessions resteront sélectionnées.',
+      replaceConfirm: 'Vous avez déjà choisi « {current} ». Choisir « {next} » remplacera cet atelier. Cliquez à nouveau sur cette session ou sur « Choisir cet atelier à la place » pour confirmer. Vos autres sessions resteront sélectionnées.',
       keepWorkshop: 'Garder mon atelier actuel',
       workshopChanged: 'Votre choix d’atelier a été mis à jour.',
       replaceFailed: 'Impossible de changer votre atelier. Votre choix précédent n’a pas été supprimé. Actualisez votre agenda et réessayez.',
