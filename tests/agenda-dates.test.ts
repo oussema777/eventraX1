@@ -25,3 +25,17 @@ test('accepts IANA zones and safely falls back for legacy shorthand', () => {
   assert.equal(resolveAgendaTimeZone('pt', 'UTC'), 'UTC');
   assert.equal(resolveAgendaTimeZone(undefined, 'UTC'), 'UTC');
 });
+
+test('saved order overrides titles only within the same time slot and survives reordered responses and renaming', () => {
+  const input = [
+    { ...session('b', 'Atelier 2', '2026-11-25T13:00:00Z'), sort_order: 1 },
+    { ...session('a', 'Atelier 10', '2026-11-25T13:00:00Z'), sort_order: 0 },
+    { ...session('early', 'Opening', '2026-11-25T09:00:00Z'), sort_order: 99 },
+    session('new', 'Added workshop', '2026-11-25T13:00:00Z'),
+  ];
+  for (const locale of ['en', 'fr', 'ar']) {
+    assert.deepEqual(groupAgendaSessions([...input].reverse(), 'Africa/Tunis', locale)[0].sessions.map(s => s.id), ['early', 'a', 'b', 'new']);
+  }
+  input[1].title = 'Z renamed workshop';
+  assert.deepEqual(groupAgendaSessions(input, 'Africa/Tunis', 'fr')[0].sessions.map(s => s.id), ['early', 'a', 'b', 'new']);
+});

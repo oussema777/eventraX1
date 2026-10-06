@@ -68,7 +68,7 @@ test('event guests discover opted-in participants, search, and request a meeting
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: testInfo.outputPath('people-mobile.png'), fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  expect(requests[0]).toMatchObject({ event_id: 'eq.22222222-2222-4333-8444-555555555555', status: 'eq.registered', 'meta->>b2bOptIn': 'eq.true' });
+  expect(requests[0]).toMatchObject({ event_id: 'eq.22222222-2222-4333-8444-555555555555', status: 'in.(registered,approved)', 'meta->>b2bOptIn': 'eq.true' });
   await page.getByRole('searchbox').fill('Investment');
   await expect(page.getByRole('heading', { name: 'Sami Ben Ali' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Request meeting', exact: true }).click();

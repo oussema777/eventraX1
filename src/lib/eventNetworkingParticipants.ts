@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { resolveEventSector } from '../utils/eventNetworkingFields';
 
 // Registration interests belong to the event registration, not profiles.
 // Select only networking fields; meta also contains private contact details.
@@ -8,7 +9,7 @@ export async function loadEventNetworkingParticipants(eventId: string) {
     const { data, error } = await supabase.from('event_attendees')
       .select('profile_id, interests:meta->interests, sector:meta->>sector')
       .eq('event_id', eventId)
-      .eq('status', 'registered')
+      .in('status', ['registered', 'approved'])
       .eq('meta->>b2bOptIn', 'true')
       .order('id')
       .range(offset, offset + 499);
@@ -26,12 +27,15 @@ export async function loadEventNetworkingParticipants(eventId: string) {
   const ids = [...registrations.keys()];
   for (let offset = 0; offset < ids.length; offset += 100) {
     const { data, error } = await supabase.from('profiles')
-      .select('id, full_name, job_title, company, avatar_url, sector')
+      .select('id, full_name, job_title, company, avatar_url, sector, industry, b2b_enabled:b2b_profile->enabled')
       .in('id', ids.slice(offset, offset + 100));
     if (error) throw error;
     for (const profile of data || []) {
+      if (profile.b2b_enabled === false) continue;
       const registration = registrations.get(profile.id)!;
-      participants.push({ ...profile, sector: registration.sector || profile.sector, interests: registration.interests });
+      participants.push({ id: profile.id, full_name: profile.full_name, job_title: profile.job_title,
+        company: profile.company, avatar_url: profile.avatar_url,
+        sector: resolveEventSector({ sector: registration.sector }, profile), interests: registration.interests });
     }
   }
   return participants;

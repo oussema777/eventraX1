@@ -15,6 +15,7 @@ interface CustomField {
 }
 
 interface FieldSettingsModalProps {
+  forceRequired?: boolean;
   isOpen: boolean;
   onClose: () => void;
   field: CustomField | null;
@@ -52,6 +53,7 @@ const FIELD_TYPE_LABELS: Record<string, { label: string; color: string }> = {
 
 export default function FieldSettingsModal({
   isOpen,
+  forceRequired = false,
   onClose,
   field,
   onSave,
@@ -94,7 +96,7 @@ export default function FieldSettingsModal({
 
   const handleSave = () => {
     if (editedField) {
-      onSave(editedField);
+      onSave({ ...editedField, required: forceRequired || editedField.required });
       onClose();
     }
   };
@@ -366,17 +368,18 @@ export default function FieldSettingsModal({
                     )}
                   </div>
                   <button
-                    onClick={() => !editedField.isSystem && setEditedField({ ...editedField, required: !editedField.required })}
+                    disabled={forceRequired || editedField.isSystem}
+                    onClick={() => !forceRequired && !editedField.isSystem && setEditedField({ ...editedField, required: !editedField.required })}
                     style={{
                       position: 'relative', width: '44px', height: '24px', borderRadius: '12px',
                       border: 'none', cursor: editedField.isSystem ? 'not-allowed' : 'pointer',
-                      backgroundColor: editedField.required ? '#0684F5' : 'rgba(255,255,255,0.15)',
+                      backgroundColor: (forceRequired || editedField.required) ? '#0684F5' : 'rgba(255,255,255,0.15)',
                       transition: 'background-color 0.2s', flexShrink: 0,
                     }}
                   >
                     <span style={{
                       position: 'absolute', top: '3px',
-                      left: editedField.required ? '23px' : '3px',
+                      left: (forceRequired || editedField.required) ? '23px' : '3px',
                       width: '18px', height: '18px', borderRadius: '50%',
                       backgroundColor: '#fff', display: 'block',
                       transition: 'left 0.2s',

@@ -1,3 +1,4 @@
+import { compareAgendaSessions } from '../../utils/agendaDates';
 import { eventPublicPath } from '../../utils/eventLinks';
 import { useEventRouteParams } from '../navigation/EventPublicRoute';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -391,7 +392,7 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
           })));
         }
 
-        const sessionRows = sessionRes.data || [];
+        const sessionRows = [...(sessionRes.data || [])].sort(compareAgendaSessions);
         
         // 1. Calculate unique dates chronologically
         const sortedUniqueDates = Array.from(new Set(

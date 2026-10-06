@@ -1,3 +1,4 @@
+import { fillRequiredRegistration } from './fixtures/registration-answers.js';
 import { test, expect } from '@playwright/test';
 
 const eventId = '769d7854-9bae-49e6-9db9-c88c0586a402';
@@ -26,7 +27,8 @@ test('failed B2B provisioning preserves answers and cannot send a false confirma
   await page.locator('.registration-language select').selectOption('en');
   await page.getByPlaceholder('John Doe').fill('Test Attendee');
   await page.getByPlaceholder('john@company.com').fill('guest@example.test');
-  await page.getByRole('switch').click();
+  await fillRequiredRegistration(page);
+  await page.getByRole('radio', { name: 'Yes', exact: true }).check();
   await page.locator('.registration-action-buttons button').last().click();
   await page.getByRole('button', { name: 'Complete Registration' }).click();
   await expect(page.getByText(/could not finish setting up your B2B access/)).toBeVisible();
@@ -37,5 +39,5 @@ test('failed B2B provisioning preserves answers and cannot send a false confirma
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(page.getByPlaceholder('John Doe')).toHaveValue('Test Attendee');
   await expect(page.getByPlaceholder('john@company.com')).toHaveValue('guest@example.test');
-  await expect(page.getByRole('switch')).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('radio', { name: 'Yes', exact: true })).toBeChecked();
 });

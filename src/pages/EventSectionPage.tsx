@@ -1,3 +1,7 @@
+import { loadEventParticipantDirectory } from '../lib/eventParticipantDirectory';
+import { normalizeNetworkingValue, sectorOptions } from '../utils/eventNetworkingFields';
+import EventMatchSuggestions from '../components/networking/EventMatchSuggestions';
+import { useEventRecommendations } from '../hooks/useEventRecommendations';
 import { eventPublicPath } from '../utils/eventLinks';
 import { useEventRouteParams } from '../components/navigation/EventPublicRoute';
 import { useEffect, useRef, useState } from 'react';
@@ -29,6 +33,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
   const { user, isLoading: isLoadingAuth, signOut } = useAuth();
   const { getOrCreateThread, loading: isMessageLoading } = useMessageThread();
   const { t, locale } = useI18n();
+  const recommendations = useEventRecommendations(eventId, user?.id, type === 'attendees');
   const [isBookingSession, setIsBookingSession] = useState(false);
   const bookingLock = useRef(false);
   const [replacementSessionId, setReplacementSessionId] = useState<string | null>(null);
@@ -44,6 +49,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
   const [selectedAttendee, setSelectedAttendee] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSector, setSelectedSector] = useState<string>('All');
+  const [directoryFailed, setDirectoryFailed] = useState(false);
   const [page, setPage] = useState(1);
   const ITEMS_PER_PAGE = 50;
 
@@ -172,76 +178,19 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
     if (!isInitial) window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const fetchAttendeeBatch = async (pageNumber: number, isInitial: boolean = false) => {
+  const fetchAttendeeBatch = async (_pageNumber: number, _isInitial = false) => {
     if (!eventId) return;
-    if (!isInitial) setIsLoadingMore(true);
-    const start = (pageNumber - 1) * ITEMS_PER_PAGE;
-    const end = start + ITEMS_PER_PAGE - 1;
-
-    const { data: attendees, error } = await supabase
-      .from('event_attendees')
-      .select('id, profile_id, name, company, avatar_url, photo_url, meta')
-      .eq('event_id', eventId)
-      .order('name', { ascending: true })
-      .range(start, end);
-    
-    if (error) {
-      console.error('Error fetching attendees:', error);
-      if (isInitial) setData([]);
-      setIsLoadingMore(false);
-      return;
-    }
-
-    const profileIds = attendees.map((a: any) => a.profile_id).filter(Boolean);
-    let profileMap: Record<string, any> = {};
-    
-    if (profileIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, avatar_url, b2b_profile, professional_data, industry, company, job_title')
-        .in('id', profileIds);
-      
-      if (profiles) {
-        profiles.forEach((p: any) => {
-          profileMap[p.id] = p;
-        });
-      }
-    }
-    
-    const mapped = attendees.map((a: any) => {
-      const prof = profileMap[a.profile_id] || {};
-      
-      // Extract industries from various possible locations in profile
-      const profileIndustries = [
-        ...(prof.b2b_profile?.industries_of_interest || []),
-        ...(prof.professional_data?.sectors || []),
-        prof.industry
-      ].filter(Boolean);
-
-      // Security: Extract ONLY public fields from meta to avoid exposing private registration data
-      const publicMeta: Record<string, any> = {};
-      if (a.meta) {
-        const publicKeys = ['Job Title', 'Title', 'Company', 'Organization', 'Industry'];
-        publicKeys.forEach(key => {
-          if (a.meta[key]) publicMeta[key] = a.meta[key];
-        });
-      }
-
-      return {
-        id: a.id,
-        profile_id: a.profile_id,
-        name: a.name,
-        company: a.company || prof.company,
-        final_avatar: prof.avatar_url || a.avatar_url || a.photo_url,
-        meta: publicMeta, // Sanitized meta
-        profile_industries: Array.from(new Set(profileIndustries)),
-        b2b_enabled: a.profile_id && prof.b2b_profile?.enabled !== false
-      };
-    });
-    
-    setData(mapped);
-    setIsLoadingMore(false);
-    if (!isInitial) window.scrollTo({ top: 0, behavior: 'smooth' });
+    setIsLoadingMore(true);
+    setDirectoryFailed(false);
+    try {
+      const participants = await loadEventParticipantDirectory(eventId);
+      setData(participants);
+      setCounts(previous => ({ ...previous, attendees: participants.length }));
+      setPage(1);
+    } catch {
+      setDirectoryFailed(true);
+      setData([]);
+    } finally { setIsLoadingMore(false); }
   };
 
   const handlePageChange = async (newPage: number) => {
@@ -250,8 +199,6 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
       await fetchSpeakerBatch(newPage);
     } else if (type === 'exhibitors') {
       await fetchExhibitorBatch(newPage);
-    } else if (type === 'attendees') {
-      await fetchAttendeeBatch(newPage);
     }
   };
 
@@ -491,6 +438,12 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
     return name.substring(0, 2).toUpperCase();
   };
 
+  const participantData = type === 'attendees' ? (data || []) : [];
+  const searchTerm = normalizeNetworkingValue(searchQuery);
+  const filteredParticipants = participantData.filter((person: any) =>
+    (selectedSector === 'All' || (selectedSector === '__none' ? !person.sector : normalizeNetworkingValue(person.sector || '') === normalizeNetworkingValue(selectedSector))) &&
+    (!searchTerm || [person.name, person.company, person.meta?.['Job Title'], person.sector].some(value => typeof value === 'string' && normalizeNetworkingValue(value).includes(searchTerm))));
+
   if (isLoadingData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0B2641]">
@@ -537,6 +490,8 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
         }
 
         @media (max-width: 768px) {
+          .event-networking-hero { flex-direction: column !important; align-items: stretch !important; padding: 24px !important; gap: 24px !important; }
+          .event-networking-filters { width: 100% !important; }
           .agenda-card {
             grid-template-columns: 1fr auto;
             gap: 16px;
@@ -588,7 +543,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
         {type === 'attendees' && (
           <div style={{ marginBottom: '48px' }}>
             {/* Networking Hero / Stats */}
-            <div 
+            <div className="event-networking-hero"
               style={{ 
                 background: `linear-gradient(135deg, ${brandColor}20 0%, rgba(11, 38, 65, 0.5) 100%)`,
                 borderRadius: '24px',
@@ -596,12 +551,12 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                 border: '1px solid rgba(255, 255, 255, 0.1)',
                 marginBottom: '40px',
                 display: 'flex',
-                flexDirection: window.innerWidth < 768 ? 'column' : 'row',
+                flexDirection: 'row',
                 alignItems: 'center',
                 gap: '40px'
               }}
             >
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#FFFFFF', marginBottom: '12px' }}>
                   Connect with Industry Leaders
                 </h2>
@@ -615,20 +570,20 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                   </div>
                   <div style={{ width: '1px', backgroundColor: 'rgba(255, 255, 255, 0.1)' }} />
                   <div>
-                    <div style={{ fontSize: '24px', fontWeight: 800, color: '#10B981' }}>{Math.floor(counts.attendees * 0.4)}</div>
-                    <div style={{ fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '1px' }}>Potential Matches</div>
+                    <div style={{ fontSize: '24px', fontWeight: 800, color: '#10B981' }}>{!user || recommendations.isLoading || recommendations.isError || recommendations.data?.state !== 'ready' ? '\u2014' : recommendations.data.matches.length}</div>
+                    <div style={{ fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('eventImprovements.potentialMatches')}</div>
                   </div>
                 </div>
               </div>
               
-              <div style={{ width: window.innerWidth < 768 ? '100%' : '400px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="event-networking-filters" style={{ width: '400px', maxWidth: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {/* Search */}
                 <div style={{ position: 'relative' }}>
                   <input 
                     type="text" 
                     placeholder="Search by name, company, or title..." 
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
                     style={{ 
                       width: '100%', 
                       height: '52px', 
@@ -644,36 +599,17 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }}><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                 </div>
                 
-                {/* Sector Filter */}
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {(() => {
-                    const industries = new Set<string>(['All']);
-                    (data || []).forEach((a: any) => {
-                      const industry = a.meta?.['Industry'];
-                      if (industry) industries.add(industry);
-                    });
-                    return Array.from(industries).sort().map(sector => (
-                      <button
-                        key={sector}
-                        onClick={() => setSelectedSector(sector)}
-                        style={{
-                          padding: '8px 16px',
-                          borderRadius: '100px',
-                          fontSize: '13px',
-                          fontWeight: 600,
-                          backgroundColor: selectedSector === sector ? brandColor : 'rgba(255, 255, 255, 0.05)',
-                          color: '#FFFFFF',
-                          border: '1px solid',
-                          borderColor: selectedSector === sector ? brandColor : 'rgba(255, 255, 255, 0.1)',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        {sector}
-                      </button>
-                    ));
-                  })()}
-                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 12, color: '#94A3B8', fontSize: 13 }}>
+                  <span style={{ flexShrink: 0 }}>{t('eventImprovements.filterSector')}</span>
+                  <select value={selectedSector} onChange={e => { setSelectedSector(e.target.value); setPage(1); }}
+                    style={{ flex: 1, minWidth: 0, width: '100%', height: 44, padding: '0 12px', borderRadius: 10, border: '1px solid #475569', background: '#1E293B', color: '#fff', fontSize: 14, textOverflow: 'ellipsis', colorScheme: 'dark' }}>
+                  {['All', ...sectorOptions(participantData), ...(participantData.some((person: any) => !person.sector) ? ['__none'] : [])].map(sector => (
+                    <option key={sector} value={sector}>
+                      {sector === 'All' ? t('eventImprovements.allSectors') : sector === '__none' ? t('eventImprovements.noSector') : sector}
+                    </option>
+                  ))}
+                  </select>
+                </label>
               </div>
             </div>
           </div>
@@ -1248,168 +1184,38 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
 
         {type === 'attendees' && (
           <div>
-            {/* Matchmaking Suggestions (Simulated for UX) */}
-            {searchQuery === '' && selectedSector === 'All' && (data || []).some((a: any) => a.b2b_enabled) && (
-              <div style={{ marginBottom: '48px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
-                  </div>
-                  <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF' }}>Matchmaking Suggestions</h3>
-                </div>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '24px' }}>
-                  {(data || [])
-                    .filter((a: any) => a.b2b_enabled) // ONLY suggest users who have a real profile and enabled networking
-                    .slice(0, 3)
-                    .map((a: any) => (
-                    <div 
-                      key={`suggested-${a.id}`} 
-                      style={{ 
-                        backgroundColor: 'rgba(255,255,255,0.03)', 
-                        borderRadius: '24px', 
-                        border: `1px solid ${brandColor}40`, 
-                        padding: '24px', 
-                        textAlign: 'center', 
-                        transition: 'all 0.2s',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        position: 'relative',
-                        boxShadow: `0 10px 30px -10px ${brandColor}20`
-                      }}
-                    >
-                      <div style={{ position: 'absolute', top: '16px', right: '16px', padding: '4px 10px', borderRadius: '100px', backgroundColor: '#10B981', color: '#FFFFFF', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Top Match</div>
-                      <div style={{ width: '90px', height: '90px', marginBottom: '16px', flexShrink: 0 }}>
-                        <img src={a.final_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(a.name)}&background=random`} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', border: `3px solid ${brandColor}`, padding: '2px' }} />
-                      </div>
-                      <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>{a.name}</h3>
-                      <div style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '20px' }}>{a.meta?.['Job Title'] || a.meta?.['Title'] || 'Executive'}</div>
-                      
-                      <div style={{ display: 'flex', gap: '6px', marginBottom: '24px' }}>
-                        <span style={{ fontSize: '10px', fontWeight: 700, color: brandColor, padding: '4px 8px', backgroundColor: `${brandColor}10`, borderRadius: '6px' }}>{a.meta?.['Industry'] || 'Technology'}</span>
-                        <span style={{ fontSize: '10px', fontWeight: 700, color: '#10B981', padding: '4px 8px', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '6px' }}>High Compatibility</span>
-                      </div>
-
-                      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <button
-                          onPointerUp={(e) => {
-                            e.stopPropagation();
-                            if (a.profile_id) navigate(`/profile/${a.profile_id}`);
-                          }}
-                          style={{
-                            width: '100%',
-                            height: '36px',
-                            backgroundColor: 'transparent',
-                            color: '#FFFFFF',
-                            border: '1px solid rgba(255,255,255,0.2)',
-                            borderRadius: '8px',
-                            fontSize: '13px',
-                            fontWeight: 600,
-                            cursor: a.profile_id ? 'pointer' : 'not-allowed',
-                            transition: 'all 0.2s',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px'
-                          }}
-                          onMouseEnter={(e) => {
-                            if (a.profile_id) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
-                          }}
-                          onMouseLeave={(e) => {
-                            if (a.profile_id) e.currentTarget.style.backgroundColor = 'transparent';
-                          }}
-                        >
-                          <User size={14} />
-                          View Profile
-                        </button>
-                        <button
-                          onPointerUp={(e) => {
-                            e.stopPropagation();
-                            if (!user) {
-                              toast.info(t('networking.auth.bookingPrompt') || 'Please sign in or create an account to book meetings.');
-                              setShowLoginModal(true);
-                              return;
-                            }
-                            if (a.profile_id) setSelectedAttendee({ id: a.profile_id, name: a.name });
-                          }}
-                          style={{
-                            width: '100%',
-                            height: '36px',
-                            backgroundColor: a.profile_id ? brandColor : 'rgba(255,255,255,0.1)',
-                            color: a.profile_id ? '#FFFFFF' : 'rgba(255,255,255,0.4)',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontSize: '13px',
-                            fontWeight: 600,
-                            cursor: a.profile_id ? 'pointer' : 'not-allowed',
-                            transition: 'all 0.2s',
-                            touchAction: 'none'
-                          }}
-                        >
-                          {a.profile_id ? 'Book Meeting' : 'Guest User'}
-                        </button>
-                        <button
-                          disabled={isMessageLoading || !a.profile_id}
-                          onPointerUp={(e) => {
-                            e.stopPropagation();
-                            if (!user) {
-                              toast.info(t('networking.auth.messagePrompt') || 'Please sign in to send messages.');
-                              setShowLoginModal(true);
-                              return;
-                            }
-                            if (a.profile_id) handleMessage(a.profile_id);
-                          }}
-                          style={{
-                            width: '100%',
-                            height: '36px',
-                            backgroundColor: 'rgba(255,255,255,0.1)',
-                            color: a.profile_id ? '#FFFFFF' : 'rgba(255,255,255,0.4)',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontSize: '13px',
-                            fontWeight: 600,
-                            cursor: (isMessageLoading || !a.profile_id) ? 'not-allowed' : 'pointer',
-                            transition: 'all 0.2s',
-                            opacity: isMessageLoading ? 0.7 : 1,
-                            touchAction: 'none'
-                          }}
-                        >
-                          {isMessageLoading ? 'Loading...' : 'Message'}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {searchQuery === '' && selectedSector === 'All' && <EventMatchSuggestions
+              key={`${eventId}:${user?.id || ''}`}
+              matches={recommendations.data?.matches || []} state={recommendations.data?.state} signedIn={!!user} loading={recommendations.isLoading}
+              failed={recommendations.isError} onRetry={() => { void recommendations.refetch(); }}
+              onGenerate={async () => {
+                const result = await recommendations.refetch();
+                if (result.error) throw result.error;
+                return result.data?.matches || [];
+              }}
+              onLogin={() => setShowLoginModal(true)} onView={person => navigate(eventPublicPath(event, `profile/${person.id}`))}
+              onBook={setSelectedAttendee} onMessage={handleMessage} messagePending={isMessageLoading}
+              brandColor={brandColor}
+            />}
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '48px' }}>
               <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF' }}>All Participants</h3>
               <span style={{ fontSize: '13px', color: '#94A3B8', fontWeight: 500 }}>({counts.attendees})</span>
             </div>
 
+            {directoryFailed ? <div role="alert" style={{ color: '#94A3B8' }}>{t('eventImprovements.directoryError')} <button onClick={() => { void fetchAttendeeBatch(1); }}>{t('eventImprovements.retry')}</button></div>
+              : <p role="status" style={{ color: '#94A3B8', marginBottom: 16 }}>{t('eventImprovements.filteredCount', { count: filteredParticipants.length, total: participantData.length })}</p>}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '24px', opacity: isLoadingMore ? 0.5 : 1, transition: 'opacity 0.2s' }}>
-              {(data || [])
-                .filter((a: any) => {
-                  const matchesSearch = !searchQuery || a.name?.toLowerCase().includes(searchQuery.toLowerCase()) || a.company?.toLowerCase().includes(searchQuery.toLowerCase()) || a.meta?.['Job Title']?.toLowerCase().includes(searchQuery.toLowerCase());
-                  
-                  // UPDATED FILTER LOGIC: Check both profile_industries and meta industry
-                  const matchesSector = selectedSector === 'All' || 
-                    (a.profile_industries && a.profile_industries.includes(selectedSector)) ||
-                    (a.meta?.['Industry'] === selectedSector);
-                    
-                  return matchesSearch && matchesSector;
-                })
+              {filteredParticipants.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE)
                 .map((a: any) => (
                 <div 
                   key={a.id} 
-                  onPointerUp={(e) => {
-                    // Only navigate if clicking the card body, not buttons
+                  onClick={(e) => {
+                    // Open the event details when clicking the card body, not its actions
                     const target = e.target as HTMLElement;
                     if (target.closest('button')) return;
                     
-                    if (a.profile_id) navigate(`/profile/${a.profile_id}`);
+                    navigate(eventPublicPath(event, a.profile_id ? `profile/${a.profile_id}` : `participant/${a.id}`));
                   }}
                   style={{ 
                     backgroundColor: 'rgba(255,255,255,0.03)', 
@@ -1421,7 +1227,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    cursor: a.profile_id ? 'pointer' : 'default',
+                    cursor: 'pointer',
                     touchAction: 'manipulation'
                   }}
                   onMouseEnter={(e) => {
@@ -1459,9 +1265,9 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
 
                   <div style={{ width: '100%', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <button 
-                      onPointerUp={(e) => { 
+                      onClick={(e) => {
                         e.stopPropagation(); 
-                        if (a.profile_id) navigate(`/profile/${a.profile_id}`); 
+                        navigate(eventPublicPath(event, a.profile_id ? `profile/${a.profile_id}` : `participant/${a.id}`));
                       }}
                       style={{ 
                         width: '100%', 
@@ -1472,7 +1278,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                         borderRadius: '8px', 
                         fontSize: '13px', 
                         fontWeight: 600, 
-                        cursor: a.profile_id ? 'pointer' : 'not-allowed', 
+                        cursor: 'pointer',
                         transition: 'all 0.2s',
                         display: 'flex',
                         alignItems: 'center',
@@ -1490,7 +1296,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                       View Profile
                     </button>
                     <button 
-                      onPointerUp={(e) => { 
+                      onClick={(e) => {
                         e.stopPropagation(); 
                         if (!user) { 
                           toast.info(t('networking.auth.bookingPrompt') || 'Please sign in or create an account to book meetings and access B2B features.');
@@ -1517,7 +1323,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                     </button>
                     <button 
                       disabled={isMessageLoading || !a.profile_id} 
-                      onPointerUp={(e) => { 
+                      onClick={(e) => {
                         e.stopPropagation(); 
                         if (!user) { 
                           toast.info(t('networking.auth.messagePrompt') || 'Please sign in to send messages to other participants.');
@@ -1551,7 +1357,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
         )}
 
         {(type === 'speakers' || type === 'exhibitors' || type === 'attendees') && (
-          <PaginationControls totalItems={counts[type]} />
+          <PaginationControls totalItems={type === 'attendees' ? filteredParticipants.length : counts[type]} />
         )}
       </div>
 

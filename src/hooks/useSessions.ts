@@ -3,9 +3,11 @@ import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import { sanitizeError } from '../utils/errorHandler';
 import { useParams } from 'react-router-dom';
+import { compareAgendaSessions } from '../utils/agendaDates';
 
 export interface Session {
   id: string;
+  sortOrder?: number | null;
   event_id: string;
   title: string;
   description: string;
@@ -63,6 +65,7 @@ function mapSession(s: any): Session {
 
   return {
     id: s.id,
+    sortOrder: s.sort_order,
     event_id: s.event_id,
     title: s.title,
     description: s.description || '',
@@ -92,9 +95,9 @@ async function fetchSessions(eventId: string): Promise<Session[]> {
 
   if (error) {
     console.error('Failed to fetch sessions:', error);
-    return [];
+    throw error;
   }
-  return (data || []).map(mapSession);
+  return (data || []).sort(compareAgendaSessions).map(mapSession);
 }
 
 export function useSessions(manualEventId?: string) {
@@ -103,7 +106,7 @@ export function useSessions(manualEventId?: string) {
   const queryClient = useQueryClient();
   const queryKey = ['sessions', eventId];
 
-  const { data: sessions = [], isLoading } = useQuery({
+  const { data: sessions = [], isLoading, isError } = useQuery({
     queryKey,
     queryFn: () => fetchSessions(eventId!),
     enabled: !!eventId && eventId !== 'new',
@@ -184,6 +187,21 @@ export function useSessions(manualEventId?: string) {
     }
   };
 
+  const reorderSessions = async (ordered: Session[]) => {
+    if (!eventId) throw new Error('Missing event');
+    const { error } = await supabase.rpc('reorder_event_sessions', {
+      p_event_id: eventId,
+      p_session_ids: ordered.map(s => s.id),
+      p_expected_order: Object.fromEntries(ordered.map(s => [s.id, s.sortOrder ?? null])),
+    });
+    if (error) {
+      await queryClient.invalidateQueries({ queryKey });
+      throw error;
+    }
+    queryClient.setQueryData(queryKey, ordered.map((s, i) => ({ ...s, sortOrder: i })));
+    await queryClient.invalidateQueries({ queryKey });
+  };
+
   const deleteSession = async (id: string) => {
     try {
       const { error } = await supabase
@@ -205,9 +223,12 @@ export function useSessions(manualEventId?: string) {
   return {
     sessions,
     isLoading,
+    isError,
     createSession,
     updateSession,
     deleteSession,
+    reorderSessions,
+    reloadSessions: () => queryClient.fetchQuery({ queryKey, queryFn: () => fetchSessions(eventId!), staleTime: 0 }),
     refreshSessions: () => queryClient.invalidateQueries({ queryKey })
   };
 }

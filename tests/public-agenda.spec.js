@@ -11,6 +11,15 @@ const sessions = [
   { id: 'cancelled', title: 'Cancelled Session', type: 'keynote', status: 'cancelled' },
 ].map(s => ({ registration_open: true, starts_at: '2026-11-25T10:00:00Z', ends_at: '2026-11-25T11:00:00Z', ...s }));
 
+test('saved workshop order stays identical on agenda and landing after reload', async ({ page }) => {
+  await setup(page, { selected: [] });
+  await page.route('**/rest/v1/event_sessions?**', route => route.fulfill({ json: [...sessions].reverse().map(s => ({ ...s, sort_order: s.id === 'w2' ? 0 : 1 })) }));
+  for (const section of ['agenda', 'landing', 'agenda']) {
+    await page.goto(`/event/${eventId}/${section}`);
+    await expect(page.getByText(/^Workshop (One|Two)$/)).toHaveText(['Workshop Two', 'Workshop One']);
+  }
+});
+
 async function setup(page, { limit = 1, selected = ['w1'] } = {}) {
   const state = { selected: new Set(selected), writes: [], reject: false, pending: null };
   await page.route('**/auth/v1/**', r => r.fulfill({ json: user }));

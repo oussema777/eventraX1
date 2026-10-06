@@ -95,6 +95,7 @@ export default function EventRegistrationFlow() {
   const [event, setEvent] = useState<any>(null);
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [registrationFieldOrder, setRegistrationFieldOrder] = useState<string[]>([]);
+  const [b2bChoiceMade, setB2bChoiceMade] = useState(false);
   const [systemRequired, setSystemRequired] = useState<Record<string, boolean>>({});
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set());
@@ -342,7 +343,7 @@ export default function EventRegistrationFlow() {
             id: f.id || `field_${Math.random().toString(36).substr(2, 9)}`,
             label: f.label || f.name || 'Untitled Field',
             type: f.type,
-            required: f.required,
+            required: true,
             options: f.options,
             value: isPhoneField ? '' : defaultValue, 
             readonly: isReadonly, 
@@ -764,20 +765,10 @@ export default function EventRegistrationFlow() {
         systemFields.companyDescription.trim().length <= 500 &&
         (!isRegistrationSystemFieldRequired('system-interests', systemRequired) || systemFields.interests.length > 0) &&
         (!isRegistrationSystemFieldRequired('system-sector', systemRequired) || systemFields.sector.trim().length > 0) &&
-        (!isRegistrationSystemFieldRequired('system-socialUrl', systemRequired) || systemFields.socialUrl.trim().length > 0);
+        (!isRegistrationSystemFieldRequired('system-socialUrl', systemRequired) || systemFields.socialUrl.trim().length > 0) && b2bChoiceMade;
 
-      // Custom field validation (exclude fields already covered by system fields)
-      const isSystemDuplicate = (label: string, type: string) => {
-        const l = label.toLowerCase();
-        return l.includes('full name') || l === 'name' || l === 'nom' ||
-          l.includes('email') || l.includes('e-mail') ||
-          (type === 'phone' && (l.includes('phone') || l.includes('téléphone') || l.includes('هاتف'))) ||
-          (l.includes('company') && !l.includes('size') && !l.includes('stage')) ||
-          l.includes('campany') ||
-          (l.includes('sector') || l.includes('secteur') || l.includes('قطاع')) ||
-          l.includes('entreprise');
-      };
-      const requiredFields = formFields.filter(f => f.required && !isSystemDuplicate(f.label, f.type));
+      // Validate exactly the custom fields rendered on this page.
+      const requiredFields = formFields.filter(isVisibleRegistrationCustomField);
       const emptyRequired = requiredFields.filter(f => {
         if (f.type === 'phone') {
           return !f.phoneNumber || f.phoneNumber.trim() === '';
@@ -810,6 +801,7 @@ export default function EventRegistrationFlow() {
     };
 
     const updateSystemField = (key: string, value: any) => {
+      if (key === 'b2bOptIn') setB2bChoiceMade(true);
       setSystemFields(prev => ({ ...prev, [key]: value }));
     };
 
@@ -818,7 +810,7 @@ export default function EventRegistrationFlow() {
         {/* 1. Full Name */}
         {fieldId === 'system-fullName' && <div className="registration-field">
           <label className="block text-sm font-medium text-white mb-1.5">
-            {t('registration.systemFields.fullName', { defaultValue: 'Full Name' })} <span className="text-red-400">*</span>
+            {t('registration.systemFields.fullName', { defaultValue: 'Full Name' })} <span style={{ color: '#F87171' }} aria-hidden="true">*</span>
           </label>
           <input
             type="text"
@@ -833,7 +825,7 @@ export default function EventRegistrationFlow() {
         {/* 2. Email */}
         {fieldId === 'system-email' && <div className="registration-field">
           <label className="block text-sm font-medium text-white mb-1.5">
-            {t('registration.systemFields.email', { defaultValue: 'Email Address' })} <span className="text-red-400">*</span>
+            {t('registration.systemFields.email', { defaultValue: 'Email Address' })} <span style={{ color: '#F87171' }} aria-hidden="true">*</span>
           </label>
           <input
             type="email"
@@ -848,7 +840,7 @@ export default function EventRegistrationFlow() {
         {/* 3. Phone with country code */}
         {fieldId === 'system-phone' && <div className="registration-field">
           <label className="block text-sm font-medium text-white mb-1.5">
-            {t('registration.systemFields.phone', { defaultValue: 'Phone Number' })} {isRegistrationSystemFieldRequired('system-phone', systemRequired) && <span className="text-red-400">*</span>}
+            {t('registration.systemFields.phone', { defaultValue: 'Phone Number' })} {isRegistrationSystemFieldRequired('system-phone', systemRequired) && <span style={{ color: '#F87171' }} aria-hidden="true">*</span>}
           </label>
           <div className="flex gap-2">
             <div className="relative" style={{ minWidth: '110px' }} data-registration-dropdown="system-phone">
@@ -936,7 +928,7 @@ export default function EventRegistrationFlow() {
         {/* 4. Company Name */}
         {fieldId === 'system-companyName' && <div className="registration-field">
           <label className="block text-sm font-medium text-white mb-1.5">
-            {t('registration.systemFields.companyName', { defaultValue: 'Company Name' })} {isRegistrationSystemFieldRequired('system-companyName', systemRequired) && <span className="text-red-400">*</span>}
+            {t('registration.systemFields.companyName', { defaultValue: 'Company Name' })} {isRegistrationSystemFieldRequired('system-companyName', systemRequired) && <span style={{ color: '#F87171' }} aria-hidden="true">*</span>}
           </label>
           <input
             type="text"
@@ -951,7 +943,7 @@ export default function EventRegistrationFlow() {
         {/* 5. Short Company Description */}
         {fieldId === 'system-companyDescription' && <div className="registration-field">
           <label className="block text-sm font-medium text-white mb-1.5">
-            {t('registration.systemFields.companyDescription', { defaultValue: 'Short Company Description' })} {isRegistrationSystemFieldRequired('system-companyDescription', systemRequired) && <span className="text-red-400">*</span>}
+            {t('registration.systemFields.companyDescription', { defaultValue: 'Short Company Description' })} {isRegistrationSystemFieldRequired('system-companyDescription', systemRequired) && <span style={{ color: '#F87171' }} aria-hidden="true">*</span>}
           </label>
           <textarea
             value={systemFields.companyDescription}
@@ -970,7 +962,7 @@ export default function EventRegistrationFlow() {
         {/* 6. Interests (multi-select) */}
         {fieldId === 'system-interests' && <div className="registration-field">
           <label className="block text-sm font-medium text-white mb-1.5">
-            {t('registration.systemFields.interests', { defaultValue: 'Interests' })} {isRegistrationSystemFieldRequired('system-interests', systemRequired) && <span className="text-red-400">*</span>}
+            {t('registration.systemFields.interests', { defaultValue: 'Interests' })} {isRegistrationSystemFieldRequired('system-interests', systemRequired) && <span style={{ color: '#F87171' }} aria-hidden="true">*</span>}
           </label>
           {systemFields.interests.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-2">
@@ -1034,7 +1026,7 @@ export default function EventRegistrationFlow() {
         {/* 7. Sector (single-select) */}
         {fieldId === 'system-sector' && <div className="registration-field">
           <label className="block text-sm font-medium text-white mb-1.5">
-            {t('registration.systemFields.sector', { defaultValue: 'Sector' })} {isRegistrationSystemFieldRequired('system-sector', systemRequired) && <span className="text-red-400">*</span>}
+            {t('registration.systemFields.sector', { defaultValue: 'Sector' })} {isRegistrationSystemFieldRequired('system-sector', systemRequired) && <span style={{ color: '#F87171' }} aria-hidden="true">*</span>}
           </label>
           <div className="relative" data-registration-dropdown="system-sector">
             <button
@@ -1071,7 +1063,7 @@ export default function EventRegistrationFlow() {
         {/* 8. Social URL */}
         {fieldId === 'system-socialUrl' && <div className="registration-field">
           <label className="block text-sm font-medium text-white mb-1.5">
-            {t('registration.systemFields.socialUrl', { defaultValue: 'Social / Website URL' })} {isRegistrationSystemFieldRequired('system-socialUrl', systemRequired) && <span className="text-red-400">*</span>}
+            {t('registration.systemFields.socialUrl', { defaultValue: 'Social / Website URL' })} {isRegistrationSystemFieldRequired('system-socialUrl', systemRequired) && <span style={{ color: '#F87171' }} aria-hidden="true">*</span>}
           </label>
           <input
             type="url"
@@ -1083,36 +1075,23 @@ export default function EventRegistrationFlow() {
           />
         </div>}
 
-        {/* B2B Toggle */}
-        {fieldId === 'system-b2bOptIn' && <div className="mb-6 p-4 rounded-lg" style={{ backgroundColor: 'rgba(6,132,245,0.08)', border: '1px solid rgba(6,132,245,0.2)' }}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-white">
-                {t('registration.systemFields.b2bOptIn', { defaultValue: 'Want B2B Matching?' })}
-              </p>
-              <p className="text-xs text-white/50 mt-0.5">
-                {t('registration.systemFields.b2bOptInDescription', { defaultValue: 'Get matched with relevant attendees for business networking' })}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => updateSystemField('b2bOptIn', !systemFields.b2bOptIn)}
-              role="switch"
-              aria-checked={systemFields.b2bOptIn}
-              aria-label={t('registration.systemFields.b2bOptIn', { defaultValue: 'Want B2B Matching?' })}
-              className="relative w-11 h-6 rounded-full transition-colors"
-              style={{ backgroundColor: systemFields.b2bOptIn ? '#0684F5' : 'rgba(255,255,255,0.2)' }}
-            >
-              <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform"
-                style={{ transform: systemFields.b2bOptIn ? 'translateX(20px)' : 'translateX(0)' }} />
-            </button>
+        {/* A required choice does not imply mandatory B2B consent. */}
+        {fieldId === 'system-b2bOptIn' && <fieldset className="mb-6 p-4 rounded-lg" style={{ backgroundColor: 'rgba(6,132,245,0.08)', border: '1px solid rgba(6,132,245,0.2)' }}>
+          <legend style={{ color: '#fff', fontSize: 14, fontWeight: 500 }}>{t('registration.systemFields.b2bOptIn')} <span style={{ color: '#F87171' }} aria-hidden="true">*</span></legend>
+          <p style={{ color: '#94A3B8', fontSize: 12, marginBottom: 12 }}>{t('registration.systemFields.b2bOptInDescription')}</p>
+          <div role="radiogroup" aria-required="true" aria-label={t('registration.systemFields.b2bOptIn')} style={{ display: 'flex', gap: 24 }}>
+            {[true, false].map(value => <label key={String(value)} style={{ display: 'inline-flex', gap: 8, alignItems: 'center', color: '#fff', cursor: 'pointer' }}>
+              <input type="radio" name="b2b-choice" required checked={b2bChoiceMade && systemFields.b2bOptIn === value} onChange={() => updateSystemField('b2bOptIn', value)} style={{ accentColor: '#0684F5' }} />
+              {t(value ? 'eventImprovements.answerYes' : 'eventImprovements.answerNo')}
+            </label>)}
           </div>
-        </div>}
+        </fieldset>}
+
       </>
     );
   };
 
-  const visibleCustomFields = formFields.filter(isVisibleRegistrationCustomField);
+  const visibleCustomFields = formFields.filter(isVisibleRegistrationCustomField).map(field => ({ ...field, required: true }));
   const orderedRegistrationFields: FormField[] = getRegistrationFieldOrder(
     visibleCustomFields.map(field => field.id), registrationFieldOrder
   ).map(id => isRegistrationSystemField(id)

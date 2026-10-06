@@ -1,4 +1,7 @@
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEventRouteParams } from '../components/navigation/EventPublicRoute';
+import { useEventParticipantProfile } from '../hooks/useEventParticipantProfile';
+import BookMeetingModal from '../components/networking/BookMeetingModal';
+import { useNavigate } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import {
   MapPin,
@@ -45,11 +48,16 @@ import SEOHead from '../components/SEOHead';
 import { canonicalUrl } from '../utils/seo';
 
 export default function PublicProfilePage() {
-  const { userId } = useParams();
+  const { userId: routeUserId, eventId, attendeeId } = useEventRouteParams();
   const navigate = useNavigate();
   const { user: currentUser, signOut } = useAuth();
   const { t } = useI18n();
-  const { profile, isLoading, error } = useProfile(userId);
+  const memberProfile = useProfile(routeUserId, !eventId);
+  const eventProfile = useEventParticipantProfile(eventId, routeUserId, attendeeId, currentUser?.id);
+  const profile = eventId ? eventProfile.data : memberProfile.profile;
+  const isLoading = eventId ? eventProfile.isLoading : memberProfile.isLoading;
+  const error = eventId ? eventProfile.error : memberProfile.error;
+  const userId = eventId ? eventProfile.data?.id : routeUserId;
   const { getOrCreateThread, loading: connecting } = useMessageThread();
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -106,7 +114,15 @@ export default function PublicProfilePage() {
   const isGuestProfile = (profile as any)?.account_type === 'event_guest';
   const viewingOwnGuestProfile = isGuestProfile && currentUser?.id === userId;
 
-  if (error || !profile || (isGuestProfile && !viewingOwnGuestProfile)) {
+  if (error && eventId) {
+    return <div role="alert" className="min-h-screen bg-[#0B2641] flex flex-col items-center justify-center text-white p-4">
+      <h2 className="text-2xl font-bold mb-4">{t('eventImprovements.profileLoadError')}</h2>
+      <button onClick={() => { void eventProfile.refetch(); }} className="px-6 py-3 bg-[#0684F5] rounded-lg">{t('eventImprovements.retry')}</button>
+      <button onClick={() => navigate(`/event/${eventId}/attendees`)} className="mt-4">{t('eventImprovements.backToParticipants')}</button>
+    </div>;
+  }
+
+  if (error || !profile || (isGuestProfile && !viewingOwnGuestProfile && !eventId)) {
     return (
       <div className="min-h-screen bg-[#0B2641] flex flex-col items-center justify-center text-white p-4">
         <h2 className="text-2xl font-bold mb-4">{t('publicProfilePage.notFound.title')}</h2>
@@ -114,7 +130,7 @@ export default function PublicProfilePage() {
           {t('publicProfilePage.notFound.subtitle')}
         </p>
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate(eventId ? `/event/${eventId}/attendees` : '/')}
           className="px-6 py-3 bg-[#0684F5] rounded-lg font-semibold"
         >
           {t('publicProfilePage.notFound.returnHome')}
@@ -198,7 +214,7 @@ export default function PublicProfilePage() {
     }
   };
 
-  const profileName = profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : '';
+  const profileName = fullName;
   const profileTitle = profileName ? `${profileName} | Eventra` : 'Profile | Eventra';
   const profileDesc = profile
     ? `${profileName}${profile.headline ? ' — ' + profile.headline : ''}. Connect on Eventra.`
@@ -207,9 +223,10 @@ export default function PublicProfilePage() {
   return (
     <div style={{ backgroundColor: '#0B2641', minHeight: '100vh' }}>
       <SEOHead
+        noindex={!!eventId || isGuestProfile}
         title={profileTitle}
         description={profileDesc}
-        canonicalUrl={canonicalUrl(`/profile/${userId}`)}
+        canonicalUrl={canonicalUrl(eventId ? `/event/${eventId}/${routeUserId ? `profile/${routeUserId}` : `participant/${attendeeId}`}` : `/profile/${userId}`)}
         ogImage={profile?.avatar_url || undefined}
       />
       <style>{`
@@ -313,7 +330,7 @@ export default function PublicProfilePage() {
         {/* Navigation/Actions Bar */}
         <div className="flex items-center justify-between" style={{ marginBottom: '24px' }}>
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => eventId ? navigate(`/event/${eventId}/attendees`) : navigate(-1)}
             className="flex items-center gap-2 transition-colors"
             style={{ color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer' }}
             onMouseEnter={(e) => e.currentTarget.style.color = '#FFFFFF'}
@@ -449,7 +466,7 @@ export default function PublicProfilePage() {
             </div>
 
             <div className="profile-actions" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-              {!isOwnProfile && (
+              {!isOwnProfile && !!userId && (
                 <>
                   <button
                     onClick={() => {
@@ -857,7 +874,7 @@ export default function PublicProfilePage() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {!isOwnProfile && (
+            {!isOwnProfile && !!userId && (
               <div style={{ background: 'linear-gradient(135deg, #0684F5 0%, #4A7C6D 100%)', padding: '24px', borderRadius: '12px', boxShadow: '0px 4px 20px rgba(6, 132, 245, 0.3)', color: '#FFFFFF' }}>
                 <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>{t('publicProfilePage.connect.title')}</h3>
                 <p style={{ fontSize: '14px', marginBottom: '20px', color: 'rgba(255, 255, 255, 0.9)' }}>{t('publicProfilePage.connect.subtitle')}</p>
@@ -985,7 +1002,7 @@ export default function PublicProfilePage() {
         </div>
       </div>
 
-      {showMeetingModal && (
+      {showMeetingModal && !eventId && (
         <div onClick={() => setShowMeetingModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '20px' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: '#0B2641', borderRadius: '16px', padding: '32px', maxWidth: '540px', width: '100%', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
             <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>{t('publicProfilePage.modal.title')}</h2>
@@ -998,6 +1015,8 @@ export default function PublicProfilePage() {
           </div>
         </div>
       )}
+
+      {eventId && userId && <BookMeetingModal isOpen={showMeetingModal} onClose={() => setShowMeetingModal(false)} recipient={{ id: userId, name: fullName }} currentUser={currentUser} eventId={eventId} />}
 
       {/* Auth Modals */}
       <ModalRegistrationEntry

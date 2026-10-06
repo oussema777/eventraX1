@@ -1,3 +1,4 @@
+import SessionOrderDialog from '../events/SessionOrderDialog';
 import { useState, useMemo } from 'react';
 import { Calendar, Users, Clock, TrendingUp, MapPin, Search, Filter, Download, Grid3x3, List, Plus, MoreVertical, Edit, Eye, Check, Star, Wrench, Coffee, X, ChevronDown, Tag, Code, Mic, GraduationCap, MoreHorizontal, Crown, FileText, CheckCircle2, Loader2, Trash2 } from 'lucide-react';
 import { useSessions, Session as SessionData } from '../../hooks/useSessions';
@@ -31,12 +32,13 @@ interface SessionsTabProps {
 
 export default function SessionsTab({ eventId, eventStartDate, eventEndDate }: SessionsTabProps) {
   const { t } = useI18n();
-  const { sessions: rawSessions, isLoading: sessionsLoading, createSession, updateSession, deleteSession } = useSessions(eventId);
+  const { sessions: rawSessions, isLoading: sessionsLoading, isError: sessionsError, refreshSessions, createSession, updateSession, deleteSession, reorderSessions, reloadSessions } = useSessions(eventId);
   const { speakers: allSpeakers, isLoading: speakersLoading } = useSpeakers(eventId);
   const { isPro: hasPro } = usePlan();
   const { eventData, isLoading: eventLoading } = useEventWizard(eventId);
   const eventMaxCapacity = eventData?.capacity_limit;
   
+  const [showOrderDialog, setShowOrderDialog] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedDay, setSelectedDay] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<string>('all');
@@ -108,9 +110,7 @@ export default function SessionsTab({ eventId, eventStartDate, eventEndDate }: S
     return matchesDay && matchesType && matchesSearch;
   });
 
-  const sortedSessions = [...filteredSessions].sort((a, b) => 
-    new Date(a.rawStartTime).getTime() - new Date(b.rawStartTime).getTime()
-  );
+  const sortedSessions = filteredSessions; // Already ordered by useSessions.
 
   // Group by time slots for timeline view
   const timelineGroups = useMemo(() => {
@@ -177,6 +177,13 @@ export default function SessionsTab({ eventId, eventStartDate, eventEndDate }: S
       await deleteSession(id);
     }
   };
+
+  if (sessionsError) {
+    return <div role="alert" className="p-8 text-white">
+      <p>{t('eventImprovements.sessionsError')}</p>
+      <button onClick={() => { void refreshSessions(); }}>{t('eventImprovements.retry')}</button>
+    </div>;
+  }
 
   if (sessionsLoading || speakersLoading || eventLoading) {
     return (
@@ -251,6 +258,10 @@ export default function SessionsTab({ eventId, eventStartDate, eventEndDate }: S
           </div>
           
           <div className="sessions-header-actions flex items-center gap-3">
+            <button type="button" onClick={() => setShowOrderDialog(true)} disabled={rawSessions.length < 2}
+              style={{ padding: '12px 18px', minHeight: 44, background: '#204B70', border: '1px solid #4B90C4', borderRadius: 8, color: '#fff', fontWeight: 600 }}>
+              {t('eventImprovements.reorder')}
+            </button>
             {/* Add Session Button */} 
             <button
               onClick={handleCreateNew}
@@ -486,6 +497,8 @@ export default function SessionsTab({ eventId, eventStartDate, eventEndDate }: S
         </div>
         )}
       </div>
+
+      {showOrderDialog && <SessionOrderDialog sessions={rawSessions} onReload={reloadSessions} onSave={reorderSessions} onClose={() => setShowOrderDialog(false)} />}
 
       {/* Add/Edit Session Modal */} 
       {showAddModal && (

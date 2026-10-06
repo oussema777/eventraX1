@@ -1,3 +1,4 @@
+import { compareAgendaSessions } from '../../utils/agendaDates';
 import { useState, useEffect, useRef } from 'react';
 import { 
   Calendar,
@@ -93,7 +94,7 @@ export default function SingleEventLanding() {
         .eq('event_id', eventId)
         .order('starts_at', { ascending: true });
       
-      setSessions(sessionData || []);
+      setSessions([...(sessionData || [])].sort(compareAgendaSessions));
 
       // 4. Fetch Sponsors
       const { data: sponsorData } = await supabase

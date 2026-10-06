@@ -7,17 +7,16 @@ export const REGISTRATION_SYSTEM_FIELDS = [
   { id: 'system-interests', type: 'multichoice', label: 'Interests', required: true },
   { id: 'system-sector', type: 'dropdown', label: 'Sector', required: true },
   { id: 'system-socialUrl', type: 'url', label: 'Social / Website URL', required: true },
-  { id: 'system-b2bOptIn', type: 'checkbox', label: 'Want B2B Matching?', required: false },
+  { id: 'system-b2bOptIn', type: 'checkbox', label: 'Want B2B Matching?', required: true },
 ] as const;
 
 export const isRegistrationSystemField = (id: string) =>
   REGISTRATION_SYSTEM_FIELDS.some(field => field.id === id);
 
-export const isRegistrationSystemFieldRequired = (id: string, overrides: Record<string, boolean> = {}) => {
-  if (id === 'system-fullName' || id === 'system-email') return true;
-  const field = REGISTRATION_SYSTEM_FIELDS.find(item => item.id === id);
-  return typeof overrides[id] === 'boolean' ? overrides[id] : (field?.required ?? false);
-};
+// Registration fields are required platform-wide, including forms saved with
+// older optional-field overrides. B2B requires an explicit yes/no answer.
+export const isRegistrationSystemFieldRequired = (id: string, _overrides: Record<string, boolean> = {}) =>
+  isRegistrationSystemField(id);
 
 // Older registration forms store name and email as custom fields, even though
 // the attendee page already renders them as built-in fields.

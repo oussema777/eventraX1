@@ -172,6 +172,8 @@ export default function App() {
               <Route path="/event/:eventId/sponsor-inquiry/:packageId" element={<SponsorshipInquiryPage />} />
               <Route path="/event/:eventId/exhibitors" element={<EventSectionPage type="exhibitors" />} />
               <Route path="/event/:eventId/attendees" element={<EventSectionPage type="attendees" />} />
+              <Route path="/event/:eventId/profile/:userId" element={<PublicProfilePage />} />
+              <Route path="/event/:eventId/participant/:attendeeId" element={<PublicProfilePage />} />
               <Route path="/event/:eventId/register" element={<EventRegistrationFlow />} />
             </Route>
             <Route path="/profile/:userId" element={<PublicProfilePage />} />

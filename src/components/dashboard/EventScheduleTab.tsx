@@ -1,3 +1,5 @@
+import SessionOrderControl from '../events/SessionOrderControl';
+import { compareAgendaSessions } from '../../utils/agendaDates';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -22,6 +24,7 @@ import {
   Plus,
   Trash2
 } from 'lucide-react';
+import DashboardSessionRoster from './DashboardSessionRoster';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
@@ -52,15 +55,6 @@ interface Session {
   registrationOpen: boolean;
   starts_at: string | null;
   ends_at: string | null;
-}
-
-interface AttendeeRow {
-  id: string;
-  name: string;
-  email: string | null;
-  company: string | null;
-  avatar_url: string | null;
-  photo_url: string | null;
 }
 
 const fmtTime = (iso: string | null) => {
@@ -105,6 +99,14 @@ const getCapacityColor = (attendees: number, capacity: number) => {
   return '#10B981';
 };
 
+function AgendaAvatar({ src, name, size = 28 }: { src?: string | null; name: string; size?: number }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  return <span aria-hidden="true" style={{ width: size, height: size, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, display: 'inline-grid', placeItems: 'center', background: '#244763', color: '#CBD5E1', fontSize: 12 }}>
+    {src && failed !== src ? <img src={src} alt="" onError={() => setFailed(src)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      : name && name !== 'TBD' ? name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toLocaleUpperCase() : <Users size={14} />}
+  </span>;
+}
+
 export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -129,8 +131,6 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
   const [openRowMenuId, setOpenRowMenuId] = useState<string | null>(null);
 
   const [attendeesOpen, setAttendeesOpen] = useState(false);
-  const [attendeesLoading, setAttendeesLoading] = useState(false);
-  const [attendees, setAttendees] = useState<AttendeeRow[]>([]);
   const [activeSession, setActiveSession] = useState<Session | null>(null);
 
   const [notifOpen, setNotifOpen] = useState(false);
@@ -205,21 +205,14 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
       try {
         setIsLoading(true);
 
-        const [{ data: ev }, { data: spk }, { data: sess }, { data: chk }, { data: regs }] = await Promise.all([
+        const [{ data: ev }, { data: spk }, { data: sess }, { data: regs }] = await Promise.all([
           supabase.from('events').select('*').eq('id', eventId).maybeSingle(),
           supabase.from('event_speakers').select('*').eq('event_id', eventId),
           supabase.from('event_sessions').select('*').eq('event_id', eventId).order('starts_at', { ascending: true }),
           supabase
-            .from('event_checkins')
-            .select('*')
-            .eq('event_id', eventId)
-            .eq('type', 'session')
-            .not('session_id', 'is', null)
-            .range(0, 4999),
-          supabase
             .from('event_attendee_sessions')
             .select('*, event_attendees!inner(status)')
-            .eq('event_attendees.status', 'approved')
+            .in('event_attendees.status', ['registered', 'approved'])
             .in('session_id', (await supabase.from('event_sessions').select('id').eq('event_id', eventId)).data?.map(s => s.id) || [])
         ]);
 
@@ -231,19 +224,9 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
         const speakerById = new Map<string, { name: string; photo: string }>();
         (spk || []).forEach((r: any) => {
           speakerById.set(r.id, {
-            name: r.full_name || 'TBD',
-            photo: r.avatar_url || ''
+            name: r.full_name || r.name || 'TBD',
+            photo: r.avatar_url || r.photo_url || ''
           });
-        });
-
-        const checkinsSets = new Map<string, Set<string>>();
-        (chk || []).forEach((r: any) => {
-          const sid = r.session_id as string | null;
-          const aid = r.attendee_id as string | null;
-          if (!sid || !aid) return;
-          const s = checkinsSets.get(sid) || new Set<string>();
-          s.add(aid);
-          checkinsSets.set(sid, s);
         });
 
         const registrationSets = new Map<string, Set<string>>();
@@ -256,18 +239,17 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
           registrationSets.set(sid, s);
         });
 
-        const mapped: Session[] = (sess || []).map((row: any) => {
+        const mapped: Session[] = [...(sess || [])].sort(compareAgendaSessions).map((row: any) => {
           const speakerIds: string[] = Array.isArray(row.speaker_ids) ? row.speaker_ids : [];
           const primarySpeaker = speakerIds.length ? speakerById.get(speakerIds[0]) : null;
 
           const speakerName = (row.speaker_name && String(row.speaker_name).trim()) ? String(row.speaker_name) : (primarySpeaker?.name || 'TBD');
-          const speakerPhoto = (row.speaker_photo && String(row.speaker_photo).trim()) ? String(row.speaker_photo) : (primarySpeaker?.photo || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=80&q=80');
+          const speakerPhoto = (row.speaker_photo && String(row.speaker_photo).trim()) ? String(row.speaker_photo) : (primarySpeaker?.photo || '');
 
           const day = Number.isFinite(row.day) ? Number(row.day) : 1;
 
           const registeredCount = registrationSets.get(row.id)?.size || 0;
-          const checkinCount = checkinsSets.get(row.id)?.size || 0;
-          const attendees = registeredCount || checkinCount || (Number.isFinite(row.attendees) ? Number(row.attendees) : 0);
+          const attendees = registeredCount;
           const capacity = Number.isFinite(row.capacity) ? Number(row.capacity) : 0;
 
           let status: SessionStatus = (row.status || 'confirmed') as SessionStatus;
@@ -375,64 +357,9 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
     return { total, confirmed, confirmedPct, nearlyFull, avg };
   }, [filteredSessions]);
 
-  const fetchSessionAttendees = async (sessionId: string) => {
-    if (!eventId) return;
-    try {
-      setAttendeesLoading(true);
-      // Fetch registrations first (primary source)
-      const { data: regData, error: regError } = await supabase
-        .from('event_attendee_sessions')
-        .select('*, event_attendees(*)')
-        .eq('session_id', sessionId)
-        .range(0, 499);
-
-      if (regError) throw regError;
-
-      // Also fetch check-ins to catch any walk-ins not in registration (edge case)
-      const { data: checkinData, error: checkinError } = await supabase
-        .from('event_checkins')
-        .select('*, event_attendees(*)')
-        .eq('event_id', eventId)
-        .eq('type', 'session')
-        .eq('session_id', sessionId)
-        .range(0, 499);
-      
-      if (checkinError) console.error('Error fetching checkins:', checkinError);
-
-      const seen = new Set<string>();
-      const rows: AttendeeRow[] = [];
-
-      const processRow = (r: any) => {
-        const a = r?.event_attendees;
-        if (!a?.id) return;
-        if (seen.has(a.id)) return;
-        seen.add(a.id);
-        rows.push({
-          id: a.id,
-          name: a.name,
-          email: a.email || null,
-          company: a.company || null,
-          avatar_url: a.avatar_url || null,
-          photo_url: a.photo_url || null
-        });
-      };
-
-      (regData || []).forEach(processRow);
-      (checkinData || []).forEach(processRow);
-
-      setAttendees(rows);
-    } catch (e) {
-      console.error(e);
-      setAttendees([]);
-    } finally {
-      setAttendeesLoading(false);
-    }
-  };
-
-  const openAttendees = async (s: Session) => {
+  const openAttendees = (s: Session) => {
     setActiveSession(s);
     setAttendeesOpen(true);
-    await fetchSessionAttendees(s.id);
   };
 
   const openNotification = (s: Session) => {
@@ -544,7 +471,7 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
           id: row.id,
           title: row.title || 'Untitled Session',
           speaker: (row.speaker_name && String(row.speaker_name).trim()) ? String(row.speaker_name) : (old?.speaker || 'TBD'),
-          speakerPhoto: (row.speaker_photo && String(row.speaker_photo).trim()) ? String(row.speaker_photo) : (old?.speakerPhoto || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=80&q=80'),
+          speakerPhoto: (row.speaker_photo && String(row.speaker_photo).trim()) ? String(row.speaker_photo) : (old?.speakerPhoto || ''),
           location: row.location || 'TBD',
           startTime: fmtTime(row.starts_at),
           endTime: fmtTime(row.ends_at),
@@ -833,6 +760,10 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
           </div>
         </div>
 
+        <SessionOrderControl eventId={eventId} onSaved={ids => {
+          const positions = new Map(ids.map((id, index) => [id, index]));
+          setSessions(previous => [...previous].sort((a, b) => (positions.get(a.id) ?? Infinity) - (positions.get(b.id) ?? Infinity)));
+        }} />
         <AgendaBookingSettings eventId={eventId} />
         {/* QUICK STATS */}
         <div className="grid grid-cols-4 gap-6 mb-8">
@@ -936,7 +867,7 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
                     <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(255, 255, 255, 0.1)' }} />
                   </div>
 
-                  <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))' }}>
+                  <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))' }}>
                     {sessionsInSlot.map((session) => {
                       const statusConfig = getStatusBadge(session.status);
                       const capacityColor = getCapacityColor(session.attendees, session.capacity);
@@ -944,95 +875,36 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
                       const StatusIcon = statusConfig.icon;
 
                       return (
-                        <div
-                          key={session.id}
-                          className="rounded-xl p-4 border transition-all group"
-                          style={{
-                            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                            borderColor: 'rgba(255, 255, 255, 0.1)',
-                            opacity: session.status === 'cancelled' ? 0.6 : 1
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
-                            e.currentTarget.style.borderColor = 'rgba(6, 132, 245, 0.3)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
-                            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                          }}
-                        >
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex-1">
-                              <h4 style={{ fontSize: '16px', fontWeight: 700, color: '#FFFFFF', marginBottom: '8px', lineHeight: '1.4' }}>{session.title}</h4>
-                              {!session.registrationOpen && <p className="mb-2 text-xs text-amber-200">{t('agendaBooking.closed')}</p>}
-                              <div className="flex items-center gap-2 mb-2">
-                                <img
-                                  src={session.speakerPhoto}
-                                  alt={session.speaker}
-                                  className="rounded-full"
-                                  style={{ width: '24px', height: '24px', objectFit: 'cover', border: '1px solid rgba(255, 255, 255, 0.15)' }}
-                                />
-                                <span style={{ fontSize: '14px', color: '#94A3B8' }}>{session.speaker}</span>
-                                <span style={{ color: '#6B7280' }}>•</span>
-                                <div className="flex items-center gap-1">
-                                  <MapPin size={14} style={{ color: '#6B7280' }} />
-                                  <span style={{ fontSize: '14px', color: '#94A3B8' }}>{session.location}</span>
-                                </div>
-                              </div>
-                              {session.track && (
-                                <span
-                                  className="inline-block px-2 py-1 rounded text-xs"
-                                  style={{ backgroundColor: 'rgba(6, 132, 245, 0.15)', color: '#0684F5', fontSize: '11px', fontWeight: 600 }}
-                                >
-                                  {session.track}
-                                </span>
-                              )}
-                            </div>
-                            <span
-                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full"
-                              style={{
-                                backgroundColor: statusConfig.bg,
-                                border: `1px solid ${statusConfig.border}`,
-                                color: statusConfig.color,
-                                fontSize: '12px',
-                                fontWeight: 600,
-                                flexShrink: 0
-                              }}
-                            >
-                              <StatusIcon size={12} />
-                              {statusConfig.label}
-                            </span>
+                        <article key={session.id} data-agenda-card style={{ display: 'flex', flexDirection: 'column', minWidth: 0, padding: 20, borderRadius: 14, border: '1px solid #304B63', background: '#17344E', opacity: session.status === 'cancelled' ? 0.6 : 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: statusConfig.color, fontSize: 12, fontWeight: 600 }}><StatusIcon size={14} />{statusConfig.label}</span>
+                            {session.track && <span style={{ color: '#93C5FD', fontSize: 12, overflowWrap: 'anywhere' }}>{session.track}</span>}
                           </div>
-
-                          <div className="mb-3">
-                            <div className="flex items-center justify-between mb-2">
-                              <span style={{ fontSize: '13px', color: '#94A3B8' }}>{t('manageEvent.agenda.list.columns.attendees')}</span>
-                              <span style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>{session.attendees} / {session.capacity || 0}</span>
+                          <h4 style={{ fontSize: 16, fontWeight: 700, color: '#fff', lineHeight: 1.5, marginBottom: 16, overflowWrap: 'anywhere' }}>{session.title}</h4>
+                          {!session.registrationOpen && <p style={{ color: '#FDE68A', fontSize: 12, marginBottom: 8 }}>{t('agendaBooking.closed')}</p>}
+                          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px 20px', color: '#AFC1D2', fontSize: 13, marginBottom: 20 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                              <AgendaAvatar src={session.speakerPhoto} name={session.speaker} />
+                              <span style={{ overflowWrap: 'anywhere' }}>{session.speaker === 'TBD' ? t('eventImprovements.speakerPending') : session.speaker}</span>
                             </div>
-                            <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}>
-                              <div className="h-full transition-all" style={{ width: `${Math.min(capacityPercentage, 100)}%`, backgroundColor: capacityColor }} />
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><MapPin size={14} style={{ flexShrink: 0 }} /><span>{session.location === 'TBD' ? t('eventImprovements.roomPending') : session.location}</span></div>
+                          </div>
+                          <div style={{ marginTop: 'auto' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
+                              <span style={{ color: '#AFC1D2', fontSize: 13 }}>{t('manageEvent.agenda.list.columns.attendees')}</span>
+                              <strong style={{ color: '#fff', fontSize: 14 }}>{session.attendees}{session.capacity > 0 ? ` / ${session.capacity}` : ''}</strong>
+                            </div>
+                            {session.capacity > 0 && <div style={{ height: 4, borderRadius: 4, overflow: 'hidden', background: '#304B63', marginBottom: 14 }}>
+                              <div style={{ height: '100%', width: `${Math.min(capacityPercentage, 100)}%`, background: capacityColor }} />
+                            </div>}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 14, borderTop: '1px solid #304B63' }}>
+                              <button onClick={() => openAttendees(session)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flex: 1, minHeight: 40, padding: '8px 12px', borderRadius: 8, background: '#204B70', border: '1px solid #32658E', color: '#D4EAFF', fontSize: 13, fontWeight: 600 }}>
+                                <Users size={16} />{t('manageEvent.agenda.list.rowActions.viewAttendees')}
+                              </button>
+                              <button aria-label={`${t('manageEvent.speakers.bulk.delete')}: ${session.title}`} title={t('manageEvent.speakers.bulk.delete')} onClick={() => handleDeleteSession(session.id)} style={{ display: 'grid', placeItems: 'center', flexShrink: 0, width: 40, height: 40, borderRadius: 8, border: '1px solid #475569', color: '#FCA5A5', background: 'transparent' }}><Trash2 size={16} /></button>
                             </div>
                           </div>
-
-                          <div className="flex items-center gap-2" style={{ paddingTop: '8px', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                            <button
-                              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded transition-colors"
-                              style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#EF4444', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
-                              onClick={(e) => { e.stopPropagation(); handleDeleteSession(session.id); }}
-                            >
-                              <Trash2 size={14} />
-                              {t('manageEvent.speakers.bulk.delete')}
-                            </button>
-                            <button
-                              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded transition-colors"
-                              style={{ backgroundColor: 'rgba(6, 132, 245, 0.15)', border: '1px solid rgba(6, 132, 245, 0.3)', color: '#0684F5', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
-                              onClick={(e) => { e.stopPropagation(); openAttendees(session); }}
-                            >
-                              <Eye size={14} />
-                              {t('manageEvent.agenda.list.rowActions.viewAttendees')}
-                            </button>
-                          </div>
-                        </div>
+                        </article>
                       );
                     })}
                   </div>
@@ -1096,7 +968,7 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
 
                     <div style={{ width: '15%', minWidth: '150px' }}>
                       <div className="flex items-center gap-2">
-                        <img src={session.speakerPhoto} alt={session.speaker} className="rounded-full" style={{ width: '32px', height: '32px', objectFit: 'cover', border: '1px solid rgba(255, 255, 255, 0.15)' }} />
+                        <AgendaAvatar src={session.speakerPhoto} name={session.speaker} size={32} />
                         <span style={{ fontSize: '14px', color: '#FFFFFF' }}>{session.speaker}</span>
                       </div>
                     </div>
@@ -1110,10 +982,10 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
 
                     <div style={{ width: '15%', minWidth: '160px' }}>
                       <div className="flex items-center justify-between mb-2">
-                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>{session.attendees} / {session.capacity || 0}</span>
-                        <span style={{ fontSize: '12px', color: '#94A3B8' }}>{Math.round(capacityPercentage)}%</span>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>{session.attendees}{session.capacity > 0 ? ` / ${session.capacity}` : ''}</span>
+                        <span style={{ fontSize: '12px', color: '#94A3B8' }}>{session.capacity > 0 ? `${Math.round(capacityPercentage)}%` : ''}</span>
                       </div>
-                      <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}>
+                      <div hidden={session.capacity <= 0} className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}>
                         <div className="h-full transition-all" style={{ width: `${Math.min(capacityPercentage, 100)}%`, backgroundColor: capacityColor }} />
                       </div>
                     </div>
@@ -1172,55 +1044,7 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
         )}
 
         {/* MODALS */}
-        {attendeesOpen && activeSession && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6" style={{ backgroundColor: 'rgba(11, 38, 65, 0.85)' }}>
-            <div className="w-full max-w-[820px] rounded-2xl border" style={{ backgroundColor: '#0D3052', borderColor: 'rgba(255, 255, 255, 0.12)' }}>
-              <div className="flex items-center justify-between px-6 py-5 border-b" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
-                <div>
-                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#FFFFFF' }}>{t('manageEvent.agenda.modals.attendees.title')}</div>
-                  <div style={{ fontSize: '13px', color: '#94A3B8', marginTop: '4px' }}>{activeSession.title}</div>
-                </div>
-                <button
-                  onClick={() => { setAttendeesOpen(false); setAttendees([]); }}
-                  className="w-10 h-10 rounded-lg flex items-center justify-center"
-                  style={{ backgroundColor: 'rgba(255, 255, 255, 0.06)', border: '1px solid rgba(255, 255, 255, 0.12)', color: '#FFFFFF' }}
-                >
-                  <X size={18} />
-                </button>
-              </div>
-              <div className="p-6">
-                {attendeesLoading ? (
-                  <div style={{ color: '#94A3B8' }}>{t('manageEvent.agenda.modals.attendees.loading')}</div>
-                ) : (
-                  <div className="rounded-xl border" style={{ borderColor: 'rgba(255, 255, 255, 0.1)', overflow: 'hidden' }}>
-                    <div className="flex px-5 py-3" style={{ backgroundColor: 'rgba(255, 255, 255, 0.06)', color: '#94A3B8', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>
-                      <div style={{ width: '45%' }}>{t('manageEvent.agenda.modals.attendees.columns.attendee')}</div>
-                      <div style={{ width: '35%' }}>{t('manageEvent.agenda.modals.attendees.columns.company')}</div>
-                      <div style={{ width: '20%' }}>{t('manageEvent.agenda.modals.attendees.columns.email')}</div>
-                    </div>
-                    {attendees.map((a) => (
-                      <div key={a.id} className="flex items-center px-5 py-4 border-t" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
-                        <div style={{ width: '45%' }} className="flex items-center gap-3">
-                          <img
-                            src={a.avatar_url || a.photo_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=80&q=80'}
-                            className="rounded-full"
-                            style={{ width: '34px', height: '34px', objectFit: 'cover', border: '1px solid rgba(255, 255, 255, 0.15)' }}
-                          />
-                          <div style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '14px' }}>{a.name}</div>
-                        </div>
-                        <div style={{ width: '35%', color: '#94A3B8', fontSize: '14px' }}>{a.company || '—'}</div>
-                        <div style={{ width: '20%', color: '#94A3B8', fontSize: '14px' }}>{a.email || '—'}</div>
-                      </div>
-                    ))}
-                    {!attendees.length && (
-                      <div className="px-5 py-6" style={{ color: '#94A3B8' }}>{t('manageEvent.agenda.modals.attendees.empty')}</div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+        {attendeesOpen && activeSession && eventId && <DashboardSessionRoster key={`${eventId}:${activeSession.id}`} eventId={eventId} session={activeSession} onClose={() => setAttendeesOpen(false)} />}
 
         {notifOpen && activeSession && (
           <div className="fixed inset-0 z-[210] flex items-center justify-center p-6" style={{ backgroundColor: 'rgba(11, 38, 65, 0.85)' }}>

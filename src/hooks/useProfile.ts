@@ -115,6 +115,8 @@ async function fetchProfileData(userId: string, currentUser: any): Promise<UserP
     }
   }
 
+  if (!profileData) return null;
+
   // 2. Education & Certs in parallel (non-blocking — missing tables shouldn't break profile)
   let education: any[] = [];
   let certifications: any[] = [];
@@ -136,7 +138,7 @@ async function fetchProfileData(userId: string, currentUser: any): Promise<UserP
   };
 }
 
-export function useProfile(targetUserId?: string) {
+export function useProfile(targetUserId?: string, enabled = true) {
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
   const userId = targetUserId || currentUser?.id;
@@ -145,7 +147,7 @@ export function useProfile(targetUserId?: string) {
   const { data: profile = null, isLoading, error: queryError } = useQuery({
     queryKey,
     queryFn: () => fetchProfileData(userId!, currentUser),
-    enabled: !!userId,
+    enabled: enabled && !!userId,
   });
 
   const error = queryError ? (queryError as Error).message : null;

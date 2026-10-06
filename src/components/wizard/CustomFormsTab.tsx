@@ -540,10 +540,10 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
         form_type: builderType || 'custom',
         status: builderStatus || 'draft',
         schema: {
-          fields: formFields || [],
+          fields: builderType === 'registration' ? formFields.map(field => ({ ...field, required: true })) : formFields || [],
           ...(builderType === 'registration' ? {
             fieldOrder: getRegistrationFieldOrder(formFields.filter(isVisibleRegistrationCustomField).map(field => field.id), registrationFieldOrder),
-            systemRequired
+            systemRequired: Object.fromEntries(REGISTRATION_SYSTEM_FIELDS.map(field => [field.id, true]))
           } : {})
         }
       };
@@ -1237,7 +1237,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
     const builderFields = builderType === 'registration'
       ? getRegistrationFieldOrder(formFields.filter(isVisibleRegistrationCustomField).map(field => field.id), registrationFieldOrder)
           .map(id => registrationFields.find(field => field.id === id) || formFields.find(field => field.id === id))
-          .filter((field): field is CustomField => !!field)
+          .filter((field): field is CustomField => !!field).map(field => ({ ...field, required: true }))
       : formFields;
     return (
       <div className="form-builder-container" style={{ backgroundColor: '#0B2641', minHeight: '100%', paddingBottom: '40px' }}>
@@ -1807,8 +1807,8 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
                               <label className="mb-3 inline-flex items-center gap-2 text-xs text-slate-300">
                                 <input
                                   type="checkbox"
-                                  checked={field.required}
-                                  onChange={() => setSystemRequired(prev => ({ ...prev, [field.id]: !field.required }))}
+                                  checked={true}
+                                  disabled
                                   className="accent-[#0684F5]"
                                 />
                                 {t('wizard.step3.customForms.fieldSettings.labels.requiredField')}
@@ -2123,6 +2123,7 @@ export default function CustomFormsTab({ eventId }: CustomFormsTabProps) {
         {/* Field Settings Modal */}
         <FieldSettingsModal
           isOpen={showFieldEditor}
+          forceRequired={builderType === 'registration'}
           field={editingField}
           onSave={handleSaveField}
           onDelete={(id) => {
