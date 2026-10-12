@@ -24,7 +24,11 @@ export default {
   "deleteOffering": "Delete offering",
   "type": "Type",
   "product": "Product",
-  "service": "Service"
+  "service": "Service",
+  "noCountries": "No countries match your search.",
+  "selectSector": "Select a sector",
+  "noSecondary": "No secondary sector",
+  "subsector": "Subsector (optional)"
 },
     eventImprovements: {
       answerYes: "Yes",

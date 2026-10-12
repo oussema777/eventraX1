@@ -1,3 +1,4 @@
+import { businessCountryOptions, searchBusinessCountries, normalizeBusinessCountries, mergeBusinessOptions, replaceBusinessSectors, type BusinessOption } from '../../utils/businessOptions';
 import { useState, useEffect, useRef, type ChangeEvent, type KeyboardEvent } from 'react';
 import { businessContactError } from '../../utils/businessValidation';
 import { 
@@ -61,25 +62,11 @@ interface BusinessDocument {
 }
 
 const SUGGESTED_TAGS = ['SaaS', 'EventTech', 'Registration', 'Analytics', 'B2B'];
-const COUNTRY_OPTIONS = [
-  'United States',
-  'Canada',
-  'United Kingdom',
-  'Germany',
-  'France',
-  'Netherlands',
-  'Spain',
-  'United Arab Emirates',
-  'Saudi Arabia',
-  'Qatar',
-  'Singapore',
-  'Australia'
-];
 
 export default function BusinessManagementDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { t } = useI18n();
+  const { t, tList, locale } = useI18n();
   const [activeTab, setActiveTab] = useState<TabKey>('dashboard');
   const [business, setBusiness] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -89,6 +76,7 @@ export default function BusinessManagementDashboard() {
   const [showAISuggestion, setShowAISuggestion] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const savingBusiness = useRef(false);
   const [loadError, setLoadError] = useState(false);
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [searchEmail, setSearchEmail] = useState('');
@@ -214,9 +202,9 @@ export default function BusinessManagementDashboard() {
       if (data) {
         setBusiness(data);
         setOriginalDescription(data.description || '');
-        setSelectedCountries(data.branding?.reach_countries || []);
-        setPrimarySector(data.branding?.primary_sector || data.sectors?.[0] || '');
-        setSecondarySector(data.branding?.secondary_sector || data.sectors?.[1] || '');
+        setSelectedCountries(normalizeBusinessCountries(data.branding?.reach_countries));
+        setPrimarySector(data.branding?.primary_sector ?? data.sectors?.[0] ?? '');
+        setSecondarySector(data.branding?.secondary_sector ?? data.sectors?.[1] ?? '');
         setAccentColor(data.branding?.accent_color || '#0684F5');
         setLayoutStyle(data.branding?.layout_style === 'modern' ? 'modern' : 'standard');
         const [offeringsRes, docsRes, membersRes] = await Promise.all([
@@ -354,60 +342,49 @@ export default function BusinessManagementDashboard() {
 
   const updateBranding = (updates: Record<string, any>) => {
     const nextBranding = { ...(business?.branding || {}), ...updates };
-    handleUpdateBusiness({ branding: nextBranding });
+    return handleUpdateBusiness({ branding: nextBranding });
   };
 
-  const buildSectorList = (primary: string, secondary: string) => {
-    const base = [primary, secondary].filter(Boolean);
-    const existing = business?.sectors || [];
-    const extras = existing.filter((sector: string) => !base.includes(sector));
-    return [...base, ...extras];
-  };
+  const buildSectorList = (primary: string, secondary: string) =>
+    replaceBusinessSectors(business?.sectors || [], primarySector, secondarySector, primary, secondary);
 
-  const toggleCountry = (country: string) => {
+  const toggleCountry = async (country: string) => {
     const next = selectedCountries.includes(country)
-      ? selectedCountries.filter((item) => item !== country)
-      : [...selectedCountries, country];
-    setSelectedCountries(next);
-    updateBranding({ reach_countries: next });
+      ? selectedCountries.filter(item => item !== country) : [...selectedCountries, country];
+    if (await updateBranding({ reach_countries: next })) setSelectedCountries(next);
   };
 
-  const clearCountries = () => {
-    setSelectedCountries([]);
-    updateBranding({ reach_countries: [] });
+  const clearCountries = async () => {
+    if (await updateBranding({ reach_countries: [] })) setSelectedCountries([]);
   };
 
-  const handlePrimarySectorChange = (event: ChangeEvent<HTMLSelectElement>) => {
+  const handlePrimarySectorChange = async (event: ChangeEvent<HTMLSelectElement>) => {
     const next = event.target.value;
-    setPrimarySector(next);
-    handleUpdateBusiness({
-      sectors: buildSectorList(next, secondarySector),
+    const sectors = buildSectorList(next, secondarySector);
+    if (await handleUpdateBusiness({ sectors,
       branding: { ...(business?.branding || {}), primary_sector: next, secondary_sector: secondarySector }
-    });
+    })) { setPrimarySector(next); setSectorTags(sectors); }
   };
 
-  const handleSecondarySectorChange = (event: ChangeEvent<HTMLSelectElement>) => {
+  const handleSecondarySectorChange = async (event: ChangeEvent<HTMLSelectElement>) => {
     const next = event.target.value;
-    setSecondarySector(next);
-    handleUpdateBusiness({
-      sectors: buildSectorList(primarySector, next),
+    const sectors = buildSectorList(primarySector, next);
+    if (await handleUpdateBusiness({ sectors,
       branding: { ...(business?.branding || {}), primary_sector: primarySector, secondary_sector: next }
-    });
+    })) { setSecondarySector(next); setSectorTags(sectors); }
   };
 
-  const handleAccentColorChange = (color: string) => {
-    setAccentColor(color);
-    updateBranding({ accent_color: color });
+  const handleAccentColorChange = async (color: string) => {
+    if (await updateBranding({ accent_color: color })) setAccentColor(color);
   };
 
-  const handleLayoutStyleChange = (style: 'standard' | 'modern') => {
-    setLayoutStyle(style);
-    updateBranding({ layout_style: style });
+  const handleLayoutStyleChange = async (style: 'standard' | 'modern') => {
+    if (await updateBranding({ layout_style: style })) setLayoutStyle(style);
   };
 
-  const handleApplySuggestedTags = () => {
+  const handleApplySuggestedTags = async () => {
     const next = Array.from(new Set([...(business?.sectors || []), ...SUGGESTED_TAGS]));
-    handleUpdateBusiness({ sectors: next });
+    if (await handleUpdateBusiness({ sectors: next })) setSectorTags(next);
   };
 
   const handlePublicListingToggle = async (nextValue: boolean) => {
@@ -418,7 +395,7 @@ export default function BusinessManagementDashboard() {
       updates.verification_status = 'pending';
     }
     
-    await handleUpdateBusiness(updates);
+    if (!await handleUpdateBusiness(updates)) return;
     if (business?.owner_profile_id) {
       try {
         await createNotification({
@@ -515,11 +492,14 @@ export default function BusinessManagementDashboard() {
     }
     const error = businessContactError(businessEmail, website, !!business.is_public);
     if (error) { toast.error(t(error)); return; }
+    const nextPrimary = sectorTags.includes(primarySector) ? primarySector : sectorTags[0] || '';
+    const nextSecondary = secondarySector !== nextPrimary && sectorTags.includes(secondarySector) ? secondarySector : '';
     const saved = await handleUpdateBusiness({
       company_name: companyName.trim(),
       company_size: companySize.trim(),
       description: description.trim(),
       sectors: sectorTags,
+      branding: { ...(business.branding || {}), primary_sector: nextPrimary, secondary_sector: nextSecondary },
       email: businessEmail.trim(),
       phone: businessPhone.trim(),
       website: website.trim(),
@@ -527,7 +507,11 @@ export default function BusinessManagementDashboard() {
       logo_url: logoUrl,
       cover_url: coverUrl
     });
-    if (saved) setOriginalDescription(description.trim());
+    if (saved) {
+      setOriginalDescription(description.trim());
+      setPrimarySector(nextPrimary);
+      setSecondarySector(nextSecondary);
+    }
   };
 
   const getMetricValue = (key: string) => {
@@ -814,7 +798,8 @@ export default function BusinessManagementDashboard() {
   };
 
   const handleUpdateBusiness = async (updates: any) => {
-    if (isSaving) return false;
+    if (savingBusiness.current) return false;
+    savingBusiness.current = true;
     try {
       setIsSaving(true);
       const { error } = await supabase.from('business_profiles').update(updates).eq('id', business.id);
@@ -826,6 +811,7 @@ export default function BusinessManagementDashboard() {
       toast.error(sanitizeError(error, t('businessFlows.saveFailed')));
       return false;
     } finally {
+      savingBusiness.current = false;
       setIsSaving(false);
     }
   };
@@ -850,9 +836,10 @@ export default function BusinessManagementDashboard() {
   const offeringsNeeded = Math.max(0, 2 - dashboardCounts.offerings);
 
   const statusConfig = getStatusConfig(business.is_public, business.verification_status);
-  const filteredCountries = COUNTRY_OPTIONS.filter((country) =>
-    country.toLowerCase().includes(countrySearch.toLowerCase())
-  );
+  const countryOptions = businessCountryOptions(locale, selectedCountries);
+  const countryLabels = new Map(countryOptions.map(option => [option.value, option.label]));
+  const filteredCountries = searchBusinessCountries(countryOptions, countrySearch);
+  const sectorOptions = mergeBusinessOptions(tList<BusinessOption>('profile.options.industries'), [...(business.sectors || []), ...sectorTags, primarySector, secondarySector]);
   const analyticsViews = getMetricValue('views');
   const analyticsLeads = getMetricValue('leads');
   const analyticsSaved = getMetricValue('saved');
@@ -1338,6 +1325,7 @@ export default function BusinessManagementDashboard() {
 
         {/* Main Content Area */}
         <main className="business-dashboard__main flex-1" style={{ padding: '40px' }}>
+          <datalist id="dashboard-business-sectors">{sectorOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</datalist>
           {/* Profile Details Tab */}
           {activeTab === 'profile' && (
             <div className="max-w-4xl space-y-8">
@@ -1382,6 +1370,7 @@ export default function BusinessManagementDashboard() {
                     </label>
                     <div className="relative">
                       <select
+                        aria-label={t('businessDashboard.profile.companySize')}
                         value={companySize}
                         onChange={(e) => setCompanySize(e.target.value)}
                         className="w-full px-4 rounded-lg border outline-none appearance-none transition-colors"
@@ -1394,11 +1383,12 @@ export default function BusinessManagementDashboard() {
                         }}
                       >
                         <option value="">{t('businessProfileWizard.essentials.companySizePlaceholder')}</option>
-                        <option value="1-10">1-10 employees</option>
-                        <option value="11-50">11-50 employees</option>
-                        <option value="51-200">51-200 employees</option>
-                        <option value="201-500">201-500 employees</option>
-                        <option value="500+">500+ employees</option>
+                        {companySize && !['1-10','11-50','51-200','201-500','500+'].includes(companySize) && <option value={companySize}>{companySize}</option>}
+                        <option value="1-10">{t('businessFlows.sizes.s1')}</option>
+                        <option value="11-50">{t('businessFlows.sizes.s2')}</option>
+                        <option value="51-200">{t('businessFlows.sizes.s3')}</option>
+                        <option value="201-500">{t('businessFlows.sizes.s4')}</option>
+                        <option value="500+">{t('businessFlows.sizes.s5')}</option>
                       </select>
                       <ChevronDown
                         size={20}
@@ -1534,6 +1524,7 @@ export default function BusinessManagementDashboard() {
                       type="text"
                       placeholder={t('businessProfileWizard.sectors.placeholder')}
                       value={sectorInput}
+                      list="dashboard-business-sectors"
                       onChange={(e) => setSectorInput(e.target.value)}
                       onKeyDown={handleSectorKeyPress}
                       className="w-full bg-transparent border-none outline-none"
@@ -2267,6 +2258,9 @@ export default function BusinessManagementDashboard() {
                         backgroundColor: 'rgba(255,255,255,0.05)',
                         borderColor: 'rgba(255,255,255,0.1)'
                       }}
+                      role="button" tabIndex={0} aria-expanded={isCountryMenuOpen}
+                      aria-label={t('businessDashboard.visibility.geographic.label')}
+                      onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setIsCountryMenuOpen(open => !open); } }}
                       onClick={() => setIsCountryMenuOpen((prev) => !prev)}
                     >
                       <div className="flex items-center justify-between">
@@ -2283,7 +2277,7 @@ export default function BusinessManagementDashboard() {
                               className="px-3 py-1 rounded-full text-xs"
                               style={{ backgroundColor: 'rgba(6, 132, 245, 0.2)', color: '#BBD8FF', fontWeight: 600 }}
                             >
-                              {country}
+                              {countryLabels.get(country) || country}
                             </span>
                           ))}
                         </div>
@@ -2302,6 +2296,7 @@ export default function BusinessManagementDashboard() {
                           <input
                             type="text"
                             placeholder={t('businessDashboard.visibility.geographic.search')}
+                            aria-label={t('businessDashboard.visibility.geographic.search')}
                             value={countrySearch}
                             onChange={(e) => setCountrySearch(e.target.value)}
                             className="w-full rounded-lg px-3 py-2 outline-none"
@@ -2313,7 +2308,8 @@ export default function BusinessManagementDashboard() {
                             }}
                           />
                           <button
-                            onClick={clearCountries}
+                            onClick={() => void clearCountries()}
+                            disabled={isSaving || !selectedCountries.length}
                             className="px-3 py-2 rounded-lg text-xs font-semibold"
                             style={{
                               backgroundColor: 'rgba(255,255,255,0.08)',
@@ -2324,11 +2320,14 @@ export default function BusinessManagementDashboard() {
                             {t('businessDashboard.visibility.geographic.clear')}
                           </button>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          {filteredCountries.map((country) => (
+                        <div className="grid grid-cols-2 gap-2" style={{ maxHeight: '320px', overflowY: 'auto' }}>
+                          {!filteredCountries.length && <p role="status">{t('businessFlows.noCountries')}</p>}
+                          {filteredCountries.map(({ value: country, label }) => (
                             <button
                               key={country}
-                              onClick={() => toggleCountry(country)}
+                              onClick={() => void toggleCountry(country)}
+                              aria-pressed={selectedCountries.includes(country)}
+                              disabled={isSaving}
                               className="flex items-center justify-between rounded-lg px-3 py-2"
                               style={{
                                 backgroundColor: selectedCountries.includes(country)
@@ -2339,7 +2338,7 @@ export default function BusinessManagementDashboard() {
                                 fontSize: '13px'
                               }}
                             >
-                              <span>{country}</span>
+                              <span>{label}</span>
                               {selectedCountries.includes(country) && (
                                 <Check size={14} style={{ color: '#0684F5' }} />
                               )}
@@ -2376,12 +2375,13 @@ export default function BusinessManagementDashboard() {
                           fontSize: '14px',
                           outline: 'none'
                         }}
+                        aria-label={t('businessDashboard.visibility.sectors.primary')}
+                        disabled={isSaving}
                         value={primarySector}
                         onChange={handlePrimarySectorChange}
                       >
-                        <option value="technology">Technology</option>
-                        <option value="marketing">Marketing</option>
-                        <option value="finance">Finance</option>
+                        <option value="">{t('businessFlows.selectSector')}</option>
+                        {sectorOptions.filter(option => option.value !== secondarySector || option.value === primarySector).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                       </select>
                     </div>
                     <div>
@@ -2397,12 +2397,13 @@ export default function BusinessManagementDashboard() {
                           fontSize: '14px',
                           outline: 'none'
                         }}
+                        aria-label={t('businessDashboard.visibility.sectors.secondary')}
+                        disabled={isSaving}
                         value={secondarySector}
                         onChange={handleSecondarySectorChange}
                       >
-                        <option value="">Select secondary sector</option>
-                        <option value="marketing-services">Marketing Services</option>
-                        <option value="consulting">Consulting</option>
+                        <option value="">{t('businessFlows.noSecondary')}</option>
+                        {sectorOptions.filter(option => option.value !== primarySector || option.value === secondarySector).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                       </select>
                     </div>
                   </div>

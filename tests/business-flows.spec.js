@@ -2,13 +2,14 @@ import { test, expect } from '@playwright/test';
 import en from '../src/i18n/locales/en.ts';
 import fr from '../src/i18n/locales/fr.ts';
 import ar from '../src/i18n/locales/ar.ts';
+import { businessCountryOptions, normalizeBusinessCountries, searchBusinessCountries, businessCurrencyOptions } from '../src/utils/businessOptions.ts';
 
 const user = { id: '11111111-1111-4111-8111-111111111111', email: 'owner@example.test', aud: 'authenticated', role: 'authenticated', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' };
 const businessId = '22222222-2222-4222-8222-222222222222';
 const base = { id: businessId, owner_profile_id: user.id, company_name: 'Test Business', company_size: '11-50', description: 'Company description', sectors: ['Technology'], email: user.email, is_public: false, verification_status: 'pending' };
 
 async function setup(page, { locale = 'en', existing = false } = {}) {
-  const state = { profile: existing ? { ...base } : null, offerings: [], docs: [], writes: [], failPublish: false, failLoad: false, failUpload: false, uploadCount: 0 };
+  const state = { profile: existing ? { ...base } : null, offerings: [], docs: [], writes: [], failPublish: false, failSave: false, saveDelay: 0, failLoad: false, failUpload: false, uploadCount: 0 };
   await page.addInitScript(locale => { localStorage.setItem('eventra_locale', locale); localStorage.setItem('profileSetupDismissed', 'true'); }, locale);
   await page.route('**/auth/v1/**', r => r.fulfill({ json: user }));
   await page.route('**/functions/v1/**', r => r.fulfill({ json: {} }));
@@ -26,6 +27,8 @@ async function setup(page, { locale = 'en', existing = false } = {}) {
       const payload = Array.isArray(raw) ? raw[0] : raw;
       state.writes.push({ table, method, payload });
       if (table === 'business_profiles') {
+        if (state.saveDelay) await new Promise(resolve => setTimeout(resolve, state.saveDelay));
+        if (state.failSave) return route.fulfill({ status: 503, json: { message: 'Unavailable' } });
         if (state.failPublish && payload.is_public) return route.fulfill({ status: 500, json: { message: 'Cannot save' } });
         state.profile = { ...state.profile, id: businessId, ...payload };
         data = state.profile;
@@ -137,6 +140,7 @@ test('offerings can be created, edited, validated, and deleted in the wizard', a
   await expect(page.getByText(en.businessFlows.invalidPrice)).toBeVisible();
   expect(state.offerings).toHaveLength(0);
   await modal.getByLabel('Price', { exact: true }).fill('125');
+  await modal.getByRole('combobox', { name: 'Currency', exact: true }).selectOption('TND');
   await modal.getByRole('button', { name: 'Add Offering', exact: true }).click();
   await expect(modal).toHaveCount(0);
   await page.getByRole('button', { name: 'Edit offering', exact: true }).click();
@@ -146,7 +150,7 @@ test('offerings can be created, edited, validated, and deleted in the wizard', a
   await modal.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(modal).toHaveCount(0);
   expect(state.offerings).toHaveLength(1);
-  expect(state.offerings[0]).toMatchObject({ name: 'Strategy consulting', type: 'service', price: 125 });
+  expect(state.offerings[0]).toMatchObject({ name: 'Strategy consulting', type: 'service', price: 125, currency: 'TND' });
   await page.getByRole('button', { name: 'Delete offering', exact: true }).click();
   await expect(page.getByText(en.businessProfileWizard.offerings.emptyTitle)).toBeVisible();
   expect(state.offerings).toHaveLength(0);
@@ -223,4 +227,103 @@ test('dashboard request failures do not pretend the saved business is missing', 
   state.failLoad = false;
   await page.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Test Business', exact: true })).toBeVisible();
+});
+
+test('country options cover the full region list and search across languages and codes', () => {
+  const options = businessCountryOptions('fr');
+  expect(options.length).toBeGreaterThanOrEqual(249);
+  for (const query of ['TN', 'Tunisie', 'Tunisia', 'تونس']) {
+    expect(searchBusinessCountries(options, query).map(option => option.value)).toContain('Tunisia');
+  }
+  expect(normalizeBusinessCountries(['TN', 'Tunisie', 'Tunisia', 'FR', 'Custom region'])).toEqual(['Tunisia', 'France', 'Custom region']);
+  expect(businessCurrencyOptions()).toEqual(expect.arrayContaining(['TND', 'DZD', 'MAD', 'USD', 'EUR']));
+});
+
+test('French geographic reach includes Tunisia, saves, reloads, and clears', async ({ page }) => {
+  const state = await setup(page, { existing: true, locale: 'fr' });
+  await page.goto('/business-management');
+  await page.getByRole('button', { name: fr.businessDashboard.tabs.visibility, exact: true }).click();
+  await page.getByRole('button', { name: fr.businessDashboard.visibility.geographic.label, exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Tunisie', exact: true })).toBeAttached();
+  const search = page.getByRole('textbox', { name: fr.businessDashboard.visibility.geographic.search });
+  await search.fill('Tunisie');
+  await page.getByRole('button', { name: 'Tunisie', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Tunisie', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  expect(state.profile.branding.reach_countries).toEqual(['Tunisia']);
+  await page.reload();
+  await page.getByRole('button', { name: fr.businessDashboard.tabs.visibility, exact: true }).click();
+  await page.getByRole('button', { name: fr.businessDashboard.visibility.geographic.label, exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Tunisie', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: fr.businessDashboard.visibility.geographic.clear, exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Tunisie', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  expect(state.profile.branding.reach_countries).toEqual([]);
+  await search.fill('zzzzzz');
+  await expect(page.getByRole('status')).toContainText(fr.businessFlows.noCountries);
+});
+
+test('failed and delayed country saves never display unsaved selections as saved', async ({ page }) => {
+  const state = await setup(page, { existing: true });
+  await page.goto('/business-management');
+  await page.getByRole('button', { name: en.businessDashboard.tabs.visibility, exact: true }).click();
+  await page.getByRole('button', { name: en.businessDashboard.visibility.geographic.label, exact: true }).click();
+  await page.getByRole('textbox', { name: en.businessDashboard.visibility.geographic.search }).fill('Tunisia');
+  const country = page.getByRole('button', { name: 'Tunisia', exact: true });
+  state.failSave = true; state.saveDelay = 300;
+  await country.click();
+  await expect(country).toBeDisabled();
+  await expect(page.getByText(en.businessFlows.saveFailed)).toBeVisible();
+  await expect(country).toHaveAttribute('aria-pressed', 'false');
+  state.failSave = false;
+  await country.click();
+  await expect(country).toHaveAttribute('aria-pressed', 'true');
+  expect(state.profile.branding.reach_countries).toEqual(['Tunisia']);
+});
+
+test('both sector selectors expose the full taxonomy, preserve extras, and clear secondary permanently', async ({ page }) => {
+  const state = await setup(page, { existing: true, locale: 'fr' });
+  state.profile.sectors = ['technology', 'consulting', 'Custom lab'];
+  state.profile.branding = { primary_sector: 'technology', secondary_sector: 'consulting' };
+  await page.goto('/business-management');
+  await page.getByRole('button', { name: fr.businessDashboard.tabs.visibility, exact: true }).click();
+  const primary = page.getByRole('combobox', { name: fr.businessDashboard.visibility.sectors.primary, exact: true });
+  const secondary = page.getByRole('combobox', { name: fr.businessDashboard.visibility.sectors.secondary, exact: true });
+  await expect(primary).toHaveValue('technology');
+  await expect(secondary).toHaveValue('consulting');
+  expect(await primary.locator('option').count()).toBeGreaterThanOrEqual(29);
+  expect(await secondary.locator('option').count()).toBeGreaterThanOrEqual(29);
+  state.failSave = true;
+  await primary.selectOption('Agriculture & Food Production');
+  await expect(page.getByText(fr.businessFlows.saveFailed)).toBeVisible();
+  await expect(primary).toHaveValue('technology');
+  state.failSave = false;
+  await primary.selectOption('Agriculture & Food Production');
+  await expect(primary).toHaveValue('Agriculture & Food Production');
+  await secondary.selectOption('Healthcare & Pharmaceuticals');
+  await expect(secondary).toHaveValue('Healthcare & Pharmaceuticals');
+  expect(state.profile.sectors).toEqual(['Agriculture & Food Production', 'Healthcare & Pharmaceuticals', 'Custom lab']);
+  await secondary.selectOption('');
+  await expect(secondary).toHaveValue('');
+  expect(state.profile.sectors).toEqual(['Agriculture & Food Production', 'Custom lab']);
+  await page.reload();
+  await page.getByRole('button', { name: fr.businessDashboard.tabs.visibility, exact: true }).click();
+  await expect(primary).toHaveValue('Agriculture & Food Production');
+  await expect(secondary).toHaveValue('');
+});
+
+test('product inputs offer all sectors, custom subsectors, and local currencies', async ({ page }) => {
+  const state = await setup(page, { existing: true });
+  state.offerings = [{ id: 'offering1', business_id: businessId, type: 'service', name: 'Consulting', sector: 'Custom legacy sector', tags: ['Legacy specialty'], price: 125, currency: 'TND', images: [] }];
+  await page.goto('/business-management');
+  await page.getByRole('button', { name: 'Products & Services', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit offering', exact: true }).click();
+  const modal = page.getByRole('dialog');
+  const sector = modal.getByRole('combobox', { name: en.productsManagement.form.sector, exact: true });
+  await expect(sector).toHaveValue('Custom legacy sector');
+  expect(await sector.locator('option').count()).toBeGreaterThanOrEqual(29);
+  await expect(modal.getByRole('combobox', { name: 'Currency', exact: true })).toHaveValue('TND');
+  await sector.selectOption('Agriculture & Food Production');
+  await modal.getByLabel(en.businessFlows.subsector, { exact: true }).fill('Olive oil');
+  await modal.getByRole('button', { name: 'Update Product', exact: true }).click();
+  await expect(modal).toHaveCount(0);
+  expect(state.offerings[0]).toMatchObject({ sector: 'Agriculture & Food Production', type: 'service', currency: 'TND', tags: ['Olive oil'] });
 });

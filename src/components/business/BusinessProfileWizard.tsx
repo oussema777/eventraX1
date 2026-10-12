@@ -1,3 +1,4 @@
+import { businessCurrencyOptions, mergeBusinessOptions, type BusinessOption } from '../../utils/businessOptions';
 import { useState, KeyboardEvent, useEffect, useRef } from 'react';
 import { 
   X, 
@@ -32,7 +33,7 @@ type WizardStep = 1 | 2 | 3 | 4;
 
 export default function BusinessProfileWizard() {
   const navigate = useNavigate();
-  const { t } = useI18n();
+  const { t, tList } = useI18n();
   const [currentStep, setCurrentStep] = useState<WizardStep>(1);
   const [showAddItemModal, setShowAddItemModal] = useState(false);
   
@@ -267,7 +268,8 @@ export default function BusinessProfileWizard() {
     { number: 4, label: t('businessProfileWizard.steps.identity'), isActive: currentStep === 4, isCompleted: false }
   ];
 
-  const currencies = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY'];
+  const currencies = businessCurrencyOptions(newItemCurrency);
+  const sectorOptions = mergeBusinessOptions(tList<BusinessOption>('profile.options.industries'), sectorTags);
   const companySizeOptions = [
     { value: '1-10', label: t('businessFlows.sizes.s1') },
     { value: '11-50', label: t('businessFlows.sizes.s2') },
@@ -483,6 +485,7 @@ export default function BusinessProfileWizard() {
           paddingRight: '20px'
         }}
       >
+        <datalist id="wizard-business-sectors">{sectorOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</datalist>
         {/* STEP 1: ESSENTIALS */}
         {currentStep === 1 && (
           <div 
@@ -546,6 +549,7 @@ export default function BusinessProfileWizard() {
                     onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'}
                   >
                     <option value="">{t('businessProfileWizard.essentials.companySizePlaceholder')}</option>
+                    {companySize && !companySizeOptions.some(option => option.value === companySize) && <option value={companySize}>{companySize}</option>}
                     {companySizeOptions.map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
@@ -706,6 +710,7 @@ export default function BusinessProfileWizard() {
                 <input
                   type="text"
                   placeholder={t('businessProfileWizard.sectors.placeholder')}
+                  list="wizard-business-sectors"
                   value={sectorInput}
                   onChange={(e) => setSectorInput(e.target.value)}
                   onKeyPress={handleSectorKeyPress}
@@ -1328,6 +1333,7 @@ export default function BusinessProfileWizard() {
                     </label>
                     <div className="relative">
                       <select
+                        aria-label={t('businessProfileWizard.offerings.modal.currency')}
                         value={newItemCurrency}
                         onChange={(e) => setNewItemCurrency(e.target.value)}
                         className="w-full px-4 py-3 rounded-lg border outline-none appearance-none"

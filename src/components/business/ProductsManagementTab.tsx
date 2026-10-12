@@ -1,3 +1,4 @@
+import { businessCurrencyOptions, mergeBusinessOptions, type BusinessOption } from '../../utils/businessOptions';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -44,7 +45,7 @@ const SECTORS_KEYS: Record<string, string[]> = {
 };
 
 export default function ProductsManagementTab({ businessId }: { businessId?: string }) {
-  const { t } = useI18n();
+  const { t, tList } = useI18n();
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,6 +69,8 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
   });
 
   const [tagInput, setTagInput] = useState('');
+  const sectorOptions = mergeBusinessOptions(tList<BusinessOption>('profile.options.industries'), [formData.sector, ...Object.keys(SECTORS_KEYS)]);
+  const currencies = businessCurrencyOptions(formData.currency);
 
   useEffect(() => {
     if (businessId) {
@@ -562,6 +565,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
                   {t('productsManagement.form.sector')}
                 </label>
                 <select
+                  aria-label={t('productsManagement.form.sector')}
                   value={formData.sector}
                   onChange={(e) => {
                     const newSector = e.target.value;
@@ -577,36 +581,21 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
                     outline: 'none'
                   }}
                 >
-                  {[...new Set([formData.sector, ...Object.keys(SECTORS_KEYS)])].filter(Boolean).map((sector) => (
-                    <option key={sector} value={sector}>{t(`constants.sectors.${sector.replace(/\s+/g, '')}`, { defaultValue: sector })}</option>
+                  {sectorOptions.map(option => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
               </div>
 
-              {/* Subsector */}
-              {formData.sector && (
-                <div>
-                  <label style={{ fontSize: '14px', fontWeight: 600, color: '#E2E8F0', marginBottom: '8px', display: 'block' }}>
-                    {t('productsManagement.form.subsector')}
-                  </label>
-                  <select
-                    value={formData.subsector}
-                    onChange={(e) => setFormData({ ...formData, subsector: e.target.value })}
-                    className="w-full rounded-lg p-3"
-                    style={{
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      color: '#FFFFFF',
-                      fontSize: '14px',
-                      outline: 'none'
-                    }}
-                  >
-                    {[...new Set([formData.subsector, ...(SECTORS_KEYS[formData.sector] || [])])].filter(Boolean).map((subsector) => (
-                      <option key={subsector} value={subsector}>{t(`constants.subsectors.${subsector}`, { defaultValue: subsector })}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <label className="block text-white">
+                {t('businessFlows.subsector')}
+                <input aria-label={t('businessFlows.subsector')} value={formData.subsector}
+                  list="business-product-subsectors" className="w-full rounded-lg p-3" style={{ backgroundColor: '#0B2641', color: '#FFFFFF' }}
+                  onChange={event => setFormData({ ...formData, subsector: event.target.value })} />
+                <datalist id="business-product-subsectors">
+                  {(SECTORS_KEYS[formData.sector] || []).map(value => <option key={value} value={value} />)}
+                </datalist>
+              </label>
 
               {/* Description */}
               <div>
@@ -656,6 +645,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
                     {t('productsManagement.form.currency')}
                   </label>
                   <select
+                    aria-label={t('productsManagement.form.currency')}
                     value={formData.currency}
                     onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
                     className="w-full rounded-lg p-3"
@@ -667,10 +657,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
                       outline: 'none'
                     }}
                   >
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="GBP">GBP</option>
-                    <option value="CAD">CAD</option>
+                    {currencies.map(currency => <option key={currency} value={currency}>{currency}</option>)}
                   </select>
                 </div>
               </div>

@@ -24,7 +24,11 @@ export default {
   "deleteOffering": "Supprimer l’offre",
   "type": "Type",
   "product": "Produit",
-  "service": "Service"
+  "service": "Service",
+  "noCountries": "Aucun pays ne correspond à votre recherche.",
+  "selectSector": "Sélectionnez un secteur",
+  "noSecondary": "Aucun secteur secondaire",
+  "subsector": "Sous-secteur (facultatif)"
 },
     eventImprovements: {
       answerYes: "Oui",
@@ -1307,6 +1311,17 @@ export default {
         ],
         industries: [
           { value: 'Technology & Software', label: 'Technologie & Logiciels' },
+          { value: 'AI, IoT & Emerging Tech', label: 'IA, objets connectés & technologies émergentes' },
+          { value: 'Developers & Engineers', label: 'Développeurs & ingénieurs' },
+          { value: 'Investment & Banking', label: 'Investissement & banque' },
+          { value: 'Audit, Accounting & Finance', label: 'Audit, comptabilité & finance' },
+          { value: 'Insurance & Microfinance', label: 'Assurance & microfinance' },
+          { value: 'Universities & Academies', label: 'Universités & académies' },
+          { value: 'Students & Researchers', label: 'Étudiants & chercheurs' },
+          { value: 'Audiovisual & Creative Industries', label: 'Audiovisuel & industries créatives' },
+          { value: 'Coaches & Trainers', label: 'Coachs & formateurs' },
+          { value: 'Non-Profit & Civil Society', label: 'Associations & société civile' },
+          { value: 'Entrepreneurs & Startups', label: 'Entrepreneurs & startups' },
           { value: 'Financial Services & Banking', label: 'Services Financiers & Banque' },
           { value: 'Healthcare & Pharmaceuticals', label: 'Sante & Pharmaceutique' },
           { value: 'Manufacturing & Production', label: 'Fabrication & Production' },

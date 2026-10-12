@@ -24,7 +24,11 @@ export default {
   "deleteOffering": "حذف العرض",
   "type": "النوع",
   "product": "منتج",
-  "service": "خدمة"
+  "service": "خدمة",
+  "noCountries": "لا توجد دول تطابق بحثك.",
+  "selectSector": "اختر قطاعاً",
+  "noSecondary": "بدون قطاع ثانوي",
+  "subsector": "القطاع الفرعي (اختياري)"
 },
     eventImprovements: {
       answerYes: "نعم",
