@@ -93,3 +93,37 @@ test('forgot password sends and resends the correct reset destination with reada
   await page.getByRole('button', { name: en.auth.passwordResetSent.resend, exact: true }).click();
   await expect.poll(() => requests).toBe(2);
 });
+
+test('signing out while the reset form is open removes the stale form', async ({ page }) => {
+  await setup(page);
+  await page.goto(`/reset-password#access_token=${token()}&refresh_token=test-refresh&expires_in=3600&token_type=bearer&type=recovery`);
+  await page.getByLabel(en.auth.resetPassword.newPassword, { exact: true }).fill('New-test-password-123');
+  await page.evaluate(async () => {
+    const { supabase } = await import('/src/lib/supabase.ts');
+    await supabase.auth.signOut({ scope: 'local' });
+  });
+  await expect(page.locator('input')).toHaveCount(0);
+  await expect(page.getByRole('status')).toHaveText(en.auth.resetPassword.invalidLink);
+});
+
+test('repeated submissions during a delayed save update the password once', async ({ page }) => {
+  await setup(page);
+  let updates = 0;
+  await page.route('**/auth/v1/user', async route => {
+    if (route.request().method() === 'PUT') {
+      updates++;
+      await new Promise(resolve => setTimeout(resolve, 700));
+    }
+    return route.fulfill({ json: user });
+  });
+  await page.goto(`/reset-password#access_token=${token()}&refresh_token=test-refresh&expires_in=3600&token_type=bearer&type=recovery`);
+  await page.getByLabel(en.auth.resetPassword.newPassword, { exact: true }).fill('New-test-password-123');
+  await page.getByLabel(en.auth.resetPassword.confirmPassword, { exact: true }).fill('New-test-password-123');
+  await page.locator('form').evaluate(form => {
+    form.requestSubmit();
+    form.requestSubmit();
+  });
+  await expect(page.getByRole('button', { name: en.auth.resetPassword.saving })).toBeDisabled();
+  await expect(page.getByRole('status')).toHaveText(en.auth.resetPassword.complete);
+  expect(updates).toBe(1);
+});

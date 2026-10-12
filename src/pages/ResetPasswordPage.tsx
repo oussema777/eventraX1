@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useI18n } from '../i18n/I18nContext';
@@ -13,6 +13,7 @@ export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const saving = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -22,6 +23,12 @@ export default function ResetPasswordPage() {
     if (linkError) setErrorMessage(linkError);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (active && event === 'SIGNED_OUT') {
+        setIsReady(false);
+        setPassword('');
+        setConfirmPassword('');
+        setIsLoading(false);
+      }
       if (active && !linkError && (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') && session) {
         setIsReady(true);
         setErrorMessage('');
@@ -36,6 +43,10 @@ export default function ResetPasswordPage() {
         if (error) setErrorMessage(error.message);
       }
       setIsLoading(false);
+    }).catch(() => {
+      if (!active) return;
+      setIsReady(false);
+      setIsLoading(false);
     });
 
     return () => {
@@ -46,6 +57,7 @@ export default function ResetPasswordPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (saving.current || !isReady) return;
     if (password.length < 8) {
       setErrorMessage(t('auth.resetPassword.tooShort'));
       return;
@@ -55,6 +67,7 @@ export default function ResetPasswordPage() {
       return;
     }
 
+    saving.current = true;
     setIsSaving(true);
     setErrorMessage('');
     try {
@@ -66,6 +79,7 @@ export default function ResetPasswordPage() {
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : t('auth.forgotPassword.toastError'));
     } finally {
+      saving.current = false;
       setIsSaving(false);
     }
   };
