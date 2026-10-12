@@ -6611,6 +6611,7 @@ export default {
           }
         },
         filters: {
+          searchSectors: 'Rechercher des secteurs',
           active: 'Filtres actifs',
           clearAll: 'Tout effacer',
           sectors: 'Secteurs',
@@ -6636,6 +6637,8 @@ export default {
           aiMatch: 'Match IA'
         },
         results: {
+          loadError: 'Impossible de charger les entreprises. Veuillez réessayer.',
+          retry: 'Réessayer',
           loading: 'Chargement des entreprises...',
           found: '{count} {label} trouve(s)',
           business: 'Entreprise',

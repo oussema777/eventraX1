@@ -6854,6 +6854,7 @@ export default {
           }
         },
         filters: {
+          searchSectors: 'Search sectors',
           active: 'Active Filters',
           clearAll: 'Clear All',
           sectors: 'Sectors',
@@ -6879,6 +6880,8 @@ export default {
           aiMatch: 'AI Match'
         },
         results: {
+          loadError: 'Unable to load businesses. Please try again.',
+          retry: 'Retry',
           loading: 'Loading businesses...',
           found: '{count} {label} Found',
           business: 'Business',

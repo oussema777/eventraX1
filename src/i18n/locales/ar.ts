@@ -5670,6 +5670,7 @@ export default {
         }
       },
       filters: {
+          searchSectors: 'البحث في القطاعات',
         active: 'الفلاتر النشطة',
         clearAll: 'مسح الكل',
         sectors: 'القطاعات',
@@ -5695,6 +5696,8 @@ export default {
         match: 'تطابق عالي'
       },
       results: {
+          loadError: 'تعذر تحميل الشركات. يرجى المحاولة مجدداً.',
+          retry: 'إعادة المحاولة',
         loading: 'جاري تحميل النتائج...',
         found: 'تم العثور على {count} {label}',
         business: 'عمل تجاري',

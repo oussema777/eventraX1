@@ -1,225 +1,80 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
-  Mic,
-  UtensilsCrossed,
-  Laptop,
-  Tent,
-  Truck,
   MapPin,
   Star,
-  Shield,
   Leaf,
   Users,
   ArrowRight,
   Bookmark,
   X,
   Check,
-  Camera,
-  Palette,
-  Megaphone,
-  Music,
   Sparkles,
-  Gift,
-  Globe,
   Building2,
   RefreshCw
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { marketplaceCard, filterMarketplace, normalizeMarketplaceText, type MarketplaceCard, type MarketplaceProfile } from '../../utils/marketplace';
 import { useI18n } from '../../i18n/I18nContext';
-
-interface BusinessCard {
-  id: string;
-  name: string;
-  location: string;
-  rating: number;
-  reviewCount: number;
-  verified: boolean;
-  sustainable: boolean;
-  logo: string;
-  gallery: string[];
-  description: string;
-  tags: string[];
-  sector: string;
-  companySize: 'Freelancer' | 'SME' | 'Enterprise';
-  pending: boolean;
-  offeringCount: number;
-}
-
-const toCompanySize = (value?: string): BusinessCard['companySize'] => {
-  if (!value) return 'SME';
-  if (value.startsWith('1-10')) return 'Freelancer';
-  if (value.startsWith('11-50') || value.startsWith('51-200')) return 'SME';
-  if (value.startsWith('201-500') || value.startsWith('500+')) return 'Enterprise';
-  return 'SME';
-};
-
-const normalizeGallery = (images: string[]) => {
-  const unique = images.filter(Boolean);
-  if (unique.length >= 3) return unique.slice(0, 3);
-  if (unique.length === 2) return [unique[0], unique[1], unique[0]];
-  if (unique.length === 1) return [unique[0], unique[0], unique[0]];
-  return [];
-};
-
-const CATEGORIES = [
-  { icon: Mic, label: 'A/V & Production', value: 'A/V & Production', key: 'av' },
-  { icon: UtensilsCrossed, label: 'Catering', value: 'Catering', key: 'catering' },
-  { icon: Laptop, label: 'Event Tech', value: 'Event Tech', key: 'tech' },
-  { icon: Tent, label: 'Venues', value: 'Venues', key: 'venues' },
-  { icon: Truck, label: 'Logistics', value: 'Logistics', key: 'logistics' },
-  { icon: Camera, label: 'Photography', value: 'Photography', key: 'photography' },
-  { icon: Palette, label: 'Design & Decor', value: 'Design & Decor', key: 'design' },
-  { icon: Megaphone, label: 'Marketing', value: 'Marketing', key: 'marketing' },
-  { icon: Music, label: 'Entertainment', value: 'Entertainment', key: 'entertainment' },
-  { icon: Gift, label: 'Swag & Gifts', value: 'Swag & Gifts', key: 'swag' },
-  { icon: Globe, label: 'Translation', value: 'Translation', key: 'translation' },
-  { icon: Building2, label: 'Staffing', value: 'Staffing', key: 'staffing' }
-];
 
 export default function B2BMarketplaceDiscovery() {
   const navigate = useNavigate();
-  const { t } = useI18n();
+  const { t, tList } = useI18n();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [locationQuery, setLocationQuery] = useState('');
+  const [sectorQuery, setSectorQuery] = useState('');
+
   const [sustainableOnly, setSustainableOnly] = useState(false);
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [minRating, setMinRating] = useState(0);
   const [savedBusinesses, setSavedBusinesses] = useState<string[]>([]);
   const [hoveredImage, setHoveredImage] = useState<string | null>(null);
-  const [businesses, setBusinesses] = useState<BusinessCard[]>([]);
+  const [businesses, setBusinesses] = useState<MarketplaceCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
+  const requestId = useRef(0);
   const ITEMS_PER_PAGE = 12;
 
-  const fetchBusinesses = async (pageNum: number) => {
+  const fetchBusinesses = useCallback(async () => {
+    const request = ++requestId.current;
+    setIsLoading(true);
+    setLoadError(null);
     try {
-      setIsLoading(true);
-      setLoadError(null);
-      
-      let query = supabase
-        .from('business_profiles')
-        .select('id, created_at', { count: 'exact' })
-        .eq('verification_status', 'verified')
-        .eq('is_public', true);
-
-      // Apply Filters Server-side where possible
-      if (searchQuery) {
-        query = query.or(`company_name.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
+      const profiles: MarketplaceProfile[] = [];
+      // Read every batch before filtering; Supabase caps unpaginated responses.
+      const batchSize = 100;
+      for (let offset = 0; ; offset += batchSize) {
+        const { data, error } = await supabase.from('business_profiles')
+          .select('id, created_at, company_name, description, sectors, company_size, address, logo_url, cover_url, verification_status, branding, business_offerings(name, description, sector, tags, images)')
+          .eq('verification_status', 'verified').eq('is_public', true)
+          .order('created_at', { ascending: false }).order('id').range(offset, offset + batchSize - 1);
+        if (request !== requestId.current) return;
+        if (error) throw error;
+        profiles.push(...(data || []));
+        if (!data || data.length < batchSize) break;
       }
-
-      if (selectedSectors.length > 0) {
-        query = query.contains('sectors', selectedSectors);
-      }
-
-      if (selectedSizes.length > 0) {
-        query = query.in('company_size', selectedSizes);
-      }
-
-      const { data: profileRows, error, count } = await query.order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      setTotalCount(count || 0);
-
-      const matchingProfiles = profileRows || [];
-      const profileIds = matchingProfiles.map((profile: any) => profile.id).filter(Boolean);
-
-      const offeringCounts = new Map<string, number>();
-      if (profileIds.length > 0) {
-        const { data: offeringRows, error: offeringError } = await supabase
-          .from('business_offerings')
-          .select('business_id')
-          .in('business_id', profileIds);
-
-        if (offeringError) throw offeringError;
-
-        (offeringRows || []).forEach((offering: any) => {
-          const businessId = offering.business_id;
-          if (!businessId) return;
-          offeringCounts.set(businessId, (offeringCounts.get(businessId) || 0) + 1);
-        });
-      }
-
-      const sortedProfileIds = [...matchingProfiles]
-        .sort((a: any, b: any) => {
-          const offeringsDiff = (offeringCounts.get(b.id) || 0) - (offeringCounts.get(a.id) || 0);
-          if (offeringsDiff !== 0) return offeringsDiff;
-          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
-        })
-        .map((profile: any) => profile.id);
-
-      const start = (pageNum - 1) * ITEMS_PER_PAGE;
-      const pageProfileIds = sortedProfileIds.slice(start, start + ITEMS_PER_PAGE);
-
-      if (pageProfileIds.length === 0) {
-        setBusinesses([]);
-        return;
-      }
-
-      const { data: detailRows, error: detailError } = await supabase
-        .from('business_profiles')
-        .select('id, company_name, description, sectors, company_size, address, logo_url, cover_url, verification_status, branding, business_offerings(images)')
-        .in('id', pageProfileIds);
-
-      if (detailError) throw detailError;
-
-      const detailMap = new Map((detailRows || []).map((profile: any) => [profile.id, profile]));
-
-      const mapped: BusinessCard[] = pageProfileIds.map((profileId) => {
-        const profile: any = detailMap.get(profileId);
-        if (!profile) {
-          return null;
-        }
-        const branding = profile.branding || {};
-        const sectorTags = profile.sectors || [];
-        const images = [
-          profile.cover_url,
-          profile.logo_url,
-          ...(profile.business_offerings || []).flatMap((offering: any) => offering.images || [])
-        ];
-
-        return {
-          id: profile.id,
-          name: profile.company_name || 'Business',
-          location: profile.address || 'Location TBD',
-          rating: Number(branding.rating) || 0,
-          reviewCount: Number(branding.review_count) || 0,
-          verified: profile.verification_status === 'verified',
-          sustainable: Boolean(branding.sustainable),
-          logo: profile.logo_url || profile.cover_url || '',
-          gallery: normalizeGallery(images),
-          description: profile.description || 'No description provided.',
-          tags: sectorTags.length > 0 ? sectorTags : ['Business'],
-          sector: sectorTags[0] || 'Business',
-          companySize: toCompanySize(profile.company_size),
-          pending: profile.verification_status === 'pending',
-          offeringCount: offeringCounts.get(profile.id) || 0
-        };
-      }).filter(Boolean) as BusinessCard[];
-
-      setBusinesses(mapped);
-    } catch (error: any) {
-      console.error('Fetch error:', error);
-      setLoadError(error.message || 'Failed to load businesses');
+      setBusinesses(profiles.map(marketplaceCard).sort((a, b) => b.offeringCount - a.offeringCount || b.createdAt.localeCompare(a.createdAt)));
+    } catch (error) {
+      if (request !== requestId.current) return;
+      setBusinesses([]);
+      setLoadError(error instanceof Error ? error.message : t('marketplace.results.loadError'));
     } finally {
-      setIsLoading(false);
+      if (request === requestId.current) setIsLoading(false);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
-    setPage(1);
-    fetchBusinesses(1);
-  }, [searchQuery, selectedSectors, verifiedOnly, sustainableOnly, selectedSizes, minRating]);
+    void fetchBusinesses();
+    return () => { requestId.current++; };
+  }, [fetchBusinesses]);
+
+  useEffect(() => { setPage(1); }, [searchQuery, locationQuery, selectedSectors, sustainableOnly, selectedSizes, minRating]);
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
-    fetchBusinesses(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -306,13 +161,6 @@ export default function B2BMarketplaceDiscovery() {
     );
   };
 
-  const handleCategoryClick = (category: string) => {
-    setSelectedCategory(category);
-    if (!selectedSectors.includes(category)) {
-      setSelectedSectors([...selectedSectors, category]);
-    }
-  };
-
   const handleSectorToggle = (sector: string) => {
     if (selectedSectors.includes(sector)) {
       setSelectedSectors(selectedSectors.filter(s => s !== sector));
@@ -331,12 +179,12 @@ export default function B2BMarketplaceDiscovery() {
 
   const handleClearFilters = () => {
     setSelectedSectors([]);
-    setSelectedCategory('');
-    setVerifiedOnly(false);
     setSustainableOnly(false);
     setSelectedSizes([]);
     setMinRating(0);
     setSearchQuery('');
+    setLocationQuery('');
+    setSectorQuery('');
   };
 
   const toggleSave = (businessId: string) => {
@@ -347,33 +195,15 @@ export default function B2BMarketplaceDiscovery() {
     }
   };
 
-  // Filter businesses
-  const filteredBusinesses = businesses.filter(business => {
-    if (searchQuery && !business.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !business.description.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !business.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))) {
-      return false;
-    }
-    if (selectedSectors.length > 0 && !selectedSectors.some(s => business.tags.includes(s))) {
-      return false;
-    }
-    if (verifiedOnly && !business.verified) {
-      return false;
-    }
-    if (sustainableOnly && !business.sustainable) {
-      return false;
-    }
-    if (selectedSizes.length > 0 && !selectedSizes.includes(business.companySize)) {
-      return false;
-    }
-    if (minRating > 0 && business.rating < minRating) {
-      return false;
-    }
-    return true;
-  });
-
-  const activeFiltersCount = selectedSectors.length + selectedSizes.length + 
-    (verifiedOnly ? 1 : 0) + (sustainableOnly ? 1 : 0) + (minRating > 0 ? 1 : 0);
+  const sectorLabels = new Map(tList<{ value: string; label: string }>('profile.options.industries').map(option => [normalizeMarketplaceText(option.value), option.label]));
+  const sectors = [...new Map(businesses.flatMap(business => business.tags).map(tag => [normalizeMarketplaceText(tag), tag])).values()].sort((a, b) => a.localeCompare(b));
+  const sectorLabel = (sector: string) => sectorLabels.get(normalizeMarketplaceText(sector)) || sector;
+  const CATEGORIES = sectors.slice(0, 12).map(value => ({ value, label: sectorLabel(value), icon: Building2 }));
+  const sizeOptions = [...new Set(businesses.map(business => business.companySize).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const matchingBusinesses = filterMarketplace(businesses, { search: searchQuery, location: locationQuery, sectors: selectedSectors, sizes: selectedSizes, sustainable: sustainableOnly, rating: minRating });
+  const totalCount = matchingBusinesses.length;
+  const filteredBusinesses = matchingBusinesses.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+  const activeFiltersCount = selectedSectors.length + selectedSizes.length + (locationQuery.trim() ? 1 : 0) + (searchQuery.trim() ? 1 : 0) + (sustainableOnly ? 1 : 0) + (minRating > 0 ? 1 : 0);
 
   const recommendedBusinesses = useMemo(
     () => businesses.filter((b) => b.rating >= 4.8).slice(0, 4),
@@ -386,7 +216,7 @@ export default function B2BMarketplaceDiscovery() {
       <div
         style={{
           width: '100%',
-          height: '480px',
+          minHeight: '480px',
           background: 'radial-gradient(circle at center, #1E3A5F 0%, #0B2641 100%)',
           display: 'flex',
           flexDirection: 'column',
@@ -418,6 +248,7 @@ export default function B2BMarketplaceDiscovery() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t('marketplace.hero.searchPlaceholder')}
+            aria-label={t('marketplace.hero.searchPlaceholder')}
             className="flex-1 p-3"
             style={{
               backgroundColor: 'transparent',
@@ -428,6 +259,7 @@ export default function B2BMarketplaceDiscovery() {
             }}
           />
           <button
+            onClick={() => document.getElementById('marketplace-results')?.scrollIntoView({ behavior: 'smooth' })}
             className="px-6 py-3 rounded-lg transition-all"
             style={{
               backgroundColor: '#0684F5',
@@ -446,14 +278,15 @@ export default function B2BMarketplaceDiscovery() {
 
         {/* Visual Category Nav - 2 rows with more icons */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4" style={{ flexWrap: 'wrap', justifyContent: 'center' }}>
             {CATEGORIES.slice(0, 6).map((category) => {
               const IconComponent = category.icon;
-              const isSelected = selectedCategory === category.value;
+              const isSelected = selectedSectors.includes(category.value);
               return (
                 <button
                   key={category.value}
-                  onClick={() => handleCategoryClick(category.value)}
+                  aria-pressed={selectedSectors.includes(category.value)}
+                  onClick={() => handleSectorToggle(category.value)}
                   className="flex flex-col items-center gap-2 transition-all"
                   style={{
                     background: 'none',
@@ -479,23 +312,24 @@ export default function B2BMarketplaceDiscovery() {
                       fontSize: '11px',
                       fontWeight: 500,
                       color: isSelected ? '#0684F5' : '#94A3B8',
-                      whiteSpace: 'nowrap'
+                      maxWidth: '115px'
                     }}
                   >
-                    {t(`marketplace.hero.categories.${category.key}`, { defaultValue: category.label })}
+                    {category.label}
                   </span>
                 </button>
               );
             })}
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4" style={{ flexWrap: 'wrap', justifyContent: 'center' }}>
             {CATEGORIES.slice(6, 12).map((category) => {
               const IconComponent = category.icon;
-              const isSelected = selectedCategory === category.value;
+              const isSelected = selectedSectors.includes(category.value);
               return (
                 <button
                   key={category.value}
-                  onClick={() => handleCategoryClick(category.value)}
+                  aria-pressed={selectedSectors.includes(category.value)}
+                  onClick={() => handleSectorToggle(category.value)}
                   className="flex flex-col items-center gap-2 transition-all"
                   style={{
                     background: 'none',
@@ -524,7 +358,7 @@ export default function B2BMarketplaceDiscovery() {
                       whiteSpace: 'nowrap'
                     }}
                   >
-                    {t(`marketplace.hero.categories.${category.key}`, { defaultValue: category.label })}
+                    {category.label}
                   </span>
                 </button>
               );
@@ -590,7 +424,7 @@ export default function B2BMarketplaceDiscovery() {
                       fontWeight: 600
                     }}
                   >
-                    {t(`constants.sectors.${sector.replace(/\s+/g, '')}`, { defaultValue: sector })}
+                    {sectorLabel(sector)}
                     <button
                       onClick={() => handleSectorToggle(sector)}
                       style={{ background: 'none', border: 'none', color: '#0684F5', cursor: 'pointer', padding: 0 }}
@@ -610,8 +444,9 @@ export default function B2BMarketplaceDiscovery() {
               <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#E2E8F0', marginBottom: '12px' }}>
                 {t('marketplace.filters.sectors')}
               </h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {['Technology', 'Marketing', 'Venues', 'Catering', 'Logistics', 'Event Tech'].map(sector => (
+              <input aria-label={t('marketplace.filters.searchSectors')} placeholder={t('marketplace.filters.searchSectors')} value={sectorQuery} onChange={event => setSectorQuery(event.target.value)} style={{ width: '100%', padding: '8px', color: '#FFFFFF', marginBottom: '8px' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
+                {sectors.filter(sector => normalizeMarketplaceText(sectorLabel(sector)).includes(normalizeMarketplaceText(sectorQuery))).map(sector => (
                   <label key={sector} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
@@ -620,7 +455,7 @@ export default function B2BMarketplaceDiscovery() {
                       style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                     />
                     <span style={{ fontSize: '13px', color: '#CBD5E1' }}>
-                      {t(`constants.sectors.${sector.replace(/\s+/g, '')}`, { defaultValue: sector })}
+                      {sectorLabel(sector)}
                     </span>
                   </label>
                 ))}
@@ -637,6 +472,7 @@ export default function B2BMarketplaceDiscovery() {
                 <input
                   type="text"
                   placeholder={t('marketplace.filters.locationPlaceholder')}
+                  aria-label={t('marketplace.filters.location')} value={locationQuery} onChange={event => setLocationQuery(event.target.value)}
                   style={{
                     flex: 1,
                     backgroundColor: 'transparent',
@@ -649,22 +485,13 @@ export default function B2BMarketplaceDiscovery() {
               </div>
             </div>
 
-            {/* Trust Badges */}
-            <div>
+            {/* Trust badges only appear when supported by the published data. */}
+            {businesses.some(business => business.sustainable) && <div>
               <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#E2E8F0', marginBottom: '12px' }}>
                 {t('marketplace.filters.trustBadges')}
               </h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={verifiedOnly}
-                    onChange={(e) => setVerifiedOnly(e.target.checked)}
-                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                  />
-                  <Shield size={16} style={{ color: '#10B981' }} />
-                  <span style={{ fontSize: '13px', color: '#CBD5E1' }}>{t('marketplace.filters.verified')}</span>
-                </label>
+
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -676,7 +503,7 @@ export default function B2BMarketplaceDiscovery() {
                   <span style={{ fontSize: '13px', color: '#CBD5E1' }}>{t('marketplace.filters.sustainable')}</span>
                 </label>
               </div>
-            </div>
+            </div>}
 
             {/* Company Size */}
             <div>
@@ -684,7 +511,7 @@ export default function B2BMarketplaceDiscovery() {
                 {t('marketplace.filters.size')}
               </h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {['Freelancer', 'SME', 'Enterprise'].map(size => (
+                {sizeOptions.map(size => (
                   <label key={size} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
@@ -693,7 +520,7 @@ export default function B2BMarketplaceDiscovery() {
                       style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                     />
                     <span style={{ fontSize: '13px', color: '#CBD5E1' }}>
-                      {t(`marketplace.filters.sizes.${size.toLowerCase()}`, { defaultValue: size })}
+                      {size}
                     </span>
                   </label>
                 ))}
@@ -701,7 +528,7 @@ export default function B2BMarketplaceDiscovery() {
             </div>
 
             {/* Rating */}
-            <div>
+            {businesses.some(business => business.reviewCount > 0) && <div>
               <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#E2E8F0', marginBottom: '12px' }}>
                 {t('marketplace.filters.rating')}
               </h4>
@@ -718,14 +545,14 @@ export default function B2BMarketplaceDiscovery() {
                   <span style={{ fontSize: '13px', color: '#94A3B8' }}>{t('marketplace.filters.up')}</span>
                 </div>
               </label>
-            </div>
+            </div>}
           </div>
         </div>
 
         {/* Right Column: Rich Business Cards Grid */}
         <div>
           {/* Recommended Section - AI Powered */}
-          {activeFiltersCount === 0 && searchQuery === '' && (
+          {activeFiltersCount === 0 && recommendedBusinesses.length > 0 && (
             <div style={{ marginBottom: '32px' }}>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -837,14 +664,13 @@ export default function B2BMarketplaceDiscovery() {
           )}
 
           {/* Results Header */}
+          <div id="marketplace-results" />
           <div className="flex items-center justify-between mb-4">
             <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#E2E8F0' }}>
               {isLoading ? t('marketplace.results.loading') : t('marketplace.results.found', { count: totalCount, label: totalCount === 1 ? t('marketplace.results.business') : t('marketplace.results.businesses') })}
             </h3>
             {loadError && (
-              <span style={{ fontSize: '13px', color: '#F59E0B' }}>
-                {loadError}
-              </span>
+              <div role="alert" style={{ color: '#F59E0B' }}>{loadError} <button onClick={() => void fetchBusinesses()}>{t('marketplace.results.retry')}</button></div>
             )}
           </div>
 
@@ -861,6 +687,7 @@ export default function B2BMarketplaceDiscovery() {
             {filteredBusinesses.map(business => (
               <div
                 key={business.id}
+                data-testid="marketplace-business"
                 className="rounded-2xl overflow-hidden transition-all"
                 style={{
                   backgroundColor: '#152C48',
@@ -1060,7 +887,7 @@ export default function B2BMarketplaceDiscovery() {
           <PaginationControls />
 
           {/* Zero State */}
-          {!isLoading && filteredBusinesses.length === 0 && (
+          {!isLoading && !loadError && filteredBusinesses.length === 0 && (
             <div
               className="rounded-2xl p-12 text-center"
               style={{
