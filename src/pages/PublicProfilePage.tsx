@@ -1,7 +1,7 @@
 import { useEventRouteParams } from '../components/navigation/EventPublicRoute';
 import { useEventParticipantProfile } from '../hooks/useEventParticipantProfile';
 import BookMeetingModal from '../components/networking/BookMeetingModal';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import {
   MapPin,
@@ -50,6 +50,9 @@ import { canonicalUrl } from '../utils/seo';
 export default function PublicProfilePage() {
   const { userId: routeUserId, eventId, attendeeId } = useEventRouteParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const fromNetworking = !!eventId && searchParams.get('from') === 'my-networking';
+  const returnPath = fromNetworking ? '/my-networking' : eventId ? `/event/${eventId}/attendees` : '/';
   const { user: currentUser, signOut } = useAuth();
   const { t } = useI18n();
   const memberProfile = useProfile(routeUserId, !eventId);
@@ -118,7 +121,7 @@ export default function PublicProfilePage() {
     return <div role="alert" className="min-h-screen bg-[#0B2641] flex flex-col items-center justify-center text-white p-4">
       <h2 className="text-2xl font-bold mb-4">{t('eventImprovements.profileLoadError')}</h2>
       <button onClick={() => { void eventProfile.refetch(); }} className="px-6 py-3 bg-[#0684F5] rounded-lg">{t('eventImprovements.retry')}</button>
-      <button onClick={() => navigate(`/event/${eventId}/attendees`)} className="mt-4">{t('eventImprovements.backToParticipants')}</button>
+      <button onClick={() => navigate(returnPath)} className="mt-4">{t(fromNetworking ? 'nav.userMenu.myNetworking' : 'eventImprovements.backToParticipants')}</button>
     </div>;
   }
 
@@ -130,10 +133,10 @@ export default function PublicProfilePage() {
           {t('publicProfilePage.notFound.subtitle')}
         </p>
         <button
-          onClick={() => navigate(eventId ? `/event/${eventId}/attendees` : '/')}
+          onClick={() => navigate(returnPath)}
           className="px-6 py-3 bg-[#0684F5] rounded-lg font-semibold"
         >
-          {t('publicProfilePage.notFound.returnHome')}
+          {t(fromNetworking ? 'nav.userMenu.myNetworking' : 'publicProfilePage.notFound.returnHome')}
         </button>
       </div>
     );
@@ -330,7 +333,7 @@ export default function PublicProfilePage() {
         {/* Navigation/Actions Bar */}
         <div className="flex items-center justify-between" style={{ marginBottom: '24px' }}>
           <button
-            onClick={() => eventId ? navigate(`/event/${eventId}/attendees`) : navigate(-1)}
+            onClick={() => eventId ? navigate(returnPath) : navigate(-1)}
             className="flex items-center gap-2 transition-colors"
             style={{ color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer' }}
             onMouseEnter={(e) => e.currentTarget.style.color = '#FFFFFF'}

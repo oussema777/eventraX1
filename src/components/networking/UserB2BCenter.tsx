@@ -1162,12 +1162,19 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
     }
   };
 
-  const handleViewProfile = (profileId: string) => {
-    if (!profileId) return;
+  const handleViewProfile = (meeting: Meeting) => {
     // Guests must not leave the single-event surface or land on the global
     // profile route, so view-profile is a no-op in guest mode.
     if (guest) return;
-    navigate(`/profile/${profileId}`);
+    const attendeeId = meeting.isCurrentUserA ? meeting.attendeeBId : meeting.attendeeAId;
+    // Event guests are intentionally hidden on /profile/:id. Keep the event
+    // context so registered participants resolve through the event profile.
+    if (meeting.eventId && (meeting.profileId || attendeeId)) {
+      const participantPath = meeting.profileId ? `profile/${meeting.profileId}` : `participant/${attendeeId}`;
+      navigate(`/event/${meeting.eventId}/${participantPath}?from=my-networking`);
+    } else if (meeting.profileId) {
+      navigate(`/profile/${meeting.profileId}`);
+    }
   };
 
   const handleJoinCall = (meeting: Meeting) => {
@@ -1835,7 +1842,8 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
                           )}
                           {!guest && (
                             <button
-                              onClick={() => handleViewProfile(meeting.profileId)}
+                              onClick={() => handleViewProfile(meeting)}
+                              disabled={!meeting.profileId && !(meeting.eventId && (meeting.isCurrentUserA ? meeting.attendeeBId : meeting.attendeeAId))}
                               className="px-4 py-2 rounded-lg transition-colors"
                               style={{
                                 backgroundColor: 'transparent',
