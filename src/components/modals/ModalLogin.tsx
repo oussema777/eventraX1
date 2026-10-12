@@ -3,6 +3,7 @@ import { X, Mail, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 import ModalForgotPassword from './ModalForgotPassword';
 import { supabase } from '../../lib/supabase';
 import { useI18n } from '../../i18n/I18nContext';
+import { loginReturnPath } from '../../utils/authRedirect';
 
 interface ModalLoginProps {
   isOpen: boolean;
@@ -52,10 +53,13 @@ export default function ModalLogin({
     setShowError(false);
     
     try {
+      const destination = (window.location.pathname === '/login'
+        ? loginReturnPath(new URLSearchParams(window.location.search).get('next'), window.location.origin)
+        : loginReturnPath(window.location.pathname + window.location.search + window.location.hash, window.location.origin)) || '/';
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(window.location.pathname)}`
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(destination)}`
         }
       });
 

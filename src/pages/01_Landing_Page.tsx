@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { loginReturnPath } from '../utils/authRedirect';
 import NavbarLoggedOut from '../components/navigation/NavbarLoggedOut';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import ModalRegistrationEntry from '../components/modals/ModalRegistrationEntry';
@@ -27,6 +28,13 @@ export default function LandingPage() {
   const { t } = useI18n();
   const location = useLocation();
   const navigate = useNavigate();
+  const loginDestination = location.pathname === '/login'
+    ? loginReturnPath(new URLSearchParams(location.search).get('next'), window.location.origin)
+    : null;
+
+  useEffect(() => {
+    if (!isLoading && user && loginDestination) navigate(loginDestination, { replace: true });
+  }, [isLoading, user, loginDestination, navigate]);
   const { saveDraft, resetWizard } = useEventWizard();
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -42,7 +50,7 @@ export default function LandingPage() {
 
   // Effect to automatically show profile setup for new users
   useEffect(() => {
-    if (isLoading || !user) return;
+    if (isLoading || !user || loginDestination) return;
     const needsProfile =
       !profile ||
       !profile.full_name ||
@@ -58,11 +66,11 @@ export default function LandingPage() {
       // If we had a pending setup but profile is actually complete, clear the flag
       localStorage.removeItem('pendingProfileSetup');
     }
-  }, [user, profile, isLoading]);
+  }, [user, profile, isLoading, loginDestination]);
 
   // B2B registration redirect — if user completed auth and landed here, send them back to the event
   useEffect(() => {
-    if (isLoading || !user) return;
+    if (isLoading || !user || loginDestination) return;
     const pendingUrl = localStorage.getItem('pendingB2BRegister');
     if (!pendingUrl) return;
     // If profile is complete, redirect immediately to registration
@@ -78,7 +86,7 @@ export default function LandingPage() {
     }
     // If profile still incomplete, let the profile setup modal finish first
     // (the above useEffect already shows it), then this will re-fire when profile updates
-  }, [user, profile, isLoading]);
+  }, [user, profile, isLoading, loginDestination]);
 
   const handleLogout = async () => {
     await signOut();
@@ -103,6 +111,7 @@ export default function LandingPage() {
   // Handle login success
   const handleLoginSuccess = () => {
     setShowLoginModal(false);
+    if (loginDestination) return; // The auth-state effect navigates once the session is ready.
     const pendingUrl = localStorage.getItem('pendingB2BRegister');
     if (pendingUrl) {
       localStorage.removeItem('pendingB2BRegister');

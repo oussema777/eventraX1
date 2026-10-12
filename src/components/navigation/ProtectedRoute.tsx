@@ -15,10 +15,13 @@ export default function ProtectedRoute() {
     );
   }
 
-  // If not logged in, redirect to home (or landing) where sign-in is available
+  // Keep email destinations through sign-in, including meeting query parameters.
   if (!user) {
     if (/^\/event\/[^/]+\/networking\/?$/.test(location.pathname)) {
       return <Navigate to={eventAuthPath(location.pathname + location.search)} replace />;
+    }
+    if (/^\/my-networking\/?$/.test(location.pathname)) {
+      return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search + location.hash)}`} replace />;
     }
     return <Navigate to="/" replace />;
   }

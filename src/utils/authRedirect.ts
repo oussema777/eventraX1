@@ -14,6 +14,12 @@ export function eventAuthPath(destination: string): string {
   return `/event-auth?redirect=${encodeURIComponent(destination)}`;
 }
 
+/** Reject auth pages as return destinations to avoid sign-in redirect loops. */
+export function loginReturnPath(value: string | null | undefined, origin: string): string | null {
+  const path = safeAuthPath(value, origin);
+  return path && !/^\/(login|register|event-auth|auth\/callback)(?:[/?#]|$)/.test(path) ? path : null;
+}
+
 export function eventAuthReturnUrl(destination: string, origin: string): string {
   const path = safeAuthPath(destination, origin);
   if (!path) throw new Error('Invalid event destination');
