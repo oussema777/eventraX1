@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import { sanitizeError } from '../utils/errorHandler';
+import { useI18n } from '../i18n/I18nContext';
 
 export interface BusinessOffering {
   id: string;
@@ -10,7 +11,7 @@ export interface BusinessOffering {
   type: 'product' | 'service';
   name: string;
   description?: string;
-  price?: number;
+  price?: number | null;
   currency?: string;
   quantity_total?: number | null;
   is_unlimited?: boolean;
@@ -20,7 +21,7 @@ export interface BusinessOffering {
 
 const OFFERINGS_COLUMNS = 'id, business_id, type, name, description, price, currency, quantity_total, is_unlimited, tags, images, created_at';
 
-async function fetchOfferingsData(businessId: string): Promise<{ offerings: BusinessOffering[]; localOnly: boolean }> {
+async function fetchOfferingsData(businessId: string): Promise<BusinessOffering[]> {
   const { data, error } = await supabase
     .from('business_offerings')
     .select(OFFERINGS_COLUMNS)
@@ -28,32 +29,27 @@ async function fetchOfferingsData(businessId: string): Promise<{ offerings: Busi
     .order('created_at', { ascending: false });
 
   if (error) {
-    if (error.code === 'PGRST205') {
-      const raw = window.localStorage.getItem(`eventra_business_offerings_${businessId}`);
-      return { offerings: raw ? JSON.parse(raw) : [], localOnly: true };
-    }
     throw error;
   }
 
   window.sessionStorage.setItem(`eventra_business_offerings_${businessId}`, JSON.stringify(data || []));
-  return { offerings: data || [], localOnly: false };
+  return data || [];
 }
 
 export function useBusinessOfferings(businessId: string | null) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const queryKey = ['business-offerings', businessId];
   const [isSaving, setIsSaving] = useState(false);
-  const [useLocalOnly, setUseLocalOnly] = useState(false);
-  const storageKey = `eventra_business_offerings_${businessId || 'local'}`;
 
-  const { data: offerings = [], isLoading } = useQuery({
+  const { data: offerings = [], isLoading, error, refetch } = useQuery({
     queryKey,
     queryFn: async () => {
       const result = await fetchOfferingsData(businessId!);
-      if (result.localOnly) setUseLocalOnly(true);
-      return result.offerings;
+      return result;
     },
     enabled: !!businessId,
+    retry: 1,
   });
 
   const setOfferings = (updater: BusinessOffering[] | ((prev: BusinessOffering[]) => BusinessOffering[])) => {
@@ -72,21 +68,6 @@ export function useBusinessOfferings(businessId: string | null) {
         business_id: businessId
       };
 
-      if (useLocalOnly) {
-        const localItem: BusinessOffering = {
-          id: `local-offering-${Date.now()}`,
-          business_id: businessId,
-          ...offering
-        };
-        queryClient.setQueryData(queryKey, (old: BusinessOffering[] | undefined) => {
-          const next = [localItem, ...(old || [])];
-          window.localStorage.setItem(storageKey, JSON.stringify(next));
-          return next;
-        });
-        toast.success('Offering added');
-        return localItem;
-      }
-
       const { data, error } = await supabase
         .from('business_offerings')
         .insert([payload])
@@ -96,11 +77,11 @@ export function useBusinessOfferings(businessId: string | null) {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey });
-      toast.success('Offering added');
+      toast.success(t('productsManagement.toasts.offeringSaved'));
       return data;
     } catch (error: any) {
       console.error('Error adding offering:', error);
-      toast.error(sanitizeError(error, 'Failed to save offering'));
+      toast.error(sanitizeError(error, t('businessFlows.saveFailed')));
       return null;
     } finally {
       setIsSaving(false);
@@ -109,32 +90,41 @@ export function useBusinessOfferings(businessId: string | null) {
 
   const deleteOffering = async (id: string) => {
     try {
-      if (useLocalOnly) {
-        queryClient.setQueryData(queryKey, (old: BusinessOffering[] | undefined) => {
-          const next = (old || []).filter(o => o.id !== id);
-          window.localStorage.setItem(storageKey, JSON.stringify(next));
-          return next;
-        });
-        toast.success('Offering removed');
-        return;
-      }
       const { error } = await supabase.from('business_offerings').delete().eq('id', id);
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey });
-      toast.success('Offering removed');
+      toast.success(t('productsManagement.toasts.offeringRemoved'));
     } catch (error: any) {
-      toast.error('Failed to delete offering');
+      toast.error(t('businessFlows.deleteFailed'));
     }
+  };
+
+  const updateOffering = async (id: string, updates: Partial<BusinessOffering>) => {
+    if (!businessId || isSaving) return null;
+    setIsSaving(true);
+    try {
+      const { data, error } = await supabase.from('business_offerings').update(updates)
+        .eq('id', id).eq('business_id', businessId).select().single();
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey });
+      toast.success(t('productsManagement.toasts.offeringSaved'));
+      return data;
+    } catch (error) {
+      toast.error(sanitizeError(error, t('businessFlows.saveFailed')));
+      return null;
+    } finally { setIsSaving(false); }
   };
 
   return {
     offerings,
+    error,
     setOfferings,
     isLoading,
     isSaving,
-    fetchOfferings: () => queryClient.invalidateQueries({ queryKey }),
+    fetchOfferings: refetch,
     addOffering,
+    updateOffering,
     deleteOffering
   };
 }

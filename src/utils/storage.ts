@@ -66,7 +66,7 @@ export async function uploadFile(
   bucket: string,
   path: string,
   file: File,
-  preset: 'image' | 'submission' = 'image'
+  preset: keyof typeof FILE_VALIDATION_PRESETS = 'image'
 ): Promise<string | null> {
   try {
     const validationError = validateFileUpload(file, FILE_VALIDATION_PRESETS[preset]);

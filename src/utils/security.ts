@@ -70,6 +70,10 @@ const DOCUMENT_TYPES = [
 ];
 
 export const FILE_VALIDATION_PRESETS = {
+  businessDocument: {
+    allowedTypes: ['application/pdf', 'image/jpeg', 'image/png'],
+    maxSizeBytes: 5 * 1024 * 1024,
+  },
   image: {
     allowedTypes: IMAGE_TYPES,
     maxSizeBytes: 5 * 1024 * 1024, // 5MB

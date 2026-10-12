@@ -1,4 +1,31 @@
 export default {
+    businessFlows: {
+  "sizes": {
+    "s1": "1–10 employees",
+    "s2": "11–50 employees",
+    "s3": "51–200 employees",
+    "s4": "201–500 employees",
+    "s5": "500+ employees"
+  },
+  "invalidEmail": "Enter a valid business email address.",
+  "invalidWebsite": "Enter a website starting with https:// or http://.",
+  "offeringNameRequired": "Offering name is required.",
+  "invalidPrice": "Price must be zero or greater.",
+  "invalidQuantity": "Quantity must be a whole number, zero or greater.",
+  "saveFailed": "We could not save your changes. Please try again.",
+  "uploadFailed": "Upload failed. Check the file type and size, then try again.",
+  "deleteFailed": "We could not delete this item. Please try again.",
+  "loadFailed": "We could not load your business profile. Please try again.",
+  "readyTitle": "Ready to go live?",
+  "readySubtitle": "Submit your business profile for validation.",
+  "noOwner": "Business owner information is unavailable.",
+  "contactSelf": "You cannot contact your own business.",
+  "editOffering": "Edit offering",
+  "deleteOffering": "Delete offering",
+  "type": "Type",
+  "product": "Product",
+  "service": "Service"
+},
     eventImprovements: {
       answerYes: "Yes",
       answerNo: "No",

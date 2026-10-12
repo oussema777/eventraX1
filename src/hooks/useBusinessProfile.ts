@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { sanitizeError } from '../utils/errorHandler';
+import { useI18n } from '../i18n/I18nContext';
 
 export interface BusinessProfile {
   id: string;
@@ -27,7 +28,7 @@ export interface BusinessProfile {
   business_documents?: any[];
 }
 
-async function fetchBusinessProfileData(userId: string): Promise<{ profile: BusinessProfile | null; localOnly: boolean }> {
+async function fetchBusinessProfileData(userId: string): Promise<BusinessProfile | null> {
   const { data, error } = await supabase
     .from('business_profiles')
     .select(`
@@ -36,40 +37,36 @@ async function fetchBusinessProfileData(userId: string): Promise<{ profile: Busi
       business_documents(*)
     `)
     .eq('owner_profile_id', userId)
-    .single();
+    .maybeSingle();
 
-  if (error && error.code !== 'PGRST116') {
-    if (error.code === 'PGRST205') {
-      const raw = window.localStorage.getItem(`eventra_business_profile_${userId}`);
-      return { profile: raw ? JSON.parse(raw) : null, localOnly: true };
-    }
-    throw error;
-  }
+  if (error) throw error;
 
-  return { profile: data, localOnly: false };
+  return data;
 }
 
 export function useBusinessProfile() {
   const { user } = useAuth();
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const queryKey = ['business-profile', user?.id];
   const [isSaving, setIsSaving] = useState(false);
-  const [useLocalOnly, setUseLocalOnly] = useState(false);
+  const savingRef = useRef(false);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey,
     queryFn: async () => {
       const result = await fetchBusinessProfileData(user!.id);
-      if (result.localOnly) setUseLocalOnly(true);
-      return result.profile;
+      return result;
     },
     enabled: !!user,
+    retry: 1,
   });
 
   const businessProfile = data ?? null;
 
   const updateBusinessProfile = async (updates: Partial<BusinessProfile>) => {
-    if (!user) return null;
+    if (!user || savingRef.current) return null;
+    savingRef.current = true;
     setIsSaving(true);
     try {
       const payload = {
@@ -78,22 +75,13 @@ export function useBusinessProfile() {
         updated_at: new Date().toISOString()
       };
 
-      if (useLocalOnly) {
-        const nextProfile = {
-          ...(businessProfile || { id: `local-${Date.now()}`, owner_profile_id: user.id }),
-          ...payload
-        } as BusinessProfile;
-        queryClient.setQueryData(queryKey, nextProfile);
-        window.localStorage.setItem(`eventra_business_profile_${user.id}`, JSON.stringify(nextProfile));
-        return nextProfile;
-      }
-
+      const current = queryClient.getQueryData<BusinessProfile>(queryKey);
       let result;
-      if (businessProfile?.id) {
+      if (current?.id) {
         result = await supabase
           .from('business_profiles')
           .update(payload)
-          .eq('id', businessProfile.id)
+          .eq('id', current.id)
           .select()
           .single();
       } else {
@@ -106,13 +94,14 @@ export function useBusinessProfile() {
 
       if (result.error) throw result.error;
 
-      queryClient.invalidateQueries({ queryKey });
+      queryClient.setQueryData(queryKey, { ...current, ...result.data });
       return result.data;
     } catch (error: any) {
       console.error('Error updating business profile:', error);
-      toast.error(sanitizeError(error, 'Failed to update business profile'));
+      toast.error(sanitizeError(error, t('businessFlows.saveFailed')));
       return null;
     } finally {
+      savingRef.current = false;
       setIsSaving(false);
     }
   };
@@ -122,31 +111,9 @@ export function useBusinessProfile() {
     if (!targetId) return null;
     setIsSaving(true);
     try {
-      if (useLocalOnly) {
-        const url = URL.createObjectURL(file);
-        const localDoc = {
-          id: `local-doc-${Date.now()}`,
-          business_id: targetId,
-          name: file.name,
-          file_url: url,
-          type
-        };
-        queryClient.setQueryData(queryKey, (old: BusinessProfile | null) => {
-          if (!old) return old;
-          return { ...old, business_documents: [...(old.business_documents || []), localDoc] };
-        });
-        const raw = window.localStorage.getItem(`eventra_business_profile_${user?.id}`);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          parsed.business_documents = [...(parsed.business_documents || []), localDoc];
-          window.localStorage.setItem(`eventra_business_profile_${user?.id}`, JSON.stringify(parsed));
-        }
-        return localDoc;
-      }
-
       const { uploadFile } = await import('../utils/storage');
       const path = `${targetId}/docs/${file.name}`;
-      const url = await uploadFile('business-docs', path, file);
+      const url = await uploadFile('business-docs', path, file, 'businessDocument');
       if (!url) throw new Error('Upload failed');
 
       const { data, error } = await supabase.from('business_documents').insert([{
@@ -161,7 +128,7 @@ export function useBusinessProfile() {
       queryClient.invalidateQueries({ queryKey });
       return data;
     } catch (error: any) {
-      toast.error(sanitizeError(error, 'Failed to upload document'));
+      toast.error(sanitizeError(error, t('businessFlows.uploadFailed')));
       return null;
     } finally {
       setIsSaving(false);
@@ -170,32 +137,22 @@ export function useBusinessProfile() {
 
   const deleteDocument = async (docId: string) => {
     try {
-      if (useLocalOnly) {
-        queryClient.setQueryData(queryKey, (old: BusinessProfile | null) => {
-          if (!old) return null;
-          const nextDocs = old.business_documents?.filter(d => d.id !== docId) || [];
-          const nextProfile = { ...old, business_documents: nextDocs };
-          if (user) {
-            window.localStorage.setItem(`eventra_business_profile_${user.id}`, JSON.stringify(nextProfile));
-          }
-          return nextProfile;
-        });
-        return;
-      }
       const { error } = await supabase.from('business_documents').delete().eq('id', docId);
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey });
     } catch (error: any) {
-      toast.error('Failed to delete document');
+      toast.error(t('businessFlows.deleteFailed'));
     }
   };
 
   return {
     businessProfile,
+    error,
     isLoading,
+    isFetching,
     isSaving,
-    fetchBusinessProfile: () => queryClient.invalidateQueries({ queryKey }),
+    fetchBusinessProfile: refetch,
     updateBusinessProfile,
     uploadDocument,
     deleteDocument

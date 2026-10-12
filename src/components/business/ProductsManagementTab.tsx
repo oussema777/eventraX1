@@ -18,8 +18,10 @@ import { toast } from 'sonner';
 import { sanitizeError } from '../../utils/errorHandler';
 import { uploadFile } from '../../utils/storage';
 import { useI18n } from '../../i18n/I18nContext';
+import { offeringError } from '../../utils/businessValidation';
 
 interface Product {
+  type: 'product' | 'service';
   id?: string;
   name: string;
   sector: string;
@@ -47,11 +49,13 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   
   // Form state
   const [formData, setFormData] = useState<Product>({
+    type: 'product',
     name: '',
     sector: 'Technology',
     subsector: 'Software Development',
@@ -83,11 +87,12 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
       
       setProducts((data || []).map(item => ({
         id: item.id,
+        type: item.type === 'service' ? 'service' : 'product',
         name: item.name,
-        sector: item.type === 'product' ? 'Technology' : 'Professional Services', // Map back if needed
+        sector: item.sector || (item.type === 'product' ? 'Technology' : 'Professional Services'),
         subsector: item.tags?.[0] || '',
         description: item.description || '',
-        price: item.price?.toString() || '0',
+        price: item.price?.toString() || '',
         currency: item.currency || 'USD',
         tags: item.tags || [],
         mainImage: item.images?.[0] || '',
@@ -103,6 +108,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
   const handleAddProduct = () => {
     setEditingProduct(null);
     setFormData({
+      type: 'product',
       name: '',
       sector: 'Technology',
       subsector: 'Software Development',
@@ -139,17 +145,20 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
   };
 
   const handleSaveProduct = async () => {
-    if (!businessId) return;
+    if (!businessId || isSaving || isUploading) return;
+    const validation = offeringError(formData.name, formData.price);
+    if (validation) { toast.error(t(validation)); return; }
     try {
       setIsSaving(true);
       const payload = {
         business_id: businessId,
-        type: formData.sector.toLowerCase().includes('service') ? 'service' : 'product',
-        name: formData.name,
+        type: formData.type,
+        sector: formData.sector,
+        name: formData.name.trim(),
         description: formData.description,
-        price: formData.price ? parseFloat(formData.price) : 0,
+        price: formData.price ? Number(formData.price) : null,
         currency: formData.currency,
-        tags: formData.tags,
+        tags: [...new Set([formData.subsector, ...formData.tags.filter(tag => tag !== editingProduct?.subsector)].filter(Boolean))],
         images: [formData.mainImage, ...formData.gallery].filter(Boolean)
       };
 
@@ -187,20 +196,26 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
 
   const handleImageUpload = async (file: File, isMain: boolean, index?: number) => {
     if (!businessId) return;
+    setIsUploading(true);
     try {
       const path = `${businessId}/offerings/${Date.now()}_${file.name}`;
       const url = await uploadFile('business-assets', path, file);
+      if (!url) throw new Error('Upload failed');
       if (url) {
         if (isMain) {
-          setFormData({ ...formData, mainImage: url });
+          setFormData(current => ({ ...current, mainImage: url }));
         } else if (index !== undefined) {
-          const newGallery = [...formData.gallery];
-          newGallery[index] = url;
-          setFormData({ ...formData, gallery: newGallery });
+          setFormData(current => {
+            const gallery = [...current.gallery];
+            gallery[index] = url;
+            return { ...current, gallery };
+          });
         }
       }
     } catch (error) {
       toast.error(t('productsManagement.toasts.uploadFailed'));
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -376,6 +391,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
                         event.stopPropagation();
                         handleEditProduct(product);
                       }}
+                      aria-label={t('businessFlows.editOffering')}
                     >
                       <Edit size={16} />
                     </button>
@@ -459,6 +475,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
 
       {/* Add/Edit Product Modal */}
       {showProductModal && (
+        <div role="dialog" aria-modal="true" aria-label={t(editingProduct ? 'productsManagement.editProduct' : 'productsManagement.addNewProduct')}>
         <div
           className="fixed inset-0 flex items-center justify-center z-50"
           style={{
@@ -509,6 +526,15 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
 
             {/* Modal Body */}
             <div className="p-6 space-y-6">
+              <label className="block text-white">
+                {t('businessFlows.type')}
+                <select aria-label={t('businessFlows.type')} value={formData.type}
+                  onChange={e => setFormData({ ...formData, type: e.target.value as Product['type'] })}
+                  className="w-full p-3 rounded-lg bg-[#0B2641]">
+                  <option value="product">{t('businessFlows.product')}</option>
+                  <option value="service">{t('businessFlows.service')}</option>
+                </select>
+              </label>
               {/* Product Name */}
               <div>
                 <label style={{ fontSize: '14px', fontWeight: 600, color: '#E2E8F0', marginBottom: '8px', display: 'block' }}>
@@ -539,7 +565,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
                   value={formData.sector}
                   onChange={(e) => {
                     const newSector = e.target.value;
-                    const firstSubsector = SECTORS_KEYS[newSector][0];
+                    const firstSubsector = SECTORS_KEYS[newSector]?.[0] || '';
                     setFormData({ ...formData, sector: newSector, subsector: firstSubsector });
                   }}
                   className="w-full rounded-lg p-3"
@@ -551,7 +577,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
                     outline: 'none'
                   }}
                 >
-                  {Object.keys(SECTORS_KEYS).map((sector) => (
+                  {[...new Set([formData.sector, ...Object.keys(SECTORS_KEYS)])].filter(Boolean).map((sector) => (
                     <option key={sector} value={sector}>{t(`constants.sectors.${sector.replace(/\s+/g, '')}`, { defaultValue: sector })}</option>
                   ))}
                 </select>
@@ -575,7 +601,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
                       outline: 'none'
                     }}
                   >
-                    {SECTORS_KEYS[formData.sector].map((subsector) => (
+                    {[...new Set([formData.subsector, ...(SECTORS_KEYS[formData.sector] || [])])].filter(Boolean).map((subsector) => (
                       <option key={subsector} value={subsector}>{t(`constants.subsectors.${subsector}`, { defaultValue: subsector })}</option>
                     ))}
                   </select>
@@ -835,6 +861,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
               </button>
               <button
                 onClick={handleSaveProduct}
+                disabled={isSaving || isUploading}
                 className="px-5 py-2 rounded-lg flex items-center gap-2 transition-all"
                 style={{
                   backgroundColor: '#0684F5',
@@ -852,6 +879,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
               </button>
             </div>
           </div>
+        </div>
         </div>
       )}
     </div>

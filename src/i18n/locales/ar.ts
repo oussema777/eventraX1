@@ -1,4 +1,31 @@
 export default {
+    businessFlows: {
+  "sizes": {
+    "s1": "1–10 موظفين",
+    "s2": "11–50 موظفاً",
+    "s3": "51–200 موظف",
+    "s4": "201–500 موظف",
+    "s5": "500+ موظف"
+  },
+  "invalidEmail": "أدخل عنوان بريد إلكتروني صالحاً للشركة.",
+  "invalidWebsite": "أدخل موقعاً يبدأ بـ https:// أو http://.",
+  "offeringNameRequired": "اسم العرض مطلوب.",
+  "invalidPrice": "يجب أن يكون السعر صفراً أو أكبر.",
+  "invalidQuantity": "يجب أن تكون الكمية عدداً صحيحاً يساوي صفراً أو أكبر.",
+  "saveFailed": "تعذر حفظ التغييرات. حاول مجدداً.",
+  "uploadFailed": "فشل رفع الملف. تحقق من نوعه وحجمه ثم حاول مجدداً.",
+  "deleteFailed": "تعذر حذف هذا العنصر. حاول مجدداً.",
+  "loadFailed": "تعذر تحميل ملف الشركة. حاول مجدداً.",
+  "readyTitle": "هل أنت مستعد للنشر؟",
+  "readySubtitle": "أرسل ملف شركتك للمراجعة.",
+  "noOwner": "معلومات مالك الشركة غير متاحة.",
+  "contactSelf": "لا يمكنك التواصل مع شركتك الخاصة.",
+  "editOffering": "تعديل العرض",
+  "deleteOffering": "حذف العرض",
+  "type": "النوع",
+  "product": "منتج",
+  "service": "خدمة"
+},
     eventImprovements: {
       answerYes: "نعم",
       answerNo: "لا",

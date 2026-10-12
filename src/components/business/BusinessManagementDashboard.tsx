@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, type ChangeEvent, type KeyboardEvent } from 'react';
+import { businessContactError } from '../../utils/businessValidation';
 import { 
   Home,
   Edit,
@@ -88,6 +89,7 @@ export default function BusinessManagementDashboard() {
   const [showAISuggestion, setShowAISuggestion] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [searchEmail, setSearchEmail] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -198,6 +200,7 @@ export default function BusinessManagementDashboard() {
   }, [isMobileNavOpen]);
 
   const fetchBusinessProfile = async () => {
+    setLoadError(false);
     try {
       setIsLoading(true);
       const { data, error } = await supabase
@@ -256,6 +259,7 @@ export default function BusinessManagementDashboard() {
       }
     } catch (error) {
       console.error('Error fetching business profile:', error);
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
@@ -273,7 +277,7 @@ export default function BusinessManagementDashboard() {
     setAddress(business.address || '');
     setLogoUrl(business.logo_url || '');
     setCoverUrl(business.cover_url || '');
-  }, [business]);
+  }, [business?.id]);
 
   const calculateStrength = (biz: any, counts?: { offerings: number; documents: number }) => {
     let score = 0;
@@ -296,6 +300,11 @@ export default function BusinessManagementDashboard() {
       </div>
     );
   }
+
+  if (loadError) return <div role="alert" className="min-h-screen bg-[#0B2641] text-white p-10">
+    <p>{t('businessFlows.loadFailed')}</p>
+    <button onClick={() => void fetchBusinessProfile()}>{t('eventImprovements.retry')}</button>
+  </div>;
 
   if (!business) {
     return (
@@ -463,7 +472,7 @@ export default function BusinessManagementDashboard() {
         await handleUpdateBusiness({ cover_url: url });
       } else {
         const path = `${business.id}/docs/${Date.now()}_${file.name}`;
-        const url = await uploadFile('business-docs', path, file);
+        const url = await uploadFile('business-docs', path, file, 'businessDocument');
         if (!url) throw new Error('Document upload failed');
         const { data, error } = await supabase
           .from('business_documents')
@@ -500,7 +509,13 @@ export default function BusinessManagementDashboard() {
   };
 
   const handleSaveProfileDetails = async () => {
-    await handleUpdateBusiness({
+    if (!companyName.trim() || !companySize || !description.trim() || !sectorTags.length) {
+      toast.error(t('businessProfileWizard.essentials.errors.completeEssentials'));
+      return;
+    }
+    const error = businessContactError(businessEmail, website, !!business.is_public);
+    if (error) { toast.error(t(error)); return; }
+    const saved = await handleUpdateBusiness({
       company_name: companyName.trim(),
       company_size: companySize.trim(),
       description: description.trim(),
@@ -512,7 +527,7 @@ export default function BusinessManagementDashboard() {
       logo_url: logoUrl,
       cover_url: coverUrl
     });
-    setOriginalDescription(description.trim());
+    if (saved) setOriginalDescription(description.trim());
   };
 
   const getMetricValue = (key: string) => {
@@ -799,14 +814,17 @@ export default function BusinessManagementDashboard() {
   };
 
   const handleUpdateBusiness = async (updates: any) => {
+    if (isSaving) return false;
     try {
       setIsSaving(true);
       const { error } = await supabase.from('business_profiles').update(updates).eq('id', business.id);
       if (error) throw error;
-      setBusiness({ ...business, ...updates });
-      toast.success('Updated');
+      setBusiness((current: any) => ({ ...current, ...updates }));
+      toast.success(t('businessProfileWizard.identity.saved'));
+      return true;
     } catch (error: any) {
-      toast.error(sanitizeError(error, 'Failed to update business'));
+      toast.error(sanitizeError(error, t('businessFlows.saveFailed')));
+      return false;
     } finally {
       setIsSaving(false);
     }
@@ -875,7 +893,7 @@ export default function BusinessManagementDashboard() {
         {t('businessDashboard.actions.viewProfile')}
       </button>
       <button
-        onClick={() => navigate(`/profile/${business.owner_profile_id}`)}
+        onClick={() => navigate(`/business/${business.id}`)}
         className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all"
         style={{
           backgroundColor: 'rgba(255,255,255,0.05)',
@@ -1663,7 +1681,7 @@ export default function BusinessManagementDashboard() {
                       />
                       <input
                         type="url"
-                        placeholder="www.company.com"
+                        placeholder="https://www.company.com"
                         value={website}
                         onChange={(e) => setWebsite(e.target.value)}
                         className="w-full pl-12 pr-4 rounded-lg border outline-none"
@@ -1988,10 +2006,10 @@ export default function BusinessManagementDashboard() {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF', marginBottom: '8px' }}>
-                        {t('businessDashboard.dashboard.readyToGoLive.title')}
+                        {t('businessFlows.readyTitle')}
                       </h3>
                       <p style={{ fontSize: '14px', color: '#94A3B8' }}>
-                        {t('businessDashboard.dashboard.readyToGoLive.subtitle')}
+                        {t('businessFlows.readySubtitle')}
                       </p>
                     </div>
                     <button

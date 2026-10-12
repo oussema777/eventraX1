@@ -202,11 +202,11 @@ export default function BusinessProfilePage() {
 
   const handleContact = async () => {
     if (!business?.owner_profile_id) {
-      toast.error(t('businessProfilePage.errors.noOwner'));
+      toast.error(t('businessFlows.noOwner'));
       return;
     }
     if (business.owner_profile_id === user?.id) {
-      toast.error(t('businessProfilePage.errors.contactSelf'));
+      toast.error(t('businessFlows.contactSelf'));
       return;
     }
     const threadId = await getOrCreateThread(business.owner_profile_id);
@@ -303,7 +303,7 @@ export default function BusinessProfilePage() {
     try {
       setIsLoading(true);
       
-      let query = supabase.from('business_profiles').select('id, company_name, description, sectors, owner_profile_id, logo_url, website, email, phone, address, branding, created_at, updated_at');
+      let query = supabase.from('business_profiles').select('id, company_name, description, sectors, owner_profile_id, logo_url, website, email, phone, address, cover_url, company_size, verification_status, branding, created_at, updated_at');
       
       if (urlBusinessId) {
         query = query.eq('id', urlBusinessId);

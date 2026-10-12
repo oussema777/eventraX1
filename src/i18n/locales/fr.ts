@@ -1,4 +1,31 @@
 export default {
+    businessFlows: {
+  "sizes": {
+    "s1": "1–10 employés",
+    "s2": "11–50 employés",
+    "s3": "51–200 employés",
+    "s4": "201–500 employés",
+    "s5": "500+ employés"
+  },
+  "invalidEmail": "Saisissez une adresse email professionnelle valide.",
+  "invalidWebsite": "Saisissez un site commençant par https:// ou http://.",
+  "offeringNameRequired": "Le nom de l’offre est requis.",
+  "invalidPrice": "Le prix doit être supérieur ou égal à zéro.",
+  "invalidQuantity": "La quantité doit être un entier supérieur ou égal à zéro.",
+  "saveFailed": "Impossible d’enregistrer vos modifications. Réessayez.",
+  "uploadFailed": "Échec du téléchargement. Vérifiez le type et la taille du fichier, puis réessayez.",
+  "deleteFailed": "Impossible de supprimer cet élément. Réessayez.",
+  "loadFailed": "Impossible de charger votre profil entreprise. Réessayez.",
+  "readyTitle": "Prêt à publier ?",
+  "readySubtitle": "Soumettez votre profil entreprise pour validation.",
+  "noOwner": "Les informations du propriétaire sont indisponibles.",
+  "contactSelf": "Vous ne pouvez pas contacter votre propre entreprise.",
+  "editOffering": "Modifier l’offre",
+  "deleteOffering": "Supprimer l’offre",
+  "type": "Type",
+  "product": "Produit",
+  "service": "Service"
+},
     eventImprovements: {
       answerYes: "Oui",
       answerNo: "Non",

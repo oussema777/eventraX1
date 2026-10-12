@@ -25,6 +25,8 @@ import { uploadBusinessLogo, uploadFile } from '../../utils/storage';
 import { useBusinessProfile } from '../../hooks/useBusinessProfile';
 import { useBusinessOfferings } from '../../hooks/useBusinessOfferings';
 import { useI18n } from '../../i18n/I18nContext';
+import { businessContactError, offeringError } from '../../utils/businessValidation';
+import type { BusinessOffering } from '../../hooks/useBusinessOfferings';
 
 type WizardStep = 1 | 2 | 3 | 4;
 
@@ -38,7 +40,10 @@ export default function BusinessProfileWizard() {
   const { 
     businessProfile, 
     isLoading: isProfileLoading, 
+    isFetching: isProfileFetching,
     isSaving: isProfileSaving, 
+    error: profileError,
+    fetchBusinessProfile,
     updateBusinessProfile, 
     uploadDocument: hookUploadDocument,
     deleteDocument: hookDeleteDocument
@@ -48,10 +53,12 @@ export default function BusinessProfileWizard() {
 
   const { 
     offerings, 
+    error: offeringsError,
     isLoading: isOfferingsLoading, 
     isSaving: isOfferingsSaving, 
     fetchOfferings, 
     addOffering: hookAddOffering, 
+    updateOffering: hookUpdateOffering,
     deleteOffering: hookDeleteOffering 
   } = useBusinessOfferings(businessId);
 
@@ -60,6 +67,8 @@ export default function BusinessProfileWizard() {
 
   const logoInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const hydratedProfile = useRef(false);
+  const [isUploading, setIsUploading] = useState(false);
   const docInputRef = useRef<HTMLInputElement>(null);
 
   // Step 1: Essentials
@@ -82,6 +91,8 @@ export default function BusinessProfileWizard() {
 
   // Sync profile data to local state
   useEffect(() => {
+    if (isProfileLoading || isProfileFetching || profileError || hydratedProfile.current) return;
+    hydratedProfile.current = true;
     if (businessProfile) {
       setCompanyName(businessProfile.company_name || '');
       setCompanySize(businessProfile.company_size || '');
@@ -93,26 +104,21 @@ export default function BusinessProfileWizard() {
       setAddress(businessProfile.address || '');
       setLogoUrl(businessProfile.logo_url || '');
       setCoverUrl(businessProfile.cover_url || '');
-      setUploadedFiles(businessProfile.business_documents || []);
     }
-  }, [businessProfile]);
-
-  // Fetch offerings when businessId is available
+  }, [businessProfile, isProfileLoading, isProfileFetching, profileError]);
   useEffect(() => {
-    if (businessId) {
-      fetchOfferings();
-    }
-  }, [businessId]);
+    setUploadedFiles(businessProfile?.business_documents || []);
+  }, [businessProfile?.business_documents]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'cover' | 'document') => {
     const file = e.target.files?.[0];
     if (!file) return;
-
+    setIsUploading(true);
     try {
       const ensureProfile = async () => {
         if (businessProfile?.id) return businessProfile;
         if (!companyName.trim() || !companySize.trim() || !description.trim()) {
-          toast.error('Complete company essentials before uploading files.');
+          toast.error(t('businessProfileWizard.essentials.errors.completeEssentials'));
           return null;
         }
         return updateBusinessProfile({
@@ -129,6 +135,7 @@ export default function BusinessProfileWizard() {
       let url = '';
       if (type === 'logo') {
         url = await uploadBusinessLogo(activeProfile.id, file) || '';
+        if (!url) throw new Error(t('businessFlows.uploadFailed'));
         if (url) {
           setLogoUrl(url);
           await updateBusinessProfile({ logo_url: url });
@@ -136,32 +143,37 @@ export default function BusinessProfileWizard() {
       } else if (type === 'cover') {
         const path = `${activeProfile.id}/cover.${file.name.split('.').pop()}`;
         url = await uploadFile('business-assets', path, file) || '';
+        if (!url) throw new Error(t('businessFlows.uploadFailed'));
         if (url) {
           setCoverUrl(url);
           await updateBusinessProfile({ cover_url: url });
         }
       } else if (type === 'document') {
         // Use the hook for document upload
-        await hookUploadDocument(file, 'legal', activeProfile.id);
-        toast.success('File uploaded');
+        const uploaded = await hookUploadDocument(file, 'legal', activeProfile.id);
+        if (uploaded) toast.success(t('businessProfileWizard.toasts.fileUploaded'));
       }
     } catch (error: any) {
-      toast.error(sanitizeError(error, 'Failed to upload file'));
+      toast.error(sanitizeError(error, t('businessFlows.uploadFailed')));
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
     }
   };
 
-  const saveStepData = async () => {
+  const saveStepData = async (publish = false) => {
     const payload = {
       company_name: companyName.trim(),
       company_size: companySize.trim(),
       description: description.trim(),
       sectors: sectorTags,
-      email: businessEmail,
+      email: businessEmail.trim(),
       phone: businessPhone,
-      website: website,
+      website: website.trim(),
       address: address,
       logo_url: logoUrl,
-      cover_url: coverUrl
+      cover_url: coverUrl,
+      ...(publish ? { is_public: true, verification_status: businessProfile?.verification_status === 'verified' ? 'verified' : 'pending' } : {})
     };
 
     const result = await updateBusinessProfile(payload);
@@ -169,44 +181,45 @@ export default function BusinessProfileWizard() {
   };
 
   const handleNext = async () => {
+    if (isSaving || isUploading) return;
     if (currentStep === 1) {
       if (!companyName.trim()) {
-        toast.error('Company name is required.');
+        toast.error(t('businessProfileWizard.essentials.errors.nameRequired'));
         return;
       }
       if (!companySize.trim()) {
-        toast.error('Company size is required.');
+        toast.error(t('businessProfileWizard.essentials.errors.sizeRequired'));
         return;
       }
       if (!description.trim()) {
-        toast.error('Company description is required.');
+        toast.error(t('businessProfileWizard.essentials.errors.descRequired'));
         return;
       }
     }
     if (currentStep === 2 && sectorTags.length === 0) {
-      toast.error('Add at least one sector to continue.');
+      toast.error(t('businessProfileWizard.sectors.errors.atLeastOne'));
       return;
     }
 
-    const success = await saveStepData();
+    if (currentStep === 4) {
+      const error = businessContactError(businessEmail, website);
+      if (error) { toast.error(t(error)); return; }
+    }
+    const success = await saveStepData(currentStep === 4);
     if (!success) return;
 
     if (currentStep < 4) {
       setCurrentStep((currentStep + 1) as WizardStep);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      // Final step: Publish the profile
-      await updateBusinessProfile({ 
-        is_public: true,
-        verification_status: 'pending'
-      });
-      toast.success('Business profile published and sent for validation!');
+      toast.success(t('businessProfileWizard.identity.published'));
       navigate('/business-management');
     }
   };
 
   // New offering form state
   const [newItemType, setNewItemType] = useState<'product' | 'service'>('product');
+  const [editingOfferingId, setEditingOfferingId] = useState<string | null>(null);
   const [newItemName, setNewItemName] = useState('');
   const [newItemDescription, setNewItemDescription] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
@@ -223,22 +236,27 @@ export default function BusinessProfileWizard() {
     const file = e.target.files?.[0];
     if (!file || !businessId) return;
     if (newItemImages.length >= 4) {
-      toast.error('You can upload up to 4 images.');
+      toast.error(t('businessProfileWizard.offerings.errors.maxImages'));
       return;
     }
 
+    setIsUploading(true);
     try {
       const tempId = Math.random().toString(36).substring(7);
       const path = `${businessId}/offerings/${tempId}/${file.name}`;
       
       const url = await uploadFile('business-assets', path, file) || '';
+      if (!url) throw new Error(t('businessFlows.uploadFailed'));
       
       if (url) {
-        setNewItemImages([...newItemImages, url]);
-        toast.success('Image uploaded');
+        setNewItemImages(images => [...images, url].slice(0, 4));
+        toast.success(t('businessProfileWizard.toasts.imageUploaded'));
       }
     } catch (error: any) {
-      toast.error(sanitizeError(error, 'Failed to upload image'));
+      toast.error(sanitizeError(error, t('businessFlows.uploadFailed')));
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
     }
   };
 
@@ -251,11 +269,11 @@ export default function BusinessProfileWizard() {
 
   const currencies = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY'];
   const companySizeOptions = [
-    { value: '1-10', label: t('businessProfileWizard.essentials.sizes.s1') },
-    { value: '11-50', label: t('businessProfileWizard.essentials.sizes.s2') },
-    { value: '51-200', label: t('businessProfileWizard.essentials.sizes.s3') },
-    { value: '201-500', label: t('businessProfileWizard.essentials.sizes.s4') },
-    { value: '500+', label: t('businessProfileWizard.essentials.sizes.s5') }
+    { value: '1-10', label: t('businessFlows.sizes.s1') },
+    { value: '11-50', label: t('businessFlows.sizes.s2') },
+    { value: '51-200', label: t('businessFlows.sizes.s3') },
+    { value: '201-500', label: t('businessFlows.sizes.s4') },
+    { value: '500+', label: t('businessFlows.sizes.s5') }
   ];
 
   const handleBack = () => {
@@ -294,12 +312,15 @@ export default function BusinessProfileWizard() {
   };
 
   const handleAddOffering = async () => {
+    if (isSaving || isUploading) return;
+    const error = offeringError(newItemName, newItemPrice, newItemUnlimited ? null : newItemQuantity);
+    if (error) { toast.error(t(error)); return; }
     if (newItemName.trim() && businessId) {
       const payload = {
         type: newItemType,
-        name: newItemName,
+        name: newItemName.trim(),
         description: newItemDescription,
-        price: newItemPrice ? parseFloat(newItemPrice) : undefined,
+        price: newItemPrice ? Number(newItemPrice) : null,
         currency: newItemCurrency,
         quantity_total: newItemUnlimited ? null : (newItemQuantity ? parseInt(newItemQuantity) : null),
         is_unlimited: newItemUnlimited,
@@ -307,7 +328,7 @@ export default function BusinessProfileWizard() {
         images: newItemImages
       };
 
-      const result = await hookAddOffering(payload);
+      const result = editingOfferingId ? await hookUpdateOffering(editingOfferingId, payload) : await hookAddOffering(payload);
       
       if (result) {
         // Reset form
@@ -321,8 +342,24 @@ export default function BusinessProfileWizard() {
         setNewItemTagInput('');
         setNewItemImages([]);
         setShowAddItemModal(false);
+        setEditingOfferingId(null);
       }
     }
+  };
+
+  const openOffering = (offering?: BusinessOffering) => {
+    setEditingOfferingId(offering?.id || null);
+    setNewItemType(offering?.type || 'product');
+    setNewItemName(offering?.name || '');
+    setNewItemDescription(offering?.description || '');
+    setNewItemPrice(offering?.price?.toString() || '');
+    setNewItemCurrency(offering?.currency || 'USD');
+    setNewItemQuantity(offering?.quantity_total?.toString() || '');
+    setNewItemUnlimited(offering?.is_unlimited || false);
+    setNewItemTags(offering?.tags || []);
+    setNewItemImages(offering?.images || []);
+    setNewItemTagInput('');
+    setShowAddItemModal(true);
   };
 
   const handleDeleteOffering = async (id: string) => {
@@ -330,10 +367,12 @@ export default function BusinessProfileWizard() {
   };
 
   const handleSaveAndExit = async () => {
+    if (isSaving || isUploading) return;
+    if (!companyName.trim()) { toast.error(t('businessProfileWizard.essentials.errors.nameRequired')); return; }
     const success = await saveStepData();
     if (!success) return;
-    toast.success('Business profile saved');
-    navigate('/dashboard');
+    toast.success(t('businessProfileWizard.identity.saved'));
+    navigate('/business-management');
   };
 
   if (isLoading) {
@@ -344,13 +383,18 @@ export default function BusinessProfileWizard() {
     );
   }
 
+  if (profileError || offeringsError) return <div role="alert" className="min-h-screen bg-[#0B2641] text-white p-10">
+    <p>{t('businessFlows.loadFailed')}</p>
+    <button onClick={() => { void fetchBusinessProfile(); if (businessId) void fetchOfferings(); }}>{t('eventImprovements.retry')}</button>
+  </div>;
+
   return (
     <div style={{ backgroundColor: '#0B2641', minHeight: '100vh' }}>
       {/* Sticky Header */}
       <div 
-        className="sticky top-0 z-40 flex items-center justify-between px-10"
+        className="sticky top-0 z-40 flex flex-wrap gap-4 items-center justify-between px-4 sm:px-10 py-4"
         style={{ 
-          height: '80px',
+          minHeight: '80px',
           backgroundColor: '#0B2641',
           borderBottom: '1px solid rgba(255,255,255,0.15)'
         }}
@@ -361,9 +405,9 @@ export default function BusinessProfileWizard() {
         </div>
 
         {/* Progress Stepper */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3" style={{ maxWidth: '100%', minWidth: 0, overflowX: 'auto' }}>
           {steps.map((step, index) => (
-            <div key={step.number} className="flex items-center gap-3">
+            <div key={step.number} className="flex items-center gap-3 shrink-0">
               <div className="flex items-center gap-2">
                 <div
                   className="flex items-center justify-center"
@@ -406,6 +450,7 @@ export default function BusinessProfileWizard() {
         {/* Save & Exit */}
         <button
           onClick={handleSaveAndExit}
+          disabled={isSaving || isUploading}
           className="px-4 py-2 rounded-lg transition-colors"
           style={{
             backgroundColor: 'transparent',
@@ -441,7 +486,7 @@ export default function BusinessProfileWizard() {
         {/* STEP 1: ESSENTIALS */}
         {currentStep === 1 && (
           <div 
-            className="rounded-2xl p-10"
+            className="rounded-2xl p-4 sm:p-10"
             style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
           >
             <h2 style={{ fontSize: '24px', fontWeight: 600, color: '#FFFFFF', marginBottom: '24px' }}>
@@ -460,6 +505,7 @@ export default function BusinessProfileWizard() {
                 <input
                   type="text"
                   placeholder={t('businessProfileWizard.essentials.companyNamePlaceholder')}
+                  aria-label={t('businessProfileWizard.essentials.companyName')}
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
                   className="w-full px-4 rounded-lg border outline-none transition-colors"
@@ -485,6 +531,7 @@ export default function BusinessProfileWizard() {
                 </label>
                 <div className="relative">
                   <select
+                    aria-label={t('businessProfileWizard.essentials.companySize')}
                     value={companySize}
                     onChange={(e) => setCompanySize(e.target.value)}
                     className="w-full px-4 rounded-lg border outline-none appearance-none transition-colors"
@@ -521,6 +568,7 @@ export default function BusinessProfileWizard() {
                 </label>
                 <textarea
                   placeholder={t('businessProfileWizard.essentials.companyDescriptionPlaceholder')}
+                  aria-label={t('businessProfileWizard.essentials.companyDescription')}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full px-4 py-3 rounded-lg border outline-none resize-none transition-colors"
@@ -701,7 +749,7 @@ export default function BusinessProfileWizard() {
                     });
                     if (!created?.id) return;
                   }
-                  setShowAddItemModal(true);
+                  openOffering();
                 }}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors"
                 style={{
@@ -799,6 +847,8 @@ export default function BusinessProfileWizard() {
                   {/* Actions */}
                   <div className="flex items-center gap-2">
                     <button
+                      onClick={() => openOffering(offering)}
+                      aria-label={t('businessFlows.editOffering')}
                       className="p-2 rounded-lg transition-colors"
                       style={{ color: '#94A3B8', backgroundColor: 'transparent' }}
                       onMouseEnter={(e) => {
@@ -814,6 +864,7 @@ export default function BusinessProfileWizard() {
                     </button>
                     <button
                       onClick={() => handleDeleteOffering(offering.id)}
+                      aria-label={t('businessFlows.deleteOffering')}
                       className="p-2 rounded-lg transition-colors"
                       style={{ color: '#94A3B8', backgroundColor: 'transparent' }}
                       onMouseEnter={(e) => {
@@ -952,6 +1003,7 @@ export default function BusinessProfileWizard() {
                       <input
                         type="email"
                         placeholder="contact@company.com"
+                        aria-label={t('businessProfileWizard.identity.email')}
                         value={businessEmail}
                         onChange={(e) => setBusinessEmail(e.target.value)}
                         className="w-full pl-12 pr-4 rounded-lg border outline-none"
@@ -1013,7 +1065,8 @@ export default function BusinessProfileWizard() {
                       />
                       <input
                         type="url"
-                        placeholder="www.company.com"
+                        placeholder="https://www.company.com"
+                        aria-label={t('businessProfileWizard.identity.website')}
                         value={website}
                         onChange={(e) => setWebsite(e.target.value)}
                         className="w-full pl-12 pr-4 rounded-lg border outline-none"
@@ -1081,7 +1134,7 @@ export default function BusinessProfileWizard() {
         >
           <button
             onClick={handleBack}
-            disabled={currentStep === 1}
+            disabled={currentStep === 1 || isSaving || isUploading}
             className="px-6 py-3 rounded-lg transition-colors"
             style={{
               backgroundColor: 'transparent',
@@ -1103,6 +1156,7 @@ export default function BusinessProfileWizard() {
 
           <button
             onClick={handleNext}
+            disabled={isSaving || isUploading}
             className="px-8 py-3 rounded-lg transition-colors"
             style={{
               width: '160px',
@@ -1133,11 +1187,15 @@ export default function BusinessProfileWizard() {
             className="relative rounded-xl overflow-hidden"
             style={{
               width: '700px',
+              maxWidth: '100%',
               maxHeight: '85vh',
               backgroundColor: '#1E3A5F',
               border: '1px solid rgba(255,255,255,0.15)',
               boxShadow: '0px 10px 40px rgba(0,0,0,0.5)'
             }}
+            role="dialog"
+            aria-modal="true"
+            aria-label={t(editingOfferingId ? 'businessFlows.editOffering' : 'businessProfileWizard.offerings.modal.title')}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -1216,6 +1274,7 @@ export default function BusinessProfileWizard() {
                   <input
                     type="text"
                     placeholder={t('businessProfileWizard.offerings.modal.namePlaceholder')}
+                    aria-label={t('businessProfileWizard.offerings.modal.name')}
                     value={newItemName}
                     onChange={(e) => setNewItemName(e.target.value)}
                     className="w-full px-4 py-3 rounded-lg border outline-none"
@@ -1308,6 +1367,7 @@ export default function BusinessProfileWizard() {
                       <input
                         type="number"
                         placeholder="0.00"
+                        aria-label={t('businessProfileWizard.offerings.modal.price')}
                         value={newItemPrice}
                         onChange={(e) => setNewItemPrice(e.target.value)}
                         className="w-full pl-10 pr-4 py-3 rounded-lg border outline-none"
@@ -1335,6 +1395,7 @@ export default function BusinessProfileWizard() {
                     <input
                       type="number"
                       placeholder="Enter quantity"
+                      aria-label={t('businessProfileWizard.offerings.modal.quantity')}
                       value={newItemQuantity}
                       onChange={(e) => setNewItemQuantity(e.target.value)}
                       disabled={newItemUnlimited}
@@ -1508,6 +1569,7 @@ export default function BusinessProfileWizard() {
               </button>
               <button
                 onClick={handleAddOffering}
+                disabled={isSaving || isUploading}
                 className="px-5 py-2.5 rounded-lg transition-colors"
                 style={{
                   backgroundColor: '#0684F5',
@@ -1518,7 +1580,7 @@ export default function BusinessProfileWizard() {
                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0570D6'}
                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0684F5'}
               >
-                {t('businessProfileWizard.offerings.modal.addBtn')}
+                {t(editingOfferingId ? 'businessProfileWizard.actions.save' : 'businessProfileWizard.offerings.modal.addBtn')}
               </button>
             </div>
           </div>
