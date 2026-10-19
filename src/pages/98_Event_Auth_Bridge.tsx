@@ -7,10 +7,9 @@ import { eventAuthReturnUrl, safeAuthPath } from '../utils/authRedirect';
 export default function EventAuthBridge() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isLoading } = useAuth();
+  const { user, accountType, isLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
-  const [googlePending, setGooglePending] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [retryAfter, setRetryAfter] = useState(0);
   const [eventName, setEventName] = useState('');
@@ -42,24 +41,16 @@ export default function EventAuthBridge() {
   }, [eventId]);
 
   useEffect(() => {
-    if (!isLoading && user && redirectUrl) navigate(redirectUrl, { replace: true });
-  }, [isLoading, user, redirectUrl, navigate]);
-
-  const handleGoogleLogin = async () => {
-    if (!returnUrl || googlePending) return;
-    setGooglePending(true);
-    setErrorMessage('');
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: returnUrl }
-      });
-      if (error) throw error;
-    } catch {
-      setGooglePending(false);
-      setErrorMessage('Google sign-in could not start. Please try again.');
+    if (!isLoading && user && redirectUrl) {
+      navigate(accountType === 'event_guest'
+        ? `/auth/callback?next=${encodeURIComponent(redirectUrl)}`
+        : redirectUrl, { replace: true });
     }
-  };
+  }, [isLoading, user, accountType, redirectUrl, navigate]);
+
+  const callbackReturnUrl = redirectUrl
+    ? new URL(`/auth/callback?next=${encodeURIComponent(redirectUrl)}`, window.location.origin).href
+    : '';
 
   const handleMagicLink = async () => {
     if (!returnUrl || !email.trim() || status === 'sending' || retryAfter) return;
@@ -70,7 +61,7 @@ export default function EventAuthBridge() {
         email: email.trim().toLowerCase(),
         // Registration already created/linked the account. Do not create a
         // different account if the returning attendee mistypes their email.
-        options: { emailRedirectTo: returnUrl, shouldCreateUser: false }
+        options: { emailRedirectTo: callbackReturnUrl, shouldCreateUser: false }
       });
       if (error) throw error;
       setStatus('sent');
@@ -128,27 +119,9 @@ export default function EventAuthBridge() {
         </p>
         {status !== 'sent' && callbackFailed && <p role="status" style={{ color: '#FCD34D', marginBottom: '16px' }}>{expired ? 'This sign-in link has expired or was already used.' : 'We could not complete sign-in from this link.'} Request a fresh link below; your registration is still saved.</p>}
 
-        <button
-          onClick={handleGoogleLogin}
-          disabled={googlePending || status === 'sending'}
-          style={{
-            width: '100%',
-            height: '44px',
-            borderRadius: '8px',
-            backgroundColor: '#0684F5',
-            border: 'none',
-            color: '#FFFFFF',
-            fontWeight: 600,
-            cursor: 'pointer',
-            marginBottom: '16px'
-          }}
-        >
-          Continue with Google
-        </button>
-
-        <div style={{ textAlign: 'center', color: '#94A3B8', fontSize: '13px', marginBottom: '16px' }}>
-          Or receive a sign-in email — no password needed
-        </div>
+        <p style={{ color: '#94A3B8', fontSize: '13px', marginBottom: '16px' }}>
+          Receive a sign-in link by email. No password needed.
+        </p>
 
         <form onSubmit={e => { e.preventDefault(); void handleMagicLink(); }}>
         <input
@@ -172,13 +145,13 @@ export default function EventAuthBridge() {
         />
         <button
           type="submit"
-          disabled={status === 'sending' || googlePending || !email.trim() || retryAfter > 0}
+          disabled={status === 'sending' || !email.trim() || retryAfter > 0}
           style={{
             width: '100%',
             height: '44px',
             borderRadius: '8px',
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
+            backgroundColor: '#0684F5',
+            border: '1px solid #0684F5',
             color: '#FFFFFF',
             fontWeight: 600,
             cursor: 'pointer'

@@ -33,6 +33,58 @@ function jsonResponse(body: Record<string, any>, status = 200) {
   });
 }
 
+function escapeHtml(value: string): string {
+  const entities: Record<string, string> = {
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  };
+  return value.replace(/[&<>"']/g, character => entities[character] || character);
+}
+
+async function sendB2BAccessEmail(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  details: { email: string; name: string; eventName: string; eventId: string; attendeeId: string; confirmationCode: string },
+): Promise<boolean> {
+  const resendKey = Deno.env.get('RESEND_API_KEY');
+  const appOrigin = (Deno.env.get('EVENTRA_APP_ORIGIN') || 'https://eventra.cloud').replace(/\/$/, '');
+  if (!resendKey || !/^https:\/\/[^/]+$/.test(appOrigin)) return false;
+  const destination = `${appOrigin}/event/${encodeURIComponent(details.eventId)}/networking`;
+  const redirectTo = `${appOrigin}/auth/callback?next=${encodeURIComponent(destination)}`;
+  const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+    type: 'magiclink',
+    email: details.email,
+    options: { redirectTo },
+  });
+  if (error || !data?.properties?.action_link) return false;
+
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(details.attendeeId)}`;
+  const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#0B2641">
+    <h1>You're registered for ${escapeHtml(details.eventName)}</h1>
+    <p>Hi ${escapeHtml(details.name)}, your registration is confirmed. Your Eventra account is ready to use.</p>
+    <p><a href="${escapeHtml(data.properties.action_link)}" style="display:inline-block;padding:14px 22px;background:#0684F5;color:#fff;border-radius:8px;text-decoration:none">Open your event and sign in</a></p>
+    <p>This secure link signs you in directly. Your profile already includes the details you entered during registration. You can edit it, create a business profile, message participants, and arrange B2B meetings.</p>
+    <p>If this link expires, open your event networking page and request a fresh sign-in link using this email address.</p>
+    <p><a href="${escapeHtml(destination)}">Open event networking</a></p>
+    <h2>Your check-in code</h2><p>${escapeHtml(details.confirmationCode)}</p>
+    <img src="${escapeHtml(qrUrl)}" width="180" height="180" alt="Event check-in QR code" />
+    <p>Keep this email for event day.</p>
+  </div>`;
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${resendKey}` },
+      body: JSON.stringify({
+        from: 'Eventra <contact@eventra.cloud>',
+        to: [details.email],
+        subject: `Registration confirmed + Eventra access: ${details.eventName}`,
+        html,
+      }),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 Deno.serve(async (req: Request) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -92,7 +144,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: existingProfile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('id, phone_number, company, company_description, sector, social_url')
+      .select('id, full_name, phone_number, company, company_description, industry, sector, social_url')
       .eq('email', email.toLowerCase())
       .maybeSingle();
 
@@ -105,9 +157,11 @@ Deno.serve(async (req: Request) => {
       if (b2b_opt_in) {
         // Enrich profile — fill empty fields only
         const updates: Record<string, any> = {};
+        if (!existingProfile.full_name) updates.full_name = full_name;
         if (!existingProfile.phone_number) updates.phone_number = phone;
         if (!existingProfile.company) updates.company = company_name;
         if (!existingProfile.company_description) updates.company_description = company_description;
+        if (!existingProfile.industry) updates.industry = sector;
         if (!existingProfile.sector) updates.sector = sector;
         if (!existingProfile.social_url) updates.social_url = social_url;
         // Note: interests is intentionally not written to profiles — there is no
@@ -115,7 +169,8 @@ Deno.serve(async (req: Request) => {
         // (below), which is where B2B matching reads them.
 
         if (Object.keys(updates).length > 0) {
-          await supabaseAdmin.from('profiles').update(updates).eq('id', userId);
+          const { error: updateError } = await supabaseAdmin.from('profiles').update(updates).eq('id', userId);
+          if (updateError) return jsonResponse({ error: 'Unable to prepare registration profile' }, 503);
         }
       }
     } else if (b2b_opt_in) {
@@ -123,7 +178,7 @@ Deno.serve(async (req: Request) => {
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email,
         email_confirm: true,
-        user_metadata: { full_name, phone, company: company_name },
+        user_metadata: { full_name, phone, company: company_name, created_via: 'event_b2b' },
         app_metadata: { account_type: 'event_guest' },
       });
 
@@ -134,18 +189,20 @@ Deno.serve(async (req: Request) => {
       userId = newUser.user.id;
       isNewUser = true;
 
-      // Wait briefly for DB trigger to create profile row, then enrich
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      await supabaseAdmin.from('profiles').update({
+      // Upsert so profile prefill works even if the auth trigger is still pending.
+      const { error: seedError } = await supabaseAdmin.from('profiles').upsert({
+        id: userId,
+        email,
         full_name,
         phone_number: phone,
         company: company_name,
         company_description,
+        industry: sector,
         sector,
         social_url,
-        account_type: 'event_guest',  // queryable marker so member-facing surfaces can exclude guests
-      }).eq('id', userId);
+        account_type: 'event_guest',
+      }, { onConflict: 'id' });
+      if (seedError) return jsonResponse({ error: 'Unable to prepare registration profile' }, 503);
     }
     // Case 4: no existing profile + not opted in → userId stays null, no account created
 
@@ -216,12 +273,21 @@ Deno.serve(async (req: Request) => {
         if (linkError || !linked) return jsonResponse({ error: 'Unable to finish B2B access' }, 503);
       }
 
+      const existingConfirmationCode = existing?.meta?.confirmation_code || confirmationCode;
+      const accessEmailSent = b2b_opt_in && userId
+        ? await sendB2BAccessEmail(supabaseAdmin, {
+          email, name: full_name, eventName: event.name || 'Event', eventId: event_id,
+          attendeeId: existing.id, confirmationCode: existingConfirmationCode,
+        })
+        : false;
+
       return jsonResponse({
         success: true,
         attendee_id: existing?.id,
-        confirmation_code: existing?.meta?.confirmation_code || confirmationCode,
+        confirmation_code: existingConfirmationCode,
         already_registered: true,
         user_id: userId,
+        access_email_sent: accessEmailSent,
       });
     }
 
@@ -229,8 +295,13 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: 'Failed to register', details: attendeeError.message }, 500);
     }
 
-    // The confirmation email uses a reusable event URL. Authentication links
-    // are requested separately and delivered only by the auth email service.
+    // Deliver the one-time token server-side. It must never enter a browser response.
+    const accessEmailSent = b2b_opt_in && userId
+      ? await sendB2BAccessEmail(supabaseAdmin, {
+        email, name: full_name, eventName: event.name || 'Event', eventId: event_id,
+        attendeeId: attendee.id, confirmationCode,
+      })
+      : false;
 
     // --- Return success ---
     return jsonResponse({
@@ -239,8 +310,8 @@ Deno.serve(async (req: Request) => {
       confirmation_code: confirmationCode,
       already_registered: false,
       is_new_user: isNewUser,
-      magic_link: null,
       user_id: userId,
+      access_email_sent: accessEmailSent,
     });
 
   } catch (err) {

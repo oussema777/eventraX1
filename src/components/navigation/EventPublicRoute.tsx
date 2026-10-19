@@ -9,7 +9,7 @@ const EventIdContext = createContext<string | undefined>(undefined);
 
 // Resolve only at the public route boundary. Database queries, auth guards,
 // registration writes and storage keys always receive the immutable UUID.
-export function useEventRouteParams() {
+export function useEventRouteParams(): Record<string, string | undefined> {
   const params = useParams();
   const resolvedId = useContext(EventIdContext);
   return { ...params, eventId: resolvedId || params.eventId };

@@ -30,6 +30,7 @@ export default function ModalLogin({
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState(t('auth.login.errors.invalidCredentials'));
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [magicStatus, setMagicStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
 
   if (!isOpen) return null;
 
@@ -117,6 +118,28 @@ export default function ModalLogin({
   // Handle forgot password
   const handleForgotPassword = () => {
     setShowForgotPassword(true);
+  };
+
+  const handleEmailLink = async () => {
+    if (!email.trim() || magicStatus === 'sending') return;
+    setMagicStatus('sending');
+    setShowError(false);
+    const destination = (window.location.pathname === '/login'
+      ? loginReturnPath(new URLSearchParams(window.location.search).get('next'), window.location.origin)
+      : loginReturnPath(window.location.pathname + window.location.search + window.location.hash, window.location.origin)) || '/';
+    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(destination)}`;
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim().toLowerCase(),
+        options: { shouldCreateUser: false, emailRedirectTo: redirectTo },
+      });
+      if (error) throw error;
+      setMagicStatus('sent');
+    } catch {
+      setMagicStatus('idle');
+      setShowError(true);
+      setErrorMessage(t('auth.login.emailLinkError'));
+    }
   };
 
   return (
@@ -264,7 +287,7 @@ export default function ModalLogin({
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); setMagicStatus('idle'); setShowError(false); }}
                 placeholder={t('auth.login.emailPlaceholder')}
                 className="w-full transition-all"
                 style={{
@@ -464,6 +487,13 @@ export default function ModalLogin({
               </div>
             )}
           </form>
+
+          <button type="button" onClick={handleEmailLink}
+            disabled={!email.trim() || magicStatus === 'sending' || magicStatus === 'sent'}
+            className="mt-3 w-full rounded-lg border border-blue-200 px-4 py-3 font-medium text-blue-700 disabled:opacity-50">
+            {magicStatus === 'sending' ? t('auth.login.emailLinkSending') : t('auth.login.emailLinkButton')}
+          </button>
+          {magicStatus === 'sent' && <p role="status" className="mt-3 text-sm text-green-700">{t('auth.login.emailLinkSent')}</p>}
 
           {/* Footer Link */}
           <div className="text-center" style={{ marginTop: '24px' }}>

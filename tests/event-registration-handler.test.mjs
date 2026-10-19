@@ -9,25 +9,34 @@ import vm from 'node:vm';
 const source = stripTypeScriptTypes(readFileSync(new URL('../supabase/functions/create-event-registration/index.ts', import.meta.url), 'utf8')
   .replace(/^import .*?;\r?\n/m, ''));
 
-function setup({ duplicate = false, profileId = null, linkError = false, profileError = false } = {}) {
+function setup({ duplicate = false, profileId = null, linkError = false, profileError = false, profileUpdateError = false, sendEmail = false } = {}) {
   let handler;
   const writes = [];
   let rpcPayload;
+  let generatedLink;
+  let emailPayload;
   const admin = {
-    auth: { admin: { createUser: async () => { throw new Error('Unexpected account creation'); } } },
+    auth: { admin: {
+      createUser: async () => { throw new Error('Unexpected account creation'); },
+      generateLink: async payload => {
+        generatedLink = payload;
+        return { data: { properties: { action_link: 'https://example.test/one-time-test-link' } } };
+      },
+    } },
     from(table) {
       let updating = false;
       const chain = {
         select() { return chain; }, eq() { return chain; }, or() { return chain; },
         update(data) { updating = true; writes.push({ table, data }); return chain; },
+        then(resolve) { return Promise.resolve({ error: updating && table === 'profiles' && profileUpdateError ? { message: 'Write failed' } : null }).then(resolve); },
         async single() {
-          if (table === 'events') return { data: { id: 'event-id', start_date: '2026-10-20', workshop_selection_limit: null } };
+          if (table === 'events') return { data: { id: 'event-id', name: 'Test Event', start_date: '2026-10-20', workshop_selection_limit: null } };
           if (updating) return linkError ? { error: { message: 'Write failed' } } : { data: { id: 'attendee-id' } };
           return { data: { id: 'attendee-id', profile_id: profileId, meta: { confirmation_code: 'ORIGINAL', note: 'keep' } } };
         },
         async maybeSingle() {
           return profileError ? { error: { message: 'Database unavailable' } } : {
-            data: { id: 'user-id', phone_number: '123', company: 'Company', company_description: 'About', sector: 'IT', social_url: 'https://example.test' }
+            data: { id: 'user-id', full_name: profileUpdateError ? null : 'Guest', industry: 'IT', phone_number: '123', company: 'Company', company_description: 'About', sector: 'IT', social_url: 'https://example.test' }
           };
         }
       };
@@ -40,24 +49,41 @@ function setup({ duplicate = false, profileId = null, linkError = false, profile
   };
   vm.runInNewContext(source, {
     createClient: () => admin, Response, Request, console, setTimeout,
-    Deno: { env: { get: () => 'test' }, serve: fn => { handler = fn; } }
+    fetch: async (_url, options) => { emailPayload = JSON.parse(options.body); return new Response('{}'); },
+    Deno: { env: { get: key => sendEmail && key === 'EVENTRA_APP_ORIGIN' ? undefined : 'test' }, serve: fn => { handler = fn; } }
   });
   return {
     writes, get rpcPayload() { return rpcPayload; },
+    get generatedLink() { return generatedLink; }, get emailPayload() { return emailPayload; },
     request: (overrides = {}) => handler(new Request('https://example.test/register', {
       method: 'POST', body: JSON.stringify({ event_id: 'event-id', email: '  GUEST@Example.test ', b2b_opt_in: true, ...overrides })
     }))
   };
 }
 
-test('B2B registration normalizes email and returns a linked account without minting a login token', async () => {
+test('B2B registration normalizes email and returns a linked account without exposing a login token', async () => {
   const app = setup();
   const res = await app.request();
   const result = await res.json();
   assert.equal(res.status, 200);
   assert.equal(result.user_id, 'user-id');
-  assert.equal(result.magic_link, null);
+  assert.equal(Object.hasOwn(result, 'magic_link'), false);
   assert.equal(app.rpcPayload.p_attendee.email, 'guest@example.test');
+});
+
+test('B2B access email defaults to the approved production callback and does not expose its token', async () => {
+  const app = setup({ sendEmail: true });
+  const response = await app.request({ full_name: 'Guest' });
+  const result = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(result.access_email_sent, true);
+  const callback = new URL(app.generatedLink.options.redirectTo);
+  assert.equal(callback.origin, 'https://eventra.cloud');
+  assert.equal(callback.pathname, '/auth/callback');
+  assert.equal(callback.searchParams.get('next'), 'https://eventra.cloud/event/event-id/networking');
+  assert.deepEqual(app.emailPayload.to, ['guest@example.test']);
+  assert.ok(app.emailPayload.html.includes('https://example.test/one-time-test-link'));
+  assert.equal(JSON.stringify(result).includes('one-time-test-link'), false);
 });
 
 test('repeat registration repairs a missing profile link and preserves registration data', async () => {
@@ -87,4 +113,12 @@ test('failed identity lookup stops registration instead of creating an unrelated
   const app = setup({ profileError: true });
   assert.equal((await app.request()).status, 503);
   assert.equal(app.rpcPayload, undefined);
+});
+
+test('failed profile enrichment cannot report a fully prepared registration', async () => {
+  const app = setup({ profileUpdateError: true });
+  const response = await app.request({ full_name: 'Guest' });
+  assert.equal(response.status, 503);
+  assert.equal(app.rpcPayload, undefined);
+  assert.equal(app.writes[0].table, 'profiles');
 });

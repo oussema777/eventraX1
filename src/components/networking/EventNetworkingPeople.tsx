@@ -1,7 +1,10 @@
+import ParticipantCard from './ParticipantCard';
+import { useNavigate } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
-import { Building2, Calendar, Loader2, Search, Users } from 'lucide-react';
+import { Loader2, Search, Users } from 'lucide-react';
 import { loadEventNetworkingParticipants } from '../../lib/eventNetworkingParticipants';
 import { useI18n } from '../../i18n/I18nContext';
+import { useLocalizedLabels } from '../../i18n/useLocalizedLabels';
 import './EventNetworkingPeople.css';
 
 interface Participant {
@@ -17,11 +20,13 @@ interface Participant {
 interface Props {
   eventId: string;
   userId: string;
-  onRequestMeeting: (participant: { id: string; name: string }) => void;
+  onRequestMeeting: (participant: { id: string; name: string; avatar?: string | null }) => void;
 }
 
 export default function EventNetworkingPeople({ eventId, userId, onRequestMeeting }: Props) {
   const { t } = useI18n();
+  const { label: localizedLabel } = useLocalizedLabels();
+  const navigate = useNavigate();
   const [people, setPeople] = useState<Participant[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -53,8 +58,8 @@ export default function EventNetworkingPeople({ eventId, userId, onRequestMeetin
     const query = search.trim().toLocaleLowerCase();
     if (!query) return people;
     return people.filter(person => [person.full_name, person.job_title, person.company, person.sector, ...(person.interests || [])]
-      .some(value => value?.toLocaleLowerCase().includes(query)));
-  }, [people, search]);
+      .some(value => value?.toLocaleLowerCase().includes(query) || localizedLabel(value).toLocaleLowerCase().includes(query)));
+  }, [people, search, localizedLabel]);
 
   return (
     <section className="networking-people" aria-label={t('networking.people.title')}>
@@ -91,27 +96,10 @@ export default function EventNetworkingPeople({ eventId, userId, onRequestMeetin
             {visiblePeople.map(person => {
               const name = person.full_name || t('networking.defaults.user');
               return (
-                <article key={person.id} className="networking-people-card">
-                  <div className="networking-people-identity">
-                    {person.avatar_url ? <img src={person.avatar_url} alt="" className="networking-people-avatar" /> : (
-                      <div className="networking-people-avatar">{name.slice(0, 1).toUpperCase()}</div>
-                    )}
-                    <div>
-                      <h3>{name}</h3>
-                      {person.job_title && <p>{person.job_title}</p>}
-                    </div>
-                  </div>
-                  {person.company && <p className="networking-people-company"><Building2 size={16} />{person.company}</p>}
-                  <div className="networking-people-tags">
-                    {[...new Set([person.sector, ...(person.interests || [])].filter(Boolean))].slice(0, 4).map(tag => (
-                      <span key={tag}>{tag}</span>
-                    ))}
-                  </div>
-                  <button onClick={() => onRequestMeeting({ id: person.id, name })}
-                    className="networking-people-request">
-                    <Calendar size={16} />{t('networking.people.requestMeeting')}
-                  </button>
-                </article>
+                <ParticipantCard key={person.id} name={name} avatar={person.avatar_url} title={person.job_title} company={person.company}
+                  tags={[person.sector, ...(person.interests || [])].filter(Boolean) as string[]}
+                  onView={() => navigate(`/event/${eventId}/profile/${person.id}?from=my-networking`)}
+                  onBook={() => onRequestMeeting({ id: person.id, name, avatar: person.avatar_url })} />
               );
             })}
           </div>

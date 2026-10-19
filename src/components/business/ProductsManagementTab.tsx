@@ -1,3 +1,4 @@
+import { useLocalizedLabels } from '../../i18n/useLocalizedLabels';
 import { businessCurrencyOptions, mergeBusinessOptions, type BusinessOption } from '../../utils/businessOptions';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -46,6 +47,7 @@ const SECTORS_KEYS: Record<string, string[]> = {
 
 export default function ProductsManagementTab({ businessId }: { businessId?: string }) {
   const { t, tList } = useI18n();
+  const { label: localizedLabel } = useLocalizedLabels();
   const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -143,7 +145,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
       setProducts(products.filter(p => p.id !== id));
       toast.success(t('productsManagement.toasts.offeringRemoved'));
     } catch (error: any) {
-      toast.error(sanitizeError(error, 'Failed to delete offering'));
+      toast.error(sanitizeError(error, t('businessFlows.offeringDeleteFailed')));
     }
   };
 
@@ -178,7 +180,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
       setShowProductModal(false);
       fetchOfferings();
     } catch (error: any) {
-      toast.error(sanitizeError(error, 'Failed to save offering'));
+      toast.error(sanitizeError(error, t('businessFlows.offeringSaveFailed')));
     } finally {
       setIsSaving(false);
     }
@@ -203,7 +205,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
     try {
       const path = `${businessId}/offerings/${Date.now()}_${file.name}`;
       const url = await uploadFile('business-assets', path, file);
-      if (!url) throw new Error('Upload failed');
+      if (!url) throw new Error(t('businessFlows.uploadFailed'));
       if (url) {
         if (isMain) {
           setFormData(current => ({ ...current, mainImage: url }));
@@ -410,7 +412,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'}
                       onClick={(event) => {
                         event.stopPropagation();
-                        handleDeleteProduct(product.id);
+                        if (product.id) handleDeleteProduct(product.id);
                       }}
                     >
                       <Trash2 size={16} />
@@ -439,7 +441,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
                         fontWeight: 600
                       }}
                     >
-                      {tag}
+                      {localizedLabel(tag)}
                     </span>
                   ))}
                 </div>
@@ -459,7 +461,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
                       >
                         <img
                           src={img}
-                          alt={`Gallery ${idx + 1}`}
+                          alt={t('businessFlows.galleryImage', { number: idx + 1 })}
                           style={{
                             width: '100%',
                             height: '100%',
@@ -582,7 +584,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
                   }}
                 >
                   {sectorOptions.map(option => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
+                    <option key={option.value} value={option.value}>{localizedLabel(option.label)}</option>
                   ))}
                 </select>
               </div>
@@ -695,10 +697,10 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
                         fontWeight: 600
                       }}
                     >
-                      {tag}
+                      {localizedLabel(tag)}
                       <button
                         onClick={() => handleRemoveTag(tag)}
-                        aria-label={`Remove tag ${tag}`}
+                        aria-label={t('businessFlows.removeTag', { tag: localizedLabel(tag) })}
                         style={{
                           background: 'none',
                           border: 'none',
@@ -741,7 +743,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
                       <div className="w-full text-center">
                         <img
                           src={formData.mainImage}
-                          alt="Preview"
+                          alt={t('businessFlows.preview')}
                           style={{
                             width: '100%',
                             maxHeight: '200px',
@@ -799,7 +801,7 @@ export default function ProductsManagementTab({ businessId }: { businessId?: str
                           <>
                             <img
                               src={formData.gallery[idx]}
-                              alt={`Gallery ${idx + 1}`}
+                              alt={t('businessFlows.galleryImage', { number: idx + 1 })}
                               style={{
                                 width: '100%',
                                 height: '100%',

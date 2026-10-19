@@ -18,7 +18,6 @@ export interface ProfileStats {
   eventsAttended: number;
   b2bMeetings: number;
   connections: number;
-  profileViews: number;
 }
 
 export interface ProfileCompletionStats {

@@ -1,7 +1,11 @@
-import { useState } from 'react';
+import en from '../../i18n/locales/en';
+import { useLocalizedLabels } from '../../i18n/useLocalizedLabels';
+import { useEffect, useState } from 'react';
 import { X, Lock, ChevronDown } from 'lucide-react';
 import { countries } from '../../data/countries';
 import { useI18n } from '../../i18n/I18nContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 interface ModalProfileSetupProps {
   isOpen: boolean;
@@ -63,10 +67,16 @@ export default function ModalProfileSetup({
   onSkip
 }: ModalProfileSetupProps) {
   const { t, tList } = useI18n();
+  const { country: localizedCountry } = useLocalizedLabels();
+  const { user, profile } = useAuth();
   const [internalStep, setInternalStep] = useState<1 | 2>(1);
-  const industries = tList<string>('profileSetup.industries');
-  const yearsOfExperienceOptions = tList<string>('profileSetup.yearsOfExperience');
-  const companySizeOptions = tList<string>('profileSetup.companySizes');
+  const industries = en.profileSetup.industries;
+  const yearsOfExperienceOptions = en.profileSetup.yearsOfExperience;
+  const companySizeOptions = en.profileSetup.companySizes;
+  const optionLabel = (group: 'industries' | 'yearsOfExperience' | 'companySizes', value: string) => {
+    const index = en.profileSetup[group].indexOf(value);
+    return tList<string>(`profileSetup.${group}`)[index] || value;
+  };
   const otherIndustryLabel = industries[industries.length - 1] || 'Other';
   
   // Personal Info (Step 1)
@@ -94,6 +104,48 @@ export default function ModalProfileSetup({
   const [showCompanySizeDropdown, setShowCompanySizeDropdown] = useState(false);
   const [industrySearch, setIndustrySearch] = useState('');
 
+  useEffect(() => {
+    if (!isOpen || !user?.id || !user.email_confirmed_at) return;
+    if (userEmail && userEmail.trim().toLowerCase() !== user.email?.trim().toLowerCase()) return;
+    let cancelled = false;
+    const loadSeed = async () => {
+      const { data, error } = await supabase.rpc('get_my_registration_profile_seed');
+      if (cancelled || error) return;
+      const existingName = profile?.full_name?.trim();
+      const emailLocalPart = user.email?.split('@')[0]?.toLowerCase();
+      const name = String(existingName && existingName.toLowerCase() !== emailLocalPart
+        ? existingName : data?.fullName || user.user_metadata?.full_name || '').trim();
+      const parts = name.split(/\s+/).filter(Boolean);
+      setFirstName((current) => current || parts[0] || '');
+      setLastName((current) => current || parts.slice(1).join(' '));
+      const phone = String(profile?.phone || data?.phone || '').trim();
+      const countryCode = [...countries].sort((a, b) => b.phoneCode.length - a.phoneCode.length)
+        .find((country) => phone.startsWith(country.phoneCode));
+      if (countryCode) {
+        setSelectedCountryCode((current) => current === 'US' ? countryCode.code : current);
+        setPhoneNumber((current) => current || phone.slice(countryCode.phoneCode.length).trim());
+      }
+      const profileCountry = countries.find((country) => country.name === profile?.location);
+      if (profileCountry) setSelectedCountry((current) => current || profileCountry.code);
+      setCompany((current) => current || profile?.company || data?.companyName || '');
+      setJobTitle((current) => current || profile?.job_title || '');
+      const sector = String(profile?.industry || data?.sector || '').trim();
+      const sectorAliases: Record<string, number> = {
+        technology: 0, tech: 0, finance: 1, banking: 1, healthcare: 2,
+        manufacturing: 3, retail: 4, consulting: 5, education: 6,
+        media: 7, transport: 8, energy: 9, 'real estate': 10,
+        tourism: 11, telecommunications: 12, agriculture: 13,
+        automotive: 14, aerospace: 15, legal: 16, marketing: 17,
+        ngo: 18, government: 19
+      };
+      const industryOption = industries.find((option) => option.toLowerCase() === sector.toLowerCase())
+        || industries[sectorAliases[sector.toLowerCase()]];
+      if (industryOption) setIndustry((current) => current || industryOption);
+    };
+    void loadSeed();
+    return () => { cancelled = true; };
+  }, [isOpen, user?.id, user?.email, user?.email_confirmed_at, userEmail, profile?.id]);
+
   if (!isOpen) return null;
 
   // Get selected country data
@@ -101,18 +153,18 @@ export default function ModalProfileSetup({
 
   // Filtered countries for phone code
   const filteredCountryCodes = countries.filter(country => 
-    country.name.toLowerCase().includes(countryCodeSearch.toLowerCase()) ||
+    (localizedCountry(country.code).toLowerCase().includes(countryCodeSearch.toLowerCase()) || country.name.toLowerCase().includes(countryCodeSearch.toLowerCase())) ||
     country.phoneCode.includes(countryCodeSearch)
   );
 
   // Filtered countries for country select
   const filteredCountries = countries.filter(country => 
-    country.name.toLowerCase().includes(countrySearch.toLowerCase())
+    (localizedCountry(country.code).toLowerCase().includes(countrySearch.toLowerCase()) || country.name.toLowerCase().includes(countrySearch.toLowerCase()))
   );
 
   // Filtered industries
   const filteredIndustries = industries.filter(ind =>
-    ind.toLowerCase().includes(industrySearch.toLowerCase())
+    (optionLabel('industries', ind).toLowerCase().includes(industrySearch.toLowerCase()) || ind.toLowerCase().includes(industrySearch.toLowerCase()))
   );
   
   // Form validation for Step 1
@@ -533,7 +585,7 @@ export default function ModalProfileSetup({
                                   }}
                                 >
                                   <span style={{ fontSize: '20px' }}>{toFlagEmoji(country.code)}</span>
-                                  <span style={{ fontSize: '14px', color: '#374151', flex: 1 }}>{country.name}</span>
+                                  <span style={{ fontSize: '14px', color: '#374151', flex: 1 }}>{localizedCountry(country.code)}</span>
                                   <span style={{ fontSize: '14px', color: '#6B7280' }}>{country.phoneCode}</span>
                                 </button>
                               ))
@@ -601,8 +653,7 @@ export default function ModalProfileSetup({
                       color: '#374151'
                     }}
                   >
-                    Email Address
-                  </label>
+                    {t('profileSetup.emailLabel')}</label>
                   <div className="relative">
                     <input
                       type="email"
@@ -685,7 +736,7 @@ export default function ModalProfileSetup({
                           <span style={{ fontSize: '20px' }}>
                             {toFlagEmoji(selectedCountry)}
                           </span>
-                          {countries.find(c => c.code === selectedCountry)?.name}
+                          {localizedCountry(selectedCountry)}
                         </span>
                       ) : (
                         t('profileSetup.placeholders.country')
@@ -750,7 +801,7 @@ export default function ModalProfileSetup({
                                 }}
                               >
                                 <span style={{ fontSize: '20px' }}>{toFlagEmoji(country.code)}</span>
-                                <span style={{ fontSize: '14px', color: '#374151' }}>{country.name}</span>
+                                <span style={{ fontSize: '14px', color: '#374151' }}>{localizedCountry(country.code)}</span>
                               </button>
                             ))
                           ) : (
@@ -947,7 +998,7 @@ export default function ModalProfileSetup({
                         }, 200);
                       }}
                     >
-                      {industry || t('profileSetup.placeholders.industry')}
+                      {optionLabel('industries', industry) || t('profileSetup.placeholders.industry')}
                       <ChevronDown size={20} style={{ color: '#6B7280' }} />
                     </button>
 
@@ -1012,7 +1063,7 @@ export default function ModalProfileSetup({
                                   }
                                 }}
                               >
-                                {ind}
+                                {optionLabel('industries', ind)}
                               </button>
                             ))
                           ) : (
@@ -1136,7 +1187,7 @@ export default function ModalProfileSetup({
                         }, 200);
                       }}
                     >
-                      {yearsOfExperience || t('profileSetup.placeholders.yearsExperience')}
+                      {optionLabel('yearsOfExperience', yearsOfExperience) || t('profileSetup.placeholders.yearsExperience')}
                       <ChevronDown size={20} style={{ color: '#6B7280' }} />
                     </button>
 
@@ -1179,7 +1230,7 @@ export default function ModalProfileSetup({
                               }
                             }}
                           >
-                            {years}
+                            {optionLabel('yearsOfExperience', years)}
                           </button>
                         ))}
                       </div>
@@ -1229,7 +1280,7 @@ export default function ModalProfileSetup({
                         }, 200);
                       }}
                     >
-                      {companySize || t('profileSetup.placeholders.companySize')}
+                      {optionLabel('companySizes', companySize) || t('profileSetup.placeholders.companySize')}
                       <ChevronDown size={20} style={{ color: '#6B7280' }} />
                     </button>
 
@@ -1272,7 +1323,7 @@ export default function ModalProfileSetup({
                               }
                             }}
                           >
-                            {size}
+                            {optionLabel('companySizes', size)}
                           </button>
                         ))}
                       </div>

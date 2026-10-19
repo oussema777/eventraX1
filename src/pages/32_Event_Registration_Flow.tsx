@@ -1,3 +1,4 @@
+import { useLocalizedLabels } from '../i18n/useLocalizedLabels';
 import { eventPublicPath } from '../utils/eventLinks';
 import { eventAuthReturnUrl } from '../utils/authRedirect';
 import { useEventRouteParams } from '../components/navigation/EventPublicRoute';
@@ -72,6 +73,7 @@ interface FormField {
   type: string;
   required: boolean;
   options?: string[];
+  placeholder?: string;
   value: string;
   readonly?: boolean;
   isSystem?: boolean;
@@ -86,7 +88,8 @@ export default function EventRegistrationFlow() {
   const accessCodeVerified = (location.state as any)?.accessCodeVerified;
   const { user, profile, isLoading: isAuthLoading } = useAuth();
   const initializedRegistration = useRef<string | null>(null);
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const { label: localizedLabel, country: localizedCountry } = useLocalizedLabels();
 
   const [currentStep, setCurrentStep] = useState<RegistrationStep>(1);
   const [needsAccessCode, setNeedsAccessCode] = useState(false);
@@ -102,6 +105,8 @@ export default function EventRegistrationFlow() {
   const [freeTicketId, setFreeTicketId] = useState<string | null>(null);
   const [registeredAttendeeId, setRegisteredAttendeeId] = useState<string | null>(null);
   const [confirmationCode, setConfirmationCode] = useState<string | null>(null);
+  const [confirmationEmailFailed, setConfirmationEmailFailed] = useState(false);
+  const [accessEmailFailed, setAccessEmailFailed] = useState(false);
   const [isPaidEvent, setIsPaidEvent] = useState(false);
   
   const [isLoading, setIsLoading] = useState(true);
@@ -307,7 +312,7 @@ export default function EventRegistrationFlow() {
             } else if (typeLower === 'phone' || labelLower.includes('phone')) {
               defaultValue = profile.phone_number || '';
             } else if (typeLower === 'country' || labelLower.includes('pays') || labelLower.includes('country')) {
-              const loc = profile.location || '';
+              const loc = profile.country || profile.location || '';
               // Try to find code if loc is a name
               const found = countries.find(c => c.name.toLowerCase() === loc.toLowerCase() || c.code === loc);
               defaultValue = found ? found.code : loc;
@@ -341,7 +346,7 @@ export default function EventRegistrationFlow() {
           
           return {
             id: f.id || `field_${Math.random().toString(36).substr(2, 9)}`,
-            label: f.label || f.name || 'Untitled Field',
+            label: f.label || f.name || t('registrationFlow.untitledField'),
             type: f.type,
             required: true,
             options: f.options,
@@ -457,6 +462,8 @@ export default function EventRegistrationFlow() {
   const workshopLimit = getWorkshopLimit(event?.workshop_selection_limit);
 
   const handleCompleteRegistration = async () => {
+    setConfirmationEmailFailed(false);
+    setAccessEmailFailed(false);
     if (isSubmitting) return;
     setIsSubmitting(true);
 
@@ -641,13 +648,11 @@ export default function EventRegistrationFlow() {
                 .eq('id', event.owner_id)
                 .maybeSingle();
               if (ownerProfile?.email) {
-                sendCapacityAlertEmail({
+                sendCapacityAlertEmail(ownerProfile.email, {
                   organizerName: ownerProfile.full_name || 'Organizer',
-                  organizerEmail: ownerProfile.email,
                   eventName: event.name || 'Event',
-                  currentCount: ticketInfo.quantitySold || 0,
-                  totalCapacity: ticketInfo.quantityTotal,
-                  percentFull: pct,
+                  currentRegistrations: ticketInfo.quantitySold || 0,
+                  maxCapacity: ticketInfo.quantityTotal,
                   eventId: eventId || ''
                 }).catch(() => {});
               }
@@ -657,7 +662,9 @@ export default function EventRegistrationFlow() {
       } catch { /* non-blocking */ }
 
       // Send confirmation email (client-side)
-      if (regNotifSettings.is_email_enabled) {
+      const directAccessSent = systemFields.b2bOptIn && edgeFnData?.access_email_sent === true;
+      if (systemFields.b2bOptIn && !directAccessSent) setAccessEmailFailed(true);
+      if (regNotifSettings.is_email_enabled && !directAccessSent) {
         const mySessions = sessions.filter(s => selectedSessions.has(s.id));
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${attendeeId}`;
         const magicLink = edgeFnData?.magic_link || null;
@@ -674,13 +681,14 @@ export default function EventRegistrationFlow() {
           networkingUrl,
           new URL(`/event/${eventId}/register`, window.location.origin).href
         );
-        await sendEmail({
+        const emailSent = await sendEmail({
           to: systemFields.email,
           subject: networkingUrl || magicLink
             ? `Registration Confirmed + B2B Access: ${event?.name}`
             : `Registration Confirmed: ${event?.name}`,
           html: emailHtml,
         });
+        if (!emailSent) setConfirmationEmailFailed(true);
       }
 
       // Create notification for organizer
@@ -704,7 +712,7 @@ export default function EventRegistrationFlow() {
         toast.error(t('agendaBooking.bookingRejected'));
         return;
       }
-      toast.error(sanitizeError(error, t('registrationFlow.toasts.registrationError', { defaultValue: 'Registration failed. Please try again.' })));
+      toast.error(sanitizeError(error, t('registrationFlow.toasts.registrationFailed', { defaultValue: 'Registration failed. Please try again.' })));
     } finally {
       setIsSubmitting(false);
     }
@@ -790,7 +798,7 @@ export default function EventRegistrationFlow() {
 
   const formatTime = (iso: string) => {
     if (!iso) return '';
-    return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
   };
 
   const renderSystemFields = (fieldId: string) => {
@@ -884,7 +892,7 @@ export default function EventRegistrationFlow() {
                     {countries
                       .filter(c => {
                         const query = phoneCountrySearch.trim().toLowerCase();
-                        return !query || c.name.toLowerCase().includes(query) || c.code.toLowerCase().includes(query) || c.phoneCode.includes(query);
+                        return !query || (localizedCountry(c.code).toLowerCase().includes(query) || c.name.toLowerCase().includes(query)) || c.code.toLowerCase().includes(query) || c.phoneCode.includes(query);
                       })
                       .map(c => (
                         <button
@@ -897,13 +905,13 @@ export default function EventRegistrationFlow() {
                           }}
                           className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white hover:bg-white/10"
                         >
-                          <span>{c.name}</span>
+                          <span>{localizedCountry(c.code)}</span>
                           <span className="ml-auto text-white/50">{c.phoneCode}</span>
                         </button>
                       ))}
                     {!countries.some(c => {
                       const query = phoneCountrySearch.trim().toLowerCase();
-                      return !query || c.name.toLowerCase().includes(query) || c.code.toLowerCase().includes(query) || c.phoneCode.includes(query);
+                      return !query || (localizedCountry(c.code).toLowerCase().includes(query) || c.name.toLowerCase().includes(query)) || c.code.toLowerCase().includes(query) || c.phoneCode.includes(query);
                     }) && (
                       <div className="px-3 py-4 text-center text-xs text-white/50">
                         {t('registrationFlow.noCountriesFound', { defaultValue: 'No countries found' })}
@@ -969,7 +977,7 @@ export default function EventRegistrationFlow() {
               {systemFields.interests.map(interest => (
                 <span key={interest} className="flex items-center gap-1 px-2 py-1 rounded-full text-xs"
                   style={{ backgroundColor: 'rgba(6,132,245,0.2)', color: '#0684F5', border: '1px solid rgba(6,132,245,0.3)' }}>
-                  {interest}
+                  {localizedLabel(interest)}
                   <button type="button" onClick={() => updateSystemField('interests', systemFields.interests.filter((i: string) => i !== interest))}
                     className="ml-0.5 hover:text-white">
                     <X size={10} />
@@ -1014,7 +1022,7 @@ export default function EventRegistrationFlow() {
                         style={{ borderColor: isSelected ? '#0684F5' : 'rgba(255,255,255,0.3)', backgroundColor: isSelected ? '#0684F5' : 'transparent' }}>
                         {isSelected && <Check size={10} className="text-white" />}
                       </div>
-                      {interest}
+                      {localizedLabel(interest)}
                     </button>
                   );
                 })}
@@ -1038,7 +1046,7 @@ export default function EventRegistrationFlow() {
               style={fieldStyle}
             >
               <span className={systemFields.sector ? 'text-white' : 'text-white/50'}>
-                {systemFields.sector || t('registration.systemFields.sectorPlaceholder', { defaultValue: 'Select your sector' })}
+                {localizedLabel(systemFields.sector) || t('registration.systemFields.sectorPlaceholder', { defaultValue: 'Select your sector' })}
               </span>
               <ChevronDown size={14} className="text-white/50" />
             </button>
@@ -1052,7 +1060,7 @@ export default function EventRegistrationFlow() {
                     onClick={() => { updateSystemField('sector', s); setOpenDropdown(null); }}
                     className={`w-full text-left px-3 py-2 text-xs hover:bg-white/10 ${systemFields.sector === s ? 'text-[#0684F5]' : 'text-white'}`}
                   >
-                    {s}
+                    {localizedLabel(s)}
                   </button>
                 ))}
               </div>
@@ -1132,7 +1140,7 @@ export default function EventRegistrationFlow() {
                 }
               }
             }}
-            placeholder="e.g. VIP2026"
+            placeholder={t('registrationFlow.accessCodePlaceholder')}
             maxLength={10}
             autoFocus
             className="w-full h-11 px-4 rounded-lg border outline-none font-mono text-sm tracking-wider mb-2"
@@ -1190,8 +1198,8 @@ export default function EventRegistrationFlow() {
     <div className="registration-shell min-h-screen flex flex-col" style={{ backgroundColor: '#0B2641', color: '#FFFFFF' }}>
       {event && (
         <SEOHead
-          title={`Register for ${event.name || 'Event'}`}
-          description={truncateDescription(`Register for ${event.name}. Secure your spot and select your sessions.`, 160)}
+          title={t('registrationFlow.seoTitle', { event: event.name || t('networking.defaults.event') })}
+          description={truncateDescription(t('registrationFlow.seoDescription', { event: event.name }), 160)}
           canonicalUrl={canonicalUrl(eventPublicPath(event || { id: eventId! }, 'register'))}
         />
       )}
@@ -1341,7 +1349,7 @@ export default function EventRegistrationFlow() {
                                 <span style={{ fontSize: '20px' }}>
                                   {toFlagEmoji(field.value)}
                                 </span>
-                                {countries.find(c => c.code === field.value)?.name}
+                                {localizedCountry(field.value)}
                               </span>
                             ) : (
                               t('registrationFlow.selectCountry')
@@ -1380,7 +1388,7 @@ export default function EventRegistrationFlow() {
                               </div>
                               <div style={{ overflowY: 'auto', flex: 1 }}>
                                 {countries
-                                  .filter(c => !countrySearch || c.name.toLowerCase().includes(countrySearch.toLowerCase()) || c.code.toLowerCase().includes(countrySearch.toLowerCase()))
+                                  .filter(c => !countrySearch || (localizedCountry(c.code).toLowerCase().includes(countrySearch.toLowerCase()) || c.name.toLowerCase().includes(countrySearch.toLowerCase())) || c.code.toLowerCase().includes(countrySearch.toLowerCase()))
                                   .map((country) => (
                                   <button
                                     key={country.code}
@@ -1395,7 +1403,7 @@ export default function EventRegistrationFlow() {
                                     }}
                                   >
                                     <span style={{ fontSize: '20px' }}>{toFlagEmoji(country.code)}</span>
-                                    <span style={{ fontSize: '14px', color: '#374151' }}>{country.name}</span>
+                                    <span style={{ fontSize: '14px', color: '#374151' }}>{localizedCountry(country.code)}</span>
                                   </button>
                                 ))}
                               </div>
@@ -1457,7 +1465,7 @@ export default function EventRegistrationFlow() {
                                   {countries
                                     .filter(country => {
                                       const query = phoneCountrySearch.trim().toLowerCase();
-                                      return !query || country.name.toLowerCase().includes(query) || country.code.toLowerCase().includes(query) || country.phoneCode.includes(query);
+                                      return !query || (localizedCountry(country.code).toLowerCase().includes(query) || country.name.toLowerCase().includes(query)) || country.code.toLowerCase().includes(query) || country.phoneCode.includes(query);
                                     })
                                     .map((country) => (
                                       <button
@@ -1473,13 +1481,13 @@ export default function EventRegistrationFlow() {
                                         }}
                                       >
                                         <span style={{ fontSize: '14px', color: '#374151' }}>
-                                          {country.name} ({country.phoneCode})
+                                          {localizedCountry(country.code)} ({country.phoneCode})
                                         </span>
                                       </button>
                                     ))}
                                   {!countries.some(country => {
                                     const query = phoneCountrySearch.trim().toLowerCase();
-                                    return !query || country.name.toLowerCase().includes(query) || country.code.toLowerCase().includes(query) || country.phoneCode.includes(query);
+                                    return !query || (localizedCountry(country.code).toLowerCase().includes(query) || country.name.toLowerCase().includes(query)) || country.code.toLowerCase().includes(query) || country.phoneCode.includes(query);
                                   }) && (
                                     <div style={{ padding: '16px', textAlign: 'center', color: '#6B7280', fontSize: '13px' }}>
                                       {t('registrationFlow.noCountriesFound', { defaultValue: 'No countries found' })}
@@ -1638,7 +1646,7 @@ export default function EventRegistrationFlow() {
                           <textarea
                             value={field.value}
                             onChange={(e) => updateFormField(field.id, e.target.value)}
-                            placeholder={field.placeholder || "Enter full address..."}
+                            placeholder={field.placeholder || t('registrationFlow.addressPlaceholder')}
                             rows={3}
                             className="w-full pl-11 pr-4 pt-3.5 rounded-lg border outline-none transition-all resize-none"
                             style={{ 
@@ -1722,11 +1730,29 @@ export default function EventRegistrationFlow() {
               </h1>
 
               <p className="mb-10 max-w-md mx-auto no-print" style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '16px' }}>
-                {isPaidEvent
-                  ? t('registrationFlow.paidConfirmationDesc').replace('{eventName}', event?.name || '')
-                  : t('registrationFlow.freeConfirmationDesc').replace('{eventName}', event?.name || '').replace('{email}', systemFields.email)
+                {accessEmailFailed
+                  ? t('registrationFlow.accessEmailFailed', { defaultValue: 'Your registration is saved, but we could not send the direct sign-in link. Use the button below to request a fresh link with your registration email.' })
+                  : confirmationEmailFailed
+                  ? t('registrationFlow.confirmationEmailFailed', { defaultValue: 'Your registration was saved, but we could not send the confirmation email. You can save the confirmation code below and request a sign-in link from the event networking page.' })
+                  : isPaidEvent
+                    ? t('registrationFlow.paidConfirmationDesc').replace('{eventName}', event?.name || '')
+                    : systemFields.b2bOptIn
+                      ? t('registrationFlow.b2bAccountReady', { defaultValue: 'Your Eventra account is ready. Check your email for a direct sign-in link to this event. Your registration details are already in your profile.' })
+                    : t('registrationFlow.freeConfirmationDesc').replace('{eventName}', event?.name || '').replace('{email}', systemFields.email)
                 }
               </p>
+
+              {isPaidEvent && systemFields.b2bOptIn && !accessEmailFailed && (
+                <p className="mb-6 max-w-md mx-auto no-print" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                  {t('registrationFlow.b2bAccountReady', { defaultValue: 'Your Eventra account is ready. Check your email for a direct sign-in link to this event. Your registration details are already in your profile.' })}
+                </p>
+              )}
+
+              {(confirmationEmailFailed || accessEmailFailed) && systemFields.b2bOptIn && eventId && (
+                <a href={eventAuthReturnUrl(`/event/${eventId}/networking`, window.location.origin)} className="inline-block mb-8 rounded-lg border border-blue-400 px-5 py-3 text-white no-print">
+                  {t('registrationFlow.openNetworking', { defaultValue: 'Open event networking' })}
+                </a>
+              )}
 
               {/* Final Step Card for Paid Events */}
               {isPaidEvent && (
@@ -1861,11 +1887,11 @@ export default function EventRegistrationFlow() {
                       <div className="flex gap-4 text-[11px] font-medium opacity-80">
                         <div>
                           <p className="uppercase opacity-60 mb-0.5">{t('registrationFlow.voucher.date')}</p>
-                          <p>{event?.start_date ? new Date(event.start_date).toLocaleDateString() : t('registrationFlow.voucher.tbd')}</p>
+                          <p>{event?.start_date ? new Date(event.start_date).toLocaleDateString(locale) : t('registrationFlow.voucher.tbd')}</p>
                         </div>
                         <div>
                           <p className="uppercase opacity-60 mb-0.5">{t('registrationFlow.voucher.time')}</p>
-                          <p>{event?.start_date ? new Date(event.start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : t('registrationFlow.voucher.tbd')}</p>
+                          <p>{event?.start_date ? new Date(event.start_date).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : t('registrationFlow.voucher.tbd')}</p>
                         </div>
                       </div>
                     </div>
@@ -1875,7 +1901,7 @@ export default function EventRegistrationFlow() {
                       <div className="p-3 bg-gray-50 rounded-xl mb-6">
                         <img 
                           src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${registeredAttendeeId}`}
-                          alt="Check-in QR Code"
+                          alt={t('registrationFlow.qrAlt')}
                           style={{ width: '160px', height: '160px', display: 'block' }}
                         />
                       </div>

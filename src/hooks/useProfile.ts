@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,19 +22,23 @@ export interface Certification {
 export interface UserProfile {
   id: string;
   email: string;
+  account_type?: string;
   full_name: string;
   avatar_url?: string;
   phone_number?: string;
-  date_of_birth?: string;
+  date_of_birth?: string | null;
   gender?: string;
   location?: string;
+  country?: string;
   timezone?: string;
   bio?: string;
   job_title?: string;
   company?: string;
   department?: string;
   industry?: string;
-  years_experience?: number;
+  years_experience?: number | null;
+  headline?: string | null;
+  response_rate?: string | number | null;
   company_size?: string;
   linkedin_url?: string;
   twitter_url?: string;
@@ -44,7 +49,6 @@ export interface UserProfile {
   events_attended?: number;
   b2b_meetings?: number;
   connections_made?: number;
-  profile_views?: number;
   professional_data?: any;
   b2b_profile?: any;
   app_preferences?: any;
@@ -143,11 +147,17 @@ export function useProfile(targetUserId?: string, enabled = true) {
   const queryClient = useQueryClient();
   const userId = targetUserId || currentUser?.id;
   const queryKey = ['profile', userId];
+  useEffect(() => {
+    const refresh = () => { void queryClient.invalidateQueries({ queryKey: ['profile', userId] }); };
+    window.addEventListener('eventra:profile-updated', refresh);
+    return () => window.removeEventListener('eventra:profile-updated', refresh);
+  }, [queryClient, userId]);
 
   const { data: profile = null, isLoading, error: queryError } = useQuery({
     queryKey,
     queryFn: () => fetchProfileData(userId!, currentUser),
     enabled: enabled && !!userId,
+    refetchOnMount: 'always',
   });
 
   const error = queryError ? (queryError as Error).message : null;

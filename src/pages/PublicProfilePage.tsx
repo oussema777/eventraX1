@@ -1,8 +1,10 @@
+import { useLocalizedLabels } from '../i18n/useLocalizedLabels';
 import { useEventRouteParams } from '../components/navigation/EventPublicRoute';
 import { useEventParticipantProfile } from '../hooks/useEventParticipantProfile';
+import ProfileMeetingRequest from '../components/networking/ProfileMeetingRequest';
 import BookMeetingModal from '../components/networking/BookMeetingModal';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   MapPin,
   Globe,
@@ -32,7 +34,6 @@ import {
   ChevronRight,
   Target,
   Lightbulb,
-  Eye,
   ArrowLeft
 } from 'lucide-react';
 import { useProfile } from '../hooks/useProfile';
@@ -46,6 +47,9 @@ import { toast } from 'sonner';
 import { useI18n } from '../i18n/I18nContext';
 import SEOHead from '../components/SEOHead';
 import { canonicalUrl } from '../utils/seo';
+import { supabase } from '../lib/supabase';
+import { isSystemProfile } from '../utils/profileIdentity';
+import { useProfileActivityStats } from '../hooks/useProfileActivityStats';
 
 export default function PublicProfilePage() {
   const { userId: routeUserId, eventId, attendeeId } = useEventRouteParams();
@@ -54,17 +58,43 @@ export default function PublicProfilePage() {
   const fromNetworking = !!eventId && searchParams.get('from') === 'my-networking';
   const returnPath = fromNetworking ? '/my-networking' : eventId ? `/event/${eventId}/attendees` : '/';
   const { user: currentUser, signOut } = useAuth();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const { label: localizedLabel } = useLocalizedLabels();
   const memberProfile = useProfile(routeUserId, !eventId);
   const eventProfile = useEventParticipantProfile(eventId, routeUserId, attendeeId, currentUser?.id);
   const profile = eventId ? eventProfile.data : memberProfile.profile;
   const isLoading = eventId ? eventProfile.isLoading : memberProfile.isLoading;
   const error = eventId ? eventProfile.error : memberProfile.error;
   const userId = eventId ? eventProfile.data?.id : routeUserId;
+  const isInternalProfile = isSystemProfile({ ...profile, id: userId });
+  const { stats: activityStats } = useProfileActivityStats(profile && !isInternalProfile ? userId : null);
   const { getOrCreateThread, loading: connecting } = useMessageThread();
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [selectedDuration, setSelectedDuration] = useState('30 min');
+  const [businessLinks, setBusinessLinks] = useState<{ profileId: string; items: Array<{ id: string; company_name: string }> } | null>(null);
+  const linkedBusinesses = businessLinks && businessLinks.profileId === userId ? businessLinks.items : [];
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!userId || !profile || isInternalProfile) return;
+    const loadBusinesses = async () => {
+      const [owned, memberships] = await Promise.all([
+        supabase.from('business_profiles').select('id,company_name').eq('owner_profile_id', userId),
+        supabase.from('business_members').select('business_id').eq('profile_id', userId)
+      ]);
+      const memberIds = (memberships.data || []).map((row) => row.business_id).filter(Boolean);
+      const memberBusinesses = memberIds.length
+        ? await supabase.from('business_profiles').select('id,company_name').in('id', memberIds)
+        : { data: [], error: null };
+      if (cancelled) return;
+      if (owned.error && memberBusinesses.error) return;
+      const businesses = [...(owned.data || []), ...(memberBusinesses.data || [])];
+      setBusinessLinks({ profileId: userId, items: Array.from(new Map(businesses.map((business) => [business.id, business])).values()) });
+    };
+    void loadBusinesses();
+    return () => { cancelled = true; };
+  }, [userId, !!profile, isInternalProfile]);
 
   // Auth Modals
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -125,7 +155,7 @@ export default function PublicProfilePage() {
     </div>;
   }
 
-  if (error || !profile || (isGuestProfile && !viewingOwnGuestProfile && !eventId)) {
+  if (error || !profile || isInternalProfile || (isGuestProfile && !viewingOwnGuestProfile && !eventId)) {
     return (
       <div className="min-h-screen bg-[#0B2641] flex flex-col items-center justify-center text-white p-4">
         <h2 className="text-2xl font-bold mb-4">{t('publicProfilePage.notFound.title')}</h2>
@@ -151,6 +181,10 @@ export default function PublicProfilePage() {
   // Map database data to UI structure
   const skills: string[] = profile.b2b_profile?.skills || profile.professional_data?.skills || [];
   const interests: string[] = profile.b2b_profile?.interests || profile.professional_data?.interests || [];
+  const hasEducation = !!(profile.profile_education?.length || profile.profile_certifications?.length);
+  const hasProfessionalDetails = !!(profile.industry || profile.department || profile.years_experience || profile.company_size);
+  const hasProfessionalContent = hasProfessionalDetails || skills.length > 0 || interests.length > 0 || hasEducation;
+  const hasContactLinks = !!(profile.linkedin_url || profile.twitter_url || profile.website_url || profile.phone_number);
   
   const lookingFor = [
     { id: 1, label: t('publicProfilePage.lookingFor.clients'), key: 'clients' },
@@ -218,10 +252,10 @@ export default function PublicProfilePage() {
   };
 
   const profileName = fullName;
-  const profileTitle = profileName ? `${profileName} | Eventra` : 'Profile | Eventra';
+  const profileTitle = profileName ? `${profileName} | Eventra` : t('publicProfilePage.seo.title');
   const profileDesc = profile
-    ? `${profileName}${profile.headline ? ' — ' + profile.headline : ''}. Connect on Eventra.`
-    : 'View this professional profile on Eventra.';
+    ? t('publicProfilePage.seo.connect', { name: `${profileName}${profile.headline ? ' — ' + profile.headline : ''}` })
+    : t('publicProfilePage.seo.description');
 
   return (
     <div style={{ backgroundColor: '#0B2641', minHeight: '100vh' }}>
@@ -416,9 +450,9 @@ export default function PublicProfilePage() {
               <h1 className="profile-header-title" style={{ fontSize: '32px', fontWeight: 700, color: '#FFFFFF', marginBottom: '8px' }}>
                 {fullName}
               </h1>
-              <p style={{ fontSize: '18px', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '12px', fontWeight: 500 }}>
-                {profile.job_title} {profile.company ? `@ ${profile.company}` : ''}
-              </p>
+              {(profile.job_title || profile.company) && <p style={{ fontSize: '18px', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '12px', fontWeight: 500 }}>
+                {[profile.job_title, profile.company].filter(Boolean).join(' @ ')}
+              </p>}
 
               <div className="profile-info-row" style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', marginBottom: '16px' }}>
                 {profile.location && (
@@ -436,7 +470,7 @@ export default function PublicProfilePage() {
                 {profile.date_of_birth && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'rgba(255, 255, 255, 0.6)' }}>
                     <Calendar size={16} />
-                    <span>{t('publicProfilePage.details.bornOn', { date: new Date(profile.date_of_birth).toLocaleDateString() })}</span>
+                    <span>{t('publicProfilePage.details.bornOn', { date: new Date(profile.date_of_birth).toLocaleDateString(locale) })}</span>
                   </div>
                 )}
                 {profile.gender && (
@@ -469,6 +503,17 @@ export default function PublicProfilePage() {
             </div>
 
             <div className="profile-actions" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              {linkedBusinesses.map((business) => (
+                <button
+                  key={business.id}
+                  onClick={() => navigate(`/business/${business.id}`)}
+                  aria-label={`${t('publicProfilePage.actions.viewBusinessProfile')}: ${business.company_name}`}
+                  style={{ padding: '12px 24px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.15)', color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <Building size={18} />
+                  {t('publicProfilePage.actions.viewBusinessProfile')}: {business.company_name}
+                </button>
+              ))}
               {!isOwnProfile && !!userId && (
                 <>
                   <button
@@ -517,7 +562,7 @@ export default function PublicProfilePage() {
                     }}
                   >
                     <MessageCircle size={18} />
-                    {connecting ? 'Loading...' : t('publicProfilePage.actions.sendMessage')}
+                    {connecting ? t('common.loading') : t('publicProfilePage.actions.sendMessage')}
                   </button>
                 </>
               )}
@@ -567,7 +612,7 @@ export default function PublicProfilePage() {
               </p>
             </div>
 
-            <div
+            {hasProfessionalContent && <div
               style={{
                 background: 'rgba(255, 255, 255, 0.03)',
                 padding: 'clamp(20px, 5vw, 32px)',
@@ -580,7 +625,7 @@ export default function PublicProfilePage() {
                 {t('publicProfilePage.sections.professionalInfo')}
               </h2>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px', marginBottom: '28px' }}>
+              {hasProfessionalDetails && <div className="professional-info-grid">
                 {profile.industry && (
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
@@ -588,7 +633,7 @@ export default function PublicProfilePage() {
                       <span style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255, 255, 255, 0.5)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('publicProfilePage.labels.industry')}</span>
                     </div>
                     <p style={{ fontSize: '15px', color: '#FFFFFF', fontWeight: 500 }}>
-                      {profile.industry === 'Other' ? profile.professional_data?.industry_other || t('publicProfilePage.labels.otherIndustry') : profile.industry}
+                      {profile.industry === 'Other' ? profile.professional_data?.industry_other || t('publicProfilePage.labels.otherIndustry') : localizedLabel(profile.industry)}
                     </p>
                   </div>
                 )}
@@ -618,11 +663,12 @@ export default function PublicProfilePage() {
                       <Users size={16} style={{ color: 'rgba(255, 255, 255, 0.5)' }} />
                       <span style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255, 255, 255, 0.5)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('publicProfilePage.labels.companySize')}</span>
                     </div>
-                    <p style={{ fontSize: '15px', color: '#FFFFFF', fontWeight: 500 }}>{profile.company_size}</p>
+                    <p style={{ fontSize: '15px', color: '#FFFFFF', fontWeight: 500 }}>{localizedLabel(profile.company_size)}</p>
                   </div>
                 )}
               </div>
 
+              }
               {skills.length > 0 && (
                 <div style={{ marginBottom: '28px' }}>
                   <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', marginBottom: '12px' }}>{t('publicProfilePage.sections.skills')}</h3>
@@ -639,13 +685,13 @@ export default function PublicProfilePage() {
                   <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', marginBottom: '12px' }}>{t('publicProfilePage.sections.interests')}</h3>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     {interests.map((interest) => (
-                      <span key={interest} style={{ padding: '8px 16px', borderRadius: '20px', background: 'rgba(6, 132, 245, 0.15)', fontSize: '14px', fontWeight: 500, color: '#0684F5', border: '1px solid rgba(6, 132, 245, 0.3)' }}>{interest}</span>
+                      <span key={interest} style={{ padding: '8px 16px', borderRadius: '20px', background: 'rgba(6, 132, 245, 0.15)', fontSize: '14px', fontWeight: 500, color: '#0684F5', border: '1px solid rgba(6, 132, 245, 0.3)' }}>{localizedLabel(interest)}</span>
                     ))}
                   </div>
                 </div>
               )}
 
-              <div>
+              {hasEducation && <div>
                 <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', marginBottom: '16px' }}>{t('publicProfilePage.sections.education')}</h3>
                 {profile.profile_education?.map((edu: any) => (
                   <div key={edu.id} style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
@@ -670,8 +716,8 @@ export default function PublicProfilePage() {
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
+              </div>}
+            </div>}
 
             {profile.b2b_profile?.enabled && (
               <div
@@ -715,7 +761,7 @@ export default function PublicProfilePage() {
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                       {industriesOfInterest.map((industry: any) => (
-                        <span key={industry.name} style={{ padding: '10px 18px', borderRadius: '24px', background: industry.color + '20', fontSize: '14px', fontWeight: 600, color: industry.color, border: `2px solid ${industry.color}50` }}>{industry.name}</span>
+                        <span key={industry.name} style={{ padding: '10px 18px', borderRadius: '24px', background: industry.color + '20', fontSize: '14px', fontWeight: 600, color: industry.color, border: `2px solid ${industry.color}50` }}>{localizedLabel(industry.name)}</span>
                       ))}
                     </div>
                   </div>
@@ -846,7 +892,7 @@ export default function PublicProfilePage() {
                         color: '#FFFFFF'
                       }}
                     >
-                      {duration}
+                      {localizedLabel(duration)}
                     </div>
                   ))}
                 </div>
@@ -881,7 +927,7 @@ export default function PublicProfilePage() {
               <div style={{ background: 'linear-gradient(135deg, #0684F5 0%, #4A7C6D 100%)', padding: '24px', borderRadius: '12px', boxShadow: '0px 4px 20px rgba(6, 132, 245, 0.3)', color: '#FFFFFF' }}>
                 <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>{t('publicProfilePage.connect.title')}</h3>
                 <p style={{ fontSize: '14px', marginBottom: '20px', color: 'rgba(255, 255, 255, 0.9)' }}>{t('publicProfilePage.connect.subtitle')}</p>
-                <button onClick={() => setShowMeetingModal(true)} style={{ width: '100%', padding: '14px', borderRadius: '8px', background: '#FFFFFF', border: 'none', fontSize: '15px', fontWeight: 600, color: '#0684F5', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyCenter: 'center', gap: '8px' }}>
+                <button onClick={() => currentUser ? setShowMeetingModal(true) : setShowLoginModal(true)} style={{ width: '100%', padding: '14px', borderRadius: '8px', background: '#FFFFFF', border: 'none', fontSize: '15px', fontWeight: 600, color: '#0684F5', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                   <Calendar size={18} /> {t('publicProfilePage.actions.requestMeeting')}
                 </button>
               </div>
@@ -904,18 +950,10 @@ export default function PublicProfilePage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <Eye size={18} style={{ color: 'rgba(255, 255, 255, 0.5)' }} />
-                    <span style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.6)' }}>{t('publicProfilePage.activity.views')}</span>
-                  </div>
-                  <span style={{ fontSize: '18px', fontWeight: 700, color: '#0684F5' }}>{profile.profile_views || 0}</span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <Users size={18} style={{ color: 'rgba(255, 255, 255, 0.5)' }} />
                     <span style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.6)' }}>{t('publicProfilePage.activity.connections')}</span>
                   </div>
-                  <span style={{ fontSize: '18px', fontWeight: 700, color: '#0684F5' }}>{profile.connections_made || 0}</span>
+                  <span style={{ fontSize: '18px', fontWeight: 700, color: '#0684F5' }}>{activityStats?.connections ?? '—'}</span>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -923,7 +961,7 @@ export default function PublicProfilePage() {
                     <Handshake size={18} style={{ color: 'rgba(255, 255, 255, 0.5)' }} />
                     <span style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.6)' }}>{t('publicProfilePage.activity.meetings')}</span>
                   </div>
-                  <span style={{ fontSize: '18px', fontWeight: 700, color: '#0684F5' }}>{profile.total_meetings || 0}</span>
+                  <span style={{ fontSize: '18px', fontWeight: 700, color: '#0684F5' }}>{activityStats?.b2bMeetings ?? '—'}</span>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -931,12 +969,12 @@ export default function PublicProfilePage() {
                     <MessageCircle size={18} style={{ color: 'rgba(255, 255, 255, 0.5)' }} />
                     <span style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.6)' }}>{t('publicProfilePage.activity.responseRate')}</span>
                   </div>
-                  <span style={{ fontSize: '18px', fontWeight: 700, color: '#10B981' }}>{profile.response_rate || '100%'}</span>
+                  <span style={{ fontSize: '18px', fontWeight: 700, color: '#10B981' }}>{profile.response_rate || '—'}</span>
                 </div>
               </div>
             </div>
 
-            <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            {hasContactLinks && <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
               <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', marginBottom: '16px' }}>{t('publicProfilePage.connectElsewhere.title')}</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {profile.linkedin_url && (
@@ -963,61 +1001,14 @@ export default function PublicProfilePage() {
                   </div>
                 )}
               </div>
-            </div>
+            </div>}
 
-            {/* Pro Feature Upsell */}
-            <div
-              style={{
-                background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                padding: '20px',
-                borderRadius: '12px',
-                boxShadow: '0px 4px 20px rgba(245, 158, 11, 0.25)',
-                color: '#FFFFFF'
-              }}
-            >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <Award size={20} />
-                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#FFFFFF' }}>
-                  {t('publicProfilePage.proUpsell.title')}
-                </h3>
-              </div>
-              <p style={{ fontSize: '13px', marginBottom: '16px', color: 'rgba(255, 255, 255, 0.95)', lineHeight: '1.5' }}>
-                {t('publicProfilePage.proUpsell.subtitle')}
-              </p>
-              <button
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  borderRadius: '6px',
-                  background: '#FFFFFF',
-                  border: 'none',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  color: '#F59E0B',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-              >
-                {t('publicProfilePage.proUpsell.button')}
-              </button>
-            </div>
           </div>
         </div>
       </div>
 
-      {showMeetingModal && !eventId && (
-        <div onClick={() => setShowMeetingModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '20px' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: '#0B2641', borderRadius: '16px', padding: '32px', maxWidth: '540px', width: '100%', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-            <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>{t('publicProfilePage.modal.title')}</h2>
-            <p style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.6)', marginBottom: '24px' }}>{t('publicProfilePage.modal.withName', { name: fullName })}</p>
-            <textarea placeholder={t('publicProfilePage.modal.placeholder')} style={{ width: '100%', minHeight: '140px', padding: '14px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.15)', background: 'rgba(255, 255, 255, 0.05)', color: '#FFFFFF', marginBottom: '20px' }} />
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowMeetingModal(false)} style={{ padding: '12px 24px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.15)', color: 'white', cursor: 'pointer' }}>{t('publicProfilePage.modal.cancel')}</button>
-              <button onClick={() => setShowMeetingModal(false)} style={{ padding: '12px 24px', borderRadius: '8px', background: '#0684F5', border: 'none', color: 'white', fontWeight: 600, cursor: 'pointer' }}>{t('publicProfilePage.modal.send')}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {showMeetingModal && !eventId && currentUser && userId && <ProfileMeetingRequest
+        currentUser={currentUser} recipient={{ id: userId, name: fullName }} onClose={() => setShowMeetingModal(false)} />}
 
       {eventId && userId && <BookMeetingModal isOpen={showMeetingModal} onClose={() => setShowMeetingModal(false)} recipient={{ id: userId, name: fullName }} currentUser={currentUser} eventId={eventId} />}
 

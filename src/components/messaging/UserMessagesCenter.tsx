@@ -19,6 +19,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
 import { sanitizeError } from '../../utils/errorHandler';
 import { useI18n } from '../../i18n/I18nContext';
+import { createNotification } from '../../lib/notifications';
+import { sendEmail } from '../../lib/email';
+import { escapeHTML } from '../../utils/security';
+import { isSystemProfile } from '../../utils/profileIdentity';
+import { useMessageThread } from '../../hooks/useMessageThread';
 
 interface Message {
   id: string;
@@ -41,6 +46,7 @@ interface Conversation {
   rawLastMessageTime: string; // ISO string for sorting
   unreadCount: number;
   isActive?: boolean;
+  isSystem?: boolean;
 }
 
 const THREADS_TABLE = 'message_threads';
@@ -62,8 +68,12 @@ export default function UserMessagesCenter({ initialThreadId }: UserMessagesCent
   const location = useLocation();
   const { user } = useAuth();
   const { t } = useI18n();
+  const { getOrCreateThread } = useMessageThread();
+  const currentUserName = user?.user_metadata?.full_name || user?.email || t('messages.defaults.user');
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState('');
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const sendingMessageRef = useRef(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSidebarTab, setActiveSidebarTab] = useState<'chats' | 'suggestions'>('chats');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -102,38 +112,42 @@ export default function UserMessagesCenter({ initialThreadId }: UserMessagesCent
         lastReadMap.set(row.thread_id, row.last_read_at || null);
       });
 
-      const { data: otherParticipants } = await supabase
+      const { data: otherParticipants, error: otherParticipantsError } = await supabase
         .from(PARTICIPANTS_TABLE)
         .select('thread_id,profile_id')
         .in('thread_id', threadIds)
         .neq('profile_id', user.id);
+      if (otherParticipantsError) throw otherParticipantsError;
 
       const otherProfileIds = Array.from(
         new Set((otherParticipants || []).map((row: any) => row.profile_id).filter(Boolean))
       );
 
-      const { data: profiles } = await supabase
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, full_name, email, avatar_url, job_title, department, company')
+        .select('id, full_name, email, avatar_url, job_title, department, company, account_type')
         .in('id', otherProfileIds);
+      if (profilesError) throw profilesError;
 
       const profileMap = new Map(
         (profiles || []).map((profile: any) => [
           profile.id,
           {
-            name: profile.full_name || profile.email || t('messages.defaults.user'),
+            name: isSystemProfile(profile) ? t('businessIdentity.archivedContact') : profile.full_name || profile.email || t('messages.defaults.user'),
+            isSystem: isSystemProfile(profile),
             avatar: profile.avatar_url || undefined,
             title: profile.job_title || profile.department || profile.company || undefined
           }
         ])
       );
 
-      const { data: recentMessages } = await supabase
+      const { data: recentMessages, error: recentMessagesError } = await supabase
         .from(MESSAGES_TABLE)
         .select('id, thread_id, body, created_at, sender_id')
         .in('thread_id', threadIds)
         .order('created_at', { ascending: false })
         .limit(200);
+      if (recentMessagesError) throw recentMessagesError;
 
       const lastMessageMap = new Map<string, any>();
       const unreadCountMap = new Map<string, number>();
@@ -163,6 +177,7 @@ export default function UserMessagesCenter({ initialThreadId }: UserMessagesCent
           userId: other?.profile_id || '',
           userName: profile?.name || t('messages.defaults.unknownUser'),
           userTitle: profile?.title,
+          isSystem: profile?.isSystem || isSystemProfile({ id: other?.profile_id }),
           avatar: profile?.avatar,
           isOnline: false,
           lastMessage: lastMessage?.body || t('messages.empty.lastMessage'),
@@ -189,10 +204,11 @@ export default function UserMessagesCenter({ initialThreadId }: UserMessagesCent
     if (!user?.id) return;
     setIsLoadingMessages(true);
     try {
-      const { data: participants } = await supabase
+      const { data: participants, error: participantsError } = await supabase
         .from(PARTICIPANTS_TABLE)
         .select('profile_id,last_read_at')
         .eq('thread_id', threadId);
+      if (participantsError) throw participantsError;
       const other = (participants || []).find((row: any) => row.profile_id !== user.id);
       const otherReadAt = other?.last_read_at ? new Date(other.last_read_at) : null;
 
@@ -223,29 +239,30 @@ export default function UserMessagesCenter({ initialThreadId }: UserMessagesCent
   const markThreadRead = async (threadId: string) => {
     if (!user?.id) return;
     const now = new Date().toISOString();
-    await supabase
+    const { error } = await supabase
       .from(PARTICIPANTS_TABLE)
       .update({ last_read_at: now })
       .eq('thread_id', threadId)
       .eq('profile_id', user.id);
+    if (error) throw error;
     setConversations((prev) =>
       prev.map((conv) => (conv.id === threadId ? { ...conv, unreadCount: 0 } : conv))
     );
   };
 
   const handleSendMessage = async () => {
-    if (!messageInput.trim() || !activeConversationId || !user?.id) return;
+    if (!messageInput.trim() || !activeConversationId || !user?.id || activeConversation?.isSystem || sendingMessageRef.current) return;
     const content = messageInput.trim();
-    setMessageInput('');
+    sendingMessageRef.current = true;
+    setIsSendingMessage(true);
+    try {
     const { data, error } = await supabase
       .from(MESSAGES_TABLE)
       .insert([{ thread_id: activeConversationId, sender_id: user.id, body: content }])
       .select('id, sender_id, body, created_at')
       .single();
-    if (error) {
-      toast.error(t('messages.errors.sendMessage'));
-      return;
-    }
+    if (error) throw error;
+    setMessageInput((current) => current.trim() === content ? '' : current);
     const newMessage: Message = {
       id: data.id,
       senderId: data.sender_id,
@@ -263,24 +280,50 @@ export default function UserMessagesCenter({ initialThreadId }: UserMessagesCent
       );
       return [...updated].sort((a, b) => (new Date(b.rawLastMessageTime).getTime() - new Date(a.rawLastMessageTime).getTime()));
     });
-    await supabase.from(THREADS_TABLE).update({ updated_at: new Date().toISOString() }).eq('id', activeConversationId);
+    try {
+      const { error: threadUpdateError } = await supabase.from(THREADS_TABLE)
+        .update({ updated_at: new Date().toISOString() }).eq('id', activeConversationId);
+      if (threadUpdateError) console.warn('Message sent, but thread timestamp was not updated:', threadUpdateError);
+    } catch (threadUpdateError) {
+      console.warn('Message sent, but thread timestamp was not updated:', threadUpdateError);
+    }
 
     // Send notification to recipient
     if (activeConversation?.userId) {
       try {
-        await supabase.from('notifications').insert([
-          {
+        await createNotification({
             recipient_id: activeConversation.userId,
             actor_id: user.id,
-            title: t('messages.notifications.new.title', 'New Message'),
+            title: t('messages.notifications.new.title', { defaultValue: 'New Message' }),
             body: t('messages.notifications.new.body', { name: currentUserName, message: content.substring(0, 50) + (content.length > 50 ? '...' : '') }),
             type: 'action',
             action_url: `/messages`
-          }
-        ]);
+          });
       } catch (notifyError) {
         console.error('Failed to send message notification:', notifyError);
+        toast.warning(t('messages.errors.notificationFailed'));
       }
+      try {
+        const { data: recipient, error: recipientError } = await supabase
+          .from('profiles').select('email').eq('id', activeConversation.userId).maybeSingle();
+        if (recipientError || !recipient?.email) throw recipientError || new Error('Recipient email unavailable');
+        const delivered = await sendEmail({
+          to: recipient.email,
+          subject: t('messages.notifications.new.title', { defaultValue: 'New Message' }),
+          html: `<p>${escapeHTML(t('messages.notifications.new.emailIntro', { name: currentUserName }))}</p><p><a href="${window.location.origin}/messages">${escapeHTML(t('messages.notifications.new.openMessages'))}</a></p>`
+        });
+        if (!delivered) throw new Error('Email provider rejected message notification');
+      } catch (emailError) {
+        console.error('Failed to send message email:', emailError);
+        toast.warning(t('messages.errors.emailNotificationFailed'));
+      }
+    }
+    } catch (sendError) {
+      console.error('Failed to send message:', sendError);
+      toast.error(t('messages.errors.sendMessage'));
+    } finally {
+      sendingMessageRef.current = false;
+      setIsSendingMessage(false);
     }
   };
 
@@ -292,7 +335,8 @@ export default function UserMessagesCenter({ initialThreadId }: UserMessagesCent
   };
 
   const handleViewProfile = () => {
-    navigate('/my-profile');
+    if (!activeConversation?.userId || activeConversation.isSystem) return;
+    navigate(`/profile/${activeConversation.userId}`);
   };
 
   const filteredConversations = useMemo(
@@ -301,41 +345,8 @@ export default function UserMessagesCenter({ initialThreadId }: UserMessagesCent
   );
 
   const openOrCreateThread = async (profileId: string, name: string, title?: string) => {
-    if (!user?.id) return;
-    const { data: myThreads } = await supabase
-      .from(PARTICIPANTS_TABLE)
-      .select('thread_id')
-      .eq('profile_id', user.id);
-    const threadIds = (myThreads || []).map((row: any) => row.thread_id);
-    let targetThreadId = '';
-    if (threadIds.length > 0) {
-      const { data: shared } = await supabase
-        .from(PARTICIPANTS_TABLE)
-        .select('thread_id')
-        .eq('profile_id', profileId)
-        .in('thread_id', threadIds)
-        .limit(1);
-      if (shared && shared.length > 0) {
-        targetThreadId = shared[0].thread_id;
-      }
-    }
-
-    if (!targetThreadId) {
-      const { data: newThread, error } = await supabase
-        .from(THREADS_TABLE)
-        .insert([{ created_by: user.id }])
-        .select('id')
-        .single();
-      if (error) {
-        toast.error(t('messages.errors.createConversation'));
-        return;
-      }
-      targetThreadId = newThread.id;
-      await supabase.from(PARTICIPANTS_TABLE).insert([
-        { thread_id: targetThreadId, profile_id: user.id },
-        { thread_id: targetThreadId, profile_id: profileId }
-      ]);
-    }
+    const targetThreadId = await getOrCreateThread(profileId);
+    if (!targetThreadId) return;
 
     setActiveConversationId(targetThreadId);
     setIsSidebarOpen(false);
@@ -484,12 +495,12 @@ export default function UserMessagesCenter({ initialThreadId }: UserMessagesCent
     const timeout = window.setTimeout(async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('id, full_name, email, job_title, department, company')
+        .select('id, full_name, email, job_title, department, company, account_type')
         .neq('account_type', 'event_guest')
         .ilike('full_name', `%${newMessageSearch.trim()}%`)
         .limit(6);
       const results =
-        (data || []).map((row: any) => ({
+        (data || []).filter(row => !isSystemProfile(row)).map((row: any) => ({
           id: row.id,
           name: row.full_name || row.email || t('messages.defaults.user'),
           title: row.job_title || row.department || row.company || ''
@@ -506,14 +517,14 @@ export default function UserMessagesCenter({ initialThreadId }: UserMessagesCent
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, full_name, email, job_title, department, company')
+          .select('id, full_name, email, job_title, department, company, account_type')
           .neq('id', user.id)
           .neq('account_type', 'event_guest')
           .order('full_name', { ascending: true })
           .limit(8);
         if (error) throw error;
         const mapped =
-          (data || []).map((row: any) => ({
+          (data || []).filter(row => !isSystemProfile(row)).map((row: any) => ({
             id: row.id,
             name: row.full_name || row.email || t('messages.defaults.user'),
             title: row.job_title || row.department || row.company || ''
@@ -891,6 +902,8 @@ export default function UserMessagesCenter({ initialThreadId }: UserMessagesCent
               <div className="flex items-center gap-1 md:gap-2">
                 <button
                   onClick={handleViewProfile}
+                  aria-label={t('messages.actions.viewProfile')}
+                  disabled={!activeConversation.userId || activeConversation.isSystem}
                   className="px-3 md:px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
                   style={{
                     backgroundColor: 'transparent',
@@ -970,7 +983,7 @@ export default function UserMessagesCenter({ initialThreadId }: UserMessagesCent
                     )}
 
                     {/* Message Bubble */}
-                    <div style={{ maxWidth: '85%', sm: '70%' }}>
+                    <div className="message-bubble-width">
                       <div
                         className="px-4 py-2 md:py-3"
                         style={{
@@ -1011,8 +1024,12 @@ export default function UserMessagesCenter({ initialThreadId }: UserMessagesCent
               </div>
             </div>
 
-            {/* Composer */}
-            <div 
+            {/* Preserve old history without allowing messages to the import placeholder. */}
+            {activeConversation.isSystem ? (
+              <div role="status" className="px-6 py-5 text-sm text-gray-300 border-t border-white/10">
+                {t('businessIdentity.archivedHint')}
+              </div>
+            ) : <div
               className="messages-center__composer px-4 md:px-6 py-4 md:py-5"
               style={{ 
                 borderTop: '1px solid rgba(255,255,255,0.1)',
@@ -1062,7 +1079,7 @@ export default function UserMessagesCenter({ initialThreadId }: UserMessagesCent
                 {/* Send Button */}
                 <button
                   onClick={handleSendMessage}
-                  disabled={!messageInput.trim()}
+                  disabled={!messageInput.trim() || isSendingMessage}
                   aria-label="Send message"
                   className="flex items-center justify-center rounded-full transition-colors flex-shrink-0"
                   style={{
@@ -1076,7 +1093,7 @@ export default function UserMessagesCenter({ initialThreadId }: UserMessagesCent
                   <Send size={18} />
                 </button>
               </div>
-            </div>
+            </div>}
           </>
         ) : (
           <div className="messages-center__empty flex-1 flex items-center justify-center p-6">
@@ -1232,6 +1249,8 @@ export default function UserMessagesCenter({ initialThreadId }: UserMessagesCent
       )}
 
       <style>{`
+        .message-bubble-width { max-width: 85%; min-width: 0; overflow-wrap: anywhere; }
+        @media (min-width: 640px) { .message-bubble-width { max-width: 70%; } }
         .messages-center__mobile-toggle {
           display: none;
         }

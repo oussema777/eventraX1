@@ -406,6 +406,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
       // Load Venue Config or Initialize default
       if (data?.venue_config) {
         setVenueConfig({
+          ...data.venue_config,
           tableCount: data.venue_config.tableCount || 10,
           tablePrefix: data.venue_config.tablePrefix || 'Table-',
           slotDuration: data.venue_config.slotDuration || 30,

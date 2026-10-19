@@ -1,4 +1,32 @@
 export default {
+  meetingBooking: {"close": "إغلاق", "eyebrow": "لقاء يصنع الفرص", "title": "جدولة لقاء", "reschedule": "إعادة جدولة اللقاء", "withPerson": "مع {name}", "intro": "اختر وقتًا للقاء", "hint": "تبادل الأفكار واكتشف فرصًا جديدة مع المشاركين.", "date": "اختر يومًا", "time": "اختر وقتًا", "format": "صيغة اللقاء", "duration": "{minutes} دقيقة", "message": "ما الموضوع الذي تود مناقشته؟", "optional": "اختياري", "placeholder": "قدّم نفسك أو اقترح موضوعًا للقاء…", "pending": "يتم تأكيد الدعوة عندما يقبلها المشارك الآخر.", "selection": "لقاؤك", "selectHint": "اختر وقتًا للمتابعة", "cancel": "إلغاء", "sending": "جارٍ إرسال الدعوة…", "loading": "جارٍ البحث عن الأوقات المتاحة…", "empty": "لا توجد أوقات متاحة في هذا اليوم. جرّب تاريخًا آخر.", "videoLink": "رابط مكالمة الفيديو", "videoPlaceholder": "أضف رابط Google Meet / Zoom / Teams", "videoHint": "اتركه فارغًا لإنشاء رابط Jitsi Meet. يحتاج المضيف إلى تسجيل الدخول لبدء المكالمة.", "locked": "لا يمكن تغيير الصيغة عند إعادة الجدولة.", "event": "التواصل في الفعالية"},
+  flowRecovery: {"businessLoadError": "تعذر تحميل ملف الشركة. يرجى المحاولة مجدداً.", "notificationsTitle": "الإشعارات", "markAllRead": "تحديد الكل كمقروء ({count})", "notificationsEmpty": "لا توجد إشعارات بعد.", "notificationsLoadError": "تعذر تحميل الإشعارات. حاول مرة أخرى لاحقاً.", "notificationSaveError": "تعذر تحديد الإشعار كمقروء. يرجى المحاولة مجدداً.", "noSharedEvent": "لطلب اجتماع، يجب أن تشتركا في التواصل المهني في نفس الفعالية. يمكنك إرسال رسالة من هذا الملف الشخصي.", "browseEvents": "تصفح الفعاليات"},
+  businessIdentity: {"owner": "صاحب الشركة", "emailContact": "التواصل عبر البريد الإلكتروني", "contactUnavailable": "المراسلة المباشرة غير متاحة لهذه الشركة بعد.", "noTeam": "لم يتم ربط أعضاء الفريق بعد.", "archivedContact": "جهة اتصال سابقة للشركة", "archivedHint": "كانت هذه المحادثة مرتبطة بجهة اتصال غير متاحة. افتح ملف الشركة واختر التواصل للوصول إلى صاحبها الحالي."},
+  networkingExperience: {"yourEventSpace": "\u0645\u0633\u0627\u062d\u0629 \u0627\u0644\u062a\u0648\u0627\u0635\u0644 \u0627\u0644\u062e\u0627\u0635\u0629 \u0628\u0643", "backToHub": "\u0627\u0644\u0639\u0648\u062f\u0629 \u0625\u0644\u0649 \u0627\u0644\u062a\u0648\u0627\u0635\u0644", "checkingProfile": "\u062c\u0627\u0631\u064d \u0627\u0644\u062a\u062d\u0642\u0642 \u0645\u0646 \u0645\u0644\u0641\u0643\u2026", "profileBasics": "\u0645\u0644\u0641\u0643 \u0644\u0644\u062a\u0648\u0627\u0635\u0644 \u0627\u0644\u0645\u0647\u0646\u064a", "readyTitle": "\u0623\u0646\u062a \u062c\u0627\u0647\u0632 \u0644\u0644\u0627\u062c\u062a\u0645\u0627\u0639\u0627\u062a", "readyHint": "\u0623\u0636\u0641 \u0635\u0648\u0631\u0629 \u0648\u0646\u0628\u0630\u0629 \u0642\u0635\u064a\u0631\u0629 \u0648\u0623\u0647\u062f\u0627\u0641\u0643 \u0644\u0645\u0633\u0627\u0639\u062f\u0629 \u0627\u0644\u0623\u0634\u062e\u0627\u0635 \u0627\u0644\u0645\u0646\u0627\u0633\u0628\u064a\u0646 \u0639\u0644\u0649 \u0627\u0644\u062a\u0639\u0631\u0641 \u0639\u0644\u064a\u0643.", "unlockTitle": "\u062a\u0639\u0631\u064a\u0641 \u0633\u0631\u064a\u0639. \u0644\u0642\u0627\u0621\u0627\u062a \u0623\u0641\u0636\u0644.", "unlockHint": "\u0623\u0636\u0641 \u0627\u0633\u0645\u0643 \u0648\u0645\u0646\u0635\u0628\u0643 \u0648\u0634\u0631\u0643\u062a\u0643 \u0648\u0642\u0637\u0627\u0639\u0643 \u0644\u062a\u0641\u0639\u064a\u0644 \u0637\u0644\u0628\u0627\u062a \u0627\u0644\u0627\u062c\u062a\u0645\u0627\u0639\u0627\u062a. \u064a\u0645\u0643\u0646\u0643 \u062a\u0635\u0641\u062d \u0627\u0644\u0645\u0634\u0627\u0631\u0643\u064a\u0646 \u0627\u0644\u0622\u0646.", "completeBasics": "\u0625\u0643\u0645\u0627\u0644 \u0627\u0644\u062a\u0639\u0631\u064a\u0641 \u0628\u0646\u0641\u0633\u064a", "enrichProfile": "\u062a\u062d\u0633\u064a\u0646 \u0645\u0644\u0641\u064a", "saveBasics": "\u062d\u0641\u0638 \u0648\u062a\u0641\u0639\u064a\u0644 \u0627\u0644\u0627\u062c\u062a\u0645\u0627\u0639\u0627\u062a", "fullProfile": "\u0641\u062a\u062d \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0643\u0627\u0645\u0644", "profileError": "\u062a\u0639\u0630\u0631 \u062a\u062d\u0645\u064a\u0644 \u0645\u0644\u0641\u0643 \u0623\u0648 \u062d\u0641\u0638\u0647. \u062d\u0627\u0648\u0644 \u0645\u062c\u062f\u062f\u0627\u064b.", "eventsError": "\u062a\u0639\u0630\u0631 \u062a\u062d\u0645\u064a\u0644 \u0641\u0639\u0627\u0644\u064a\u0627\u062a\u0643.", "welcomeHint": "\u062a\u0645 \u062d\u0641\u0638 \u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u062a\u0633\u062c\u064a\u0644. \u0623\u0643\u0645\u0644 \u0627\u0644\u0645\u0639\u0644\u0648\u0645\u0627\u062a \u0627\u0644\u0646\u0627\u0642\u0635\u0629 \u062b\u0645 \u0627\u0628\u062f\u0623 \u0627\u0644\u0644\u0642\u0627\u0621\u0627\u062a.", "availabilityHint": "\u0623\u0646\u062a \u0645\u062a\u0627\u062d \u0637\u0648\u0627\u0644 \u0633\u0627\u0639\u0627\u062a \u0627\u0644\u062a\u0648\u0627\u0635\u0644 \u0641\u064a \u0627\u0644\u0641\u0639\u0627\u0644\u064a\u0629 \u0645\u0627 \u0644\u0645 \u062a\u062d\u062f\u062f \u0623\u0648\u0642\u0627\u062a\u0627\u064b \u0645\u0639\u064a\u0646\u0629. \u0627\u0644\u0627\u062c\u062a\u0645\u0627\u0639\u0627\u062a \u0627\u0644\u0645\u0624\u0643\u062f\u0629 \u062a\u062d\u062c\u0632 \u0623\u0648\u0642\u0627\u062a\u0647\u0627 \u062a\u0644\u0642\u0627\u0626\u064a\u0627\u064b.", "availableByDefault": "\u0645\u062a\u0627\u062d \u0641\u064a \u062c\u0645\u064a\u0639 \u0623\u0648\u0642\u0627\u062a \u0627\u0644\u062a\u0648\u0627\u0635\u0644", "customAvailability": "\u0623\u0648\u0642\u0627\u062a\u0643 \u0627\u0644\u0645\u062e\u0635\u0635\u0629 \u0645\u0641\u0639\u0644\u0629", "country": "\u0627\u0644\u0628\u0644\u062f", "fields": {"full_name": "\u0627\u0644\u0627\u0633\u0645 \u0627\u0644\u0643\u0627\u0645\u0644", "job_title": "\u0627\u0644\u0645\u0646\u0635\u0628", "company": "\u0627\u0644\u0634\u0631\u0643\u0629 / \u0627\u0644\u0645\u0624\u0633\u0633\u0629", "industry": "\u0627\u0644\u0642\u0637\u0627\u0639"}, "matchScore": "\u062a\u0648\u0627\u0641\u0642 \u0628\u0646\u0633\u0628\u0629 {score}%", "matchLabel": "\u062a\u0648\u0627\u0641\u0642", "viewMeeting": "\u0639\u0631\u0636 \u0627\u0644\u0627\u062c\u062a\u0645\u0627\u0639", "planningEventHint": "\u0627\u062e\u062a\u0631 \u0641\u0639\u0627\u0644\u064a\u0629 \u0644\u0639\u0631\u0636 \u0627\u062c\u062a\u0645\u0627\u0639\u0627\u062a\u0643 \u0641\u064a\u0647\u0627."},
+    eventAccount: {
+      myProfile: 'ملفي الشخصي', createBusiness: 'إنشاء ملف للشركة', messages: 'الرسائل',
+      todayAt: 'اليوم في {event}', dayHint: 'احتفظ برمز الدخول واجتماعاتك في متناول يدك أثناء الفعالية.',
+      checkInCode: 'رمز الدخول', myMeetings: 'اجتماعاتي', eventAgenda: 'برنامج الفعالية',
+      welcomeTitle: 'فعاليتك وحسابك جاهزان',
+      welcomeHint: 'معلومات التسجيل موجودة بالفعل في ملفك الشخصي. يمكنك استكشاف المشاركين والاجتماعات الآن، وإكمال ملفك لاحقًا.',
+      dismiss: 'إغلاق', editProfile: 'تعديل ملفي الشخصي'
+    },
+    networkingScheduling: {
+      formats: { video: 'عبر الإنترنت', 'in-person': 'حضوري', hybrid: 'هجين' },
+      myAvailability: 'أوقات توفري', chooseEvent: 'اختر فعالية',
+      availabilityHint: 'اختر الأوقات التي يمكنك فيها استقبال طلبات الاجتماعات. لا تتغير الاجتماعات المؤكدة. الطلبات المعلقة لا تحجز وقتاً أو طاولة.',
+      availabilityMode: 'التوفر للاجتماعات', allSlots: 'جميع أوقات المنظم', chosenSlots: 'الأوقات التي أختارها فقط',
+      emptyAvailability: 'إذا لم تختر أي وقت، فلن تكون متاحاً لطلبات اجتماعات جديدة.',
+      timeZone: 'الأوقات حسب {zone}', saveAvailability: 'حفظ أوقات التوفر', saving: 'جارٍ الحفظ…',
+      saved: 'تم حفظ أوقات التوفر.', saveError: 'تعذر حفظ أوقات التوفر. اختياراتك محفوظة هنا. حاول مجدداً.',
+      loadError: 'تعذر التحقق من جدول التواصل أو أوقات التوفر. حاول مجدداً.',
+      noSchedule: 'لم ينشر المنظم أوقات التواصل بعد. تواصل معه أو تحقق لاحقاً.',
+      busy: 'مشغول', unavailable: 'غير متاح', slotChanged: 'هذا الوقت لم يعد متاحاً. اختر وقتاً آخر.',
+      participantBusy: 'لدى أحد المشاركين اجتماع مؤكد في هذا الوقت.', venueFull: 'جميع الطاولات محجوزة في هذا الوقت. اختر وقتاً آخر.',
+      ineligible: 'يجب أن يكون المشاركان مسجلين وموافقين على التواصل المهني في هذه الفعالية.',
+      formatNotAllowed: 'صيغة الاجتماع هذه غير مسموح بها في هذه الفعالية.', outsideSchedule: 'اختر وقتاً من جدول التواصل الحالي للمنظم.',
+      duplicateRequest: 'يوجد بالفعل طلب معلق مع هذا الشخص في هذا الوقت.'
+    },
     businessFlows: {
   "sizes": {
     "s1": "1–10 موظفين",
@@ -29,6 +57,92 @@ export default {
   "selectSector": "اختر قطاعاً",
   "noSecondary": "بدون قطاع ثانوي",
   "subsector": "القطاع الفرعي (اختياري)"
+,
+"teamMember": "عضو الفريق"
+,
+"alreadyMember": "هذا المستخدم عضو في الفريق بالفعل."
+,
+"memberAdded": "تمت إضافة العضو بنجاح."
+,
+"namedMemberAdded": "تمت إضافة {name} بنجاح."
+,
+"addMemberFailed": "تعذّرت إضافة العضو"
+,
+"userNotFound": "لم يُعثر على المستخدم في المنصة."
+,
+"profileUpdated": "تم تحديث الملف"
+,
+"profileUpdateFailed": "تعذّر تحديث ملف الشركة"
+,
+"noMoreOfferings": "لا توجد عروض أخرى في هذه الصفحة."
+,
+"listingEnabled": "تم تفعيل الظهور في السوق"
+,
+"listingDisabled": "تم إيقاف الظهور في السوق"
+,
+"listingEnabledHint": "ملف شركتك ظاهر الآن في الدليل العام."
+,
+"listingDisabledHint": "لم يعد ملف شركتك ظاهرًا في الدليل العام."
+,
+"logoUploadFailed": "تعذّر رفع الشعار"
+,
+"coverUploadFailed": "تعذّر رفع صورة الغلاف"
+,
+"documentUploadFailed": "تعذّر رفع المستند"
+,
+"documentDeleteFailed": "تعذّر حذف المستند"
+,
+"analyticsRefreshed": "تم تحديث الإحصاءات"
+,
+"shareCopied": "تم نسخ رابط المشاركة"
+,
+"copyFailed": "تعذّر النسخ"
+,
+"emailRequired": "أضف بريدًا إلكترونيًا للشركة لإرسال ملخص"
+,
+"analyticsSummary": "ملخص إحصاءات الشركة"
+,
+"analyticsReset": "تمت إعادة تعيين الإحصاءات"
+,
+"roleUpdated": "تم تحديث دور العضو"
+,
+"roleUpdateFailed": "تعذّر تحديث العضو"
+,
+"memberRemoved": "تمت إزالة العضو"
+,
+"removeMemberFailed": "تعذّرت إزالة العضو"
+,
+"openNavigation": "فتح التنقل"
+,
+"closeNavigation": "إغلاق التنقل"
+,
+"addressPlaceholder": "123 شارع الأعمال، المدينة، البلد"
+,
+"quantityShort": "الكمية:"
+,
+"quantityPlaceholder": "أدخل الكمية"
+,
+"active": "نشط"
+,
+"pending": "قيد الانتظار"
+,
+"lastDays": "آخر {count} يومًا"
+,
+"general": "عام"
+,
+"offeringDeleteFailed": "تعذّر حذف العرض"
+,
+"offeringSaveFailed": "تعذّر حفظ العرض"
+,
+"galleryImage": "صورة المعرض {number}"
+,
+"removeTag": "إزالة الوسم {tag}"
+,
+"preview": "معاينة"
+,
+"ai": "ذكاء اصطناعي"
+,
+"analyticsBody": "إليك ملخص الإحصاءات للفترة {range}:\n\nالمشاهدات: {views}\nالعملاء المحتملون: {leads}\nمرات الحفظ: {saved}"
 },
     eventImprovements: {
       answerYes: "نعم",
@@ -117,7 +231,9 @@ export default {
       "message": "رسالة",
       "potentialMatches": "اللقاءات المحتملة",
       "sessionsError": "تعذر تحميل الجلسات. يرجى إعادة المحاولة."
-    },
+    ,
+"b2bParticipants": "المشاركون في لقاءات الأعمال"
+},
     agendaBooking: {
       switchHint: 'اخترت ورشة بالفعل؟ اختر ورشة أخرى لتغيير اختيارك.',
       replaceConfirm: 'لقد اخترت «{current}» بالفعل. اختيار «{next}» سيحل محلها. انقر على هذه الجلسة مرة أخرى أو على «اختيار هذه الورشة بدلاً منها» للتأكيد. ستبقى جلساتك الأخرى محددة.',
@@ -170,7 +286,19 @@ export default {
         next: 'التالي',
         noMore: 'لم يتم العثور على المزيد من العناصر'
       }
-    },
+    ,
+"close": "إغلاق"
+,
+"cancel": "إلغاء"
+,
+"back": "رجوع"
+,
+"signOut": "تسجيل الخروج"
+,
+"notAvailable": "??? ?????"
+,
+"loading": "جارٍ التحميل…"
+},
     nav: {
       communities: {
         label: 'المجتمعات',
@@ -247,7 +375,7 @@ export default {
         search: 'ابحث بالاسم أو الشركة أو الاهتمامات', loading: 'جارٍ تحميل المشاركين…',
         error: 'تعذّر تحميل المشاركين. يرجى المحاولة مجددًا.', retry: 'إعادة المحاولة',
         empty: 'لا يوجد مشاركون آخرون في لقاءات الأعمال بعد. عد لاحقًا مع انضمام المزيد.',
-        noResults: 'لا يوجد مشاركون مطابقون لبحثك.', count: '{count} مشاركين',
+        noResults: 'لا يوجد مشاركون مطابقون لبحثك.', count: "{count} مشاركًا في لقاءات الأعمال",
         requestMeeting: 'طلب اجتماع'
       },
       title: 'مركز التواصل',
@@ -269,7 +397,9 @@ export default {
       },
       common: {
         tbd: 'يحدد لاحقاً'
-      },
+      ,
+"toBeScheduled": "يُحدّد لاحقًا"
+},
       relative: {
         justNow: 'الآن',
         minute: 'منذ دقيقة',
@@ -290,13 +420,33 @@ export default {
         unknownCountry: 'غير معروف',
         user: 'مستخدم',
         someone: 'شخص ما'
-      },
+      ,
+"networkingArea": "مساحة التواصل المهني"
+},
       matches: {
         reasonFallback: 'بناءً على ملفك الشخصي واهتماماتك',
         subtitle: 'توصيات ذكية بالذكاء الاصطناعي بناءً على ملفك الشخصي واهتماماتك وأهداف التواصل.',
         requestedByThem: 'طُلب من قبلهم',
         noMatches: 'لا توجد مطابقات متاحة حالياً'
-      },
+      ,
+"profileReason": "اقتراح بناءً على معلومات ملفك الشخصي."
+,
+"potentialFit": "توافق محتمل"
+,
+"sharedReason": "قواسم مشتركة — {category}: {shared}."
+,
+"categories": {
+  "industries": "القطاع"
+,
+"interests": "الاهتمامات"
+,
+"topics": "مواضيع الاجتماع"
+,
+"goals": "أهداف التواصل"
+,
+"skills": "المهارات"
+}
+},
       requests: {
         defaultMessage: 'لنتواصل ونستكشف الفرص.',
         receivedTitle: 'الطلبات المستلمة ({count})',
@@ -326,7 +476,9 @@ export default {
       },
       labels: {
         event: 'الفعالية: {event}'
-      },
+      ,
+"roleAtCompany": "{role} لدى {company}"
+},
       connections: {
         total: '{count} اتصالات إجمالية',
         connectedOn: 'متصل منذ: {date}'
@@ -349,9 +501,12 @@ export default {
           slotNoTime: 'الموعد المختار لا يحتوي على وقت محدد.',
           slotFull: 'الموعد المختار ممتلئ.'
         }
-      },
+      ,
+"jitsiHint": "Jitsi — يسجّل أول شخص الدخول باستخدام Google لبدء الاجتماع"
+},
       errors: {
         loadData: 'فشل في تحميل بيانات التواصل',
+        cancelMeeting: 'تعذر إلغاء الاجتماع. حدّث الصفحة وحاول مرة أخرى.',
         generateMatches: 'فشل في إنشاء المطابقات',
         loadEvents: 'فشل في تحميل الفعاليات',
         rescheduleMeeting: 'فشل في إعادة جدولة الاجتماع',
@@ -359,7 +514,15 @@ export default {
         sendRequest: 'فشل في إرسال الطلب',
         openConversation: 'فشل في فتح المحادثة',
         noMeetingLink: 'لا يوجد رابط اجتماع بعد.'
-      },
+      ,
+"sessionExpired": "انتهت الجلسة. يرجى تحديث الصفحة."
+,
+"participantMissing": "تعذّر تحديد المشارك في الاجتماع. حاول مجددًا."
+,
+"verifyRegistration": "تعذّر التحقق من تسجيل أحد المشاركين أو كليهما."
+,
+"saveMeeting": "لم يُحفظ طلب الاجتماع. حاول مجددًا."
+},
       notifications: {
         meetingRescheduled: {
           title: 'تمت إعادة جدولة الاجتماع',
@@ -369,6 +532,8 @@ export default {
           title: 'طلب اجتماع',
           body: '{name} حدد اجتماعاً معك.'
         },
+        emailFailed: 'تم تحديث الاجتماع، لكن تعذر إرسال إشعاره بالبريد الإلكتروني.',
+        platformFailed: 'تم تحديث الاجتماع، لكن تعذر إرسال إشعاره على المنصة.',
         meetingCancelled: {
           title: 'تم إلغاء الاجتماع',
           body: '{name} ألغى الاجتماع.'
@@ -425,7 +590,29 @@ export default {
         meetingDate: 'تاريخ الاجتماع',
         meetingTime: 'وقت الاجتماع'
       }
-    },
+    ,
+"auth": {
+  "messagePrompt": "يرجى تسجيل الدخول لإرسال الرسائل."
+}
+,
+"ticket": {
+  "title": "تذكرة الاجتماع"
+,
+"qr": "رمز QR"
+,
+"qrAlt": "رمز QR للاجتماع"
+,
+"event": "الفعالية"
+,
+"time": "الوقت"
+,
+"location": "المكان"
+,
+"with": "مع"
+,
+"print": "طباعة / حفظ التذكرة"
+}
+},
     landing: {
       digest: {
         tagline: 'مخصص لك',
@@ -570,6 +757,10 @@ export default {
       },
       login: {
         title: 'مرحباً بعودتك',
+        emailLinkButton: 'أرسل لي رابط الدخول',
+        emailLinkSending: 'جارٍ إرسال الرابط...',
+        emailLinkSent: 'تحقق من بريدك الإلكتروني. سيفتح الرابط حسابك مباشرة.',
+        emailLinkError: 'تعذر إرسال رابط الدخول الآن. تحقق من البريد الإلكتروني وحاول مجددًا.',
         subtitle: 'تسجيل الدخول إلى حساب إيفينترا الخاص بك',
         continueWithGoogle: 'المتابعة باستخدام جوجل',
         divider: 'أو',
@@ -580,7 +771,7 @@ export default {
         rememberMe: 'تذكرني',
         forgotPassword: 'هل نسيت كلمة المرور؟',
         submit: 'تسجيل الدخول',
-        loggingIn: 'جاري تسجيل الدخول...', 
+        loggingIn: 'جاري تسجيل الدخول...',
         newToEventra: 'جديد على إيفينترا؟',
         signUp: 'أنشئ حساباً',
         errors: {
@@ -588,7 +779,95 @@ export default {
           googleInitFailed: 'فشل تهيئة تسجيل الدخول باستخدام جوجل'
         }
       }
-    },
+    ,
+"emailRegistration": {
+  "title": "إنشاء حساب",
+  "subtitle": "انضم إلى Eventra وابدأ رحلتك",
+  "emailLabel": "البريد الإلكتروني",
+  "emailPlaceholder": "name@company.com",
+  "passwordLabel": "كلمة المرور",
+  "passwordPlaceholder": "أنشئ كلمة مرور قوية",
+  "requirements": {
+    "length": "8 أحرف على الأقل",
+    "uppercase": "حرف كبير واحد",
+    "number": "رقم واحد"
+  },
+  "strength": {
+    "weak": "ضعيفة",
+    "medium": "متوسطة",
+    "strong": "قوية"
+  },
+  "terms": {
+    "prefix": "أوافق على",
+    "termsOfService": "شروط الخدمة",
+    "and": "و",
+    "privacyPolicy": "سياسة الخصوصية"
+  },
+  "submitting": "جارٍ إنشاء الحساب…",
+  "submit": "إنشاء حساب",
+  "alreadyAccount": "لديك حساب بالفعل؟",
+  "login": "تسجيل الدخول",
+  "errors": {
+    "invalidEmail": "أدخل بريدًا إلكترونيًا صالحًا"
+  }
+}
+,
+"emailVerification": {
+  "title": "تحقق من بريدك الإلكتروني",
+  "subtitle": "أرسلنا رابط تحقق إلى",
+  "instructions": "افتح الرسالة وانقر على الرابط لتأكيد حسابك.",
+  "resendSuccess": "تم إرسال رسالة التحقق مجددًا",
+  "resendError": "تعذّر إعادة إرسال رسالة التحقق",
+  "resending": "جارٍ الإرسال…",
+  "resend": "إعادة إرسال الرسالة",
+  "changeEmail": "تغيير البريد الإلكتروني",
+  "timer": "????? ????? ??????? ??? {time}",
+  "helpPrefix": "هل تحتاج إلى مساعدة؟",
+  "helpLink": "تواصل معنا"
+}
+,
+"forgotPassword": {
+  "title": "نسيت كلمة المرور؟",
+  "subtitle": "أدخل بريدك الإلكتروني لإعادة تعيين كلمة المرور.",
+  "emailLabel": "البريد الإلكتروني",
+  "emailPlaceholder": "name@company.com",
+  "sending": "جارٍ الإرسال…",
+  "submit": "إرسال رابط إعادة التعيين",
+  "backToLogin": "العودة إلى تسجيل الدخول",
+  "toastSuccess": "تم إرسال رابط إعادة تعيين كلمة المرور",
+  "toastError": "تعذّر إرسال رابط إعادة تعيين كلمة المرور"
+}
+,
+"passwordResetSent": {
+  "title": "تحقق من بريدك الإلكتروني",
+  "subtitle": "??? ??? ?????? ???????? ??????? ???? ????? ????? ???? ?????? ???:",
+  "instructions": "انقر على الرابط في الرسالة لإعادة تعيين كلمة المرور.",
+  "resending": "جارٍ الإرسال…",
+  "resend": "إعادة إرسال الرابط",
+  "backToLogin": "العودة إلى تسجيل الدخول",
+  "help": "تحقق من مجلد الرسائل غير المرغوب فيها إذا لم تجد الرسالة."
+}
+,
+"callback": {
+  "completing": "جارٍ إكمال تسجيل الدخول..."
+,
+"failed": "تعذّر إكمال تسجيل الدخول. يرجى محاولة تسجيل الدخول مجددًا."
+,
+"expired": "انتهت صلاحية رابط تسجيل الدخول أو تم استخدامه سابقًا. يرجى طلب رابط جديد."
+,
+"activating": "جارٍ تفعيل حسابك على Eventra..."
+,
+"activationFailed": "تم تسجيل دخولك، لكن تعذّر إكمال إعداد حسابك. حاول مجددًا للمتابعة؛ لا تحتاج إلى رابط آخر عبر البريد الإلكتروني."
+,
+"refreshFailed": "حسابك جاهز. حاول مجددًا لفتح فعاليتك."
+,
+"retry": "حاول مجددًا"
+,
+"signIn": "العودة إلى تسجيل الدخول"
+,
+"freshLink": "طلب رابط جديد لتسجيل الدخول إلى الفعالية"
+}
+},
     dashboard: {
       breadcrumb: {
         home: 'الرئيسية',
@@ -597,7 +876,7 @@ export default {
       header: {
         title: 'فعالياتي',
         subtitle: 'إدارة وتتبع محفظة فعالياتك',
-        initializing: 'جاري التهيئة...', 
+        initializing: 'جاري التهيئة...',
         create: 'إنشاء فعالية'
       },
       stats: {
@@ -614,7 +893,7 @@ export default {
           draft: 'مسودة',
           archived: 'مؤرشف'
         },
-        searchPlaceholder: 'البحث في الفعاليات...', 
+        searchPlaceholder: 'البحث في الفعاليات...',
         sortLabel: 'ترتيب حسب: {option}',
         sortOptions: {
           recent: 'الأحدث',
@@ -649,7 +928,7 @@ export default {
       }
     },
     manageEvent: {
-      loading: 'جاري تحميل الفعالية...', 
+      loading: 'جاري تحميل الفعالية...',
       notFound: {
         title: 'الفعالية غير موجودة',
         return: 'العودة إلى لوحة التحكم'
@@ -1569,263 +1848,7 @@ export default {
           missingEvent: 'الفعالية مفقودة'
         }
       },
-      b2b: {
-        header: {
-          title: 'مركز التوفيق بين الأعمال',
-          subtitle: 'شبكات التواصل وتسهيل الاجتماعات بالذكاء الاصطناعي',
-          aiMatchmaker: 'التوفيق الذكي',
-          createMeeting: 'إنشاء اجتماع'
-        },
-        stats: {
-          activeConnections: 'الاتصالات النشطة',
-          totalMeetings: 'إجمالي الاجتماعات المجدولة',
-          newThisWeek: '+{count} هذا الأسبوع',
-          aiMatchSuccess: 'نجاح التوفيق الذكي',
-          ofAiAccepted: 'من المطابقات الذكية المقبولة',
-          pendingSuggestions: 'اقتراحات معلّقة',
-          awaitingResponse: 'بانتظار الرد',
-          sendReminders: 'إرسال تذكيرات',
-          completed: 'مكتملة',
-          completionRate: '{percent}% معدل الإكمال',
-          networkingScore: 'نقاط التواصل',
-          overallEngagement: 'التفاعل العام'
-        },
-        tabs: {
-          aiMatchmaker: 'التوفيق الذكي',
-          allMeetings: 'جميع الاجتماعات',
-          logistics: 'اللوجستيات',
-          analytics: 'تحليلات التواصل',
-          suggestions: 'اقتراحات المطابقة'
-        },
-        aiMatchmaker: {
-          title: 'محرك التوفيق بالذكاء الاصطناعي',
-          subtitle: 'شبكات تواصل ذكية بقوة الذكاء الاصطناعي',
-          whoToMatch: 'من يجب أن نوفق بينهم؟',
-          options: {
-            all: {
-              label: 'توفيق جميع الحضور',
-              desc: 'إنشاء مطابقات لكل من لم يتصل بعد',
-              count: '{count} حاضر متاح'
-            },
-            category: {
-              label: 'توفيق فئة محددة',
-              desc: 'استهداف مجموعات حضور محددة',
-              count: '{count} مع فئات'
-            },
-            individuals: {
-              label: 'توفيق أفراد محددين',
-              desc: 'اختيار حضور محددين للتوفيق',
-              count: '{count} مشتركين'
-            },
-            recommended: 'موصى به',
-            noAttendees: 'لا يوجد حضور بعد',
-            noCategories: 'لم يتم اكتشاف فئات',
-            noOptIn: 'لم يتم العثور على علامات اشتراك'
-          },
-          criteria: {
-            title: 'معايير التوفيق',
-            industry: 'توافق الصناعة',
-            industryDesc: 'أولوية عالية - مطابقة صناعات متشابهة',
-            role: 'توافق الدور الوظيفي',
-            roleDesc: 'أولوية متوسطة',
-            stage: 'توافق مرحلة الشركة',
-            stageDesc: 'أولوية متوسطة-عالية',
-            interests: 'الاهتمامات المشتركة',
-            interestsDesc: 'أولوية عالية - التركيز على الاهتمامات',
-            goals: 'توافق الأهداف',
-            goalsDesc: 'أولوية عالية - مطابقة أهداف التواصل'
-          },
-          threshold: {
-            title: 'الحد الأدنى لنقاط المطابقة',
-            subtitle: 'اقتراح مطابقات بتوافق {percent}% أو أعلى فقط',
-            recommended: 'موصى به: 70-80%'
-          },
-          generate: {
-            info: 'سيحلل الذكاء الاصطناعي {total} حاضر وينشئ حوالي {count} مطابقة عالية الجودة',
-            time: 'وقت المعالجة: ~30 ثانية',
-            button: 'إنشاء مطابقات ذكية'
-          },
-          insights: {
-            title: 'رؤى التوفيق',
-            subtitle: 'تحليل فوري',
-            potential: 'إمكانية تواصل عالية',
-            potentialDesc: '{percent}% من الحضور لديهم إمكانية مطابقة بناءً على ملفاتهم',
-            industries: 'أبرز الصناعات الحاضرة',
-            goals: 'أهداف التواصل',
-            lastRun: 'آخر تشغيل للذكاء الاصطناعي',
-            noRun: 'لم يتم التشغيل بعد',
-            generated: 'تم إنشاء {count} مطابقة',
-            accepted: '{percent}% مقبولة من الحضور',
-            viewResults: 'عرض النتائج'
-          }
-        },
-        allMeetings: {
-          filters: {
-            all: 'الكل',
-            today: 'اليوم',
-            ai: 'مُنشأة بالذكاء الاصطناعي',
-            manual: 'يدوية',
-            pending: 'معلّقة',
-            completed: 'مكتملة',
-            search: 'البحث في الاجتماعات...',
-            allDates: 'جميع التواريخ',
-            thisWeek: 'هذا الأسبوع',
-            recent: 'الأحدث أولاً',
-            score: 'النقاط: من الأعلى للأدنى',
-            upcoming: 'التاريخ: القادمة'
-          },
-          table: {
-            headers: {
-              id: 'رقم الاجتماع',
-              participants: 'المشاركون',
-              score: 'نقاط المطابقة',
-              dateTime: 'التاريخ والوقت',
-              status: 'الحالة',
-              actions: 'الإجراءات'
-            },
-            manual: 'يدوي',
-            view: 'عرض',
-            empty: 'لم يتم العثور على اجتماعات.'
-          }
-        },
-        logistics: {
-          venueCapacity: {
-            title: 'سعة المكان',
-            subtitle: 'إعداد مساحة التواصل بين الأعمال',
-            tableCount: 'عدد الطاولات',
-            tablePrefix: 'بادئة الطاولة',
-            tablePrefixPlaceholder: 'مثال: T',
-            slotDuration: 'مدة الفترة الزمنية'
-          },
-          capacityCalc: {
-            title: 'حساب السعة',
-            tableSetup: 'إعداد الطاولات',
-            slotDuration: 'مدة الفترة',
-            totalTimeSlots: 'إجمالي الفترات الزمنية',
-            maxMeetings: 'الحد الأقصى للاجتماعات'
-          },
-          schedule: {
-            title: 'جدول التواصل',
-            subtitle: 'تحديد أوقات التواصل بين الأعمال',
-            addDate: 'إضافة تاريخ',
-            to: 'إلى',
-            duplicateBlock: 'تكرار الفترة',
-            noDates: 'لم تتم إضافة تواريخ بعد',
-            noDatesHint: 'أضف تواريخ التواصل لجدولة الاجتماعات',
-            saving: 'جاري الحفظ...',
-            saveConfig: 'حفظ الإعدادات'
-          }
-        },
-        analytics: {
-          title: 'تحليلات التواصل',
-          summary: '{total} اجتماع · {avg}% متوسط نقاط المطابقة · {rate}% معدل النجاح',
-          topIndustry: 'أبرز صناعة: {industry} · أبرز هدف: {goal}'
-        },
-        suggestions: {
-          title: 'اقتراحات المطابقة الذكية',
-          subtitle: '{count} مطابقة معلّقة بانتظار المراجعة',
-          card: {
-            match: 'مطابقة ذكية',
-            why: 'لماذا هذه المطابقة؟',
-            noCriteria: 'لا توجد معايير مطابقة',
-            createMeeting: 'إنشاء اجتماع',
-            dismiss: 'تجاهل',
-            sent: 'أُرسل {date}',
-            sentRecently: 'أُرسل مؤخراً'
-          },
-          empty: 'لا توجد اقتراحات مطابقة بعد. أنشئ المطابقات لرؤية النتائج هنا.'
-        },
-        modals: {
-          processing: {
-            analyzing: {
-              title: 'الذكاء الاصطناعي يحلل الحضور',
-              subtitle: 'معالجة {count} ملف حاضر...'
-            },
-            generating: {
-              title: 'إنشاء المطابقات المثلى',
-              subtitle: 'بناء اتصالات ذكية...'
-            },
-            complete: {
-              title: 'تم إنشاء المطابقات بنجاح!',
-              subtitle: 'أنشأ الذكاء الاصطناعي مطابقات تواصل عالية الجودة',
-              stats: {
-                created: 'المطابقات المُنشأة',
-                avgScore: 'متوسط نقاط المطابقة',
-                matched: 'الحضور المتطابقون'
-              },
-              actions: {
-                viewAll: 'عرض جميع المطابقات',
-                sendNotif: 'إرسال الإشعارات'
-              }
-            },
-            progress: {
-              analyzing: 'تحليل توافق الصناعات...',
-              generating: 'بناء توصيات المطابقة...',
-              remaining: 'الوقت المقدر: {count} ثانية متبقية'
-            }
-          },
-          details: {
-            title: 'تحليل المطابقة الذكية',
-            score: '{percent}% نقاط المطابقة',
-            breakdown: 'تفصيل نقاط المطابقة',
-            noDetails: 'تفاصيل المطابقة غير متوفرة. أنشئ المطابقات لرؤية رؤى مفصلة.',
-            overall: '{percent}% المطابقة الإجمالية',
-            insights: 'رؤى الذكاء الاصطناعي',
-            noInsights: 'لا تتوفر رؤى ذكية بعد.',
-            topics: 'مواضيع النقاش المقترحة',
-            noTopics: 'لا توجد مواضيع مقترحة بعد.',
-            actions: {
-              schedule: 'جدولة اجتماع',
-              sendBoth: 'إرسال للحاضرَين'
-            }
-          },
-          create: {
-            title: 'جدولة اجتماع بالتوفيق الذكي',
-            matchInfo: 'مطابقة ذكية · {percent}% نقاط',
-            perfectMatch: 'مطابقة مثالية لـ: {tags}',
-            fields: {
-              dateTime: 'التاريخ والوقت',
-              duration: 'المدة',
-              location: 'الموقع'
-            },
-            placeholders: {
-              location: 'غرفة B-12 أو رابط زووم'
-            },
-            durations: {
-              m30: '30 دقيقة',
-              m45: '45 دقيقة',
-              m60: '60 دقيقة'
-            },
-            actions: {
-              cancel: 'إلغاء',
-              create: 'إنشاء وإشعار'
-            }
-          }
-        },
-        toasts: {
-          addTwo: 'أضف حاضرَين على الأقل لإنشاء المطابقات',
-          noMatches: 'لم يتم العثور على مطابقات بالمعايير الحالية',
-          matchesSuccess: 'تم إنشاء {count} مطابقة ذكية بنجاح!',
-          matchesComplete: 'اكتمل التوفيق الذكي',
-          noSuggestionsExport: 'لا توجد اقتراحات للتصدير',
-          suggestionsExported: 'تم تصدير الاقتراحات',
-          suggestionsDismissed: 'تم تجاهل الاقتراح',
-          noMeetingsExport: 'لا توجد اجتماعات للتصدير',
-          meetingsExported: 'تم تصدير الاجتماعات',
-          settingsSaved: 'تم حفظ إعدادات التوفيق',
-          noPendingRemind: 'لا توجد اقتراحات معلّقة للتذكير',
-          remindersSent: 'تم إرسال التذكيرات',
-          selectMatchFirst: 'اختر مطابقة أولاً',
-          matchNotifSent: 'تم إرسال إشعار المطابقة',
-          notifSent: 'تم إرسال الإشعارات',
-          notificationsSent: 'تم تحديث الاجتماع وإرسال الإشعارات!',
-          selectSuggestion: 'اختر اقتراح مطابقة أولاً',
-          invitationsSent: 'تم إرسال الدعوات!',
-          meetingUpdated: 'تم تحديث الاجتماع',
-          meetingCreated: 'تم إنشاء الاجتماع',
-          meetingCreateError: 'فشل في إنشاء الاجتماع'
-        }
-      },
+
       dayOf: {
         header: {
           title: 'أدوات يوم الفعالية',
@@ -2084,69 +2107,47 @@ export default {
         }
       },
       b2b: {
-        header: {
-          title: 'مركز التوفيق B2B',
-          subtitle: 'شبكات مدعومة بالذكاء الاصطناعي — اربط الأشخاص المناسبين في الوقت المناسب',
-          aiMatchmaker: 'التوفيق الذكي',
-          createMeeting: 'إنشاء اجتماع'
-        },
-        tabs: {
-          aiMatchmaker: 'التوفيق الذكي',
-          allMeetings: 'كل الاجتماعات',
-          logistics: 'اللوجستيات',
-          analytics: 'التحليلات',
-          suggestions: 'الاقتراحات'
-        },
-        stats: {
-          activeConnections: 'الاتصالات النشطة',
-          totalMeetings: 'إجمالي الاجتماعات',
-          newThisWeek: '+{count} هذا الأسبوع',
-          aiMatchSuccess: 'نجاح التوفيق الذكي',
-          ofAiAccepted: 'من التوفيقات المقبولة',
-          pendingSuggestions: 'اقتراحات معلقة',
-          awaitingResponse: 'بانتظار الرد',
-          sendReminders: 'إرسال تذكيرات',
-          completed: 'مكتملة',
-          completionRate: 'معدل الإنجاز {percent}%',
-          networkingScore: 'نقاط التواصل',
-          overallEngagement: 'المشاركة العامة'
-        },
-        toasts: {
-          suggestionsDismissed: 'تم رفض الاقتراح',
-          notificationsSent: 'تم إرسال الإشعارات',
-          invitationsSent: 'تم إرسال الدعوات',
-          meetingUpdated: 'تم تحديث الاجتماع',
-          meetingCreated: 'تم إنشاء الاجتماع',
-          meetingCreateError: 'فشل في إنشاء الاجتماع',
-          matchesSuccess: 'تم إنشاء {count} توفيقات',
-          matchesComplete: 'اكتمل التوفيق',
-          noSuggestionsExport: 'لا توجد اقتراحات للتصدير',
-          suggestionsExported: 'تم تصدير الاقتراحات',
-          noMeetingsExport: 'لا توجد اجتماعات للتصدير',
-          meetingsExported: 'تم تصدير الاجتماعات',
-          settingsSaved: 'تم حفظ الإعدادات',
-          noPendingRemind: 'لا توجد اجتماعات معلقة للتذكير',
-          remindersSent: 'تم إرسال التذكيرات',
-          selectMatchFirst: 'اختر توفيقاً أولاً',
-          matchNotifSent: 'تم إرسال إشعار التوفيق',
-          selectSuggestion: 'اختر اقتراحاً أولاً',
-          notifSent: 'تم إرسال الإشعار',
-          addTwo: 'أضف مشاركَين على الأقل لاستخدام التوفيق'
-        },
-        aiMatchmaker: {
-          title: 'التوفيق الذكي',
-          subtitle: 'يحلل الذكاء الاصطناعي الملفات الشخصية ويقترح أفضل الاتصالات',
-          whoToMatch: 'من نوفق بينهم؟',
-          options: {
+    header: {
+        title: 'مركز التوفيق B2B',
+        subtitle: 'شبكات مدعومة بالذكاء الاصطناعي — اربط الأشخاص المناسبين في الوقت المناسب',
+        aiMatchmaker: 'التوفيق الذكي',
+        createMeeting: 'إنشاء اجتماع'
+    },
+    stats: {
+        activeConnections: 'الاتصالات النشطة',
+        totalMeetings: 'إجمالي الاجتماعات',
+        newThisWeek: '+{count} هذا الأسبوع',
+        aiMatchSuccess: 'نجاح التوفيق الذكي',
+        ofAiAccepted: 'من التوفيقات المقبولة',
+        pendingSuggestions: 'اقتراحات معلقة',
+        awaitingResponse: 'بانتظار الرد',
+        sendReminders: 'إرسال تذكيرات',
+        completed: 'مكتملة',
+        completionRate: 'معدل الإنجاز {percent}%',
+        networkingScore: 'نقاط التواصل',
+        overallEngagement: 'المشاركة العامة'
+    },
+    tabs: {
+        aiMatchmaker: 'التوفيق الذكي',
+        allMeetings: 'كل الاجتماعات',
+        logistics: 'اللوجستيات',
+        analytics: 'التحليلات',
+        suggestions: 'الاقتراحات'
+    },
+    aiMatchmaker: {
+        title: 'التوفيق الذكي',
+        subtitle: 'يحلل الذكاء الاصطناعي الملفات الشخصية ويقترح أفضل الاتصالات',
+        whoToMatch: 'من نوفق بينهم؟',
+        options: {
             all: { label: 'كل المشاركين', desc: 'التوفيق بين جميع المسجلين', count: '{count} مشارك متاح' },
             category: { label: 'حسب الفئة', desc: 'التوفيق ضمن فئات محددة', count: '{count} فئة' },
             individuals: { label: 'أفراد محددين', desc: 'اختيار أشخاص محددين', count: '{count} مشترك' },
+            recommended: 'موصى به',
             noAttendees: 'لا يوجد مشاركين',
             noCategories: 'لا توجد فئات',
-            noOptIn: 'لا يوجد مشتركين',
-            recommended: 'موصى به'
-          },
-          criteria: {
+            noOptIn: 'لا يوجد مشتركين'
+        },
+        criteria: {
             title: 'معايير التوفيق',
             industry: 'تطابق الصناعة',
             industryDesc: 'إعطاء الأولوية للصناعات المتشابهة أو المكملة',
@@ -2158,20 +2159,33 @@ export default {
             interestsDesc: 'العثور على اهتمامات مهنية مشتركة',
             goals: 'أهداف التواصل',
             goalsDesc: 'المواءمة حسب الأهداف المعلنة'
-          },
-          threshold: {
+        },
+        threshold: {
             title: 'الحد الأدنى لدرجة التوافق',
             subtitle: 'اقتراح التوفيقات فوق {percent}% فقط',
             recommended: 'موصى به: 60-80%'
-          },
-          generate: {
+        },
+        generate: {
             info: 'سيتم تحليل {total} مشارك، حوالي {count} توفيق متوقع',
             time: 'يستغرق المعالجة عادة 15-30 ثانية',
             button: 'توليد توفيقات ذكية'
-          }
         },
-        allMeetings: {
-          filters: {
+        insights: {
+            title: 'رؤى التوفيق',
+            subtitle: 'تحليل فوري',
+            potential: 'إمكانية تواصل عالية',
+            potentialDesc: '{percent}% من الحضور لديهم إمكانية مطابقة بناءً على ملفاتهم',
+            industries: 'أبرز الصناعات الحاضرة',
+            goals: 'أهداف التواصل',
+            lastRun: 'آخر تشغيل للذكاء الاصطناعي',
+            noRun: 'لم يتم التشغيل بعد',
+            generated: 'تم إنشاء {count} مطابقة',
+            accepted: '{percent}% مقبولة من الحضور',
+            viewResults: 'عرض النتائج'
+        }
+    },
+    allMeetings: {
+        filters: {
             all: 'الكل',
             today: 'اليوم',
             ai: 'توفيق ذكي',
@@ -2184,30 +2198,31 @@ export default {
             recent: 'الأحدث',
             score: 'درجة التوافق',
             upcoming: 'القادمة'
-          },
-          table: {
+        },
+        table: {
             headers: { id: 'رقم', participants: 'المشاركون', score: 'الدرجة', dateTime: 'التاريخ والوقت', status: 'الحالة', actions: 'إجراءات' },
             manual: 'أُنشئ يدوياً',
+            view: 'عرض',
             empty: 'لا توجد اجتماعات تطابق الفلاتر'
-          }
-        },
-        logistics: {
-          venueCapacity: {
+        }
+    },
+    logistics: {
+        venueCapacity: {
             title: 'سعة المكان',
             subtitle: 'اضبط تخطيط مساحة الاجتماعات وترتيب الطاولات',
             tableCount: 'عدد الطاولات',
             tablePrefix: 'بادئة الطاولة',
             tablePrefixPlaceholder: 'مثال: طاولة، مكتب، جناح',
             slotDuration: 'مدة الفترة الزمنية'
-          },
-          capacityCalc: {
+        },
+        capacityCalc: {
             title: 'نظرة عامة على السعة',
             tableSetup: 'ترتيب الطاولات',
             slotDuration: 'مدة الفترة',
             totalTimeSlots: 'إجمالي الفترات',
             maxMeetings: 'الحد الأقصى للاجتماعات'
-          },
-          schedule: {
+        },
+        schedule: {
             title: 'جدول الاجتماعات',
             subtitle: 'حدد التواريخ والفترات المتاحة لاجتماعات B2B',
             addDate: 'إضافة فترة زمنية',
@@ -2217,31 +2232,40 @@ export default {
             noDatesHint: 'أضف فترات زمنية لتحديد أوقات الاجتماعات',
             saving: 'جاري الحفظ...',
             saveConfig: 'حفظ الإعدادات'
-          }
+        }
+    },
+    analytics: {
+        title: 'لوحة التحليلات',
+        summary: '{total} اجتماع بمعدل توافق {avg}% ونسبة نجاح {rate}%',
+        topIndustry: 'الصناعة الرئيسية: {industry} — الهدف الرئيسي: {goal}'
+    },
+    suggestions: {
+        title: 'اقتراحات الذكاء الاصطناعي',
+        subtitle: '{count} اقتراح بانتظار المراجعة',
+        card: {
+            match: 'مطابقة ذكية',
+            why: 'لماذا هذه المطابقة؟',
+            noCriteria: 'لا توجد معايير مطابقة',
+            createMeeting: 'إنشاء اجتماع',
+            dismiss: 'تجاهل',
+            sent: 'أُرسل {date}',
+            sentRecently: 'أُرسل مؤخراً'
         },
-        analytics: {
-          title: 'لوحة التحليلات',
-          summary: '{total} اجتماع بمعدل توافق {avg}% ونسبة نجاح {rate}%',
-          topIndustry: 'الصناعة الرئيسية: {industry} — الهدف الرئيسي: {goal}'
-        },
-        suggestions: {
-          title: 'اقتراحات الذكاء الاصطناعي',
-          subtitle: '{count} اقتراح بانتظار المراجعة',
-          empty: 'لا توجد اقتراحات. شغّل التوفيق الذكي لتوليد التوافقات.'
-        },
-        modals: {
-          processing: {
+        empty: 'لا توجد اقتراحات. شغّل التوفيق الذكي لتوليد التوافقات.'
+    },
+    modals: {
+        processing: {
             analyzing: { title: 'تحليل الملفات', subtitle: 'فحص {count} ملف شخصي...' },
             generating: { title: 'توليد التوفيقات', subtitle: 'البحث عن أفضل الاتصالات...' },
             complete: {
-              title: 'اكتمل التوفيق!',
-              subtitle: 'إليك النتائج',
-              stats: { created: 'توفيقات تم إنشاؤها', avgScore: 'متوسط الدرجة', matched: 'مشاركين تم توفيقهم' },
-              actions: { viewAll: 'عرض كل التوفيقات', sendNotif: 'إرسال الإشعارات' }
+                title: 'اكتمل التوفيق!',
+                subtitle: 'إليك النتائج',
+                stats: { created: 'توفيقات تم إنشاؤها', avgScore: 'متوسط الدرجة', matched: 'مشاركين تم توفيقهم' },
+                actions: { viewAll: 'عرض كل التوفيقات', sendNotif: 'إرسال الإشعارات' }
             },
             progress: { analyzing: 'تحليل ملفات المشاركين...', generating: 'توليد التوفيقات الذكية...', remaining: 'حوالي {count} ثانية متبقية' }
-          },
-          details: {
+        },
+        details: {
             title: 'تفاصيل التوفيق',
             score: 'درجة التوافق {percent}%',
             breakdown: 'تفصيل الدرجة',
@@ -2252,23 +2276,46 @@ export default {
             topics: 'مواضيع نقاش مقترحة',
             noTopics: 'لا توجد مواضيع مقترحة',
             actions: { schedule: 'جدولة اجتماع', sendBoth: 'إشعار الطرفين' }
-          },
-          create: {
+        },
+        create: {
             title: 'جدولة اجتماع',
             matchInfo: 'توافق {percent}%',
             perfectMatch: 'ربط أشخاص يتشاركون اهتمامات في {tags}',
             fields: { dateTime: 'التاريخ والوقت', duration: 'المدة', location: 'الموقع / الطاولة' },
-            durations: { m30: '30 دقيقة', m45: '45 دقيقة', m60: '60 دقيقة' },
             placeholders: { location: 'مثال: طاولة أ3، غرفة اجتماعات 2' },
+            durations: { m30: '30 دقيقة', m45: '45 دقيقة', m60: '60 دقيقة' },
             actions: { cancel: 'إلغاء', create: 'إنشاء الاجتماع' }
-          }
         }
-      }
+    },
+    toasts: {
+        addTwo: 'أضف مشاركَين على الأقل لاستخدام التوفيق',
+        noMatches: 'لم يتم العثور على مطابقات بالمعايير الحالية',
+        matchesSuccess: 'تم إنشاء {count} توفيقات',
+        matchesComplete: 'اكتمل التوفيق',
+        noSuggestionsExport: 'لا توجد اقتراحات للتصدير',
+        suggestionsExported: 'تم تصدير الاقتراحات',
+        suggestionsDismissed: 'تم رفض الاقتراح',
+        noMeetingsExport: 'لا توجد اجتماعات للتصدير',
+        meetingsExported: 'تم تصدير الاجتماعات',
+        settingsSaved: 'تم حفظ الإعدادات',
+        noPendingRemind: 'لا توجد اجتماعات معلقة للتذكير',
+        remindersSent: 'تم إرسال التذكيرات',
+        selectMatchFirst: 'اختر توفيقاً أولاً',
+        matchNotifSent: 'تم إرسال إشعار التوفيق',
+        notifSent: 'تم إرسال الإشعار',
+        notificationsSent: 'تم إرسال الإشعارات',
+        selectSuggestion: 'اختر اقتراحاً أولاً',
+        invitationsSent: 'تم إرسال الدعوات',
+        meetingUpdated: 'تم تحديث الاجتماع',
+        meetingCreated: 'تم إنشاء الاجتماع',
+        meetingCreateError: 'فشل في إنشاء الاجتماع'
+    }
+}
     },
           userB2B: {
             title: 'مركز التواصل',
             subtitle: 'إدارة اجتماعاتك واتصالاتك.',
-    
+
       stats: {
         meetingsToday: 'اجتماعات اليوم',
         newRequests: 'طلبات جديدة',
@@ -2397,8 +2444,38 @@ export default {
         title: 'رسالة جديدة',
         searchPlaceholder: 'إلى: ابحث عن الاسم أو الشركة...',
         startTyping: 'ابدأ الكتابة للبحث عن الأشخاص'
-      }
-    },
+      },
+      errors: {
+        notificationFailed: 'تم إرسال الرسالة، لكن تعذر إرسال إشعار المنصة.',
+        emailNotificationFailed: 'تم إرسال الرسالة، لكن تعذر إرسال إشعار البريد الإلكتروني.'
+      ,
+"loadConversations": "تعذر تحميل المحادثات"
+,
+"loadMessages": "تعذر تحميل الرسائل"
+,
+"sendMessage": "تعذر إرسال الرسالة"
+,
+"loadSuggestions": "تعذر تحميل الاقتراحات"
+}
+    ,
+"defaults": {
+  "user": "مستخدم"
+,
+"unknownUser": "مستخدم غير معروف"
+}
+,
+"notifications": {
+  "new": {
+    "title": "رسالة جديدة"
+  ,
+"body": "{name}: {message}"
+,
+"emailIntro": "أرسل إليك {name} رسالة جديدة على إيفنترا."
+,
+"openMessages": "افتح رسائلك"
+}
+}
+},
     registrationFlow: {
         eventNavigation: "تصفح الفعالية",
         progress: "خطوات التسجيل",
@@ -2425,6 +2502,10 @@ export default {
       allSet: 'أنت جاهز!',
       paidConfirmationDesc: 'تم تأكيد تسجيلك. يرجى إكمال الدفع لتأمين مكانك.',
       freeConfirmationDesc: 'تم تأكيد تسجيلك. أظهر رمز QR عند المدخل.',
+      confirmationEmailFailed: 'تم حفظ تسجيلك، لكن تعذّر إرسال رسالة التأكيد. احتفظ برمز التأكيد أدناه واطلب رابط تسجيل الدخول من صفحة التشبيك الخاصة بالفعالية.',
+      openNetworking: 'افتح صفحة التشبيك للفعالية',
+      b2bAccountReady: 'حسابك في Eventra جاهز. تحقق من بريدك الإلكتروني للحصول على رابط دخول مباشر إلى الفعالية. معلومات التسجيل موجودة بالفعل في ملفك الشخصي.',
+      accessEmailFailed: 'تم حفظ تسجيلك، لكن تعذر إرسال رابط الدخول المباشر. استخدم الزر أدناه لطلب رابط جديد باستخدام بريد التسجيل.',
       finalStepTitle: 'خطوة أخيرة',
       finalStepDesc: 'تصفّح واحجز تذكرتك لإكمال التسجيل.',
       browseSecureTicket: 'تصفّح واحجز تذكرتك',
@@ -2461,8 +2542,22 @@ export default {
         fileUploaded: 'تم رفع الملف بنجاح',
         fileUploadFailed: 'فشل رفع الملف',
         fileUploadError: 'خطأ في رفع الملف'
-      }
-    },
+      ,
+"b2bAccessUnavailable": "تعذّر إكمال إعداد وصولك إلى التواصل المهني. حاول مجددًا، فبيانات النموذج محفوظة."
+}
+    ,
+"accessCodePlaceholder": "مثال: VIP2026"
+,
+"addressPlaceholder": "أدخل العنوان الكامل…"
+,
+"untitledField": "حقل بلا عنوان"
+,
+"qrAlt": "رمز QR للدخول"
+,
+"seoTitle": "التسجيل في {event}"
+,
+"seoDescription": "سجّل في {event}. احجز مكانك واختر جلساتك."
+},
     profile: {
       header: {
         title: 'ملفي الشخصي',
@@ -2474,7 +2569,7 @@ export default {
         changePhoto: 'تغيير الصورة',
         memberSince: 'عضو منذ {date}',
         profileCompletion: 'إكمال الملف الشخصي',
-        completion: 'تم إكمال {percent}%',
+        completion: "مكتمل بنسبة {percent}%",
         addLinkedInHint: 'أضف لينكد إن للوصول إلى {percent}%',
         social: {
           linkedin: 'لينكد إن',
@@ -2676,7 +2771,9 @@ export default {
         certificationName: 'الشهادة',
         certificationOrganization: 'المؤسسة',
         certificationYear: 'السنة'
-      },
+      ,
+"customSector": "أدخل قطاعًا آخر…"
+},
       fields: {
         phoneNumber: 'رقم الهاتف',
         dateOfBirth: 'تاريخ الميلاد',
@@ -2870,7 +2967,7 @@ export default {
         ]
       },
       placeholders: {
-        department: 'مثال: التسويق، الهندسة، المبيعات'
+        department: "مثال: الهندسة، التسويق، الموارد البشرية…"
       }
     },
     profileSetup: {
@@ -2886,7 +2983,13 @@ export default {
         jobTitle: 'المسمى الوظيفي',
         company: 'الشركة / المؤسسة',
         industry: 'الصناعة'
-      },
+      ,
+"department": "القسم"
+,
+"yearsExperience": "سنوات الخبرة"
+,
+"companySize": "حجم الشركة"
+},
       buttons: {
         back: 'رجوع',
         continue: 'متابعة',
@@ -2926,14 +3029,52 @@ export default {
         '+15 سنة'
       ],
       companySizes: [
-        '1-10 موظفين',
-        '11-50 موظفاً',
-        '51-200 موظفاً',
-        '201-500 موظفاً',
-        '501-1000 موظفاً',
-        '+1000 موظف'
-      ]
-    },
+  "1-10 ??????",
+  "11-50 ??????",
+  "51-200 ??????",
+  "201-500 ??????",
+  "501-1000 ??????",
+  "1001-5000 ??????",
+  "5000+ ????"
+]
+    ,
+"emailLabel": "البريد الإلكتروني"
+,
+"progress": {
+  "stepLabel": "الخطوة {current} من {total}",
+  "percentLabel": "{percent}%"
+}
+,
+"step2": {
+  "title": "أكمل ملفك المهني",
+  "subtitle": "المسمى الوظيفي | الشركة / المؤسسة | القطاع | القسم | سنوات الخبرة | حجم الشركة"
+}
+,
+"errors": {
+  "phoneTooShort": "رقم الهاتف قصير جدًا"
+}
+,
+"placeholders": {
+  "firstName": "الاسم الأول",
+  "lastName": "اسم العائلة",
+  "phoneNumber": "234 567 8900",
+  "country": "اختر بلدك",
+  "searchCountry": "ابحث عن بلد أو رمز اتصال…",
+  "noCountriesFound": "لم يُعثر على بلدان",
+  "jobTitle": "مثال: مدير منتج",
+  "company": "مثال: شركة النور",
+  "industry": "اختر قطاعك",
+  "searchIndustry": "ابحث عن قطاع…",
+  "industryOther": "أدخل قطاعك",
+  "department": "مثال: التسويق",
+  "yearsExperience": "اختر سنوات الخبرة",
+  "companySize": "اختر حجم الشركة"
+}
+,
+"noResults": "لا توجد نتائج"
+,
+"requiredFields": "* حقول إلزامية"
+},
     wizard: {
       common: {
         back: 'رجوع',
@@ -4817,7 +4958,7 @@ export default {
           ready: 'هل أنت مستعد للتواصل؟',
           join: 'انضم إلى المجتمع',
           stats: {
-            participants: 'المشاركون',
+            participants: "المشاركون في لقاءات الأعمال",
             meetings: 'الاجتماعات',
             matchRate: 'نسبة التطابق'
           }
@@ -5171,18 +5312,7 @@ export default {
           subtitle: 'أرسل ملفك الشخصي للتحقق من قبل المسؤول للظهور في السوق'
         }
       },
-      modals: {
-        addMember: {
-          title: 'إضافة عضو فريق',
-          searchLabel: 'البحث عن طريق البريد الإلكتروني أو الاسم',
-          searchPlaceholder: 'أدخل البريد الإلكتروني أو الاسم الكامل...',
-          sendInvite: 'إرسال دعوة',
-          addToTeam: 'إضافة إلى الفريق',
-          cancel: 'إلغاء',
-          info: 'يمكن لأعضاء الفريق المساعدة في إدارة المنتجات والخدمات وتفاصيل الملف الشخصي.',
-          noResults: 'لم يتم العثور على مستخدمين لـ "{query}"'
-        }
-      },
+
       tabs: {
         dashboard: 'لوحة القيادة',
         profile: 'تفاصيل الملف الشخصي',
@@ -5332,17 +5462,17 @@ export default {
         }
       },
       modals: {
-        addMember: {
-          title: 'إضافة عضو فريق',
-          searchLabel: 'البحث عن طريق البريد الإلكتروني أو الاسم',
-          searchPlaceholder: 'أدخل البريد الإلكتروني أو الاسم الكامل...',
-          noResults: 'لم يتم العثور على مستخدمين لـ "{query}"',
-          info: 'يمكن لأعضاء الفريق المساعدة في إدارة المنتجات والخدمات وتفاصيل الملف الشخصي.',
-          cancel: 'إلغاء',
-          sendInvite: 'إرسال دعوة',
-          addToTeam: 'إضافة إلى الفريق'
-        }
-      }
+    addMember: {
+        title: 'إضافة عضو فريق',
+        searchLabel: 'البحث عن طريق البريد الإلكتروني أو الاسم',
+        searchPlaceholder: 'أدخل البريد الإلكتروني أو الاسم الكامل...',
+        sendInvite: 'إرسال دعوة',
+        addToTeam: 'إضافة إلى الفريق',
+        cancel: 'إلغاء',
+        info: 'يمكن لأعضاء الفريق المساعدة في إدارة المنتجات والخدمات وتفاصيل الملف الشخصي.',
+        noResults: 'لم يتم العثور على مستخدمين لـ "{query}"'
+    }
+}
     },
     productsManagement: {
       title: 'المنتجات والخدمات',
@@ -5460,7 +5590,11 @@ export default {
           coverBadge: 'الغلاف',
           addBtn: 'إضافة إلى الملف الشخصي'
         }
-      },
+      ,
+"errors": {
+  "maxImages": "يمكنك رفع 4 صور كحد أقصى."
+}
+},
       identity: {
         title: 'هوية العمل والاتصال',
         branding: 'العلامة التجارية',
@@ -5473,8 +5607,18 @@ export default {
         phone: 'رقم الهاتف',
         website: 'الموقع الإلكتروني',
         address: 'عنوان العمل'
-      }
-    },
+      ,
+"saved": "تم حفظ ملف الشركة"
+,
+"published": "تم نشر ملف الشركة وإرساله للمراجعة!"
+}
+    ,
+"toasts": {
+  "fileUploaded": "تم رفع الملف"
+,
+"imageUploaded": "تم رفع الصورة"
+}
+},
     businessProfilePage: {
       notFound: 'لم يتم العثور على الملف الشخصي للعمل',
       manageButton: 'إدارة العمل',
@@ -5491,13 +5635,17 @@ export default {
         edit: 'تعديل الملف',
         contact: 'تواصل مع العمل',
         save: 'حفظ'
-      },
+      ,
+"share": "?????? ?????"
+},
       toasts: {
         linkCopied: 'تم نسخ الرابط إلى الحافظة',
         copyFailed: 'فشل نسخ الرابط',
         profileUpdated: 'تم تحديث الملف الشخصي بنجاح',
         memberAdded: 'تم إضافة العضو بنجاح'
-      },
+      ,
+"userAlreadyMember": "??? ???????? ??? ?? ?????? ??????."
+},
       errors: {
         userNotFound: 'المستخدم غير موجود على المنصة.',
         alreadyMember: 'المستخدم عضو بالفعل في الفريق.',
@@ -5512,7 +5660,8 @@ export default {
       },
       team: {
         title: 'فريق العمل',
-        addMember: 'إضافة عضو'
+        addMember: 'إضافة عضو',
+        viewProfile: 'عرض الملف الشخصي'
       },
       offerings: {
         title: 'عروضنا',
@@ -5521,7 +5670,9 @@ export default {
       },
       contact: {
         title: 'معلومات الاتصال'
-      },
+      ,
+"businessEmail": "?????? ?????????? ??????"
+},
       follow: 'تابعنا على',
       b2b: {
         title: 'مركز التواصل B2B',
@@ -5549,6 +5700,7 @@ export default {
         back: 'رجوع',
         requestMeeting: 'طلب اجتماع',
         sendMessage: 'إرسال رسالة',
+        viewBusinessProfile: 'عرض الملف التجاري',
         editProfile: 'تعديل الملف الشخصي'
       },
       toasts: {
@@ -5648,7 +5800,15 @@ export default {
         cancel: 'إلغاء',
         send: 'إرسال الطلب'
       }
-    },
+    ,
+"seo": {
+  "title": "الملف الشخصي | Eventra"
+,
+"description": "اطّلع على هذا الملف المهني على Eventra."
+,
+"connect": "{name}. تواصل عبر Eventra."
+}
+},
     marketplace: {
       hero: {
         title: 'استكشف سوق الخدمات والمنتجات',
@@ -5745,9 +5905,255 @@ export default {
         socialUrl: 'رابط التواصل الاجتماعي / الموقع',
         socialUrlPlaceholder: 'https://linkedin.com/in/ملفك',
         b2bOptIn: 'هل تريد المطابقة B2B؟',
-        b2bOptInDescription: 'احصل على مطابقة مع المشاركين ذوي الصلة للتواصل التجاري',
+        b2bOptInDescription: 'باختيار نعم، يتم إنشاء حساب Eventra لك. سنرسل إليك رابط دخول آمنًا للتواصل المهني والرسائل والاجتماعات وملفك الشخصي.',
       },
       additionalFields: 'معلومات إضافية',
       customFormsInfo: 'اسحب الحقول لتغيير ترتيبها. استخدم خيار إلزامي لتحديد الحقول الأساسية التي يجب على المشاركين تعبئتها.',
     },
-  } as any;
+
+"constants": {
+  "sectors": {
+    "Technology": "التكنولوجيا",
+    "ProfessionalServices": "الخدمات المهنية",
+    "Marketing": "التسويق",
+    "Finance": "المالية",
+    "Logistics": "الخدمات اللوجستية",
+    "Production": "الإنتاج"
+  }
+,
+"subsectors": {
+  "Software Development": "تطوير البرمجيات",
+  "Event Tech": "تقنيات الفعاليات",
+  "AI Tools": "أدوات الذكاء الاصطناعي",
+  "Analytics": "التحليلات",
+  "Consulting": "الاستشارات",
+  "Advisory": "المشورة",
+  "Operations": "العمليات",
+  "Legal": "الخدمات القانونية",
+  "Digital Marketing": "التسويق الرقمي",
+  "Brand Strategy": "استراتيجية العلامة التجارية",
+  "Growth": "النمو",
+  "Content": "المحتوى",
+  "Accounting": "المحاسبة",
+  "Payments": "المدفوعات",
+  "Investment": "الاستثمار",
+  "FinTech": "التكنولوجيا المالية",
+  "Shipping": "الشحن",
+  "Warehousing": "التخزين",
+  "Transportation": "النقل",
+  "Fulfillment": "تنفيذ الطلبات",
+  "A/V Production": "الإنتاج السمعي البصري",
+  "Stage Design": "تصميم المنصة",
+  "Lighting": "الإضاءة",
+  "Sound": "الصوت"
+}
+}
+,
+"platformLabels": {
+  "Technology": "التكنولوجيا"
+,
+"Finance & Banking": "المالية والخدمات المصرفية"
+,
+"Healthcare": "الرعاية الصحية"
+,
+"Agriculture": "الزراعة"
+,
+"Education": "التعليم"
+,
+"Energy & Utilities": "الطاقة والمرافق"
+,
+"Manufacturing": "التصنيع"
+,
+"Retail & Commerce": "التجارة والبيع بالتجزئة"
+,
+"Tourism & Hospitality": "السياحة والضيافة"
+,
+"Creative Industries": "الصناعات الإبداعية"
+,
+"Entrepreneuriat": "ريادة الأعمال"
+,
+"Logistics & Transport": "اللوجستيات والنقل"
+,
+"Real Estate": "العقارات"
+,
+"Telecommunications": "الاتصالات"
+,
+"Food & Beverage": "الأغذية والمشروبات"
+,
+"Mining & Resources": "التعدين والموارد"
+,
+"Government & Public Sector": "الحكومة والقطاع العام"
+,
+"Non-Profit & NGO": "المنظمات غير الربحية وغير الحكومية"
+,
+"AI/ML": "الذكاء الاصطناعي والتعلم الآلي"
+,
+"FinTech": "التكنولوجيا المالية"
+,
+"CleanTech": "التكنولوجيا النظيفة"
+,
+"AgriTech": "التكنولوجيا الزراعية"
+,
+"HealthTech": "التكنولوجيا الصحية"
+,
+"EdTech": "تكنولوجيا التعليم"
+,
+"E-commerce": "التجارة الإلكترونية"
+,
+"SaaS": "البرمجيات كخدمة"
+,
+"IoT": "إنترنت الأشياء"
+,
+"Blockchain": "سلسلة الكتل"
+,
+"Cybersecurity": "الأمن السيبراني"
+,
+"Marketing": "التسويق"
+,
+"Investment": "الاستثمار"
+,
+"Export": "التصدير"
+,
+"Partnership": "الشراكة"
+,
+"Sustainability": "الاستدامة"
+,
+"Digital Transformation": "التحول الرقمي"
+,
+"Supply Chain": "سلسلة التوريد"
+,
+"Human Resources": "الموارد البشرية"
+,
+"Legal/Compliance": "الشؤون القانونية والامتثال"
+}
+,
+"scannerFlow": {
+  "invalidCode": "رمز QR غير معروف. امسح بطاقة اجتماع أو أدخل رمز التسجيل."
+,
+"wrongEvent": "هذه البطاقة تخص فعالية أخرى. افتح ماسح تلك الفعالية."
+,
+"useB2bScanner": "هذه بطاقة اجتماع. استخدم ماسح الاجتماعات المهنية لتسجيل الحضور."
+,
+"lookupFailed": "تعذّر التحقق من الرمز. تحقق من الاتصال أو صلاحيات الوصول ثم أعد المحاولة. لم يُسجّل أي حضور."
+,
+"ambiguousAttendee": "توجد عدة تسجيلات مطابقة. استخدم رمز تسجيل المشارك."
+,
+"attendeeNotFound": "لا يوجد تسجيل مطابق لهذا الرمز في هذه الفعالية. اطلب تذكرة المشارك."
+,
+"registrationInactive": "هذا التسجيل ملغى أو مرفوض أو على قائمة الانتظار. راجعه قبل السماح بالدخول."
+,
+"selectMeeting": "اختر اجتماعًا أو امسح بطاقته لتحديده تلقائيًا."
+,
+"meetingNotFound": "لم يُعثر على هذا الاجتماع في الفعالية الحالية. تحقق من البطاقة والفعالية."
+,
+"meetingNotConfirmed": "هذا الاجتماع غير مؤكد. لا يمكن تسجيل الحضور لاجتماع معلّق أو ملغى."
+,
+"notAssigned": "هذا المشارك ليس طرفًا في الاجتماع المحدد."
+,
+"selectSession": "اختر جلسة قبل المسح."
+,
+"sessionNotFound": "الجلسة المحددة غير متاحة في هذه الفعالية. حدّث قائمة الجلسات."
+,
+"saveFailed": "تعذّر حفظ الحضور بالكامل. أعد المحاولة بنفس الرمز؛ لن تؤدي إعادة المحاولة إلى إنشاء سجل ثانٍ."
+,
+"completionFailed": "تم حفظ الحضور، لكن تعذّر تحديث حالة اكتمال الاجتماع. حدّث الصفحة وتحقق منها."
+,
+"chooseParticipant": "من الذي وصل؟"
+,
+"legacyHint": "يحدد هذا الرمز القديم الاجتماع فقط. اختر الشخص الموجود أمامك لتسجيل حضوره وحده."
+,
+"cameraUnavailable": "الكاميرا غير متاحة. استخدم الإدخال اليدوي أدناه."
+,
+"cameraDenied": "تم رفض الوصول إلى الكاميرا أو انقطع. اسمح بالوصول أو استخدم الإدخال اليدوي."
+,
+"saving": "جارٍ التحقق والحفظ…"
+,
+"scanFailed": "يحتاج تسجيل الحضور إلى مراجعة"
+,
+"manualReady": "الإدخال اليدوي متاح"
+,
+"offlineHint": "يلزم الاتصال للتحقق من التسجيلات وحالة الاجتماعات. يُعاد التحقق من السجلات المعلّقة عند استعادة الاتصال."
+}
+,
+"meetingPass": {
+  "eyebrow": "بطاقة الاجتماع المهني"
+,
+"title": "اجتماعك ضمن البرنامج."
+,
+"subtitle": "تم تأكيد اجتماعك. احتفظ ببطاقتك الشخصية جاهزة."
+,
+"holder": "صاحب البطاقة"
+,
+"personalHint": "يسجّل هذا الرمز حضورك أنت فقط في هذا الاجتماع."
+,
+"reference": "مرجع الاجتماع"
+,
+"arrivalHint": "أبرز البطاقة للموظفين في منطقة الاجتماعات. يمكنك حفظ رمز QR أو طباعة البطاقة كاملة."
+,
+"saveQr": "حفظ رمز QR"
+,
+"print": "طباعة البطاقة"
+,
+"copy": "نسخ رمز الحضور"
+,
+"copied": "تم نسخ رمز الحضور."
+,
+"preparing": "جارٍ إعداد بطاقتك…"
+,
+"qrFailed": "تعذّر عرض الرمز. انسخ رمز الحضور أدناه أو أعطِ الموظف مرجع الاجتماع."
+}
+,
+"scannerDesign": {
+  "desk": "مكتب الاستقبال"
+,
+"subtitle": "اللقاءات المميزة تبدأ باستقبال دافئ."
+,
+"entrySubtitle": "استقبال سلس لكل مشارك."
+,
+"capture": "مسح البطاقة"
+,
+"review": "الاجتماع والوصول"
+,
+"live": "الكاميرا جاهزة"
+,
+"paused": "المسح متوقف مؤقتًا"
+,
+"passLabel": "EVENTRA • تسجيل الحضور"
+,
+"arrivalRecorded": "أهلًا بك، تم تسجيل حضورك."
+,
+"cameraFallback": "مكتب الاستقبال جاهز."
+,
+"cameraPaused": "جاهزون عندما تكون مستعدًا."
+,
+"frameTitle": "ضع البطاقة داخل الإطار"
+,
+"frameHint": "ثبّتها للحظة، وسنتولى الباقي."
+,
+"manualHint": "لا توجد كاميرا؟ أدخل رمز البطاقة أدناه."
+,
+"continueHint": "أكمل تسجيل الوصول ثم استقبل المشارك التالي."
+,
+"flashlight": "فلاش الكاميرا"
+,
+"codeLabel": "رمز البطاقة أو بريد التسجيل"
+,
+"assurance": "نتحقق من كل بطاقة قبل تسجيل الحضور."
+,
+"meetingLabel": "الاجتماع المحدد"
+,
+"meetingHint": "تحدد بطاقة الاجتماع الشخصية الاجتماع الصحيح تلقائيًا."
+,
+"verifying": "جارٍ التحقق من البطاقة وتسجيل الوصول."
+,
+"welcome": "مرحبًا باللقاء القادم."
+,
+"welcomeHint": "امسح بطاقة المشارك وستظهر تفاصيل وصوله هنا."
+,
+"stepScan": "امسح البطاقة"
+,
+"stepWelcome": "رحّب بالمشارك"
+,
+"footer": "انتظار أقل، ولقاءات أكثر."
+}
+} as any;

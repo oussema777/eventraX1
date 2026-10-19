@@ -1,17 +1,9 @@
+import ParticipantCard from './ParticipantCard';
 import { useI18n } from '../../i18n/I18nContext';
 import { useRef, useState } from 'react';
 import { nextMatchBatch } from '../../utils/eventRecommendations';
 import type { rankEventParticipants } from '../../utils/eventRecommendations';
 import type { RecommendationState } from '../../hooks/useEventRecommendations';
-
-function MatchAvatar({ url, name, color }: { url?: string | null; name: string; color: string }) {
-  const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  return <div aria-hidden="true" style={{ borderRadius: '50%', width: 72, height: 72, flexShrink: 0, overflow: 'hidden', marginBottom: 12, background: color, display: 'grid', placeItems: 'center', fontSize: 24, fontWeight: 700 }}>
-    {url && failedUrl !== url
-      ? <img src={url} alt="" onError={() => setFailedUrl(url)} style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover', objectPosition: 'center' }} />
-      : name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toLocaleUpperCase()}
-  </div>;
-}
 
 export default function EventMatchSuggestions({ matches, state, signedIn, loading, failed, onRetry, onGenerate, onLogin, onView, onBook, onMessage, messagePending, brandColor }: {
   state?: RecommendationState;
@@ -20,7 +12,7 @@ export default function EventMatchSuggestions({ matches, state, signedIn, loadin
   onRetry: () => void; onLogin: () => void;
   onGenerate: () => Promise<ReturnType<typeof rankEventParticipants>>;
   onView: (person: { id: string }) => void;
-  onBook: (person: { id: string; name: string }) => void;
+  onBook: (person: { id: string; name: string; avatar?: string | null }) => void;
   onMessage: (id: string) => void;
   brandColor: string;
 }) {
@@ -60,23 +52,12 @@ export default function EventMatchSuggestions({ matches, state, signedIn, loadin
       : !matches.length ? <p style={{ color: '#94A3B8' }}>{t('eventImprovements.noMatches')}</p>
       : <>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 24 }}>
-          {displayed.map(person => <article key={person.id} style={{ border: '1px solid #334155', borderRadius: 16, padding: 20, color: '#fff', background: 'rgba(255,255,255,0.03)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', overflowWrap: 'anywhere' }}>
-            <span aria-label={t('eventImprovements.matchScore', { score: person.score })}
-              title={t('eventImprovements.matchScore', { score: person.score })}
-              style={{ alignSelf: 'flex-end', color: '#6EE7B7', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 999, padding: '3px 8px', fontWeight: 700, fontSize: 12, lineHeight: '18px', fontVariantNumeric: 'tabular-nums' }}>{person.score}/100</span>
-            <MatchAvatar url={person.avatar_url} name={person.full_name || ''} color={brandColor} />
-            <h4 style={{ fontWeight: 700, fontSize: 18 }}>{person.full_name}</h4>
-            <p style={{ color: '#94A3B8' }}>{[person.job_title, person.company].filter(Boolean).join(' · ')}</p>
-            <ul style={{ color: '#6EE7B7', padding: '12px 0', fontSize: 13 }}>
-              {person.sameSector && <li>{t('eventImprovements.sharedSector', { sector: person.sector || '' })}</li>}
-              {person.sharedInterests.length > 0 && <li>{t('eventImprovements.sharedInterests', { interests: person.sharedInterests.join(', ') })}</li>}
-            </ul>
-            <div style={{ display: 'grid', gap: 8, width: '100%', marginTop: 'auto' }}>
-              <button onClick={() => onView({ id: person.id })} style={{ border: '1px solid #475569', borderRadius: 8, padding: 8 }}>{t('eventImprovements.viewProfile')}</button>
-              <button onClick={() => onBook({ id: person.id, name: person.full_name || '' })} style={{ background: brandColor, borderRadius: 8, padding: 8, fontWeight: 600 }}>{t('eventImprovements.bookMeeting')}</button>
-              <button disabled={messagePending} onClick={() => onMessage(person.id)} style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 8, padding: 8, opacity: messagePending ? 0.5 : 1 }}>{t('eventImprovements.message')}</button>
-            </div>
-          </article>)}
+          {displayed.map(person => <ParticipantCard key={person.id} name={person.full_name || ''}
+            avatar={person.avatar_url} title={person.job_title} company={person.company} score={person.score}
+            tags={[person.sector, ...person.sharedInterests].filter(Boolean) as string[]}
+            reason={[person.sameSector ? t('eventImprovements.sharedSector', { sector: person.sector || '' }) : '', person.sharedInterests.length ? t('eventImprovements.sharedInterests', { interests: person.sharedInterests.join(', ') }) : ''].filter(Boolean).join(' · ')}
+            onView={() => onView({ id: person.id })} onBook={() => onBook({ id: person.id, name: person.full_name || '', avatar: person.avatar_url })}
+            bookLabel={t('eventImprovements.bookMeeting')} onMessage={() => onMessage(person.id)} messagePending={messagePending} />)}
         </div>
       </>}
   </section>;

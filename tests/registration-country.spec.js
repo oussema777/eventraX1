@@ -35,8 +35,8 @@ for (const mobile of [false, true]) {
     const country = page.locator('[data-registration-dropdown="country:country"]');
     await country.locator('button').first().click();
     await country.locator('input').fill('Tunisia');
-    await country.getByRole('button', { name: /Tunisia/ }).click();
-    await expect(country.locator('button').first()).toContainText('Tunisia');
+    await country.getByRole('button', { name: /Tunisie/ }).click();
+    await expect(country.locator('button').first()).toContainText('Tunisie');
     await country.locator('button').first().click();
     await country.locator('input').fill('France');
     await country.locator('input').press('Enter');
@@ -55,7 +55,7 @@ for (const mobile of [false, true]) {
       await expect(name).toHaveValue('Example Attendee');
       await expect(company).toHaveValue('Example Company');
       await expect(notes).toHaveValue('Keep these answers');
-      await expect(country.locator('button').first()).toContainText('France');
+      await expect(country.locator('button').first()).toContainText(locale === 'ar' ? 'فرنسا' : 'France');
       await expect(page.locator('.registration-progress [aria-current="step"]')).toContainText('1');
     }
     await expect(page.locator('.registration-event-link')).toHaveAttribute('href', `/event/${id}/landing`);

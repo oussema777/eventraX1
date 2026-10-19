@@ -3,7 +3,8 @@ const eventId = '769d7854-9bae-49e6-9db9-c88c0586a402';
 
 test('sector filters use event answers and search across all pages', async ({ page }) => {
   const attendees = Array.from({ length: 52 }, (_, i) => ({ id: `a${i}`, name: `Person ${String(i).padStart(2, '0')}`, profile_id: `p${i}`, meta: { sector: i === 51 ? 'Energy' : 'Technology' } }));
-  attendees.push({ id: 'unknown', name: 'Unknown sector', meta: {} });
+  attendees.push({ id: 'unknown', profile_id: 'punknown', name: 'Unknown sector', meta: {} });
+  attendees.forEach(a => { a.meta.b2bOptIn = true; a.status = 'approved'; });
   const writes = [];
   await page.route('**/auth/v1/**', r => r.fulfill({ json: {} }));
   await page.route('**/functions/v1/**', r => r.fulfill({ json: {} }));
@@ -14,7 +15,7 @@ test('sector filters use event answers and search across all pages', async ({ pa
     if (table === 'events') data = { id: eventId, name: 'Forum', status: 'published' };
     if (table === 'event_attendees') data = attendees.slice(Number(url.searchParams.get('offset') || 0), Number(url.searchParams.get('offset') || 0) + Number(url.searchParams.get('limit') || 500));
     // A conflicting account sector must not override the event answer.
-    if (table === 'profiles') data = attendees.filter(a => a.profile_id).map(a => ({ id: a.profile_id, sector: 'Account sector' }));
+    if (table === 'profiles') data = attendees.filter(a => a.profile_id).map(a => ({ id: a.profile_id, sector: a.id === 'unknown' ? '' : 'Account sector' }));
     if (route.request().method() === 'HEAD') return route.fulfill({ headers: { 'content-range': '0-52/53' }, body: '' });
     return route.fulfill({ json: data });
   });

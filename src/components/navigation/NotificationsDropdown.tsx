@@ -7,6 +7,7 @@ interface NotificationsDropdownProps {
   onClose: () => void;
   notifications: NotificationItem[];
   isLoading: boolean;
+  error: string | null;
   onMarkAsRead: (id: string) => void;
   onMarkAllRead: () => void;
 }
@@ -16,6 +17,7 @@ export default function NotificationsDropdown({
   onClose,
   notifications,
   isLoading,
+  error,
   onMarkAsRead,
   onMarkAllRead
 }: NotificationsDropdownProps) {
@@ -65,13 +67,19 @@ export default function NotificationsDropdown({
           </div>
         )}
 
-        {!isLoading && visible.length === 0 && (
+        {!isLoading && error && (
+          <div role="alert" className="px-4 py-6 text-center" style={{ color: 'var(--destructive)', fontSize: '13px' }}>
+            Notifications could not be loaded. Try again later.
+          </div>
+        )}
+
+        {!isLoading && !error && visible.length === 0 && (
           <div className="px-4 py-6 text-center" style={{ color: 'var(--muted-foreground)', fontSize: '13px' }}>
             No notifications yet.
           </div>
         )}
 
-        {!isLoading &&
+        {!isLoading && !error &&
           visible.map((item) => (
             <button
               key={item.id}

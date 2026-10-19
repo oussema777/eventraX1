@@ -1,0 +1,12 @@
+.meeting-availability { margin-bottom: 24px; color: #d8e6f2; }
+.meeting-availability button, .meeting-availability select { padding: 10px 16px; border: 1px solid #6285a1; border-radius: 8px; background: #123653; color: #fff; cursor: pointer; }
+.meeting-availability button:focus-visible, .meeting-availability input:focus-visible, .meeting-availability select:focus-visible { outline: 3px solid #55b7ff; outline-offset: 3px; }
+.meeting-availability button:disabled { opacity: .6; cursor: wait; }
+.meeting-availability section { margin-top: 12px; padding: 20px; background: #112f4b; border: 1px solid #45647e; border-radius: 12px; }
+.meeting-availability p { margin: 10px 0; }
+.meeting-availability fieldset { margin: 16px 0; padding: 12px; border: 1px solid #45647e; min-width: 0; }
+.meeting-availability label { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+.meeting-availability select { max-width: 100%; min-width: 0; }
+.availability-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+.availability-slots label { background: #1d4261; border-radius: 6px; padding: 8px; }
+.meeting-availability input { accent-color: #238eff; }

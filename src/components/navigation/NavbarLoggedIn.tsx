@@ -44,7 +44,7 @@ export default function NavbarLoggedIn({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hasBusinessProfile, setHasBusinessProfile] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const { notifications, unreadCount, isLoading: isNotificationsLoading, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, unreadCount, isLoading: isNotificationsLoading, error: notificationsError, markAsRead, markAllAsRead } = useNotifications();
   const isCommunitiesLocked = false;
   const isLogisticsLocked = false;
   const isMarketplaceLocked = false;
@@ -418,6 +418,7 @@ export default function NavbarLoggedIn({
                 onClose={() => setIsNotificationsOpen(false)}
                 notifications={notifications}
                 isLoading={isNotificationsLoading}
+                error={notificationsError}
                 onMarkAsRead={markAsRead}
                 onMarkAllRead={markAllAsRead}
               />

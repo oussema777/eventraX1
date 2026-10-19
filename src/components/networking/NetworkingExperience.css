@@ -1,0 +1,103 @@
+.networking-experience { min-height: 100vh; background: #0b2641; color: #edf4fb; }
+.networking-context { max-width: 1200px; margin: 0 auto; padding: 104px 40px 0; }
+.networking-context__top { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-bottom: 24px; border-bottom: 1px solid #ffffff18; }
+.networking-eyebrow { display: block; color: #7cbce8; font-size: 11px; font-weight: 700; letter-spacing: .13em; margin-bottom: 8px; }
+.networking-context h2 { font-size: 20px; font-weight: 650; margin: 0; }
+.networking-context__links { display: flex; flex-wrap: wrap; gap: 18px; }
+.networking-context__links a, .networking-text-link { display: inline-flex; align-items: center; gap: 7px; color: #b2d9fa; font-size: 13px; font-weight: 600; text-decoration: none; }
+.networking-context__links a:hover, .networking-text-link:hover { color: #fff; text-decoration: underline; }
+.networking-event-picker select { max-width: 100%; background: #153955; color: #fff; padding: 10px 30px 10px 12px; border: 1px solid #55738d; border-radius: 8px; font-size: 18px; }
+.networking-welcome, .networking-day { display: flex; justify-content: space-between; align-items: start; gap: 20px; margin-top: 24px; padding: 22px; background: #123652; border: 1px solid #3c6d8c; border-radius: 16px; }
+.networking-day { justify-content: start; }
+.networking-day img { border-radius: 10px; padding: 6px; background: white; }
+.networking-welcome p, .networking-day p { color: #abc3d7; font-size: 14px; margin: 8px 0 16px; line-height: 1.6; }
+.networking-welcome button { color: #abc3d7; background: transparent; border: 0; cursor: pointer; padding: 4px; }
+.networking-readiness { padding: 22px; border: 1px solid #4b7696; background: linear-gradient(110deg,#153c5c,#122f4b); border-radius: 16px; margin-bottom: 24px; color: #edf4fb; }
+.networking-readiness.is-ready { border-color: #286558; background: #10362f; }
+.networking-readiness__heading { display: flex; align-items: center; gap: 16px; }
+.networking-readiness__icon { flex-shrink: 0; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; color: #9ed1fa; background: #ffffff0a; }
+.is-ready .networking-readiness__icon { color: #82ddbe; }
+.networking-readiness__copy { flex: 1; min-width: 0; }
+.networking-readiness h2 { font-size: 17px; font-weight: 650; margin: 0 0 5px; }
+.networking-readiness p { font-size: 13px; color: #b3cadd; line-height: 1.6; margin: 0; }
+.networking-primary { border: 1px solid #419df4; background: #0876da; color: #fff; padding: 11px 16px; border-radius: 9px; font-size: 13px; font-weight: 650; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.networking-primary:hover { background: #0a87f5; }
+.networking-primary:disabled { opacity: .5; cursor: not-allowed; }
+.networking-readiness__progress { height: 4px; background: #ffffff12; border-radius: 5px; margin-top: 22px; overflow: hidden; }
+.networking-readiness__progress span { display: block; height: 100%; background: #65b6fa; transition: width .2s; }
+.networking-readiness__checklist { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-top: 12px; }
+.networking-readiness__checklist > span { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #bad0e0; }
+.networking-readiness__checklist .is-complete { color: #7ed7b8; }
+.networking-dot { width: 10px; height: 10px; border: 1px solid #7f9cb2; border-radius: 50%; }
+.networking-basics-form { margin-top: 20px; border-top: 1px solid #ffffff18; padding-top: 20px; }
+.networking-basics-form > div:first-child { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.networking-basics-form label { display: flex; flex-direction: column; gap: 7px; color: #c9daea; font-size: 12px; font-weight: 600; }
+.networking-basics-form input { width: 100%; padding: 11px 12px; border-radius: 8px; background: #0b2641; border: 1px solid #56768f; color: #fff; font-size: 15px; }
+.networking-basics-form__actions { display: flex; gap: 18px; align-items: center; margin-top: 20px; }
+.networking-return { display: inline-block; color: #99d0ff; margin-bottom: 24px; font-size: 14px; }
+.booking-readiness { max-height: 45vh; overflow-y: auto; flex-shrink: 0; }
+.booking-readiness .networking-readiness { margin: 16px 24px 0; }
+.networking-hub .networking-hub__tabs { overflow-x: auto; gap: 6px; scrollbar-width: thin; margin-bottom: 24px; }
+.networking-hub__tabs > button { flex: 1 0 auto; min-height: 48px; padding: 12px 14px; font-size: 13px !important; white-space: nowrap; }
+.networking-hub__tabs > .networking-availability-tab { display: flex; align-items: center; justify-content: center; gap: 8px; color: #94a3b8; background: transparent; border: 0; border-bottom: 2px solid transparent; font-weight: 600; cursor: pointer; }
+.networking-availability-tab[aria-pressed=true] { color: white; border-bottom-color: #0684f5; }
+.networking-experience :is(button,a,input,select):focus-visible, .networking-readiness :is(button,a,input):focus-visible { outline: 3px solid #80c8ff; outline-offset: 3px; }
+.networking-experience .networking-hub__hero { padding-top: 24px !important; }
+.networking-experience .networking-hub__hero > div { max-width: 1120px !important; }
+.networking-experience .networking-hub__hero h1 { font-size: 28px !important; }
+.networking-experience .networking-hub__stats > div { padding: 16px !important; }
+.meeting-availability h2 { font-size: 20px; font-weight: 650; }
+.meeting-availability .availability-status { color: #83d7b9; display: inline-block; padding: 8px 12px; border-radius: 8px; background: #174737; font-size: 13px; }
+.meeting-availability fieldset { border-radius: 10px; }
+@media (max-width: 700px) {
+  .networking-context { padding: 92px 18px 0; }
+  .networking-context__top { align-items: start; flex-direction: column; gap: 14px; }
+  .networking-context__links { gap: 14px; }
+  .networking-readiness { padding: 16px; }
+  .networking-readiness__heading { flex-wrap: wrap; gap: 12px; }
+  .networking-readiness__copy { flex-basis: calc(100% - 58px); }
+  .networking-readiness__icon { display: none; }
+  .networking-readiness__heading > button, .networking-readiness__heading > a { margin-left: 0; }
+  .networking-hub__tabs .tab-label { display: inline !important; }
+  .networking-basics-form > div:first-child { grid-template-columns: 1fr; }
+  .networking-basics-form__actions { flex-wrap: wrap; }
+  .networking-experience .networking-hub__hero, .networking-experience .networking-hub__main { padding-left: 18px !important; padding-right: 18px !important; }
+  .networking-experience .networking-hub__stats { gap: 8px; }
+  .networking-experience .networking-hub__stats > div { padding: 10px !important; }
+  .networking-experience .networking-hub__stats > div > div { flex-direction: column; align-items: start; gap: 8px; }
+  .networking-experience .networking-hub__stats > div > div > div:first-child { display: none; }
+  .networking-experience .networking-hub__stats p { font-size: 12px !important; }
+  .networking-experience .networking-hub__stats p:first-child { font-size: 24px !important; }
+  .networking-day { flex-wrap: wrap; }
+  .booking-readiness .networking-readiness { margin: 12px; }
+}
+
+.networking-match-card { display: flex; flex-direction: column; }
+.networking-match-score { display: flex; align-items: center; gap: 7px; color: #b9abff; margin-bottom: 18px; font-size: 12px; }
+.networking-match-score strong { font-size: 20px; }
+.networking-match-reason { padding: 12px; border-radius: 10px; background: #a78bfa12; color: #c3d2e2; font-size: 13px; line-height: 1.5; margin: 12px 0; }
+.networking-match-card .networking-people-request { margin-top: auto; }
+.networking-match-card .networking-people-tags { margin-bottom: 18px; }
+.networking-match-count { color: #a8bed1; font-size: 13px; }
+
+.networking-tabs { display: flex; border-bottom: 1px solid #ffffff20; }
+.networking-tabs > button { display: flex; align-items: center; justify-content: center; gap: 8px; color: #a8bed1; background: transparent; border: 0; border-bottom: 2px solid transparent; font-weight: 600; cursor: pointer; }
+.networking-tabs > button[aria-pressed=true] { color: #fff; border-bottom-color: #168cf3; }
+.networking-tab-count { border-radius: 20px; padding: 2px 6px; font-size: 10px; background: #6548a3; color: white; }
+.networking-planning-filters { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 22px; margin-bottom: 28px; border: 1px solid #3c719c; border-radius: 14px; background: #123653; }
+.networking-planning-event { display: flex; flex-direction: column; gap: 10px; width: min(100%, 460px); min-width: 0; }
+.networking-planning-label { display: flex; align-items: center; gap: 8px; color: #e8f3ff; font-size: 14px; font-weight: 650; }
+.networking-planning-label svg { color: #7bc3ff; }
+.networking-planning-select { position: relative; display: block; }
+.networking-planning-select select { appearance: none; display: block; width: 100%; min-height: 54px; padding: 12px 48px 12px 16px; border: 2px solid #63b5f6; border-radius: 9px; background: #19496c; color: white; font-size: 17px; font-weight: 650; cursor: pointer; text-overflow: ellipsis; }
+.networking-planning-select select:hover { background: #20577e; border-color: #a9d9ff; }
+.networking-planning-select select:focus-visible { outline: 3px solid #a9d9ff; outline-offset: 3px; }
+.networking-planning-select option { background: #123653; color: #fff; }
+.networking-planning-select > svg { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: #b2e0ff; pointer-events: none; }
+.networking-planning-hint { font-size: 12px; color: #aac6dc; line-height: 1.5; }
+.networking-planning-past { display: flex; align-items: center; gap: 9px; color: #c3d5e4; font-size: 13px; cursor: pointer; }
+.networking-planning-past input { width: 17px; height: 17px; accent-color: #168cf3; }
+@media (max-width: 700px) {
+  .networking-planning-filters { flex-direction: column; align-items: stretch; gap: 20px; padding: 16px; }
+  .networking-planning-event { width: 100%; }
+}

@@ -1,3 +1,4 @@
+import ParticipantCard from '../components/networking/ParticipantCard';
 import { loadEventParticipantDirectory } from '../lib/eventParticipantDirectory';
 import { normalizeNetworkingValue, sectorOptions } from '../utils/eventNetworkingFields';
 import EventMatchSuggestions from '../components/networking/EventMatchSuggestions';
@@ -81,7 +82,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
           speakers: spk.count || 0,
           agenda: sess.count || 0,
           exhibitors: exh.count || 0,
-          attendees: att.count || 0,
+          attendees: type === 'attendees' ? 0 : att.count || 0,
           sponsors: spon.count || 0,
           packages: packagesCount,
           tickets: tix.count || 0
@@ -183,13 +184,14 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
     setIsLoadingMore(true);
     setDirectoryFailed(false);
     try {
-      const participants = await loadEventParticipantDirectory(eventId);
+      const participants = await loadEventParticipantDirectory(eventId, { networkingOnly: true });
       setData(participants);
       setCounts(previous => ({ ...previous, attendees: participants.length }));
       setPage(1);
     } catch {
       setDirectoryFailed(true);
       setData([]);
+      setCounts(previous => ({ ...previous, attendees: 0 }));
     } finally { setIsLoadingMore(false); }
   };
 
@@ -566,7 +568,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                 <div style={{ display: 'flex', gap: '24px' }}>
                   <div>
                     <div style={{ fontSize: '24px', fontWeight: 800, color: brandColor }}>{counts.attendees}</div>
-                    <div style={{ fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '1px' }}>Participants</div>
+                    <div style={{ fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('eventImprovements.b2bParticipants')}</div>
                   </div>
                   <div style={{ width: '1px', backgroundColor: 'rgba(255, 255, 255, 0.1)' }} />
                   <div>
@@ -1199,158 +1201,29 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
             />}
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '48px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF' }}>All Participants</h3>
+              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF' }}>{t('eventImprovements.b2bParticipants')}</h3>
               <span style={{ fontSize: '13px', color: '#94A3B8', fontWeight: 500 }}>({counts.attendees})</span>
             </div>
 
             {directoryFailed ? <div role="alert" style={{ color: '#94A3B8' }}>{t('eventImprovements.directoryError')} <button onClick={() => { void fetchAttendeeBatch(1); }}>{t('eventImprovements.retry')}</button></div>
               : <p role="status" style={{ color: '#94A3B8', marginBottom: 16 }}>{t('eventImprovements.filteredCount', { count: filteredParticipants.length, total: participantData.length })}</p>}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '24px', opacity: isLoadingMore ? 0.5 : 1, transition: 'opacity 0.2s' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '24px', opacity: isLoadingMore ? 0.5 : 1, transition: 'opacity 0.2s' }}>
               {filteredParticipants.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE)
                 .map((a: any) => (
-                <div 
-                  key={a.id} 
-                  onClick={(e) => {
-                    // Open the event details when clicking the card body, not its actions
-                    const target = e.target as HTMLElement;
-                    if (target.closest('button')) return;
-                    
-                    navigate(eventPublicPath(event, a.profile_id ? `profile/${a.profile_id}` : `participant/${a.id}`));
-                  }}
-                  style={{ 
-                    backgroundColor: 'rgba(255,255,255,0.03)', 
-                    borderRadius: '16px', 
-                    border: '1px solid rgba(255,255,255,0.1)', 
-                    padding: '24px', 
-                    textAlign: 'center', 
-                    transition: 'all 0.2s',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    cursor: 'pointer',
-                    touchAction: 'manipulation'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (a.profile_id) {
-                      e.currentTarget.style.transform = 'translateY(-4px)';
-                      e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.08)';
-                      e.currentTarget.style.borderColor = brandColor;
-                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
-                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)';
-                  }}
-                >
-                  <div style={{ width: '80px', height: '80px', marginBottom: '16px', flexShrink: 0 }}>
-                    <img 
-                      src={a.final_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(a.name)}&background=random`} 
-                      style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', border: `3px solid #0B2641`, boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }} 
-                    />
-                  </div>
-                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>{a.name || 'Attendee'}</h3>
-                  <div style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '2px' }}>{a.meta?.['Job Title'] || a.meta?.['Title'] || 'Professional'}</div>
-                  <div style={{ fontSize: '13px', color: brandColor, fontWeight: 500, marginBottom: '20px' }}>{a.company || a.meta?.['Company'] || ''}</div>
-                  
-                  {/* Participant Industries Display */}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', justifyContent: 'center', marginBottom: '20px' }}>
-                    {/* Prefer profile industries, fallback to meta */}
-                    {(a.profile_industries && a.profile_industries.length > 0 ? a.profile_industries : (a.meta?.['Industry'] ? [a.meta['Industry']] : [])).slice(0, 2).map((ind: string) => (
-                      <span key={ind} style={{ fontSize: '10px', fontWeight: 700, color: '#94A3B8', padding: '4px 8px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '6px', textTransform: 'uppercase' }}>{ind}</span>
-                    ))}
-                  </div>
-
-                  <div style={{ width: '100%', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation(); 
-                        navigate(eventPublicPath(event, a.profile_id ? `profile/${a.profile_id}` : `participant/${a.id}`));
-                      }}
-                      style={{ 
-                        width: '100%', 
-                        height: '36px', 
-                        backgroundColor: 'transparent', 
-                        color: '#FFFFFF', 
-                        border: '1px solid rgba(255,255,255,0.2)', 
-                        borderRadius: '8px', 
-                        fontSize: '13px', 
-                        fontWeight: 600, 
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (a.profile_id) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
-                      }}
-                      onMouseLeave={(e) => {
-                        if (a.profile_id) e.currentTarget.style.backgroundColor = 'transparent';
-                      }}
-                    >
-                      <User size={14} />
-                      View Profile
-                    </button>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation(); 
-                        if (!user) { 
-                          toast.info(t('networking.auth.bookingPrompt') || 'Please sign in or create an account to book meetings and access B2B features.');
-                          setShowLoginModal(true); 
-                          return; 
-                        } 
-                        if (a.profile_id) setSelectedAttendee({ id: a.profile_id, name: a.name }); 
-                      }}
-                      style={{ 
-                        width: '100%', 
-                        height: '36px', 
-                        backgroundColor: a.profile_id ? brandColor : 'rgba(255,255,255,0.1)', 
-                        color: a.profile_id ? '#FFFFFF' : 'rgba(255,255,255,0.4)', 
-                        border: 'none', 
-                        borderRadius: '8px', 
-                        fontSize: '13px', 
-                        fontWeight: 600, 
-                        cursor: a.profile_id ? 'pointer' : 'not-allowed', 
-                        transition: 'all 0.2s',
-                        touchAction: 'none'
-                      }}
-                    >
-                      {a.profile_id ? 'Book Meeting' : 'Guest User'}
-                    </button>
-                    <button 
-                      disabled={isMessageLoading || !a.profile_id} 
-                      onClick={(e) => {
-                        e.stopPropagation(); 
-                        if (!user) { 
-                          toast.info(t('networking.auth.messagePrompt') || 'Please sign in to send messages to other participants.');
-                          setShowLoginModal(true); 
-                          return; 
-                        }
-                        if (a.profile_id) handleMessage(a.profile_id); 
-                      }} 
-                      style={{ 
-                        width: '100%', 
-                        height: '36px', 
-                        backgroundColor: 'rgba(255,255,255,0.1)', 
-                        color: a.profile_id ? '#FFFFFF' : 'rgba(255,255,255,0.4)', 
-                        border: 'none', 
-                        borderRadius: '8px', 
-                        fontSize: '13px', 
-                        fontWeight: 600, 
-                        cursor: (isMessageLoading || !a.profile_id) ? 'not-allowed' : 'pointer', 
-                        transition: 'all 0.2s', 
-                        opacity: isMessageLoading ? 0.7 : 1,
-                        touchAction: 'none'
-                      }} 
-                    >
-                      {isMessageLoading ? 'Loading...' : 'Message'}
-                    </button>
-                  </div>
-                </div>
+                <ParticipantCard key={a.id} name={a.name || t('networking.defaults.user')}
+                  avatar={a.final_avatar} title={a.meta?.['Job Title'] || a.meta?.Title} company={a.company}
+                  tags={a.profile_industries || []}
+                  onView={() => navigate(eventPublicPath(event, a.profile_id ? `profile/${a.profile_id}` : `participant/${a.id}`))}
+                  bookLabel={t('eventImprovements.bookMeeting')}
+                  onBook={a.profile_id && a.profile_id !== user?.id ? () => {
+                    if (!user) { setShowLoginModal(true); return; }
+                    setSelectedAttendee({ id: a.profile_id, name: a.name, avatar: a.final_avatar });
+                  } : undefined}
+                  messagePending={isMessageLoading}
+                  onMessage={a.profile_id && a.profile_id !== user?.id ? () => {
+                    if (!user) { setShowLoginModal(true); return; }
+                    handleMessage(a.profile_id);
+                  } : undefined} />
               ))}
             </div>
           </div>

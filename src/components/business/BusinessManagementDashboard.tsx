@@ -1,7 +1,8 @@
+import { useLocalizedLabels } from '../../i18n/useLocalizedLabels';
 import { businessCountryOptions, searchBusinessCountries, normalizeBusinessCountries, mergeBusinessOptions, replaceBusinessSectors, type BusinessOption } from '../../utils/businessOptions';
 import { useState, useEffect, useRef, type ChangeEvent, type KeyboardEvent } from 'react';
 import { businessContactError } from '../../utils/businessValidation';
-import { 
+import {
   Home,
   Edit,
   Users,
@@ -67,6 +68,7 @@ export default function BusinessManagementDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t, tList, locale } = useI18n();
+  const { label: localizedLabel } = useLocalizedLabels();
   const [activeTab, setActiveTab] = useState<TabKey>('dashboard');
   const [business, setBusiness] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -198,7 +200,7 @@ export default function BusinessManagementDashboard() {
         .single();
 
       if (error && error.code !== 'PGRST116') throw error;
-      
+
       if (data) {
         setBusiness(data);
         setOriginalDescription(data.description || '');
@@ -215,7 +217,7 @@ export default function BusinessManagementDashboard() {
 
         if (!membersRes.error) {
           const mapped = (membersRes.data || []).map((member: any) => {
-            const name = member.profiles?.full_name || member.profiles?.email || 'Team Member';
+            const name = member.profiles?.full_name || member.profiles?.email || t('businessFlows.teamMember');
             const email = member.profiles?.email || '';
             const role = member.role === 'owner' ? 'owner' : (member.role === 'admin' || member.role === 'editor' ? 'admin' : 'member');
             return {
@@ -323,7 +325,7 @@ export default function BusinessManagementDashboard() {
   const handleOptimizeContent = () => {
     setIsGenerating(true);
     setShowAISuggestion(false);
-    
+
     setTimeout(() => {
       const suggestion = "Elevate your event experiences with our cutting-edge software solutions. We specialize in creating powerful, intuitive platforms that streamline event management, enhance attendee engagement, and deliver measurable results for organizers worldwide.";
       setAiSuggestion(suggestion);
@@ -389,22 +391,22 @@ export default function BusinessManagementDashboard() {
 
   const handlePublicListingToggle = async (nextValue: boolean) => {
     const updates: any = { is_public: nextValue };
-    
+
     // Automatically request validation if making public and not already verified
     if (nextValue && business.verification_status !== 'verified') {
       updates.verification_status = 'pending';
     }
-    
+
     if (!await handleUpdateBusiness(updates)) return;
     if (business?.owner_profile_id) {
       try {
         await createNotification({
           recipient_id: business.owner_profile_id,
           actor_id: business.owner_profile_id,
-          title: nextValue ? 'Marketplace listing enabled' : 'Marketplace listing disabled',
+          title: nextValue ? t('businessFlows.listingEnabled') : t('businessFlows.listingDisabled'),
           body: nextValue
-            ? 'Your business profile is now visible in the public directory.'
-            : 'Your business profile is no longer visible in the public directory.',
+            ? t('businessFlows.listingEnabledHint')
+            : t('businessFlows.listingDisabledHint'),
           type: 'system',
           action_url: '/business-management'
         });
@@ -437,20 +439,20 @@ export default function BusinessManagementDashboard() {
     try {
       if (type === 'logo') {
         const url = await uploadBusinessLogo(business.id, file);
-        if (!url) throw new Error('Logo upload failed');
+        if (!url) throw new Error(t('businessFlows.logoUploadFailed'));
         setLogoUrl(url);
         await handleUpdateBusiness({ logo_url: url });
       } else if (type === 'cover') {
         const extension = file.name.split('.').pop();
         const path = `${business.id}/cover.${extension}`;
         const url = await uploadFile('business-assets', path, file);
-        if (!url) throw new Error('Cover upload failed');
+        if (!url) throw new Error(t('businessFlows.coverUploadFailed'));
         setCoverUrl(url);
         await handleUpdateBusiness({ cover_url: url });
       } else {
         const path = `${business.id}/docs/${Date.now()}_${file.name}`;
         const url = await uploadFile('business-docs', path, file, 'businessDocument');
-        if (!url) throw new Error('Document upload failed');
+        if (!url) throw new Error(t('businessFlows.documentUploadFailed'));
         const { data, error } = await supabase
           .from('business_documents')
           .insert([
@@ -468,7 +470,7 @@ export default function BusinessManagementDashboard() {
         setDashboardCounts((prev) => ({ ...prev, documents: prev.documents + 1 }));
       }
     } catch (error: any) {
-      toast.error(sanitizeError(error, 'Upload failed'));
+      toast.error(sanitizeError(error, t('businessFlows.uploadFailed')));
     } finally {
       event.target.value = '';
     }
@@ -481,7 +483,7 @@ export default function BusinessManagementDashboard() {
       setUploadedFiles((prev) => prev.filter((file) => file.id !== docId));
       setDashboardCounts((prev) => ({ ...prev, documents: Math.max(0, prev.documents - 1) }));
     } catch (error: any) {
-      toast.error(sanitizeError(error, 'Failed to delete document'));
+      toast.error(sanitizeError(error, t('businessFlows.documentDeleteFailed')));
     }
   };
 
@@ -524,7 +526,7 @@ export default function BusinessManagementDashboard() {
     setIsRefreshingAnalytics(true);
     setTimeout(() => {
       setIsRefreshingAnalytics(false);
-      toast.success('Analytics refreshed');
+      toast.success(t('businessFlows.analyticsRefreshed'));
     }, 700);
   };
 
@@ -576,9 +578,9 @@ export default function BusinessManagementDashboard() {
     const shareUrl = `${window.location.origin}/business-profile/${business?.id || ''}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
-      toast.success('Share link copied');
+      toast.success(t('businessFlows.shareCopied'));
     } catch {
-      toast.error('Copy failed');
+      toast.error(t('businessFlows.copyFailed'));
     } finally {
       setIsSharingAnalytics(false);
     }
@@ -586,13 +588,13 @@ export default function BusinessManagementDashboard() {
 
   const handleEmailSummary = () => {
     if (!businessEmail) {
-      toast.error('Add a business email to send a summary');
+      toast.error(t('businessFlows.emailRequired'));
       return;
     }
     setIsEmailingSummary(true);
-    const subject = encodeURIComponent('Business Analytics Summary');
+    const subject = encodeURIComponent(t('businessFlows.analyticsSummary'));
     const body = encodeURIComponent(
-      `Here is your ${analyticsRange} analytics summary:\n\nViews: ${getMetricValue('views')}\nLeads: ${getMetricValue('leads')}\nSaved: ${getMetricValue('saved')}`
+      t('businessFlows.analyticsBody', { range: t('businessFlows.lastDays', { count: parseInt(analyticsRange, 10) }), views: getMetricValue('views'), leads: getMetricValue('leads'), saved: getMetricValue('saved') })
     );
     window.location.href = `mailto:${businessEmail}?subject=${subject}&body=${body}`;
     setTimeout(() => setIsEmailingSummary(false), 300);
@@ -601,7 +603,7 @@ export default function BusinessManagementDashboard() {
   const handleResetAnalytics = () => {
     setAnalyticsRange('30d');
     setShowComparison(false);
-    toast.success('Analytics reset');
+    toast.success(t('businessFlows.analyticsReset'));
   };
 
   const handleMemberRoleChange = async (memberId: string, role: TeamMember['role']) => {
@@ -627,9 +629,9 @@ export default function BusinessManagementDashboard() {
       } catch {
         // Ignore notification errors
       }
-      toast.success('Member role updated');
+      toast.success(t('businessFlows.roleUpdated'));
     } catch (error: any) {
-      toast.error(sanitizeError(error, 'Failed to update member'));
+      toast.error(sanitizeError(error, t('businessFlows.roleUpdateFailed')));
     } finally {
       setMemberActionId(null);
       setOpenMemberMenuId(null);
@@ -660,9 +662,9 @@ export default function BusinessManagementDashboard() {
       } catch {
         // Ignore notification errors
       }
-      toast.success('Member removed');
+      toast.success(t('businessFlows.memberRemoved'));
     } catch (error: any) {
-      toast.error(sanitizeError(error, 'Failed to remove member'));
+      toast.error(sanitizeError(error, t('businessFlows.removeMemberFailed')));
     } finally {
       setMemberActionId(null);
       setOpenMemberMenuId(null);
@@ -671,12 +673,12 @@ export default function BusinessManagementDashboard() {
 
   const handleAddExistingUser = async (profile: any) => {
     if (!business?.id) return;
-    
+
     try {
       setIsSaving(true);
       // Check if already a member
       if (teamMembers.some(m => m.id === profile.id)) {
-        toast.error('User is already a team member.');
+        toast.error(t('businessFlows.alreadyMember'));
         return;
       }
 
@@ -692,16 +694,16 @@ export default function BusinessManagementDashboard() {
 
       setTeamMembers((prev) => [
         ...prev,
-        { 
-          id: profile.id, 
-          name: profile.full_name || profile.email || 'Team Member', 
+        {
+          id: profile.id,
+          name: profile.full_name || profile.email || t('businessFlows.teamMember'),
           email: profile.email || '',
-          role: 'member', 
+          role: 'member',
           status: 'active',
-          avatar: profile.avatar_url || undefined 
+          avatar: profile.avatar_url || undefined
         }
       ]);
-      
+
       try {
         await createNotification({
           recipient_id: profile.id,
@@ -714,13 +716,13 @@ export default function BusinessManagementDashboard() {
       } catch {
         // Ignore notification errors
       }
-      
-      toast.success(`${profile.full_name || 'User'} added successfully.`);
+
+      toast.success(t('businessFlows.namedMemberAdded', { name: profile.full_name || t('networking.defaults.user') }));
       setSearchEmail('');
       setSearchResults([]);
       setShowAddMemberModal(false);
     } catch (error: any) {
-      toast.error(sanitizeError(error, 'Failed to add member'));
+      toast.error(sanitizeError(error, t('businessFlows.addMemberFailed')));
     } finally {
       setIsSaving(false);
     }
@@ -728,7 +730,7 @@ export default function BusinessManagementDashboard() {
 
   const handleInviteMember = async () => {
     if (!searchEmail.trim() || !business?.id) return;
-    
+
     try {
       setIsSaving(true);
       // Search for profile by email or exact name match
@@ -740,7 +742,7 @@ export default function BusinessManagementDashboard() {
         .limit(1);
 
       if (profileError || !profiles || profiles.length === 0) {
-        toast.error('User not found on the platform.');
+        toast.error(t('businessFlows.userNotFound'));
         return;
       }
 
@@ -748,7 +750,7 @@ export default function BusinessManagementDashboard() {
 
       // Check if already a member
       if (teamMembers.some(m => m.id === profile.id)) {
-        toast.error('User is already a team member.');
+        toast.error(t('businessFlows.alreadyMember'));
         return;
       }
 
@@ -764,16 +766,16 @@ export default function BusinessManagementDashboard() {
 
       setTeamMembers((prev) => [
         ...prev,
-        { 
-          id: profile.id, 
-          name: profile.full_name || profile.email || 'Team Member', 
+        {
+          id: profile.id,
+          name: profile.full_name || profile.email || t('businessFlows.teamMember'),
           email: profile.email || '',
-          role: 'member', 
+          role: 'member',
           status: 'active',
-          avatar: profile.avatar_url || undefined 
+          avatar: profile.avatar_url || undefined
         }
       ]);
-      
+
       try {
         await createNotification({
           recipient_id: profile.id,
@@ -786,12 +788,12 @@ export default function BusinessManagementDashboard() {
       } catch {
         // Ignore notification errors
       }
-      
-      toast.success('Member added successfully.');
+
+      toast.success(t('businessFlows.memberAdded'));
       setSearchEmail('');
       setShowAddMemberModal(false);
     } catch (error: any) {
-      toast.error(sanitizeError(error, 'Failed to add member'));
+      toast.error(sanitizeError(error, t('businessFlows.addMemberFailed')));
     } finally {
       setIsSaving(false);
     }
@@ -1226,7 +1228,7 @@ export default function BusinessManagementDashboard() {
         <button
           className="business-dashboard__mobile-toggle"
           onClick={() => setIsMobileNavOpen((prev) => !prev)}
-          aria-label={isMobileNavOpen ? 'Close navigation' : 'Open navigation'}
+          aria-label={isMobileNavOpen ? t('businessFlows.closeNavigation') : t('businessFlows.openNavigation')}
           style={{
             position: 'fixed',
             left: isMobileViewport ? '16px' : undefined,
@@ -1268,7 +1270,7 @@ export default function BusinessManagementDashboard() {
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.key;
-              
+
               return (
                 <button
                   key={item.key}
@@ -1325,7 +1327,7 @@ export default function BusinessManagementDashboard() {
 
         {/* Main Content Area */}
         <main className="business-dashboard__main flex-1" style={{ padding: '40px' }}>
-          <datalist id="dashboard-business-sectors">{sectorOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</datalist>
+          <datalist id="dashboard-business-sectors">{sectorOptions.map(option => <option key={option.value} value={option.value}>{localizedLabel(option.label)}</option>)}</datalist>
           {/* Profile Details Tab */}
           {activeTab === 'profile' && (
             <div className="max-w-4xl space-y-8">
@@ -1506,7 +1508,7 @@ export default function BusinessManagementDashboard() {
                             fontWeight: 500
                           }}
                         >
-                          {tag}
+                          {localizedLabel(tag)}
                           <button
                             onClick={() => removeSectorTag(tag)}
                             className="transition-colors"
@@ -1699,7 +1701,7 @@ export default function BusinessManagementDashboard() {
                       />
                       <input
                         type="text"
-                        placeholder="123 Business St, City, Country"
+                        placeholder={t('businessFlows.addressPlaceholder')}
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
                         className="w-full pl-12 pr-4 rounded-lg border outline-none"
@@ -2077,7 +2079,7 @@ export default function BusinessManagementDashboard() {
                     {t('businessDashboard.team.table.status')}
                   </div>
                   <div className="col-span-1" style={{ fontSize: '13px', fontWeight: 600, color: '#94A3B8' }}>
-                    
+
                   </div>
                 </div>
 
@@ -2131,7 +2133,7 @@ export default function BusinessManagementDashboard() {
                           fontWeight: 600
                         }}
                       >
-                        {member.role}
+                        {t(`businessDashboard.team.roles.${member.role}`)}
                       </span>
                     </div>
 
@@ -2145,7 +2147,7 @@ export default function BusinessManagementDashboard() {
                           fontWeight: 600
                         }}
                       >
-                        {member.status}
+                        {t(member.status === 'active' ? 'businessFlows.active' : 'businessFlows.pending')}
                       </span>
                     </div>
 
@@ -2381,7 +2383,7 @@ export default function BusinessManagementDashboard() {
                         onChange={handlePrimarySectorChange}
                       >
                         <option value="">{t('businessFlows.selectSector')}</option>
-                        {sectorOptions.filter(option => option.value !== secondarySector || option.value === primarySector).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                        {sectorOptions.filter(option => option.value !== secondarySector || option.value === primarySector).map(option => <option key={option.value} value={option.value}>{localizedLabel(option.label)}</option>)}
                       </select>
                     </div>
                     <div>
@@ -2403,7 +2405,7 @@ export default function BusinessManagementDashboard() {
                         onChange={handleSecondarySectorChange}
                       >
                         <option value="">{t('businessFlows.noSecondary')}</option>
-                        {sectorOptions.filter(option => option.value !== primarySector || option.value === secondarySector).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                        {sectorOptions.filter(option => option.value !== primarySector || option.value === secondarySector).map(option => <option key={option.value} value={option.value}>{localizedLabel(option.label)}</option>)}
                       </select>
                     </div>
                   </div>
@@ -2430,11 +2432,11 @@ export default function BusinessManagementDashboard() {
                       </p>
                     </div>
                     <label className="relative inline-block" style={{ width: '60px', height: '32px' }}>
-                      <input 
-                        type="checkbox" 
-                        className="sr-only" 
-                        checked={business.is_public} 
-                        onChange={e => handlePublicListingToggle(e.target.checked)} 
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={business.is_public}
+                        onChange={e => handlePublicListingToggle(e.target.checked)}
                       />
                       <div
                         className="block rounded-full transition-colors cursor-pointer"
@@ -2745,7 +2747,7 @@ export default function BusinessManagementDashboard() {
                 >
                   <div className="flex items-center justify-between mb-4">
                     <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#FFFFFF' }}>{t('businessDashboard.analytics.engagement.title')}</h3>
-                    <span style={{ fontSize: '12px', color: '#94A3B8' }}>Last {analyticsRange.toUpperCase()}</span>
+                    <span style={{ fontSize: '12px', color: '#94A3B8' }}>{t('businessFlows.lastDays', { count: parseInt(analyticsRange, 10) })}</span>
                   </div>
                   <div className="flex items-end gap-2" style={{ height: '140px' }}>
                     {analyticsActivity.map((value: number, index: number) => (
@@ -2783,7 +2785,7 @@ export default function BusinessManagementDashboard() {
                   </h3>
                   <div className="space-y-4">
                     {[
-                      { label: t('businessDashboard.analytics.highlights.topSector'), value: business.sectors?.[0] || 'General' },
+                      { label: t('businessDashboard.analytics.highlights.topSector'), value: localizedLabel(business.sectors?.[0]) || t('businessFlows.general') },
                       { label: t('businessDashboard.analytics.highlights.trendingRegion'), value: selectedCountries[0] || 'Global' },
                       { label: t('businessDashboard.analytics.highlights.profileStrength'), value: `${profileStrength}% complete` }
                     ].map((item) => (
@@ -2809,9 +2811,9 @@ export default function BusinessManagementDashboard() {
 
       {/* Add Team Member Modal */}
       {showAddMemberModal && (
-        <div 
+        <div
           className="fixed inset-0 z-[100] flex items-center justify-center"
-          style={{ 
+          style={{
             backgroundColor: 'rgba(0, 0, 0, 0.7)',
             backdropFilter: 'blur(4px)'
           }}
@@ -2832,7 +2834,7 @@ export default function BusinessManagementDashboard() {
               <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF' }}>
                 {t('businessDashboard.modals.addMember.title')}
               </h3>
-              <button 
+              <button
                 onClick={() => setShowAddMemberModal(false)}
                 style={{ color: '#94A3B8' }}
               >
@@ -2842,15 +2844,15 @@ export default function BusinessManagementDashboard() {
 
             {/* Search */}
             <div className="mb-6">
-              <label 
+              <label
                 className="block mb-2"
                 style={{ fontSize: '14px', fontWeight: 500, color: '#94A3B8' }}
               >
                 {t('businessDashboard.modals.addMember.searchLabel')}
               </label>
               <div className="relative">
-                <Search 
-                  size={18} 
+                <Search
+                  size={18}
                   className="absolute left-3 top-1/2 -translate-y-1/2"
                   style={{ color: '#94A3B8' }}
                 />
@@ -2878,7 +2880,7 @@ export default function BusinessManagementDashboard() {
 
               {/* Search Results List */}
               {searchResults.length > 0 && (
-                <div 
+                <div
                   className="mt-2 rounded-lg overflow-hidden border border-rgba(255,255,255,0.1)"
                   style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
                 >
@@ -2910,14 +2912,14 @@ export default function BusinessManagementDashboard() {
                   ))}
                 </div>
               )}
-              
+
               {searchEmail.length >= 2 && !isSearching && searchResults.length === 0 && (
                 <p className="mt-2 text-xs text-gray-500 text-center">{t('businessDashboard.modals.addMember.noResults', { query: searchEmail })}</p>
               )}
             </div>
 
             {/* Info */}
-            <div 
+            <div
               className="mb-6 p-3 rounded-lg"
               style={{ backgroundColor: 'rgba(6, 132, 245, 0.1)', border: '1px solid rgba(6, 132, 245, 0.3)' }}
             >

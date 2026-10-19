@@ -1,0 +1,864 @@
+{
+  "date": "2026-10-19",
+  "scope": "FB Eventra.xlsx / Suivi des Retours: all 12 comments plus subsequent registration, profile, card, meeting-email, pass and scanner changes",
+  "verdict": "Local verification passed; not fully verified on the hosted backend",
+  "verification": {
+    "browserScenarios": 137,
+    "browserFailures": 0,
+    "scannerRepeatedRuns": 32,
+    "unitChecks": 11,
+    "sqlSuites": [
+      "networking-schedule",
+      "profile-activity",
+      "registration-profile-seed"
+    ],
+    "concurrentConfirmationChecks": 2,
+    "participantLocaleViewportCombinations": 12,
+    "locales": [
+      "en",
+      "fr",
+      "ar"
+    ],
+    "productionBuild": "passed",
+    "changedCoreLint": "0 errors",
+    "translationKeyAudit": "0 missing literal keys in audited flows"
+  },
+  "fixes": [
+    "Scanner recovers a partially saved arrival after page refresh without creating another log.",
+    "Manual entry stays open when camera denial and the manual-entry click race.",
+    "Imported uppercase email addresses resolve correctly; candidate equality is checked literally.",
+    "Meeting lists, passes, emails and scanner times follow the scheduling timezone, including the target event’s legacy “pt” setting and overseas browsers.",
+    "Merged duplicate translation sections, filled missing Arabic errors and message notification translations, and localized message-email text.",
+    "Removed empty public-profile panels and the orphan company “@”; restored the responsive professional-information grid.",
+    "Improved Arabic scanner text size and message bubble wrapping; corrected a profile button alignment property.",
+    "Profile save no longer treats a click event as permission to clear saved fields; confirmation is regression-tested.",
+    "Corrected registration capacity-alert arguments and made failed profile enrichment return an error.",
+    "Added missing React/Vite type declarations and resolved type defects in audited scanner, meeting, messaging and profile code."
+  ],
+  "live": {
+    "registrations": 156,
+    "eligibleB2bProfiles": 117,
+    "missingFunctions": [
+      "get_profile_activity_stats(uuid)",
+      "get_my_registration_profile_seed()"
+    ],
+    "meetingSchedule": {
+      "schedules": [
+        {
+          "end": "18:00",
+          "date": "2026-11-26",
+          "start": "14:30"
+        }
+      ],
+      "tableCount": 35,
+      "tablePrefix": "Table-A",
+      "slotDuration": 30,
+      "allowedMeetingFormats": [
+        "in-person"
+      ]
+    },
+    "legacyTimezone": "pt",
+    "mutationPolicy": "Read-only inspection; no production database changes, real accounts or emails created by this audit"
+  },
+  "remaining": {
+    "deployment": [
+      "supabase/migrations/20261018130000_profile_activity_stats.sql",
+      "supabase/migrations/20261018140000_registration_profile_seed.sql",
+      "supabase/functions/create-event-registration/index.ts"
+    ],
+    "verification": [
+      "Signed-in hosted two-account workflows and realtime messaging.",
+      "Real email delivery and physical camera/device checks.",
+      "Check-in idempotency verified for single-device retries; simultaneous scans from separate devices are not transactionally protected by this frontend change."
+    ],
+    "repositoryChecks": {
+      "eslintErrors": 71,
+      "typeErrorsOutsideAuditedCore": 150,
+      "note": "Repository-wide lint/type checks remain failing; the scoped core-file lint and production build pass. Existing whitespace outside scope remains in build/index.html and vite.config.ts."
+    }
+  },
+  "feedback": [
+    {
+      "id": "FB-01",
+      "work": "B2B eligibility and count",
+      "status": "Local checks passed; live count verified",
+      "evidence": "156 event registrations; 117 eligible B2B profiles. Directory, search, filters and heading use B2B eligibility.",
+      "remaining": "Authenticated hosted directory check."
+    },
+    {
+      "id": "FB-02",
+      "work": "Activity statistics; remove views",
+      "status": "Deployment required",
+      "evidence": "Source-record SQL tests and browser counters passed. Views are removed and no view-tracking RPC is called.",
+      "remaining": "Deploy 20261018130000_profile_activity_stats.sql; get_profile_activity_stats(uuid) is absent live."
+    },
+    {
+      "id": "FB-03",
+      "work": "Messaging reliability",
+      "status": "Local checks passed",
+      "evidence": "Send, failed-send retry, retained drafts, reload and correct company contact passed.",
+      "remaining": "Two signed-in accounts on hosted backend; realtime delivery."
+    },
+    {
+      "id": "FB-04",
+      "work": "Meeting format and schedule",
+      "status": "Local checks passed; live rules inspected",
+      "evidence": "In-person-only event, valid slots and booking errors checked. Live schedule: 26 November 2026, 14:30–18:00, 30-minute slots, 35 tables.",
+      "remaining": "Hosted organizer/participant round trip."
+    },
+    {
+      "id": "FB-05",
+      "work": "Notifications and emails",
+      "status": "Local checks passed",
+      "evidence": "Meeting request/confirmation/cancellation previews, personal QR recipients, message content, persisted notification links and provider rejection handling passed with intercepted email requests.",
+      "remaining": "Actual provider acceptance and recipient delivery; hosted notifications."
+    },
+    {
+      "id": "FB-06",
+      "work": "Conversation partner profile",
+      "status": "Local checks passed",
+      "evidence": "Partner navigation targets the other person, including matching names and missing profiles.",
+      "remaining": "Hosted two-account navigation."
+    },
+    {
+      "id": "FB-07",
+      "work": "Pending requests and confirmation conflicts",
+      "status": "Local SQL and browser checks passed",
+      "evidence": "Pending requests do not reserve capacity. Concurrent confirmations reject a busy participant or full venue. Scheduling functions/triggers exist live.",
+      "remaining": "Hosted two-account confirmation with actual permissions."
+    },
+    {
+      "id": "FB-08",
+      "work": "Direct cancellation",
+      "status": "Local checks passed",
+      "evidence": "Direct cancel persists; failed or stale writes send no false notifications; repeated clicks save once.",
+      "remaining": "Hosted permission and recipient-delivery check."
+    },
+    {
+      "id": "FB-09",
+      "work": "Availability",
+      "status": "Local SQL and browser checks passed",
+      "evidence": "Save, empty selections, restore all slots, reload, failures and event timezone checked. Live availability policies exist.",
+      "remaining": "Hosted two-account availability check."
+    },
+    {
+      "id": "FB-10",
+      "work": "Registration → account prefill",
+      "status": "Deployment required",
+      "evidence": "Verified same-email seed, mismatched identity rejection, editable setup, handler errors and preserved registration answers passed.",
+      "remaining": "Deploy 20261018140000_registration_profile_seed.sql; get_my_registration_profile_seed() is absent live. Deploy updated registration handler."
+    },
+    {
+      "id": "FB-11",
+      "work": "Person → business profile",
+      "status": "Local checks passed",
+      "evidence": "Linked owners/members navigate correctly; missing associations and load failures are handled.",
+      "remaining": "Authenticated hosted owner/member links."
+    },
+    {
+      "id": "FB-12",
+      "work": "Business → person profile",
+      "status": "Local checks passed",
+      "evidence": "Owner/team profile links and imported system-owner protection checked.",
+      "remaining": "Authenticated hosted owner/team links."
+    }
+  ],
+  "scenarios": [
+    {
+      "file": "b2b-registration-recovery.spec.js",
+      "title": "failed B2B provisioning preserves answers and cannot send a false confirmation",
+      "status": "expected"
+    },
+    {
+      "file": "business-flows.spec.js",
+      "title": "en: create a business through all four steps, publish, and reopen",
+      "status": "expected"
+    },
+    {
+      "file": "business-flows.spec.js",
+      "title": "fr: create a business through all four steps, publish, and reopen",
+      "status": "expected"
+    },
+    {
+      "file": "business-flows.spec.js",
+      "title": "ar: create a business through all four steps, publish, and reopen",
+      "status": "expected"
+    },
+    {
+      "file": "business-flows.spec.js",
+      "title": "failed publication stays in the form; retry publishes once",
+      "status": "expected"
+    },
+    {
+      "file": "business-flows.spec.js",
+      "title": "PDF upload succeeds and does not overwrite unsaved essentials",
+      "status": "expected"
+    },
+    {
+      "file": "business-flows.spec.js",
+      "title": "failed document upload never claims success",
+      "status": "expected"
+    },
+    {
+      "file": "business-flows.spec.js",
+      "title": "offerings can be created, edited, validated, and deleted in the wizard",
+      "status": "expected"
+    },
+    {
+      "file": "business-flows.spec.js",
+      "title": "load failures offer retry instead of an empty creation form",
+      "status": "expected"
+    },
+    {
+      "file": "business-flows.spec.js",
+      "title": "French wizard fits a mobile viewport",
+      "status": "expected"
+    },
+    {
+      "file": "business-flows.spec.js",
+      "title": "dashboard edits preserve service type, sector, and inventory; public link opens the business",
+      "status": "expected"
+    },
+    {
+      "file": "business-flows.spec.js",
+      "title": "Save & Exit preserves a partial draft for resuming",
+      "status": "expected"
+    },
+    {
+      "file": "business-flows.spec.js",
+      "title": "dashboard profile changes appear when reopening the wizard",
+      "status": "expected"
+    },
+    {
+      "file": "business-flows.spec.js",
+      "title": "dashboard request failures do not pretend the saved business is missing",
+      "status": "expected"
+    },
+    {
+      "file": "business-flows.spec.js",
+      "title": "country options cover the full region list and search across languages and codes",
+      "status": "expected"
+    },
+    {
+      "file": "business-flows.spec.js",
+      "title": "French geographic reach includes Tunisia, saves, reloads, and clears",
+      "status": "expected"
+    },
+    {
+      "file": "business-flows.spec.js",
+      "title": "failed and delayed country saves never display unsaved selections as saved",
+      "status": "expected"
+    },
+    {
+      "file": "business-flows.spec.js",
+      "title": "both sector selectors expose the full taxonomy, preserve extras, and clear secondary permanently",
+      "status": "expected"
+    },
+    {
+      "file": "business-flows.spec.js",
+      "title": "product inputs offer all sectors, custom subsectors, and local currencies",
+      "status": "expected"
+    },
+    {
+      "file": "event-auth.spec.js",
+      "title": "new B2B member reaches optional profile and business actions",
+      "status": "expected"
+    },
+    {
+      "file": "event-auth.spec.js",
+      "title": "event day opens check-in and meeting shortcuts for a member",
+      "status": "expected"
+    },
+    {
+      "file": "event-auth.spec.js",
+      "title": "a registration-created member can request a passwordless link from normal login",
+      "status": "expected"
+    },
+    {
+      "file": "event-auth.spec.js",
+      "title": "first passwordless sign-in from general login opens the registered event",
+      "status": "expected"
+    },
+    {
+      "file": "event-auth.spec.js",
+      "title": "activation failure retries the existing session without another sign-in email",
+      "status": "expected"
+    },
+    {
+      "file": "event-auth.spec.js",
+      "title": "expired email link sends a fresh magic link with an absolute event return URL",
+      "status": "expected"
+    },
+    {
+      "file": "event-auth.spec.js",
+      "title": "event access offers registration email sign-in only",
+      "status": "expected"
+    },
+    {
+      "file": "event-auth.spec.js",
+      "title": "a signed-out hub visit retains its event through sign-in",
+      "status": "expected"
+    },
+    {
+      "file": "event-auth.spec.js",
+      "title": "explicit callback destination wins over stale registration state",
+      "status": "expected"
+    },
+    {
+      "file": "event-auth.spec.js",
+      "title": "wrong guest account gets a useful recovery screen instead of the homepage",
+      "status": "expected"
+    },
+    {
+      "file": "event-auth.spec.js",
+      "title": "invalid redirects are rejected and confirmation emails contain reusable hub links",
+      "status": "expected"
+    },
+    {
+      "file": "event-auth.spec.js",
+      "title": "registration email returns non-B2B guests to their event to enable networking",
+      "status": "expected"
+    },
+    {
+      "file": "event-auth.spec.js",
+      "title": "sign-in recovery explains over_email_send_rate_limit",
+      "status": "expected"
+    },
+    {
+      "file": "event-auth.spec.js",
+      "title": "sign-in recovery explains otp_disabled",
+      "status": "expected"
+    },
+    {
+      "file": "event-auth.spec.js",
+      "title": "sign-in recovery explains unexpected_failure",
+      "status": "expected"
+    },
+    {
+      "file": "event-auth.spec.js",
+      "title": "other callback errors are not mislabeled as expired links",
+      "status": "expected"
+    },
+    {
+      "file": "event-participant-profile.spec.js",
+      "title": "View Profile opens the full guest page, survives refresh, and returns to the directory",
+      "status": "expected"
+    },
+    {
+      "file": "event-participant-profile.spec.js",
+      "title": "unlinked participants use the full page with registration details on mobile",
+      "status": "expected"
+    },
+    {
+      "file": "event-participant-profile.spec.js",
+      "title": "event context does not expose an unrelated profile and global guest profiles remain hidden",
+      "status": "expected"
+    },
+    {
+      "file": "event-participant-profile.spec.js",
+      "title": "RLS-hidden profile uses available event details without getting stuck",
+      "status": "expected"
+    },
+    {
+      "file": "event-participant-profile.spec.js",
+      "title": "missing optional profile columns do not break the full profile page",
+      "status": "expected"
+    },
+    {
+      "file": "event-participant-profile.spec.js",
+      "title": "a failed profile request offers retry instead of claiming the profile is missing",
+      "status": "expected"
+    },
+    {
+      "file": "event-sector-filters.spec.js",
+      "title": "sector filters use event answers and search across all pages",
+      "status": "expected"
+    },
+    {
+      "file": "flow-translations.spec.js",
+      "title": "fr: registration localizes catalogs and preserves selected values",
+      "status": "expected"
+    },
+    {
+      "file": "flow-translations.spec.js",
+      "title": "ar: registration localizes catalogs and preserves selected values",
+      "status": "expected"
+    },
+    {
+      "file": "networking-experience.spec.js",
+      "title": "fr: networking cards, match reasons and booking use the chosen language",
+      "status": "expected"
+    },
+    {
+      "file": "networking-experience.spec.js",
+      "title": "ar: networking cards, match reasons and booking use the chosen language",
+      "status": "expected"
+    },
+    {
+      "file": "networking-experience.spec.js",
+      "title": "one hub remembers the event after visiting the profile, with a responsive introduction",
+      "status": "expected"
+    },
+    {
+      "file": "networking-experience.spec.js",
+      "title": "missing basics block booking and can be completed without leaving the selected person",
+      "status": "expected"
+    },
+    {
+      "file": "networking-experience.spec.js",
+      "title": "availability starts open for every slot, saves exceptions and restores the default",
+      "status": "expected"
+    },
+    {
+      "file": "networking-experience.spec.js",
+      "title": "an availability read failure never claims the user is available",
+      "status": "expected"
+    },
+    {
+      "file": "networking-experience.spec.js",
+      "title": "saved shortlists refresh with ranked cards, preserve dismissals and request a meeting directly",
+      "status": "expected"
+    },
+    {
+      "file": "networking-experience.spec.js",
+      "title": "availability keeps its tab when changing events and shows the registration event after returning",
+      "status": "expected"
+    },
+    {
+      "file": "networking-experience.spec.js",
+      "title": "booking recovers from a failed schedule request and restores selectable times",
+      "status": "expected"
+    },
+    {
+      "file": "networking-experience.spec.js",
+      "title": "mobile booking keeps the selection visible and keyboard focus inside the dialog",
+      "status": "expected"
+    },
+    {
+      "file": "networking-people.spec.js",
+      "title": "event guests discover opted-in participants, search, and request a meeting",
+      "status": "expected"
+    },
+    {
+      "file": "networking-people.spec.js",
+      "title": "empty directory explains that more participants can join",
+      "status": "expected"
+    },
+    {
+      "file": "networking-people.spec.js",
+      "title": "directory failures show retry instead of pretending there are no participants",
+      "status": "expected"
+    },
+    {
+      "file": "networking-people.spec.js",
+      "title": "smart matches are generated and persisted within the event",
+      "status": "expected"
+    },
+    {
+      "file": "networking-profile.spec.js",
+      "title": "guest meeting profiles open within their event and return to My Networking after refresh",
+      "status": "expected"
+    },
+    {
+      "file": "networking-profile.spec.js",
+      "title": "member meeting profiles still open with their event context",
+      "status": "expected"
+    },
+    {
+      "file": "networking-profile.spec.js",
+      "title": "unlinked attendee uses registration details when viewer is participant A",
+      "status": "expected"
+    },
+    {
+      "file": "networking-profile.spec.js",
+      "title": "unlinked attendee uses registration details when viewer is participant B",
+      "status": "expected"
+    },
+    {
+      "file": "networking-profile.spec.js",
+      "title": "RLS-hidden profiles fall back to available participant details",
+      "status": "expected"
+    },
+    {
+      "file": "networking-profile.spec.js",
+      "title": "meetings without an event retain the regular member profile route",
+      "status": "expected"
+    },
+    {
+      "file": "networking-profile.spec.js",
+      "title": "unavailable participants offer a return to networking",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch2.spec.js",
+      "title": "FB-04: only in-person is offered for this event, with one date button per date and event-zone slots",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch2.spec.js",
+      "title": "FB-04: unrelated events retain online and hybrid meeting formats",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch2.spec.js",
+      "title": "FB-04: missing organizer times explain the situation and cannot submit an invalid request",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch2.spec.js",
+      "title": "FB-07: a pending request does not block a different pair; the submitted time is in the event zone",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch2.spec.js",
+      "title": "FB-05: rescheduling sends the corrected recipient email and in-app notification",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch2.spec.js",
+      "title": "FB-07: overlapping confirmed meetings block participants; adjacent slots stay available",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch2.spec.js",
+      "title": "FB-07/09: slot lookup errors fail closed and offer retry",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch2.spec.js",
+      "title": "FB-07: a slot confirmed after selection is rechecked before saving",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch2.spec.js",
+      "title": "FB-07: a database conflict is explained without a false success",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch2.spec.js",
+      "title": "FB-09: chosen availability persists after refresh, empty means unavailable, and all slots restores default",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch2.spec.js",
+      "title": "FB-09: a save failure preserves chosen slots and retry saves them",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch2.spec.js",
+      "title": "FB-09: another participant's declared availability controls offered times",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch2.spec.js",
+      "title": "FB-09: French availability fits a mobile viewport",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch2.spec.js",
+      "title": "FB-01: public networking excludes opted-out, unlinked, inactive, and disabled profiles while retaining eligible event guests",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch3.spec.js",
+      "title": "FB-03: send persists across reload and notifies the actual recipient",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch3.spec.js",
+      "title": "FB-03: failed send keeps the draft and allows retry",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch3.spec.js",
+      "title": "FB-03: contacting a company opens its existing owner conversation",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch3.spec.js",
+      "title": "FB-05: notification reader uses stored fields and links to its action",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch3.spec.js",
+      "title": "FB-05: notification query errors are shown instead of an empty inbox",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch3.spec.js",
+      "title": "FB-05: local email helper uses the development API and reports provider rejection",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch3.spec.js",
+      "title": "FB-11/12: linked business opens from a person and its owner links back",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch3.spec.js",
+      "title": "FB-11: a company name without a linked business shows no business link",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch3.spec.js",
+      "title": "FB-02: profiles retain activity stats without displaying or recording views",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch3.spec.js",
+      "title": "business identity: unresolved imported owner never opens the system inbox",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch3.spec.js",
+      "title": "business identity: unresolved owner with no published email has no false contact action",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch3.spec.js",
+      "title": "business identity: technical profile never exposes unrelated companies or meeting actions",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch3.spec.js",
+      "title": "business identity: old system conversation preserves history with no send action",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch3.spec.js",
+      "title": "flow recovery: failed business read offers retry, not a missing company",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch3.spec.js",
+      "title": "flow recovery: signed-out business contact opens login with a return destination",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch3.spec.js",
+      "title": "flow recovery: rapid contact clicks create only one conversation",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch3.spec.js",
+      "title": "flow recovery: failed notification update keeps the unread state and explains retry",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch3.spec.js",
+      "title": "flow recovery: standalone profile with no common event explains booking eligibility",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch3.spec.js",
+      "title": "flow recovery: standalone profile opens real booking for the shared event",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch3.spec.js",
+      "title": "flow recovery: multiple shared events require an explicit booking event",
+      "status": "expected"
+    },
+    {
+      "file": "registration-country.spec.js",
+      "title": "country selection preserves answers and avoids navigation (desktop)",
+      "status": "expected"
+    },
+    {
+      "file": "registration-country.spec.js",
+      "title": "country selection preserves answers and avoids navigation (mobile)",
+      "status": "expected"
+    },
+    {
+      "file": "registration-focus.spec.js",
+      "title": "returning to registration preserves edited answers after session recovery",
+      "status": "expected"
+    },
+    {
+      "file": "registration-profile-prefill.spec.js",
+      "title": "FB-10: verified registration details prefill editable account setup fields",
+      "status": "expected"
+    },
+    {
+      "file": "registration-profile-prefill.spec.js",
+      "title": "FB-10: mismatched registration email cannot prefill another account",
+      "status": "expected"
+    },
+    {
+      "file": "registration-profile-prefill.spec.js",
+      "title": "fr: account setup localizes prefilled industry and country search",
+      "status": "expected"
+    },
+    {
+      "file": "registration-profile-prefill.spec.js",
+      "title": "ar: account setup localizes prefilled industry and country search",
+      "status": "expected"
+    },
+    {
+      "file": "registration-required.spec.js",
+      "title": "every registration field is visibly required and enforced for 769d7854-9bae-49e6-9db9-c88c0586a402",
+      "status": "expected"
+    },
+    {
+      "file": "registration-required.spec.js",
+      "title": "every registration field is visibly required and enforced for 11111111-2222-4333-8444-555555555555",
+      "status": "expected"
+    },
+    {
+      "file": "meeting-scanner.spec.js",
+      "title": "QR formats round-trip and arbitrary URLs never become attendee IDs",
+      "status": "expected"
+    },
+    {
+      "file": "meeting-scanner.spec.js",
+      "title": "personal B2B passes resolve profile-only meetings; only both participants complete the meeting",
+      "status": "expected"
+    },
+    {
+      "file": "meeting-scanner.spec.js",
+      "title": "legacy JSON and email codes ask which participant arrived instead of guessing",
+      "status": "expected"
+    },
+    {
+      "file": "meeting-scanner.spec.js",
+      "title": "rapid submissions save once and repeat scans obey the duplicate policy",
+      "status": "expected"
+    },
+    {
+      "file": "meeting-scanner.spec.js",
+      "title": "event scanner accepts registration codes and rejects meeting passes",
+      "status": "expected"
+    },
+    {
+      "file": "meeting-scanner.spec.js",
+      "title": "session scanner accepts registration codes and rejects meeting passes",
+      "status": "expected"
+    },
+    {
+      "file": "meeting-scanner.spec.js",
+      "title": "a person not assigned to a B2B meeting cannot check in",
+      "status": "expected"
+    },
+    {
+      "file": "meeting-scanner.spec.js",
+      "title": "camera detection records one arrival and pauses on the result",
+      "status": "expected"
+    },
+    {
+      "file": "meeting-scanner.spec.js",
+      "title": "cancelled meetings, wrong events and unavailable reads never record attendance",
+      "status": "expected"
+    },
+    {
+      "file": "meeting-scanner.spec.js",
+      "title": "failed writes never show success; an interrupted save retries with the same ID",
+      "status": "expected"
+    },
+    {
+      "file": "meeting-scanner.spec.js",
+      "title": "a refresh recovers a partially saved arrival without duplicating its log",
+      "status": "expected"
+    },
+    {
+      "file": "meeting-scanner.spec.js",
+      "title": "manual email check-in recognizes uppercase addresses from older imports",
+      "status": "expected"
+    },
+    {
+      "file": "meeting-scanner.spec.js",
+      "title": "meeting email designs distinguish invitation, confirmation and cancellation and escape content",
+      "status": "expected"
+    },
+    {
+      "file": "meeting-scanner.spec.js",
+      "title": "meeting pass is locally generated, decodable, responsive, and keyboard accessible",
+      "status": "expected"
+    },
+    {
+      "file": "meeting-scanner.spec.js",
+      "title": "meeting email previews fit desktop and mobile in all supported languages",
+      "status": "expected"
+    },
+    {
+      "file": "meeting-scanner.spec.js",
+      "title": "scanner and personal pass use the Tunis schedule with legacy timezone settings",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch1.spec.js",
+      "title": "FB-06: messaging profile action opens the partner, including on mobile",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch1.spec.js",
+      "title": "FB-06: a conversation without a partner cannot open the viewer's own profile",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch1.spec.js",
+      "title": "FB-08: participant A cancels a confirmed meeting directly and the result persists",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch1.spec.js",
+      "title": "FB-08: participant B cancels a confirmed meeting directly and the result persists",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch1.spec.js",
+      "title": "FB-08: outgoing pending requests can be withdrawn directly",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch1.spec.js",
+      "title": "FB-08: incoming pending requests retain the decline action",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch1.spec.js",
+      "title": "confirming a meeting opens personal passes with the event timezone (Africa/Tunis)",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch1.spec.js",
+      "title": "confirming a meeting opens personal passes with the event timezone (pt)",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch1.spec.js",
+      "title": "FB-05/08: a failed decline sends no misleading notification",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch1.spec.js",
+      "title": "FB-08: failCancel produces no false success or notifications and can be retried",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch1.spec.js",
+      "title": "FB-08: stale produces no false success or notifications and can be retried",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch1.spec.js",
+      "title": "FB-08: repeated clicks during a save cannot send duplicate cancellations",
+      "status": "expected"
+    },
+    {
+      "file": "organizer-feedback-batch3.spec.js",
+      "title": "profile save requires confirmation before clearing existing contact details",
+      "status": "expected"
+    }
+  ],
+  "evidence": [
+    ".tmp/feedback-audit-verified.json",
+    ".tmp/feedback-audit-regressions.json",
+    ".tmp/feedback-audit-scanner-final.json",
+    ".tmp/feedback-audit-profile-save.json",
+    ".tmp/feedback-audit-unit-verified.log",
+    ".tmp/feedback-audit-build-last.log",
+    ".tmp/feedback-audit-changed-lint.json",
+    ".tmp/feedback-audit-live-details.json",
+    ".tmp/feedback-audit-types-current.log"
+  ]
+}

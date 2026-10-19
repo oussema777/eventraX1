@@ -1,3 +1,4 @@
+import { useLocalizedLabels } from '../../i18n/useLocalizedLabels';
 import { businessCurrencyOptions, mergeBusinessOptions, type BusinessOption } from '../../utils/businessOptions';
 import { useState, KeyboardEvent, useEffect, useRef } from 'react';
 import { 
@@ -34,6 +35,7 @@ type WizardStep = 1 | 2 | 3 | 4;
 export default function BusinessProfileWizard() {
   const navigate = useNavigate();
   const { t, tList } = useI18n();
+  const { label: localizedLabel } = useLocalizedLabels();
   const [currentStep, setCurrentStep] = useState<WizardStep>(1);
   const [showAddItemModal, setShowAddItemModal] = useState(false);
   
@@ -485,7 +487,7 @@ export default function BusinessProfileWizard() {
           paddingRight: '20px'
         }}
       >
-        <datalist id="wizard-business-sectors">{sectorOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</datalist>
+        <datalist id="wizard-business-sectors">{sectorOptions.map(option => <option key={option.value} value={option.value}>{localizedLabel(option.label)}</option>)}</datalist>
         {/* STEP 1: ESSENTIALS */}
         {currentStep === 1 && (
           <div 
@@ -692,7 +694,7 @@ export default function BusinessProfileWizard() {
                         fontWeight: 500
                       }}
                     >
-                      {tag}
+                      {localizedLabel(tag)}
                       <button
                         onClick={() => removeSectorTag(tag)}
                         className="transition-colors"
@@ -821,10 +823,10 @@ export default function BusinessProfileWizard() {
                     
                     <div className="flex items-center gap-3 mb-2">
                       <span style={{ fontSize: '16px', fontWeight: 700, color: '#10B981' }}>
-                        {offering.price ? `${offering.currency || 'USD'} ${offering.price}` : 'Free'}
+                        {offering.price ? `${offering.currency || 'USD'} ${offering.price}` : t('registrationFlow.free')}
                       </span>
                       <span style={{ fontSize: '13px', color: '#94A3B8' }}>
-                        Qty: {offering.is_unlimited ? t('businessProfileWizard.offerings.modal.unlimited') : (offering.quantity_total ?? 'N/A')}
+                        {t('businessFlows.quantityShort')} {offering.is_unlimited ? t('businessProfileWizard.offerings.modal.unlimited') : (offering.quantity_total ?? t('common.notAvailable'))}
                       </span>
                     </div>
 
@@ -842,7 +844,7 @@ export default function BusinessProfileWizard() {
                               fontWeight: 500
                             }}
                           >
-                            {tag}
+                            {localizedLabel(tag)}
                           </span>
                         ))}
                       </div>
@@ -1102,7 +1104,7 @@ export default function BusinessProfileWizard() {
                       />
                       <input
                         type="text"
-                        placeholder="123 Business St, City, Country"
+                        placeholder={t('businessFlows.addressPlaceholder')}
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
                         className="w-full pl-12 pr-4 rounded-lg border outline-none"
@@ -1400,7 +1402,7 @@ export default function BusinessProfileWizard() {
                   <div className="flex items-center gap-3">
                     <input
                       type="number"
-                      placeholder="Enter quantity"
+                      placeholder={t('businessFlows.quantityPlaceholder')}
                       aria-label={t('businessProfileWizard.offerings.modal.quantity')}
                       value={newItemQuantity}
                       onChange={(e) => setNewItemQuantity(e.target.value)}
@@ -1455,7 +1457,7 @@ export default function BusinessProfileWizard() {
                           fontWeight: 500
                         }}
                       >
-                        {tag}
+                        {localizedLabel(tag)}
                         <button
                           onClick={() => removeOfferingTag(tag)}
                           className="transition-colors"

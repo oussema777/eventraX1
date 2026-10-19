@@ -1,0 +1,47 @@
+Eventra feedback release - 19 October 2026
+
+Backend deployment completed on production Supabase kvfoswfaifxqnjqhftwc:
+- Applied 20261018130000_profile_activity_stats.sql.
+- Applied 20261018140000_registration_profile_seed.sql.
+- Deployed create-event-registration version 9. Its default sign-in origin is
+  https://eventra.cloud, matching the production auth callback allow-list.
+- activate-event-account version 1 already matches the local source.
+- Meeting scheduling, profile completion, and business ownership repair changes
+  already exist on production. Do not rerun all historical migrations.
+
+Live checks passed: profile counter RPC response; profile-prefill permissions;
+registration validation; account activation rejects missing authentication.
+No test registrations, user accounts, or emails were created by verification.
+
+Website deployment is to be run by the operator on the VPS:
+
+  cd /var/www/eventraX1
+  git pull --ff-only origin main
+  npm ci
+  bash scripts/deploy-b2b-access.sh
+
+Stop if a command fails. The existing deployment script builds in a separate
+release directory, keeps older hashed assets for open browser tabs, and replaces
+the website entrypoint only after the new assets have been copied.
+The production .env and current build/index.html must already exist.
+
+After deploying, open a fresh browser tab and verify:
+- https://eventra.cloud/event/l-investissement
+- The event registration and B2B email sign-in screens.
+- /auth/callback#error=access_denied shows a recoverable sign-in failure.
+- Participant cards and profile pages in the desired language.
+- Organizer event-day scanners with a valid event/meeting pass.
+
+The callback error fix does not prove the cause of the reported Google failure.
+Google is removed from event email access, but remains in general account login.
+Removing Google from every account login is outside this release's changes.
+
+Local validation includes the prior feedback audit (137 browser scenarios),
+26 callback/event-auth/login scenarios, 7 registration-handler checks, and a
+successful production build. Full repository lint/typecheck still has unrelated
+pre-existing failures documented in the feedback audit.
+
+Frontend rollback: the deployment script prints a previous-index.html path.
+Copy that file to build/index.html.next, then rename it over build/index.html.
+Keep the assets directory. The new database helpers are additive and read-only.
+Backend source backups were retained locally in .tmp/release-20261019/backend-backup.

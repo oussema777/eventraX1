@@ -1,16 +1,21 @@
-import { useState, useEffect, useMemo } from 'react';
-import { X } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { allowedMeetingFormats, networkingTimeZone, networkingSlots, slotAvailability, type NetworkingVenue } from '../../utils/networkingSchedule';
+import { X, Calendar, Clock, MapPin, ArrowRight, Check, Globe, Loader2 } from 'lucide-react';
+import './BookMeetingModal.css';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { createNotification } from '../../lib/notifications';
 import { useI18n } from '../../i18n/I18nContext';
 import { sendMeetingConfirmationEmails, sendMeetingRescheduledEmail } from '../../lib/email';
+import NetworkingProfileCard from './NetworkingProfileCard';
+import { missingBookingFields } from '../../utils/networkingProfile';
+import { networkingErrorKey } from '../../utils/networkingErrors';
 
 interface BookMeetingModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentUser: any;
-  recipient: { id: string; name: string };
+  recipient: { id: string; name: string; avatar?: string | null };
   existingMeeting?: any;
   eventId?: string;
 }
@@ -18,7 +23,10 @@ interface BookMeetingModalProps {
 const MEETINGS_TABLE = 'event_b2b_meetings';
 
 export default function BookMeetingModal({ isOpen, onClose, currentUser, recipient, existingMeeting, eventId }: BookMeetingModalProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const [failedAvatar, setFailedAvatar] = useState<string | null>(null);
+  const [profileReady, setProfileReady] = useState(false);
   const [meetingType, setMeetingType] = useState<'video' | 'in-person' | 'hybrid' | ''>('');
   const [meetingDate, setMeetingDate] = useState('');
   const [meetingTime, setMeetingTime] = useState('');
@@ -29,25 +37,27 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
   const [videoUrl, setVideoUrl] = useState('');
   
   // Logistics State
-  const [venueConfig, setVenueConfig] = useState<any>(null);
+  const [venueConfig, setVenueConfig] = useState<NetworkingVenue | null>(null);
+  const [timeZone, setTimeZone] = useState(networkingTimeZone(eventId));
+  const [configFailed, setConfigFailed] = useState(false);
+  const [slotsFailed, setSlotsFailed] = useState(false);
+  const slotRequest = useRef(0);
+  const configRequest = useRef(0);
+  const formats = allowedMeetingFormats(eventId, venueConfig);
+  const schedule = useMemo(() => networkingSlots(venueConfig, timeZone), [venueConfig, timeZone]);
   const [generatedSlots, setGeneratedSlots] = useState<any[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<any>(null);
   
   // Data State
   const [eventCatalog, setEventCatalog] = useState<any[]>([]);
-  const [eventSessions, setEventSessions] = useState<any[]>([]);
-  const [eventMeetingCounts, setEventMeetingCounts] = useState<Record<string, number>>({});
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
 
   // Submission State
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Filters
-  const [eventFilterCountry, setEventFilterCountry] = useState('');
-  const [eventFilterDate, setEventFilterDate] = useState('');
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && currentUser?.id && recipient?.id) {
       loadEventData();
       if (existingMeeting) {
         setMeetingEditId(existingMeeting.id);
@@ -69,10 +79,10 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
         resetForm();
       }
     }
-  }, [isOpen, existingMeeting, eventId]);
+  }, [isOpen, existingMeeting, eventId, currentUser?.id, recipient?.id]);
 
   const resetForm = () => {
-    setMeetingType('');
+    setMeetingType(eventId && allowedMeetingFormats(eventId).length === 1 ? 'in-person' : '');
     setMeetingDate('');
     setMeetingTime('');
     setMeetingEventId(eventId || null);
@@ -86,179 +96,117 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
   };
 
   const loadEventData = async () => {
+    const request = ++configRequest.current;
+    ++slotRequest.current;
+    setVenueConfig(null);
+    setGeneratedSlots([]);
+    setSelectedSlot(null);
+    setConfigFailed(false);
+    setSlotsFailed(false);
     setIsLoadingEvents(true);
     try {
-      // 1. Fetch Event Details - Simplified select to avoid 400 errors if some columns are missing
-      const { data: eventData } = await supabase
-        .from('events')
-        .select('id, name, start_date, location')
-        .eq('id', eventId || '')
-        .maybeSingle();
-
-      if (eventData) {
-        setEventCatalog([{
-          id: eventData.id,
-          name: eventData.name,
-          startDate: eventData.start_date,
-          location: eventData.location || 'Online',
-          format: 'Event',
-          capacity: 100
-        }]);
-      }
-
-      // 2. Fetch Venue Config
-      if (eventId) {
-        const { data: settings } = await supabase
-          .from('event_b2b_settings')
-          .select('venue_config')
-          .eq('event_id', eventId)
-          .maybeSingle();
-        
-        if (settings?.venue_config) {
-          setVenueConfig(settings.venue_config);
-        }
-      }
-
-    } catch (err) {
-      console.error('Error loading events:', err);
+      if (!eventId) return;
+      const [eventResult, settingsResult] = await Promise.all([
+        supabase.from('events').select('id, name, start_date, location:location_address, timezone').eq('id', eventId).maybeSingle(),
+        supabase.from('event_b2b_settings').select('venue_config').eq('event_id', eventId).maybeSingle()
+      ]);
+      if (eventResult.error) throw eventResult.error;
+      if (settingsResult.error) throw settingsResult.error;
+      if (request !== configRequest.current) return;
+      const event = eventResult.data;
+      const venue = settingsResult.data?.venue_config || null;
+      setVenueConfig(venue);
+      setTimeZone(networkingTimeZone(eventId, venue, event?.timezone));
+      if (event) setEventCatalog([{ id: event.id, name: event.name, startDate: event.start_date, location: event.location }]);
+      const allowed = allowedMeetingFormats(eventId, venue);
+      setMeetingType(previous => allowed.includes(previous as any) ? previous : allowed.length === 1 ? allowed[0] : '');
+    } catch {
+      if (request === configRequest.current) setConfigFailed(true);
     } finally {
-      setIsLoadingEvents(false);
+      if (request === configRequest.current) setIsLoadingEvents(false);
     }
+  };
+
+  const readSlots = async (dateStr: string) => {
+    if (!venueConfig || !eventId || !currentUser?.id || !recipient?.id) return [];
+    const slots = schedule.filter(s => s.date === dateStr);
+    if (!slots.length) return [];
+    const [meetingResult, availabilityResult] = await Promise.all([
+      supabase.from(MEETINGS_TABLE)
+        .select('id, event_id, start_at, end_at, location, profile_a_id, profile_b_id, status, meta')
+        .eq('status', 'confirmed')
+        .or(`event_id.eq.${eventId},profile_a_id.eq.${currentUser.id},profile_b_id.eq.${currentUser.id},profile_a_id.eq.${recipient.id},profile_b_id.eq.${recipient.id}`)
+        .lt('start_at', slots[slots.length - 1].end).gt('end_at', slots[0].iso),
+      supabase.from('event_b2b_availability').select('profile_id, available_slots')
+        .eq('event_id', eventId).in('profile_id', [currentUser.id, recipient.id])
+    ]);
+    if (meetingResult.error) throw meetingResult.error;
+    if (availabilityResult.error) throw availabilityResult.error;
+    const availability = new Map<string, string[]>((availabilityResult.data || []).map(row => [row.profile_id, row.available_slots || []]));
+    return slots.map(slot => slotAvailability(slot, venueConfig, meetingResult.data || [], [currentUser.id, recipient.id], availability, meetingEditId, eventId));
   };
 
   const generateSlots = async (dateStr: string) => {
-    if (!venueConfig || !eventId) return;
+    const request = ++slotRequest.current;
     setIsLoadingEvents(true);
-    
+    setSlotsFailed(false);
+    setGeneratedSlots([]);
+    setSelectedSlot(null);
     try {
-      const matchingSchedules = venueConfig.schedules?.filter((s: any) => s.date === dateStr) || [];
-      if (matchingSchedules.length === 0) {
-        setGeneratedSlots([]);
-        setIsLoadingEvents(false);
-        return;
-      }
-
-      const duration = venueConfig.slotDuration || 30;
-      const tables = venueConfig.tableCount || 10;
-      
-      // Fetch existing meetings for this date once
-      const nextDay = new Date(dateStr);
-      nextDay.setDate(nextDay.getDate() + 1);
-      
-      const { data: existing } = await supabase
-        .from('event_b2b_meetings')
-        .select('id, start_at, location, profile_a_id, profile_b_id, status')
-        .eq('event_id', eventId)
-        .in('status', ['confirmed', 'pending']) 
-        .gte('start_at', `${dateStr}T00:00:00`)
-        .lt('start_at', nextDay.toISOString().split('T')[0] + 'T00:00:00');
-
-      const counts: Record<string, number> = {};
-      const occupiedTables: Record<string, Set<number>> = {}; 
-      const participantConflicts: Record<string, boolean> = {};
-
-      (existing || []).forEach((m: any) => {
-        const key = new Date(m.start_at).toISOString();
-        
-        // 1. Table availability tracking
-        counts[key] = (counts[key] || 0) + 1;
-        if (m.location) {
-          const match = m.location.match(/(\d+)$/);
-          if (match) {
-            if (!occupiedTables[key]) occupiedTables[key] = new Set();
-            occupiedTables[key].add(parseInt(match[1]));
-          }
-        }
-
-        // 2. Participant conflict tracking
-        // If either the current user or the recipient is in this meeting
-        const isMe = m.profile_a_id === currentUser.id || m.profile_b_id === currentUser.id;
-        const isThem = m.profile_a_id === recipient.id || m.profile_b_id === recipient.id;
-        
-        if (isMe || isThem) {
-          // Exception: If we are editing/rescheduling the SAME meeting, it shouldn't block itself
-          if (!meetingEditId || m.id !== meetingEditId) {
-            participantConflicts[key] = true;
-          }
-        }
-      });
-
-      const allSlots: any[] = [];
-
-      matchingSchedules.forEach((schedule: any) => {
-        const start = new Date(`${dateStr}T${schedule.start}:00`);
-        const end = new Date(`${dateStr}T${schedule.end}:00`);
-        let current = new Date(start);
-
-        while (current < end) {
-          const slotIso = current.toISOString();
-          const booked = counts[slotIso] || 0;
-          const isConflicted = participantConflicts[slotIso] || false;
-          const availableCount = tables - booked;
-          
-          const occupied = occupiedTables[slotIso] || new Set();
-          const availableTables = [];
-          for (let i = 1; i <= tables; i++) {
-            if (!occupied.has(i)) {
-              const num = i < 10 ? `0${i}` : `${i}`;
-              availableTables.push(`${venueConfig.tablePrefix || 'Table-'}${num}`);
-            }
-          }
-          if (availableTables.length < availableCount) {
-               for (let k = availableTables.length; k < availableCount; k++) {
-                   availableTables.push(`${venueConfig.tablePrefix || 'Table-'}${k+1}`);
-               }
-          }
-
-          allSlots.push({
-            time: current.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            iso: slotIso,
-            available: isConflicted ? 0 : availableCount, // Force 0 if user is busy
-            isConflicted,
-            total: tables,
-            nextTable: availableTables[0]
-          });
-          current = new Date(current.getTime() + duration * 60000);
-        }
-      });
-
-      // Sort all slots by time across all blocks
-      allSlots.sort((a, b) => a.iso.localeCompare(b.iso));
-      setGeneratedSlots(allSlots);
-    } catch (e) {
-      console.error(e);
+      const slots = await readSlots(dateStr);
+      if (request === slotRequest.current) setGeneratedSlots(slots);
+    } catch {
+      if (request === slotRequest.current) setSlotsFailed(true);
     } finally {
-      setIsLoadingEvents(false);
+      if (request === slotRequest.current) setIsLoadingEvents(false);
     }
   };
 
+  useEffect(() => {
+    if (!isOpen || meetingType === 'video' || !venueConfig) return;
+    const dates = [...new Set(schedule.map(slot => slot.date))];
+    if (!meetingDate && dates.length === 1) setMeetingDate(dates[0]);
+  }, [isOpen, schedule, venueConfig, meetingType, meetingDate]);
+
+  useEffect(() => {
+    if (isOpen && currentUser?.id && recipient?.id && meetingDate && venueConfig && meetingType && meetingType !== 'video') void generateSlots(meetingDate);
+  }, [isOpen, meetingDate, venueConfig, timeZone, meetingType, currentUser?.id, recipient?.id]);
+
   const handleSubmit = async () => {
-    if (isSubmitting) return;
+    if (isSubmitting || !profileReady) return;
     if (!currentUser?.id) {
       console.error('[BookMeetingModal] currentUser.id is missing:', currentUser);
-      toast.error('Session expired. Please refresh the page.');
+      toast.error(t('networking.errors.sessionExpired'));
       return;
     }
     if (!recipient?.id) {
       console.error('[BookMeetingModal] recipient.id is missing:', recipient);
-      toast.error('Could not identify the meeting participant. Please try again.');
+      toast.error(t('networking.errors.participantMissing'));
+      return;
+    }
+    if (configFailed || isLoadingEvents || !formats.includes(meetingType as any)) {
+      toast.error(t('networkingScheduling.loadError'));
       return;
     }
     if (!meetingType) {
-      toast.error('Select a meeting type.');
+      toast.error(t('networking.meetings.validation.selectType'));
       return;
     }
     setIsSubmitting(true);
 
+    const ownProfile = await supabase.from('profiles').select('*').eq('id', currentUser.id).single();
+    if (ownProfile.error || missingBookingFields(ownProfile.data).length) {
+      setProfileReady(false); setIsSubmitting(false); toast.error(t('networkingExperience.unlockHint')); return;
+    }
     let startAt: Date;
     let endAt: Date;
-    let location = 'Video Call';
+    let location = t('networking.meetings.videoCall');
 
     if (meetingType === 'video') {
-       if (!meetingDate || !meetingTime) { toast.error('Select date/time'); setIsSubmitting(false); return; }
+       if (!meetingDate || !meetingTime) { toast.error(t('networking.meetings.validation.selectDateTime')); setIsSubmitting(false); return; }
        startAt = new Date(`${meetingDate}T${meetingTime}:00`);
        if (Number.isNaN(startAt.getTime())) {
-        toast.error('Invalid meeting date/time.');
+        toast.error(t('networking.meetings.validation.invalidDateTime'));
         setIsSubmitting(false);
         return;
       }
@@ -266,7 +214,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
     } else {
        // In-person logic using generated slots
        if (!selectedSlot) {
-         toast.error('Please select a time slot.');
+         toast.error(t('networking.meetings.validation.selectSlot'));
          setIsSubmitting(false);
          return;
        }
@@ -280,23 +228,35 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
     const targetEventId = isVirtual(meetingType) ? (meetingEventId || eventCatalog[0]?.id) : (eventId || meetingEventId);
 
     if (!targetEventId) {
-        toast.error("Event context missing.");
+        toast.error(t('networking.meetings.validation.selectEvent'));
         setIsSubmitting(false);
         return;
     }
 
-    // Final conflict check before submission
+    // Reload availability and confirmed capacity; a visible slot may have changed.
     try {
-        const { data: conflicts } = await supabase
+        if (meetingType !== 'video') {
+          const freshSlots = await readSlots(meetingDate);
+          const fresh = freshSlots.find(slot => slot.iso === selectedSlot?.iso);
+          if (!fresh || fresh.available <= 0) {
+            setSelectedSlot(null);
+            setGeneratedSlots(freshSlots);
+            throw new Error(t('networkingScheduling.slotChanged'));
+          }
+          location = fresh.nextTable || t('networking.defaults.networkingArea');
+        }
+
+        const { data: conflicts, error: conflictError } = await supabase
             .from(MEETINGS_TABLE)
             .select('id, status, profile_a_id, profile_b_id')
             .eq('event_id', targetEventId)
             .in('status', ['confirmed', 'pending'])
-            .eq('start_at', startAt.toISOString())
+            .lt('start_at', endAt.toISOString()).gt('end_at', startAt.toISOString())
             .or(`profile_a_id.eq.${currentUser.id},profile_b_id.eq.${currentUser.id},profile_a_id.eq.${recipient.id},profile_b_id.eq.${recipient.id}`);
 
-        // Filter out the current meeting if we are editing
-        const realConflicts = (conflicts || []).filter(c => c.id !== meetingEditId);
+        if (conflictError) throw conflictError;
+        const realConflicts = (conflicts || []).filter(c => c.id !== meetingEditId && (c.status === 'confirmed' ||
+          ((c.profile_a_id === currentUser.id && c.profile_b_id === recipient.id) || (c.profile_b_id === currentUser.id && c.profile_a_id === recipient.id))));
 
         if (realConflicts.length > 0) {
             const isSamePair = realConflicts.some(c => 
@@ -305,15 +265,17 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
             );
 
             if (isSamePair) {
-                toast.error('You already have a pending or confirmed meeting request with this person at this time.');
+                toast.error(t('networkingScheduling.duplicateRequest'));
             } else {
-                toast.error('One or both participants already have a scheduled meeting at this time.');
+                toast.error(t('networkingScheduling.participantBusy'));
             }
             setIsSubmitting(false);
             return;
         }
     } catch (e) {
-        console.warn('Conflict check failed, proceeding anyway:', e);
+        toast.error(e instanceof Error ? e.message : t('networkingScheduling.loadError'));
+        setIsSubmitting(false);
+        return;
     }
 
     try {
@@ -341,7 +303,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
 
         if (!attendeeAId || !attendeeBId) {
             console.error('Could not resolve attendee IDs:', { attendeeAId, attendeeBId, resA, resB });
-            toast.error("Could not verify registration for one or both users.");
+            toast.error(t('networking.errors.verifyRegistration'));
             setIsSubmitting(false);
             return;
         }
@@ -366,12 +328,15 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
           }
         };
 
+        let savedMeetingId = meetingEditId;
         if (meetingEditId) {
-            const { error } = await supabase.from(MEETINGS_TABLE).update(payload).eq('id', meetingEditId);
-            if (error) throw error;
+            const { data: saved, error } = await supabase.from(MEETINGS_TABLE).update(payload).eq('id', meetingEditId).select('id').maybeSingle();
+            if (error || !saved?.id) throw error || new Error(t('networking.errors.saveMeeting'));
+            savedMeetingId = saved.id;
         } else {
-            const { error } = await supabase.from(MEETINGS_TABLE).insert([payload]);
-            if (error) throw error;
+            const { data: saved, error } = await supabase.from(MEETINGS_TABLE).insert([payload]).select('id').single();
+            if (error || !saved?.id) throw error || new Error(t('networking.errors.saveMeeting'));
+            savedMeetingId = saved.id;
         }
 
         // Fetch notification settings for meeting_booked
@@ -394,8 +359,8 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
               recipient_id: recipient.id,
               type: 'action',
               title: meetingEditId
-                ? t('networking.notifications.meetingRescheduled.title', 'Meeting rescheduled')
-                : t('networking.notifications.meetingRequested.title', 'Meeting requested'),
+                ? t('networking.notifications.meetingRescheduled.title', { defaultValue: t('networking.toasts.meetingRescheduled') })
+                : t('networking.notifications.meetingRequested.title', { defaultValue: t('networking.toasts.meetingRequested') }),
               body: meetingEditId
                 ? t('networking.notifications.meetingRescheduled.body', { name: currentUser.full_name || currentUser.email })
                 : t('networking.notifications.meetingRequested.body', { name: currentUser.full_name || currentUser.email }),
@@ -404,10 +369,11 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
               });
           } catch (notifyError) {
               console.warn('Failed to send notification (likely RLS):', notifyError);
+              toast.warning(t('networking.notifications.platformFailed'));
           }
         }
 
-        toast.success(meetingEditId ? 'Meeting rescheduled' : 'Meeting requested');
+        toast.success(meetingEditId ? t('networking.toasts.meetingRescheduled') : t('networking.toasts.meetingRequested'));
 
         // --- SEND EMAILS ---
         if (meetingNotifSettings.is_email_enabled) {
@@ -426,36 +392,39 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
           if (currentUser.email && recipientProfile?.email) {
             if (meetingEditId) {
               // Rescheduled — send rescheduled email to recipient
-              sendMeetingRescheduledEmail({
+              const delivered = await sendMeetingRescheduledEmail(recipientProfile.email, {
                 recipientName: recipient.name,
-                recipientEmail: recipientProfile.email,
-                organizerName: currentUser.full_name || currentUser.email,
+                reschedulerName: currentUser.full_name || currentUser.email,
                 eventName: eventName,
-                oldDate: existingMeeting?.startAt ? new Date(existingMeeting.startAt).toLocaleDateString() : 'N/A',
-                oldTime: existingMeeting?.startAt ? new Date(existingMeeting.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A',
-                newDate: startAt.toLocaleDateString(),
-                newTime: startAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                location: location,
-                meetingId: meetingEditId
-              }).catch(() => {});
+                oldDate: existingMeeting?.startAt ? new Date(existingMeeting.startAt).toLocaleDateString(locale) : 'N/A',
+                oldTime: existingMeeting?.startAt ? new Date(existingMeeting.startAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : 'N/A',
+                newDate: startAt.toLocaleDateString(locale),
+                newTime: startAt.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }),
+                location: location
+              });
+              if (!delivered) toast.warning(t('networking.notifications.emailFailed'));
             } else {
               // New meeting — send confirmation emails
-              sendMeetingConfirmationEmails({
+              const deliveries = await sendMeetingConfirmationEmails({
                 organizerEmail: currentUser.email,
                 organizerName: currentUser.full_name || currentUser.email,
                 recipientEmail: recipientProfile.email,
                 recipientName: recipient.name,
-                meetingDate: startAt.toLocaleDateString(),
-                meetingTime: startAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                meetingDate: startAt.toLocaleDateString(locale, { timeZone }),
+                meetingTime: startAt.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', timeZone }),
                 location: location,
                 eventName: eventName,
-                meetingId: meetingEditId || 'new',
-                status: 'pending'
-              }).catch(err => console.error('Failed to send meeting emails:', err));
+                meetingId: savedMeetingId!,
+                status: 'pending',
+                organizerProfileId: currentUser.id, recipientProfileId: recipient.id,
+                eventId: targetEventId, locale, timeZone
+              });
+              if (deliveries.some((delivered) => !delivered)) toast.warning(t('networking.notifications.emailFailed'));
             }
           }
         } catch (emailErr) {
           console.error('Error preparing meeting emails:', emailErr);
+          toast.warning(t('networking.notifications.emailFailed'));
         }
         } // end is_email_enabled gate
         // -------------------
@@ -463,7 +432,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
         onClose();
 
     } catch (err: any) {
-        toast.error(err.message || 'Failed to schedule meeting');
+        toast.error(t(networkingErrorKey(err) || 'networkingScheduling.loadError'));
     } finally {
         setIsSubmitting(false);
     }
@@ -471,331 +440,106 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
 
   const isVirtual = (type: string) => type === 'video';
 
-  // Filter Logic
-  const eventCountries = useMemo(() => {
-    return Array.from(new Set(eventCatalog.map((e) => e.country).filter(Boolean)));
-  }, [eventCatalog]);
+  const submitDisabled = !profileReady || isSubmitting || isLoadingEvents || configFailed || slotsFailed || (meetingType !== 'video' && !selectedSlot);
 
-  const filteredEventCatalog = useMemo(() => {
-    return eventCatalog.filter((event) => {
-      if (eventFilterCountry && event.country !== eventFilterCountry) return false;
-      if (eventFilterDate && event.startDate && !event.startDate.startsWith(eventFilterDate)) return false;
-      return true;
-    });
-  }, [eventCatalog, eventFilterCountry, eventFilterDate]);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isOpen || !currentUser?.id || !recipient?.id) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    dialogRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); if (!isSubmitting) onClose(); }
+      if (event.key !== 'Tab') return;
+      const elements = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), textarea:not(:disabled), select:not(:disabled)') || []).filter(el => el.getClientRects().length);
+      const first = elements[0], last = elements[elements.length - 1];
+      if (!first) { event.preventDefault(); return; }
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialogRef.current)) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => { document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', onKey); previousFocus?.focus(); };
+  }, [isOpen, currentUser?.id, recipient?.id, isSubmitting]);
 
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(4px)' }}
-      onClick={onClose}
-    >
-      <div
-        className="relative rounded-xl w-full"
-        style={{
-          maxWidth: '720px',
-          backgroundColor: '#1E3A5F',
-          border: '1px solid rgba(255,255,255,0.15)',
-          boxShadow: '0px 10px 40px rgba(0,0,0,0.5)',
-          maxHeight: '90vh',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden'
-        }}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div
-          className="flex items-center justify-between px-6 py-4 flex-shrink-0"
-          style={{ borderBottom: '1px solid rgba(255,255,255,0.15)' }}
-        >
-          <div style={{ minWidth: 0, paddingRight: '12px' }}>
-            <h3 style={{ fontSize: 'clamp(16px, 4vw, 20px)', fontWeight: 600, color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {meetingEditId ? 'Reschedule Meeting' : 'Schedule Meeting'}
-            </h3>
-            <p style={{ fontSize: '13px', color: '#94A3B8', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              With {recipient.name}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="transition-colors p-2"
-            style={{ color: '#94A3B8' }}
-            onMouseEnter={(event) => { event.currentTarget.style.color = '#FFFFFF'; }}
-            onMouseLeave={(event) => { event.currentTarget.style.color = '#94A3B8'; }}
-          >
-            <X size={22} />
-          </button>
-        </div>
+  if (!isOpen || !currentUser?.id || !recipient?.id) return null;
+  const formatDate = (date: string, options: Intl.DateTimeFormatOptions) => new Date(`${date}T12:00:00Z`).toLocaleDateString(locale, { timeZone: 'UTC', ...options });
+  const eventDetails = eventCatalog.find(event => event.id === (meetingEventId || eventId));
+  const selectedTime = meetingType === 'video' ? meetingTime : selectedSlot?.time;
+  const selectionReady = !!(meetingDate && selectedTime && !slotsFailed && !configFailed);
+  const close = () => { if (!isSubmitting) onClose(); };
 
-        <div className="px-6 py-5 overflow-y-auto custom-scrollbar" style={{ flex: 1 }}>
-          <div className="mb-5">
-            <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '10px' }}>
-              Meeting Type {meetingEditId && !existingMeeting?._isUnscheduled && <span style={{ fontSize: '11px', fontStyle: 'italic', color: '#F59E0B', marginLeft: '8px' }}>(Format locked for reschedule)</span>}
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              {[
-                { id: 'video', label: 'Online' },
-                { id: 'in-person', label: 'In-person' },
-                { id: 'hybrid', label: 'Hybrid' }
-              ].map((option) => {
-                const isLocked = meetingEditId && !existingMeeting?._isUnscheduled;
-                return (
-                <button
-                  key={option.id}
-                  disabled={isLocked ? true : false}
-                  onClick={() => setMeetingType(option.id as any)}
-                  className="px-4 py-2 rounded-lg transition-colors flex-1 min-w-[100px]"
-                  style={{
-                    backgroundColor: meetingType === option.id ? '#0684F5' : 'rgba(255,255,255,0.05)',
-                    color: meetingType === option.id ? '#FFFFFF' : '#94A3B8',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    cursor: isLocked ? 'not-allowed' : 'pointer',
-                    opacity: isLocked && meetingType !== option.id ? 0.5 : 1
-                  }}
-                >
-                  {option.label}
-                </button>
-                );
-              })}
+  return <div className="meeting-booking-overlay" onClick={close}>
+    <div className="meeting-booking" role="dialog" aria-modal="true" aria-labelledby="meeting-booking-title" tabIndex={-1} ref={dialogRef} onClick={event => event.stopPropagation()}>
+      <header className="meeting-booking__header">
+        <div><span className="meeting-booking__eyebrow">{t('meetingBooking.eyebrow')}</span>
+          <h2 id="meeting-booking-title">{t(meetingEditId ? 'meetingBooking.reschedule' : 'meetingBooking.title')}</h2></div>
+        <button className="meeting-booking__close" disabled={isSubmitting} aria-label={t('meetingBooking.close')} onClick={close}><X size={21} /></button>
+      </header>
+      <div className="meeting-booking__scroll">
+        <div className="meeting-booking__layout">
+          <aside className="meeting-booking__summary">
+            <div className="meeting-booking__avatar" aria-hidden="true">{recipient.avatar && failedAvatar !== recipient.avatar ? <img src={recipient.avatar} alt="" onError={() => setFailedAvatar(recipient.avatar!)} /> : recipient.name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase()}</div>
+            <p className="meeting-booking__with">{t('meetingBooking.withPerson', { name: recipient.name })}</p>
+            <p className="meeting-booking__intro">{t('meetingBooking.hint')}</p>
+            <div className="meeting-booking__facts">
+              <div><Calendar size={17} /><span>{eventDetails?.name || t('meetingBooking.event')}</span></div>
+              {venueConfig && <div><Clock size={17} /><span>{t('meetingBooking.duration', { minutes: venueConfig.slotDuration || 30 })}</span></div>}
+              {meetingType && <div><MapPin size={17} /><span>{t(`networkingScheduling.formats.${meetingType}`)}</span></div>}
+              <div><Globe size={17} /><span>{timeZone.replace(/_/g, ' ')}</span></div>
             </div>
-          </div>
-
-          {meetingType && meetingType !== 'video' && (
-            <div className="mb-5">
-              {/* Date Selection */}
-              <div className="mb-4">
-                <label style={{ fontSize: '12px', color: '#94A3B8', display: 'block', marginBottom: '8px' }}>Select Date</label>
-                <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px' }}>
-                  {venueConfig?.schedules?.map((s: any) => {
-                    const isSelected = meetingDate === s.date;
-                    return (
-                      <button
-                        key={s.date}
-                        onClick={() => {
-                          setMeetingDate(s.date);
-                          setSelectedSlot(null);
-                          generateSlots(s.date);
-                        }}
-                        style={{
-                          padding: '8px 16px',
-                          borderRadius: '8px',
-                          backgroundColor: isSelected ? '#0684F5' : 'rgba(255,255,255,0.05)',
-                          border: isSelected ? 'none' : '1px solid rgba(255,255,255,0.1)',
-                          color: isSelected ? '#FFFFFF' : '#94A3B8',
-                          fontSize: '13px',
-                          fontWeight: 500,
-                          whiteSpace: 'nowrap'
-                        }}
-                      >
-                        {new Date(s.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                      </button>
-                    );
-                  })}
-                  {!venueConfig && <p style={{color: '#94A3B8', fontSize: '13px'}}>No networking schedule configured by organizer.</p>}
+            <div className={`meeting-booking__selection ${selectionReady ? 'is-selected' : ''}`} aria-live="polite">
+              <span>{t('meetingBooking.selection')}</span>
+              {selectionReady ? <><strong>{formatDate(meetingDate, { weekday: 'short', day: 'numeric', month: 'long' })}</strong><b><Check size={16} />{selectedTime}</b></> : <p>{t('meetingBooking.selectHint')}</p>}
+            </div>
+            <p className="meeting-booking__note">{t('meetingBooking.pending')}</p>
+          </aside>
+          <div className="meeting-booking__form">
+            <div className="booking-readiness"><NetworkingProfileCard profileId={currentUser.id} compact onReady={setProfileReady} /></div>
+            <h3>{t('meetingBooking.intro')}</h3>
+            {configFailed ? <div role="alert" className="meeting-booking__error"><p>{t('networkingScheduling.loadError')}</p><button onClick={loadEventData}>{t('networking.people.retry')}</button></div>
+            : isLoadingEvents ? <p role="status" className="meeting-booking__loading"><Loader2 size={18} className="animate-spin" />{t('meetingBooking.loading')}</p> : <>
+              {formats.length > 1 && <fieldset className="meeting-booking__field"><legend>{t('meetingBooking.format')}</legend><div className="meeting-booking__formats">
+                {formats.map(format => <button key={format} aria-pressed={meetingType === format} disabled={!!meetingEditId && !existingMeeting?._isUnscheduled} onClick={() => setMeetingType(format as any)}>{t(`networkingScheduling.formats.${format}`)}</button>)}
+              </div>{meetingEditId && !existingMeeting?._isUnscheduled && <small>{t('meetingBooking.locked')}</small>}</fieldset>}
+              {meetingType && meetingType !== 'video' && <>
+                <fieldset className="meeting-booking__field"><legend><span className="meeting-booking__step">1</span>{t('meetingBooking.date')}</legend>
+                  <div className="meeting-booking__dates">{[...new Set(schedule.map(slot => slot.date))].map(date => <button key={date} aria-label={formatDate(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} aria-pressed={meetingDate === date} onClick={() => { if (meetingDate === date) void generateSlots(date); else { setMeetingDate(date); setSelectedSlot(null); } }}>
+                    <span>{formatDate(date, { weekday: 'short' })}</span><strong>{formatDate(date, { day: 'numeric' })}</strong><span>{formatDate(date, { month: 'short' })}</span>
+                  </button>)}</div>
+                  {!schedule.length && <p className="meeting-booking__muted">{t('networkingScheduling.noSchedule')}</p>}
+                </fieldset>
+                {meetingDate && <fieldset className="meeting-booking__field"><legend><span className="meeting-booking__step">2</span>{t('meetingBooking.time')}</legend>
+                  <p className="meeting-booking__zone">{t('networkingScheduling.timeZone', { zone: timeZone })}</p>
+                  {slotsFailed ? <div role="alert" className="meeting-booking__error"><p>{t('networkingScheduling.loadError')}</p><button onClick={() => generateSlots(meetingDate)}>{t('networking.people.retry')}</button></div>
+                    : generatedSlots.length ? <div className="meeting-booking__slots">{generatedSlots.map(slot => <button key={slot.iso}
+                        aria-label={`${slot.time}${slot.isConflicted ? ' ' + t('networkingScheduling.busy') : slot.unavailable ? ' ' + t('networkingScheduling.unavailable') : ''}`}
+                        aria-pressed={selectedSlot?.iso === slot.iso} disabled={slot.available <= 0 || slot.isConflicted} onClick={() => setSelectedSlot(slot)}>
+                        {slot.time}{selectedSlot?.iso === slot.iso && <Check size={14} />}
+                        {(slot.isConflicted || slot.unavailable) && <small>{t(slot.unavailable ? 'networkingScheduling.unavailable' : 'networkingScheduling.busy')}</small>}
+                      </button>)}</div> : <p className="meeting-booking__muted">{t('meetingBooking.empty')}</p>}
+                </fieldset>}
+              </>}
+              {meetingType === 'video' && <>
+                <div className="meeting-booking__video-fields">
+                  <label>{t('meetingBooking.date')}<input type="date" value={meetingDate} onChange={event => setMeetingDate(event.target.value)} /></label>
+                  <label>{t('meetingBooking.time')}<input type="time" value={meetingTime} onChange={event => setMeetingTime(event.target.value)} /></label>
                 </div>
-              </div>
-
-              {/* Slots Grid */}
-              {meetingDate && (
-                <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8', display: 'block', marginBottom: '8px' }}>Select Time Slot</label>
-                  {isLoadingEvents ? (
-                    <div style={{ color: '#94A3B8', fontSize: '13px' }}>Loading slots...</div>
-                  ) : generatedSlots.length > 0 ? (
-                    <div style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', 
-                      gap: '8px' 
-                    }}>
-                      {generatedSlots.map((slot, idx) => (
-                        <button
-                          key={idx}
-                          disabled={slot.available <= 0 || slot.isConflicted}
-                          onClick={() => setSelectedSlot(slot)}
-                          style={{
-                            padding: '10px 4px',
-                            borderRadius: '8px',
-                            backgroundColor: selectedSlot?.iso === slot.iso ? '#0684F5' : (slot.available > 0 && !slot.isConflicted) ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)',
-                            border: selectedSlot?.iso === slot.iso ? 'none' : '1px solid rgba(255,255,255,0.1)',
-                            color: selectedSlot?.iso === slot.iso ? '#FFFFFF' : (slot.available > 0 && !slot.isConflicted) ? '#FFFFFF' : 'rgba(255,255,255,0.2)',
-                            fontSize: '12px',
-                            fontWeight: 500,
-                            cursor: (slot.available > 0 && !slot.isConflicted) ? 'pointer' : 'not-allowed',
-                            position: 'relative'
-                          }}
-                        >
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <span>{slot.time}</span>
-                            {slot.isConflicted && (
-                              <span style={{ fontSize: '9px', color: '#F59E0B', fontWeight: 700, marginTop: '2px' }}>
-                                BUSY
-                              </span>
-                            )}
-                          </div>
-                          {slot.available <= 3 && slot.available > 0 && !slot.isConflicted && (
-                            <span style={{ position: 'absolute', top: -4, right: -4, fontSize: '8px', backgroundColor: '#F59E0B', color: '#000', padding: '1px 3px', borderRadius: '4px', fontWeight: 700 }}>
-                              {slot.available}
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <p style={{ color: '#94A3B8', fontSize: '13px' }}>No slots available for this date.</p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {meetingType === 'video' && (
-            <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-              <div>
-                <label style={{ fontSize: '12px', color: '#94A3B8' }}>Meeting Date</label>
-                <input
-                  type="date"
-                  value={meetingDate}
-                  onChange={(event) => setMeetingDate(event.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border outline-none mt-1"
-                  style={{
-                    backgroundColor: 'rgba(255,255,255,0.05)',
-                    borderColor: 'rgba(255,255,255,0.15)',
-                    color: '#FFFFFF',
-                    fontSize: '13px'
-                  }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '12px', color: '#94A3B8' }}>Meeting Time</label>
-                <input
-                  type="time"
-                  value={meetingTime}
-                  onChange={(event) => setMeetingTime(event.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border outline-none mt-1"
-                  style={{
-                    backgroundColor: 'rgba(255,255,255,0.05)',
-                    borderColor: 'rgba(255,255,255,0.15)',
-                    color: '#FFFFFF',
-                    fontSize: '13px'
-                  }}
-                />
-              </div>
-            </div>
-            <div className="mb-4">
-              <label style={{ fontSize: '12px', color: '#94A3B8', display: 'block', marginBottom: '4px' }}>Video Call Link</label>
-              <input
-                type="url"
-                value={videoUrl}
-                onChange={(event) => setVideoUrl(event.target.value)}
-                placeholder="Paste Google Meet / Zoom / Teams link"
-                className="w-full px-3 py-2 rounded-lg border outline-none"
-                style={{
-                  backgroundColor: 'rgba(255,255,255,0.05)',
-                  borderColor: 'rgba(255,255,255,0.15)',
-                  color: '#FFFFFF',
-                  fontSize: '13px'
-                }}
-              />
-              <p style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>
-                Recommended: paste a Google Meet or Zoom link. If empty, a Jitsi Meet link is auto-generated (requires Google sign-in to start).
-              </p>
-            </div>
-            </>
-          )}
-
-          <div className="mt-5">
-            <label style={{ fontSize: '13px', color: '#94A3B8', display: 'block', marginBottom: '8px' }}>
-              Message (Optional)
+                <label className="meeting-booking__message">{t('meetingBooking.videoLink')}<input type="url" value={videoUrl} onChange={event => setVideoUrl(event.target.value)} placeholder={t('meetingBooking.videoPlaceholder')} /><small>{t('meetingBooking.videoHint')}</small></label>
+              </>}
+            </>}
+            <label className="meeting-booking__message"><span>{t('meetingBooking.message')} <small>{t('meetingBooking.optional')}</small></span>
+              <textarea value={meetingMessage} onChange={event => setMeetingMessage(event.target.value)} placeholder={t('meetingBooking.placeholder')} rows={3} />
             </label>
-            <textarea
-              value={meetingMessage}
-              onChange={(e) => setMeetingMessage(e.target.value)}
-              placeholder="Add a message to your meeting request..."
-              style={{
-                width: '100%',
-                minHeight: '80px',
-                padding: '12px',
-                borderRadius: '8px',
-                backgroundColor: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.15)',
-                color: '#FFFFFF',
-                fontSize: '14px',
-                outline: 'none',
-                resize: 'none'
-              }}
-            />
           </div>
-        </div>
-
-        <div
-          className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 gap-3 flex-shrink-0"
-          style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}
-        >
-          <button
-            onClick={onClose}
-            className="w-full sm:w-auto px-6 py-2 rounded-lg transition-colors order-2 sm:order-1"
-            style={{
-              backgroundColor: 'transparent',
-              color: '#94A3B8',
-              fontSize: '13px',
-              fontWeight: 500,
-              border: '1px solid rgba(255,255,255,0.2)'
-            }}
-            onMouseEnter={(event) => {
-              event.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
-              event.currentTarget.style.color = '#FFFFFF';
-            }}
-            onMouseLeave={(event) => {
-              event.currentTarget.style.backgroundColor = 'transparent';
-              event.currentTarget.style.color = '#94A3B8';
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="w-full sm:w-auto px-6 py-2 rounded-lg transition-colors order-1 sm:order-2"
-            style={{
-              backgroundColor: isSubmitting ? '#064a9e' : '#0684F5',
-              color: '#FFFFFF',
-              fontSize: '13px',
-              fontWeight: 600,
-              opacity: isSubmitting ? 0.7 : 1,
-              cursor: isSubmitting ? 'not-allowed' : 'pointer'
-            }}
-            onMouseEnter={(event) => {
-              if (!isSubmitting) event.currentTarget.style.backgroundColor = '#0570D6';
-            }}
-            onMouseLeave={(event) => {
-              if (!isSubmitting) event.currentTarget.style.backgroundColor = '#0684F5';
-            }}
-          >
-            {isSubmitting ? 'Submitting...' : meetingEditId ? 'Reschedule Meeting' : 'Schedule Meeting'}
-          </button>
         </div>
       </div>
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.2);
-        }
-      `}</style>
+      <footer className="meeting-booking__footer">
+        <button className="meeting-booking__cancel" disabled={isSubmitting} onClick={close}>{t('meetingBooking.cancel')}</button>
+        <button className="meeting-booking__submit" disabled={submitDisabled || (meetingType === 'video' && (!meetingDate || !meetingTime))} onClick={handleSubmit}>
+          {isSubmitting ? <Loader2 size={17} className="animate-spin" /> : <Calendar size={17} />}{t(isSubmitting ? 'meetingBooking.sending' : meetingEditId ? 'meetingBooking.reschedule' : 'meetingBooking.title')}<ArrowRight size={17} />
+        </button>
+      </footer>
     </div>
-  );
+  </div>;
 }

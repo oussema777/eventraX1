@@ -1,0 +1,241 @@
+[
+  {
+    "id": "FB-01",
+    "row": 8,
+    "title": "Show eligible B2B participants in networking",
+    "images": [
+      "image7.png"
+    ],
+    "meaning": "The networking directory should exclude people who are not open or eligible for B2B networking.",
+    "evidence": "The directory shows 94 participants, including cards marked Guest User with disabled meeting/message actions. This demonstrates unusable cards, but Guest User and a deliberate B2B opt-out are different states.",
+    "decision": "Clarify eligibility: event registration B2B opt-in, global networking preference, account activation, or a combination. Determine whether the general attendee directory should remain broader than networking.",
+    "checks": [
+      "Opted-out people are excluded from the networking results, filters, search, and counts.",
+      "Eligible opted-in participants remain discoverable. Apply the agreed handling of guests and missing preferences consistently."
+    ],
+    "code": "src/lib/eventNetworkingParticipants.ts already filters registration b2bOptIn=true and excludes explicit b2b_enabled=false. src/pages/EventSectionPage.tsx also contains the Guest User card UI. Different directory entry points require comparison; the feedback is not proof that every current path is unfiltered.",
+    "original": "c inutile dafficher des profils non ouverts au B2B dans le champ d réseautage",
+    "priority": "Haute",
+    "category": "Amélioration",
+    "status": "Nouveau"
+  },
+  {
+    "id": "FB-02",
+    "row": 16,
+    "title": "Activity statistics do not update",
+    "images": [
+      "image2.png",
+      "image13.png"
+    ],
+    "meaning": "Activity totals should reflect actual user activity consistently on the private and public profile.",
+    "evidence": "Two images show zero counters: events attended, B2B meetings, connections, profile views; the public activity panel also shows zero views/connections. Static screenshots cannot establish which action failed to update a counter.",
+    "decision": "Define each metric: registration versus actual attendance; requested versus confirmed versus completed meetings; accepted connections; unique versus total profile views and whether self-views count. Agree update timing and event/global scope.",
+    "checks": [
+      "Perform one qualifying action per agreed metric and compare source records with both displayed panels.",
+      "Refresh and sign in again; counters persist, agree across panels, and avoid duplicate counting."
+    ],
+    "code": "src/pages/09_My_Profile.tsx:820-825 reads stored profile counters with zero fallbacks. src/pages/PublicProfilePage.tsx reads profile.profile_views. This confirms the display source, not a failure in the counter update pipeline.",
+    "original": "ya pas un changement des stats ",
+    "priority": "Moyenne",
+    "category": "Amélioration",
+    "status": "Nouveau"
+  },
+  {
+    "id": "FB-03",
+    "row": 31,
+    "title": "Messaging malfunction",
+    "images": [
+      "image10.png",
+      "image14.png"
+    ],
+    "meaning": "Messaging must work when started from a person or business, with the correct recipient and visible conversation history.",
+    "evidence": "The nearby company image shows Contacter l'entreprise. The other screenshot shows empty conversation previews and an active system@eventra.local conversation. The company-to-messaging connection is inferred from placement and context; the precise failing action is not supplied.",
+    "decision": "Identify the entry point and exact symptom: contact button, wrong recipient, send failure, missing received message, or missing history. system@eventra.local is visible but its cause is unknown.",
+    "checks": [
+      "Use two distinct accounts to start a thread, send and reply, and verify history after reload.",
+      "From a company contact action, resolve the intended company contact and open that conversation without creating a duplicate or unrelated recipient."
+    ],
+    "code": "src/components/business/BusinessProfilePage.tsx:204-215 contacts owner_profile_id through getOrCreateThread. src/components/messaging/UserMessagesCenter.tsx and src/hooks/useMessageThread.ts own conversation behavior. These are investigation paths, not a confirmed root cause.",
+    "original": "dysfonctionnement ds la fonctionnalité de messagerie ",
+    "priority": "Critique",
+    "category": "Bug / Anomalie",
+    "status": "Nouveau"
+  },
+  {
+    "id": "FB-04",
+    "row": 41,
+    "title": "In-person-only meetings for this event?",
+    "images": [
+      "image11.png"
+    ],
+    "meaning": "Likely request: offer only in-person meetings for this event. The short wording does not establish whether this is a restriction request or a complaint that only in-person works.",
+    "evidence": "The modal visibly offers Online, In-person, and Hybrid, with In-person selected. It also says No networking schedule configured by organizer and displays Please select a time slot.",
+    "decision": "Confirm the intended event formats and scope: this event or platform-wide. Separately verify organizer schedule configuration; changing available formats alone would not resolve the missing schedule.",
+    "checks": [
+      "For this event, display and accept only the agreed formats across booking entry points.",
+      "Configured dates and slots appear, a valid in-person request succeeds, and a missing schedule gives an actionable explanation."
+    ],
+    "code": "src/components/networking/BookMeetingModal.tsx:538-541 lists all three formats. Its non-video scheduling UI depends on venueConfig; the missing-schedule text is present at line 598.",
+    "original": "meeting just \"in person\" ",
+    "priority": "Critique",
+    "category": "Amélioration",
+    "status": "Nouveau"
+  },
+  {
+    "id": "FB-05",
+    "row": 49,
+    "title": "Missing platform and email notifications",
+    "images": [
+      "image4.png"
+    ],
+    "meaning": "Users report receiving neither an in-app notification nor an email for an expected activity.",
+    "evidence": "The image shows an empty notification dropdown: No notifications yet. It does not show email delivery or identify the triggering activity.",
+    "decision": "Identify which triggers and recipients are affected: message, meeting request, acceptance, reschedule, cancellation, or connection. Agree which events should produce both channels.",
+    "checks": [
+      "For each agreed trigger, verify the correct recipient sees one persisted notification and a working destination link.",
+      "Verify email generation and delivery outcome separately from database insert or provider acceptance; check both accounts and notification preferences."
+    ],
+    "code": "Notification-related entry points include src/lib/notifications.ts, src/hooks/useNotifications.ts, src/components/navigation/NotificationsDropdown.tsx, and meeting/message actions. Existing send calls do not prove successful persistence or delivery.",
+    "original": "pas de notif ni sur la platform ni par mail ",
+    "priority": "Critique",
+    "category": "Bug / Anomalie",
+    "status": "Nouveau"
+  },
+  {
+    "id": "FB-06",
+    "row": 57,
+    "title": "Open the other person's profile from messaging",
+    "images": [
+      "image5.png"
+    ],
+    "meaning": "The profile icon in a conversation should open the conversation partner's profile.",
+    "evidence": "An arrow explicitly points to the person/profile icon at the top right of a conversation with Test Test.",
+    "decision": "The target is clear. Verify the route and visibility rules for that conversation partner, including missing or unavailable profiles.",
+    "checks": [
+      "While signed in as A and chatting with B, the icon opens B's profile.",
+      "It does not navigate to A's own profile; unavailable profiles have a useful state."
+    ],
+    "code": "Confirmed local code mismatch: src/components/messaging/UserMessagesCenter.tsx:294-296 handleViewProfile unconditionally navigates to /my-profile; line 893 binds the conversation icon to that handler. Deployed behavior has not been reproduced.",
+    "original": "impossible d'acceder au profil",
+    "priority": "Critique",
+    "category": "Bug / Anomalie",
+    "status": "Nouveau"
+  },
+  {
+    "id": "FB-07",
+    "row": 70,
+    "title": "Pending requests mark a slot Busy",
+    "images": [
+      "image6.png"
+    ],
+    "meaning": "The organizer objects to a time slot being marked Busy before the meeting is accepted.",
+    "evidence": "The screenshot shows 15:30 marked BUSY. The screenshot alone does not reveal the underlying meeting status; the unaccepted state comes from the written remark.",
+    "decision": "Agree pending-request policy: no hold, a temporary hold, or a distinct Pending state. Decide separately how participant availability and physical table capacity are reserved, and how confirmation resolves competing requests.",
+    "checks": [
+      "A pending request follows the agreed display and reservation policy for both people.",
+      "Confirmation prevents double booking; decline, cancellation, expiry, and reschedule release the right slot and capacity. Test competing confirmations."
+    ],
+    "code": "Confirmed local implementation: src/components/networking/BookMeetingModal.tsx:148-183 loads confirmed and pending meetings together and uses either to set participant conflicts. This explains the reported state, but whether it is incorrect depends on the agreed policy.",
+    "original": "le creneau affiche Busy malgre que j'ai meme pas accepter la réu",
+    "priority": "Critique",
+    "category": "Amélioration",
+    "status": "Nouveau"
+  },
+  {
+    "id": "FB-08",
+    "row": 74,
+    "title": "Cancel directly without changing the meeting time",
+    "images": [],
+    "meaning": "Expose a direct, discoverable cancellation action. The user should not have to reschedule a meeting first to cancel it.",
+    "evidence": "The written comment describes the workaround. No dedicated cancellation screenshot is supplied. The following reused Busy image is illustrative of slots, not proof of a cancellation flow.",
+    "decision": "Agree actions by role and state: withdraw an outgoing pending request, decline an incoming one, and cancel a confirmed meeting. Specify who can cancel and what the other participant receives.",
+    "checks": [
+      "For each allowed role/state, cancellation is available directly from the meeting.",
+      "No time change is required; both accounts see the resulting state, the slot is released, and the agreed notifications are delivered."
+    ],
+    "code": "src/components/networking/UserB2BCenter.tsx:1820 currently renders the meeting-card cancel button only for pending meetings whose organizerId matches the signed-in user. Other meeting actions need review before generalizing this finding.",
+    "original": "l'option de l'annulation d'une réu (pour l'annuler tu dois changer l'horaire de meeting puis l'annuler c pas un reflexe que tout l monde peut l'avoir)....",
+    "priority": "Haute",
+    "category": "Amélioration",
+    "status": "Nouveau"
+  },
+  {
+    "id": "FB-09",
+    "row": 75,
+    "title": "Choose personal availability windows",
+    "images": [
+      "image6.png"
+    ],
+    "meaning": "Participants want to declare the time windows when they are available for meetings.",
+    "evidence": "A second placement of the same Busy slot image appears below the FB-08/FB-09 rows. Its visual context most closely supports availability, but it is a shared reference, not a distinct personal-availability UI.",
+    "decision": "Distinguish organizer-provided event hours from participant availability. Define event-specific versus recurring availability, timezone, default state, and effects on existing requests.",
+    "checks": [
+      "A participant can save and edit availability within event hours, then reload and retain it.",
+      "Other participants can request meetings only in compatible windows according to the agreed pending policy; timezone display is consistent."
+    ],
+    "code": "src/components/networking/BookMeetingModal.tsx generates event slots from venueConfig.schedules. The existence and completeness of a separate participant-availability workflow has not been established.",
+    "original": "la possibilite de choisir les créneaux horaires de disponibilité",
+    "priority": "Haute",
+    "category": "Amélioration",
+    "status": "Nouveau"
+  },
+  {
+    "id": "FB-10",
+    "row": 80,
+    "title": "Reuse registration information during account creation",
+    "images": [],
+    "meaning": "Avoid asking people to type again information already supplied during event registration when they create an account.",
+    "evidence": "Text-only request. There is no dedicated account-creation screenshot; the nearby participant-card screenshot fits FB-11 semantically and must not be treated as proof of a registration problem.",
+    "decision": "Specify the direction (event registration to account), fields, supported registration paths, identity matching, and overwrite precedence for existing accounts. Event answers and global profile data need an explicit field map.",
+    "checks": [
+      "Complete registration then account creation for the same verified person; mapped fields are prefilled and editable.",
+      "Existing nonempty account data follows the agreed precedence, unrelated identities are not linked, and refresh/retry does not duplicate records."
+    ],
+    "code": "Relevant entry points include src/pages/32_Event_Registration_Flow.tsx, src/components/modals/ModalProfileSetup.tsx, and authentication flows. The profile-setup component initializes several fields empty, but the full handoff requires tracing before asserting a root cause.",
+    "original": "Il serait préférable de récupérer automatiquement les informations renseignées lors d l inscription afin de les réutiliser lors de la création du compte",
+    "priority": "Haute",
+    "category": "Amélioration",
+    "status": "Nouveau"
+  },
+  {
+    "id": "FB-11",
+    "row": 81,
+    "title": "Navigate from a person to their business profile",
+    "images": [
+      "image12.png",
+      "image1.png"
+    ],
+    "meaning": "Likely request: add a View business profile action from a participant card and/or personal profile.",
+    "evidence": "Nearby images show participant cards with company text and View Profile actions, and an individual profile with a company name plus meeting/message actions. Neither shows an explicit View business profile button.",
+    "decision": "Confirm placement: participant cards, personal profile, or both. A company-name string alone does not establish a valid business-profile association; define which business is shown when there are several.",
+    "checks": [
+      "A person with a linked business can open the correct company profile from the agreed surfaces.",
+      "Missing, multiple, or inaccessible business links are handled explicitly without guessed company-name matches."
+    ],
+    "code": "src/pages/EventSectionPage.tsx and src/pages/PublicProfilePage.tsx are candidate personal-profile surfaces; src/components/business/BusinessProfilePage.tsx is the business destination. Exact desired placements remain to be confirmed.",
+    "original": "L'ajout d l option de view profil business",
+    "priority": "Haute",
+    "category": "Amélioration",
+    "status": "Nouveau"
+  },
+  {
+    "id": "FB-12",
+    "row": 94,
+    "title": "Navigate from a business to a person's profile",
+    "images": [
+      "image8.png"
+    ],
+    "meaning": "Add a View profile action inside a business profile, likely for the owner, representative, or listed team members.",
+    "evidence": "The business-page screenshot shows company information, Notre equipe, Nos offres, and contact/matchmaking panels. The visible team section does not identify a specific person or placement for the requested action.",
+    "decision": "Identify whose profile should open: company owner, primary representative, team members, or the signed-in user's public preview. Do not collapse this request into FB-11; its navigation direction is reversed.",
+    "checks": [
+      "The business page exposes the agreed person/team profile links and each resolves to the intended account.",
+      "Empty teams, missing/deactivated people, and access restrictions produce clear states."
+    ],
+    "code": "src/components/business/BusinessProfilePage.tsx loads owner_profile_id and business_members. Those relationships can inform the implementation after the requested target is confirmed.",
+    "original": "L'ajout d l option de view profil ds le profil business",
+    "priority": "Haute",
+    "category": "Amélioration",
+    "status": "Nouveau"
+  }
+]

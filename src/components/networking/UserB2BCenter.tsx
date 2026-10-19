@@ -1,7 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
-import { 
-  Calendar, 
-  UserPlus, 
+import { resolveAgendaTimeZone } from '../../utils/agendaDates';
+import { networkingTimeZone } from '../../utils/networkingSchedule';
+import MeetingPassModal from './MeetingPassModal';
+import { meetingLink, qrImageUrl } from '../../utils/meetingQr';
+import ParticipantCard from './ParticipantCard';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Calendar,
+  UserPlus,
   Sparkles,
   Video,
   MapPin,
@@ -30,6 +35,9 @@ import { useMessageThread } from '../../hooks/useMessageThread';
 import UserMessagesCenter from '../messaging/UserMessagesCenter';
 import BookMeetingModal from './BookMeetingModal';
 import EventNetworkingPeople from './EventNetworkingPeople';
+import MeetingAvailability from './MeetingAvailability';
+import NetworkingProfileCard from './NetworkingProfileCard';
+import { networkingErrorKey } from '../../utils/networkingErrors';
 import { loadEventNetworkingParticipants } from '../../lib/eventNetworkingParticipants';
 import { sendEmail, generateMeetingConfirmationEmailHtml, sendMeetingConfirmationEmails, sendMeetingCancelledEmail, sendConnectionRequestEmail, sendConnectionAcceptedEmail } from '../../lib/email';
 
@@ -38,7 +46,7 @@ const REQUESTS_TABLE = 'b2b_requests';
 const CONNECTIONS_TABLE = 'b2b_connections';
 const MEETINGS_TABLE = 'event_b2b_meetings';
 
-type TabType = 'people' | 'schedule' | 'matches' | 'requests' | 'connections';
+type TabType = 'availability' | 'people' | 'schedule' | 'matches' | 'requests';
 
 interface Meeting {
   id: string;
@@ -56,6 +64,7 @@ interface Meeting {
   organizerId?: string;
   meetingFormat?: 'video' | 'in-person' | 'hybrid';
   qrCodeUrl?: string;
+  timeZone?: string;
   attendeeAId?: string | null;
   attendeeBId?: string | null;
   isCurrentUserA?: boolean;
@@ -117,17 +126,24 @@ interface UserB2BCenterProps {
    * never leaves the single-event surface.
    */
   guest?: boolean;
+  embedded?: boolean;
+  networkingEvents?: Array<{ id: string; name: string }>;
+  onNetworkingEventChange?: (eventId: string) => void;
 }
 
-export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterProps = {}) {
+export default function UserB2BCenter({ eventId, guest = false, embedded = false, networkingEvents, onNetworkingEventChange }: UserB2BCenterProps = {}) {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   // Single-event scope flag. Backward-compatible: with no eventId the
   // component runs the original global (cross-event) aggregation.
   const scopedEventId = eventId || null;
-  const [activeTab, setActiveTab] = useState<TabType>(eventId ? 'people' : 'schedule');
+  const [activeTab, updateActiveTab] = useState<TabType>(eventId ? 'people' : 'schedule');
+  const setActiveTab = (tab: TabType) => {
+    updateActiveTab(tab);
+    setSearchParams(previous => { const next = new URLSearchParams(previous); next.set('tab', tab); next.delete('meetingId'); return next; }, { replace: true });
+  };
   const [highlightedMeetingId, setHighlightedMeetingId] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState('all');
   const [showPastMeetings, setShowPastMeetings] = useState(true);
@@ -139,13 +155,16 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
   const [connections, setConnections] = useState<Connection[]>([]);
   const [eventOptions, setEventOptions] = useState<Array<{ id: string; name: string }>>([]);
   const [currentUserName, setCurrentUserName] = useState(t('networking.defaults.someone'));
-  
+
   // Meeting Modal State
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
-  const [meetingTarget, setMeetingTarget] = useState<{ id: string; name: string } | null>(null);
+  const [meetingTarget, setMeetingTarget] = useState<{ id: string; name: string; avatar?: string | null } | null>(null);
   const [activeMeeting, setActiveMeeting] = useState<Meeting | null>(null);
   const [activeMeetingEventId, setActiveMeetingEventId] = useState<string | undefined>(undefined);
   const [qrModalMeeting, setQrModalMeeting] = useState<Meeting | null>(null);
+  const cancellationInFlight = useRef(false);
+  const confirmationInFlight = useRef(false);
+  const [cancellingMeetingId, setCancellingMeetingId] = useState<string | null>(null);
 
   // Guest in-surface messaging: guests are locked to the single-event surface
   // and cannot use the global /messages page, so we open the messaging UI in a
@@ -154,13 +173,13 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
 
   const { getOrCreateThread, loading: connecting } = useMessageThread();
 
-  const formatTime = (value?: string | null) => {
+  const formatTime = (value?: string | null, timeZone?: string) => {
     if (!value) return t('networking.common.tbd');
-    return new Date(value).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    return new Date(value).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit', timeZone: resolveAgendaTimeZone(timeZone) });
   };
 
-  const formatDate = (value: string) =>
-    new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const formatDate = (value: string, timeZone?: string) =>
+    new Date(value).toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric', timeZone: resolveAgendaTimeZone(timeZone) });
 
   const formatRelative = (value: string) => {
     const diffMs = Date.now() - new Date(value).getTime();
@@ -214,7 +233,7 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
         .from('event_attendees')
         .select('id')
         .eq('profile_id', user.id);
-      
+
       myAttendeeIds = (myAttendees || []).map(a => a.id);
 
       // 2. Fetch all networking data in parallel
@@ -271,7 +290,7 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
       ]);
 
       if (matchesResult.error) throw matchesResult.error;
-      if (scopedEventId && !matchesResult.data?.length) {
+      if (scopedEventId) {
         try {
           matchesResult.data = await maybeGenerateMatches(matchesResult.data || []);
         } catch (error) {
@@ -285,7 +304,7 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
         ...(meetingsResult.data || []),
         ...(legacyResult?.data || [])
       ];
-      
+
       const meetingsData = allRawMeetings.filter(m => {
         const isA = m.profile_a_id === user.id || (m.attendee_a_id && myAttendeeIds.includes(m.attendee_a_id));
         const isB = m.profile_b_id === user.id || (m.attendee_b_id && myAttendeeIds.includes(m.attendee_b_id));
@@ -339,17 +358,20 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
       // rows are only used to render name/title/company/avatar anyway.
       const OTHER_PROFILE_COLUMNS = 'id, full_name, job_title, company, avatar_url';
 
-      const [profilesData, eventsData, attendeesData] = await Promise.all([
+      const [profilesData, eventsData, attendeesData, venueData] = await Promise.all([
         cleanProfileIds.length > 0
           ? supabase.from('profiles').select(OTHER_PROFILE_COLUMNS).in('id', cleanProfileIds)
           : { data: [] },
         cleanEventIds.length > 0
-          ? supabase.from('events').select('id, name').in('id', cleanEventIds)
+          ? supabase.from('events').select('id, name, timezone').in('id', cleanEventIds)
           : { data: [] },
         cleanAttendeeIds.length > 0
           // Only the linked profile id and display name are consumed below —
           // never select attendee email/phone for other participants.
           ? supabase.from('event_attendees').select('id, profile_id, name').in('id', cleanAttendeeIds)
+          : { data: [] },
+        cleanEventIds.length > 0
+          ? supabase.from('event_b2b_settings').select('event_id, venue_config').in('event_id', cleanEventIds)
           : { data: [] }
       ]);
 
@@ -371,10 +393,13 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
       });
 
       const eventsLookup: Record<string, string> = {};
+      const eventTimeZones: Record<string, string> = {};
       (eventsData.data || []).forEach(e => {
-        eventsLookup[e.id] = e.name || 'Event';
+        eventsLookup[e.id] = e.name || t('networking.defaults.event');
+        const venue = (Array.isArray(venueData.data) ? venueData.data : []).find(v => v.event_id === e.id)?.venue_config;
+        eventTimeZones[e.id] = networkingTimeZone(e.id, venue, e.timezone);
       });
-      setEventOptions((eventsData.data || []).map(e => ({ id: e.id, name: e.name || 'Event' })));
+      setEventOptions((eventsData.data || []).map(e => ({ id: e.id, name: e.name || t('networking.defaults.event') })));
 
       // 6. Map State
       setMatches((matchesResult.data || []).map(row => {
@@ -438,29 +463,22 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
       }));
 
       setMeetings(meetingsData.map(row => {
-        const isCurrentUserA = row.profile_a_id === user.id || 
+        const isCurrentUserA = row.profile_a_id === user.id ||
                                (row.attendee_a_id && myAttendeeIds.includes(row.attendee_a_id));
-        
-        const otherProfileId = isCurrentUserA 
-          ? (row.profile_b_id || attendeeMap[row.attendee_b_id]?.profile_id) 
+
+        const otherProfileId = isCurrentUserA
+          ? (row.profile_b_id || attendeeMap[row.attendee_b_id]?.profile_id)
           : (row.profile_a_id || attendeeMap[row.attendee_a_id]?.profile_id);
-        
+
         const otherAttendee = isCurrentUserA ? attendeeMap[row.attendee_b_id] : attendeeMap[row.attendee_a_id];
         const p = profileMap[otherProfileId || ''] || { name: otherAttendee?.name || t('networking.defaults.networkingMeeting'), avatar: null };
-        
+
         const eventName = eventsLookup[row.event_id] || t('networking.defaults.event');
-        const mDate = formatDate(row.start_at);
-        const mTime = formatTime(row.start_at);
-        
-        const qrData = JSON.stringify({
-          meetingId: row.id,
-          event: eventName,
-          organizer: isCurrentUserA ? currentUserName : p.name,
-          recipient: isCurrentUserA ? p.name : currentUserName,
-          time: `${mDate} ${mTime}`,
-          location: row.location || t('networking.common.tbd')
-        });
-        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}`;
+        const mDate = formatDate(row.start_at, eventTimeZones[row.event_id]);
+        const mTime = formatTime(row.start_at, eventTimeZones[row.event_id]);
+
+        const qrData = meetingLink(window.location.origin, row.id, row.event_id, user.id);
+        const qrCodeUrl = qrImageUrl(qrData);
 
         return {
           id: row.id,
@@ -474,6 +492,7 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
           event: eventName,
           eventId: row.event_id || null,
           startAt: row.start_at,
+          timeZone: eventTimeZones[row.event_id],
           organizerId: row.organizer_id || (isCurrentUserA ? user.id : otherProfileId),
           meetingFormat: row.meta?.meeting_format || (row.meta?.meeting_type === 'video' ? 'video' : 'in-person'),
           meetingUrl: row.meta?.video_url || (row.meta?.meeting_type === 'video' ? `https://meet.jit.si/Eventra${row.id.replace(/-/g, '').slice(0, 12)}` : undefined),
@@ -561,17 +580,17 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
         weight: tokenWeights[token.toLowerCase()] || 1
       }));
 
-    categories.forEach((category) => {
+    for (const category of categories) {
       const userTokens = selfSignals[category.key];
       const otherTokens = otherSignals[category.key];
-      if (userTokens.length === 0 || otherTokens.length === 0) return;
+      if (userTokens.length === 0 || otherTokens.length === 0) continue;
       const userWeighted = toWeightedSet(userTokens);
       const otherWeighted = toWeightedSet(otherTokens);
       const userMap = new Map(userWeighted.map((item) => [item.key, item]));
       const otherMap = new Map(otherWeighted.map((item) => [item.key, item]));
       const sharedKeys = Array.from(userMap.keys()).filter((token) => otherMap.has(token));
       const shared = sharedKeys.map((key) => otherMap.get(key) || userMap.get(key));
-      if (shared.length === 0) return;
+      if (shared.length === 0) continue;
       const unionKeys = new Set([...userMap.keys(), ...otherMap.keys()]);
       const weightedIntersection = shared.reduce((sum, item) => sum + (item?.weight || 1), 0);
       const weightedUnion = Array.from(unionKeys).reduce((sum, key) => {
@@ -593,7 +612,7 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
           score: categoryScore
         };
       }
-    });
+    }
 
     let proximityBonus = 0;
     if (selfSignals.yearsExperience && otherSignals.yearsExperience) {
@@ -661,7 +680,7 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
   };
 
   const maybeGenerateMatches = async (existingMatches: Array<any>) => {
-    if (!scopedEventId || !user?.id || existingMatches.length > 0) return [];
+    if (!scopedEventId || !user?.id) return existingMatches;
 
     const participants = await loadEventNetworkingParticipants(scopedEventId);
     const selfProfile = participants.find(profile => profile.id === user.id);
@@ -739,14 +758,13 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
       }
     });
 
-    matchesToInsert.sort((a, b) => b.score - a.score);
-    let topMatches = matchesToInsert.slice(0, 12);
-    if (topMatches.length === 0) {
-      topMatches = fallbackCandidates
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 8);
-    }
-    if (topMatches.length === 0) return [];
+    // Rank the current event directory, including lower-scoring introductions.
+    // A previously saved shortlist must not prevent discovery of new attendees.
+    const ranked = [...matchesToInsert, ...fallbackCandidates].sort((a, b) => b.score - a.score || a.matched_profile_id.localeCompare(b.matched_profile_id));
+    if (!ranked.length) return [];
+    const known = new Map(existingMatches.map(match => [match.matched_profile_id, match]));
+    const topMatches = ranked.filter(match => !known.has(match.matched_profile_id));
+    if (!topMatches.length) return ranked.map(match => ({ ...known.get(match.matched_profile_id), score: match.score, reason: match.reason, tags: match.tags }));
 
     const { data: inserted, error } = await supabase
       .from(MATCHES_TABLE)
@@ -763,7 +781,8 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
     const { data: saved, error: readError } = await supabase.from(MATCHES_TABLE)
       .select('*').eq('profile_id', user.id).eq('event_id', scopedEventId);
     if (readError) throw readError;
-    return saved || inserted || [];
+    const persisted = new Map((saved || inserted || []).map(match => [match.matched_profile_id, match]));
+    return ranked.map(match => ({ ...match, event_id: scopedEventId, ...persisted.get(match.matched_profile_id), score: match.score, reason: match.reason, tags: match.tags }));
   };
 
   const refreshExistingMatches = async (
@@ -805,10 +824,12 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
     try {
       await createNotification(input);
     } catch (error) {
+      console.error('Failed to create networking notification:', error);
+      toast.warning(t('networking.notifications.platformFailed'));
     }
   };
 
-  const handleScheduleMeeting = async (profileId: string, defaultEventId?: string | null, meeting?: Meeting | null, participantName?: string) => {
+  const handleScheduleMeeting = async (profileId: string, defaultEventId?: string | null, meeting?: Meeting | null, participantName?: string, avatar?: string | null) => {
     let resolvedProfileId = profileId;
 
     // If profileId is empty (bulk matches without profile IDs), resolve from attendee record
@@ -829,7 +850,7 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
     }
 
     if (!resolvedProfileId) {
-      toast.error('Cannot identify the meeting participant. The attendee may not have a linked profile.');
+      toast.error(t('networking.errors.participantMissing'));
       return;
     }
 
@@ -840,65 +861,101 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
     // so the modal updates the existing row but doesn't lock the type selection
     const isUnscheduled = existing && !existing.startAt && existing.status === 'pending';
     const meetingForModal = isUnscheduled
-      ? { ...existing, meetingFormat: '', _isUnscheduled: true }
+      ? { ...existing, meetingFormat: undefined, _isUnscheduled: true }
       : existing;
 
-    setMeetingTarget({ id: resolvedProfileId, name });
+    setMeetingTarget({ id: resolvedProfileId, name, avatar });
     setActiveMeeting(meetingForModal);
     setActiveMeetingEventId(defaultEventId || existing?.eventId || undefined);
     setIsMeetingModalOpen(true);
   };
 
   const handleCancelMeeting = async (meetingId: string, profileId: string) => {
-    await supabase.from(MEETINGS_TABLE).update({ status: 'cancelled' }).eq('id', meetingId);
+    const currentMeeting = meetings.find(meeting => meeting.id === meetingId);
+    if (!user || !currentMeeting || cancellationInFlight.current) return;
+    const canCancel = currentMeeting.status === 'confirmed' ||
+      (currentMeeting.status === 'pending' && currentMeeting.organizerId === user.id);
+    if (!canCancel) return;
 
-    // Send cancellation email to the other party
-    const { data: meeting } = await supabase
-      .from(MEETINGS_TABLE)
-      .select('*, event:event_id(name), profile_a:profile_a_id(full_name, email), profile_b:profile_b_id(full_name, email)')
-      .eq('id', meetingId).single();
-    if (meeting) {
-      const isA = meeting.profile_a?.full_name === currentUserName;
-      const other = isA ? meeting.profile_b : meeting.profile_a;
-      if (other?.email) {
-        sendMeetingCancelledEmail(other.email, {
-          recipientName: other.full_name || other.email,
-          cancellerName: currentUserName,
-          eventName: meeting.event?.name || 'Event',
-          meetingDate: formatDate(meeting.start_at),
-          meetingTime: formatTime(meeting.start_at)
-        }).catch(() => {});
+    cancellationInFlight.current = true;
+    setCancellingMeetingId(meetingId);
+    try {
+      // Check the saved transition before announcing success or sending notifications.
+      // Matching the previous status also detects a stale card or concurrent change.
+      const { data: cancelled, error } = await supabase
+        .from(MEETINGS_TABLE)
+        .update({ status: 'cancelled' })
+        .eq('id', meetingId)
+        .eq('status', currentMeeting.status)
+        .select('id')
+        .maybeSingle();
+      if (error) throw error;
+      if (cancelled?.id !== meetingId) throw new Error(t('networking.errors.cancelMeeting'));
+
+      const { data: meeting } = await supabase
+        .from(MEETINGS_TABLE)
+        .select('*, event:event_id(name, timezone), profile_a:profile_a_id(full_name, email), profile_b:profile_b_id(full_name, email)')
+        .eq('id', meetingId).single();
+      if (meeting) {
+        const other = currentMeeting.isCurrentUserA ? meeting.profile_b : meeting.profile_a;
+        if (other?.email) {
+          const delivered = await sendMeetingCancelledEmail(other.email, {
+            recipientName: other.full_name || other.email,
+            cancellerName: currentUserName,
+            eventId: meeting.event_id, locale, timeZone: (meetings.find(item => item.id === meeting.id)?.timeZone || networkingTimeZone(meeting.event_id, null, meeting.event?.timezone)),
+
+            eventName: meeting.event?.name || t('networking.defaults.event'),
+            meetingDate: meeting.start_at ? formatDate(meeting.start_at, (meetings.find(item => item.id === meeting.id)?.timeZone || networkingTimeZone(meeting.event_id, null, meeting.event?.timezone))) : t('networking.common.toBeScheduled'),
+            meetingTime: meeting.start_at ? formatTime(meeting.start_at, (meetings.find(item => item.id === meeting.id)?.timeZone || networkingTimeZone(meeting.event_id, null, meeting.event?.timezone))) : t('networking.common.tbd')
+          });
+          if (!delivered) toast.warning(t('networking.notifications.emailFailed'));
+        }
       }
-    }
 
-    await safeNotify({
-      recipient_id: profileId,
-      type: 'action',
-      title: t('networking.notifications.meetingCancelled.title'),
-      body: t('networking.notifications.meetingCancelled.body', { name: currentUserName }),
-      action_url: '/my-networking',
-      actor_id: user?.id || null
-    });
-    toast.success(t('networking.toasts.meetingCancelled'));
-    await loadNetworkingData();
+      if (profileId) {
+        await safeNotify({
+          recipient_id: profileId,
+          type: 'action',
+          title: t('networking.notifications.meetingCancelled.title'),
+          body: t('networking.notifications.meetingCancelled.body', { name: currentUserName }),
+          action_url: '/my-networking',
+          actor_id: user.id
+        });
+      }
+      toast.success(t('networking.toasts.meetingCancelled'));
+      await loadNetworkingData();
+    } catch (error) {
+      toast.error(sanitizeError(error, t('networking.errors.cancelMeeting')));
+    } finally {
+      cancellationInFlight.current = false;
+      setCancellingMeetingId(null);
+    }
   };
 
   const handleConfirmMeeting = async (meetingId: string, otherProfileId: string) => {
+    if (confirmationInFlight.current) return;
+    confirmationInFlight.current = true;
     try {
       // 1. Update status in database
-      const { error: updateError } = await supabase
+      const { data: confirmed, error: updateError } = await supabase
         .from(MEETINGS_TABLE)
         .update({ status: 'confirmed' })
-        .eq('id', meetingId);
+        .eq('id', meetingId)
+        .eq('status', 'pending')
+        .select('id')
+        .maybeSingle();
 
       if (updateError) throw updateError;
+      if (confirmed?.id !== meetingId) throw new Error(t('networkingScheduling.slotChanged'));
+      const confirmedPass = meetings.find(item => item.id === meetingId);
+      if (confirmedPass) setQrModalMeeting({ ...confirmedPass, status: 'confirmed' });
 
       // 2. Fetch full meeting details for email
       const { data: meeting, error: fetchError } = await supabase
         .from(MEETINGS_TABLE)
         .select(`
           *,
-          event:event_id(id, name),
+          event:event_id(id, name, timezone),
           organizer:organizer_id(id, full_name, email),
           profile_a:profile_a_id(id, full_name, email),
           profile_b:profile_b_id(id, full_name, email)
@@ -919,17 +976,17 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
         }
 
         // 3. Prepare Email Data
-        const eventName = meeting.event?.name || 'Event';
-        const meetingDate = formatDate(meeting.start_at);
-        const meetingTime = formatTime(meeting.start_at);
-        const location = meeting.location || 'TBD';
+        const eventName = meeting.event?.name || t('networking.defaults.event');
+        const meetingDate = formatDate(meeting.start_at, (meetings.find(item => item.id === meeting.id)?.timeZone || networkingTimeZone(meeting.event_id, null, meeting.event?.timezone)));
+        const meetingTime = formatTime(meeting.start_at, (meetings.find(item => item.id === meeting.id)?.timeZone || networkingTimeZone(meeting.event_id, null, meeting.event?.timezone)));
+        const location = meeting.location || t('networking.common.tbd');
 
         // Identify participants
         const organizer = meeting.organizer || meeting.profile_a;
-        const recipient = meeting.profile_b;
+        const recipient = organizer?.id === meeting.profile_b?.id ? meeting.profile_a : meeting.profile_b;
 
         if (organizer?.email && recipient?.email) {
-          sendMeetingConfirmationEmails({
+          const deliveries = await sendMeetingConfirmationEmails({
             organizerEmail: organizer.email,
             organizerName: organizer.full_name || organizer.email,
             recipientEmail: recipient.email,
@@ -940,8 +997,11 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
             eventName,
             meetingId: meeting.id,
             status: 'confirmed',
+            organizerProfileId: organizer.id, recipientProfileId: recipient.id,
+            eventId: meeting.event_id, locale, timeZone: (meetings.find(item => item.id === meeting.id)?.timeZone || networkingTimeZone(meeting.event_id, null, meeting.event?.timezone)),
             videoUrl: videoUrl || undefined
-          }).catch(err => console.error('Failed to send confirmation emails:', err));
+          });
+          if (deliveries.some((delivered) => !delivered)) toast.warning(t('networking.notifications.emailFailed'));
         }
       }
 
@@ -959,29 +1019,35 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
       await loadNetworkingData();
     } catch (error: any) {
       console.error('Error confirming meeting:', error);
-      toast.error(sanitizeError(error, 'Failed to confirm meeting'));
-    }
+      const key = networkingErrorKey(error);
+      toast.error(key ? t(key) : sanitizeError(error, t('networkingScheduling.loadError')));
+    } finally { confirmationInFlight.current = false; }
   };
 
   const handleDeclineMeeting = async (meetingId: string, profileId: string) => {
-    await supabase.from(MEETINGS_TABLE).update({ status: 'cancelled' }).eq('id', meetingId);
+    try {
+    const { data: cancelled, error: updateError } = await supabase.from(MEETINGS_TABLE)
+      .update({ status: 'cancelled' }).eq('id', meetingId).eq('status', 'pending').select('id').maybeSingle();
+    if (updateError || cancelled?.id !== meetingId) throw updateError || new Error(t('networking.errors.cancelMeeting'));
 
     // Send decline email to the meeting organizer
     const { data: meeting } = await supabase
       .from(MEETINGS_TABLE)
-      .select('*, event:event_id(name), profile_a:profile_a_id(full_name, email), profile_b:profile_b_id(full_name, email)')
+      .select('*, event:event_id(name, timezone), profile_a:profile_a_id(full_name, email), profile_b:profile_b_id(full_name, email)')
       .eq('id', meetingId).single();
     if (meeting) {
-      const isA = meeting.profile_a?.full_name === currentUserName;
+      const isA = meeting.profile_a_id === user?.id;
       const other = isA ? meeting.profile_b : meeting.profile_a;
       if (other?.email) {
-        sendMeetingCancelledEmail(other.email, {
+        const delivered = await sendMeetingCancelledEmail(other.email, {
           recipientName: other.full_name || other.email,
           cancellerName: currentUserName,
-          eventName: meeting.event?.name || 'Event',
-          meetingDate: formatDate(meeting.start_at),
-          meetingTime: formatTime(meeting.start_at)
-        }).catch(() => {});
+          eventId: meeting.event_id, locale, timeZone: (meetings.find(item => item.id === meeting.id)?.timeZone || networkingTimeZone(meeting.event_id, null, meeting.event?.timezone)),
+          eventName: meeting.event?.name || t('networking.defaults.event'),
+          meetingDate: meeting.start_at ? formatDate(meeting.start_at, (meetings.find(item => item.id === meeting.id)?.timeZone || networkingTimeZone(meeting.event_id, null, meeting.event?.timezone))) : t('networking.common.toBeScheduled'),
+          meetingTime: meeting.start_at ? formatTime(meeting.start_at, (meetings.find(item => item.id === meeting.id)?.timeZone || networkingTimeZone(meeting.event_id, null, meeting.event?.timezone))) : t('networking.common.tbd')
+        });
+        if (!delivered) toast.warning(t('networking.notifications.emailFailed'));
       }
     }
 
@@ -995,6 +1061,9 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
     });
     toast.success(t('networking.toasts.meetingDeclined'));
     await loadNetworkingData();
+    } catch (error) {
+      toast.error(sanitizeError(error, t('networking.errors.cancelMeeting')));
+    }
   };
 
   const handleRemoveConnection = async (connectionId: string, profileId: string) => {
@@ -1187,13 +1256,13 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
 
   useEffect(() => {
     loadNetworkingData();
-  }, [user?.id, t]);
+  }, [user?.id, t, scopedEventId]);
 
   // Handle ?meetingId= from email links — switch to schedule tab and highlight meeting
   useEffect(() => {
     const meetingIdParam = searchParams.get('meetingId');
     if (meetingIdParam) {
-      setActiveTab('schedule');
+      updateActiveTab('schedule');
       setHighlightedMeetingId(meetingIdParam);
       // Scroll to the meeting card after render
       setTimeout(() => {
@@ -1202,6 +1271,9 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
       }, 500);
       // Clear highlight after 5 seconds
       setTimeout(() => setHighlightedMeetingId(null), 5000);
+    } else {
+      const tab = (searchParams.get('tab') === 'connections' ? 'matches' : searchParams.get('tab')) as TabType;
+      if (['people', 'schedule', 'matches', 'availability', 'requests'].includes(tab)) updateActiveTab(tab);
     }
   }, [searchParams, meetings]);
 
@@ -1281,6 +1353,13 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
     [sentRequests]
   );
 
+  const planningEventOptions = Array.from(new Map([
+    ...(networkingEvents || []), ...eventOptions
+  ].map(event => [event.id, event])).values());
+  if (scopedEventId && !planningEventOptions.some(event => event.id === scopedEventId)) {
+    planningEventOptions.push({ id: scopedEventId, name: t('networking.defaults.event') });
+  }
+
   const newMatchesCount = useMemo(() => matches.filter(m => m.status === 'new').length, [matches]);
   const pendingRequestsCount = useMemo(
     () => visibleReceivedRequests.length,
@@ -1291,11 +1370,11 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
     <div className="networking-hub" style={{ backgroundColor: '#0B2641', minHeight: '100vh' }}>
       {/* Navbar spacer only for the member (global) view — the guest surface
           renders its own minimal header and has no global navbar. */}
-      {!guest && <div style={{ height: '72px' }} />}
+      {!guest && !embedded && <div style={{ height: '72px' }} />}
       {/* Hero Header */}
-      <div 
+      <div
         className="networking-hub__hero relative"
-        style={{ 
+        style={{
           background: 'linear-gradient(180deg, rgba(6,132,245,0.1) 0%, transparent 100%)',
           padding: '40px 40px 20px 40px'
         }}
@@ -1313,15 +1392,15 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
           {/* Quick Stats Cards */}
           <div className="networking-hub__stats grid grid-cols-3 gap-6">
             {/* Meetings Today */}
-            <div 
+            <div
               className="rounded-xl p-6"
-              style={{ 
+              style={{
                 backgroundColor: 'rgba(255,255,255,0.05)',
                 border: '1px solid rgba(255,255,255,0.1)'
               }}
             >
               <div className="flex items-center gap-4">
-                <div 
+                <div
                   className="flex items-center justify-center rounded-xl"
                   style={{
                     width: '56px',
@@ -1343,15 +1422,15 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
             </div>
 
             {/* New Requests */}
-            <div 
+            <div
               className="rounded-xl p-6"
-              style={{ 
+              style={{
                 backgroundColor: 'rgba(255,255,255,0.05)',
                 border: '1px solid rgba(255,255,255,0.1)'
               }}
             >
               <div className="flex items-center gap-4">
-                <div 
+                <div
                   className="flex items-center justify-center rounded-xl"
                   style={{
                     width: '56px',
@@ -1373,15 +1452,15 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
             </div>
 
             {/* AI Matches */}
-            <div 
+            <div
               className="rounded-xl p-6"
-              style={{ 
+              style={{
                 backgroundColor: 'rgba(255,255,255,0.05)',
                 border: '1px solid rgba(255,255,255,0.1)'
               }}
             >
               <div className="flex items-center gap-4">
-                <div 
+                <div
                   className="flex items-center justify-center rounded-xl"
                   style={{
                     width: '56px',
@@ -1407,216 +1486,46 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
 
       {/* Main Content */}
       <div className="networking-hub__main" style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px 40px 80px 40px' }}>
-        {/* Tab Navigation */}
-        <div 
-          className="networking-hub__tabs flex items-center gap-2 md:gap-8 mb-8"
-          style={{ borderBottom: '2px solid rgba(255,255,255,0.1)' }}
-        >
-          {scopedEventId && (
-            <button onClick={() => setActiveTab('people')}
-              aria-pressed={activeTab === 'people'}
-              className="pb-4 transition-colors relative flex items-center justify-center gap-2 flex-1"
-              style={{ fontSize: '16px', fontWeight: 600, color: activeTab === 'people' ? '#FFFFFF' : '#94A3B8', backgroundColor: 'transparent', border: 'none', cursor: 'pointer' }}>
-              <Users size={18} />{t('networking.people.tab')}
-              {activeTab === 'people' && <div style={{ position: 'absolute', bottom: '-2px', left: 0, right: 0, height: '2px', backgroundColor: '#0684F5' }} />}
-            </button>
-          )}
-          <button
-            onClick={() => setActiveTab('schedule')}
-            className="pb-4 transition-colors relative flex items-center gap-2"
-            style={{
-              fontSize: '16px',
-              fontWeight: 600,
-              color: activeTab === 'schedule' ? '#FFFFFF' : '#94A3B8',
-              backgroundColor: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              flex: 1,
-              justifyContent: 'center'
-            }}
-          >
-            <Calendar size={18} />
-            <span className="tab-label">{t('networking.tabs.schedule')}</span>
-            {activeTab === 'schedule' && (
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: '-2px',
-                  left: 0,
-                  right: 0,
-                  height: '2px',
-                  backgroundColor: '#0684F5'
-                }}
-              />
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab('matches')}
-            className="pb-4 transition-colors relative flex items-center gap-2"
-            style={{
-              fontSize: '16px',
-              fontWeight: 600,
-              color: activeTab === 'matches' ? '#FFFFFF' : '#94A3B8',
-              backgroundColor: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              flex: 1,
-              justifyContent: 'center'
-            }}
-          >
-            <Sparkles size={18} />
-            <span className="tab-label">{t('networking.tabs.matches')}</span>
-            {newMatchesCount > 0 && (
-              <span
-                className="px-2 py-0.5 rounded-full"
-                style={{
-                  backgroundColor: '#A855F7',
-                  color: '#FFFFFF',
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  marginLeft: '2px'
-                }}
-              >
-                {newMatchesCount}
-              </span>
-            )}
-            {activeTab === 'matches' && (
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: '-2px',
-                  left: 0,
-                  right: 0,
-                  height: '2px',
-                  backgroundColor: '#0684F5'
-                }}
-              />
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab('requests')}
-            className="pb-4 transition-colors relative flex items-center gap-2"
-            style={{
-              fontSize: '16px',
-              fontWeight: 600,
-              color: activeTab === 'requests' ? '#FFFFFF' : '#94A3B8',
-              backgroundColor: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              flex: 1,
-              justifyContent: 'center'
-            }}
-          >
-            <UserPlus size={18} />
-            <span className="tab-label">{t('networking.tabs.requests')}</span>
-            {pendingRequestsCount > 0 && (
-              <span
-                className="px-2 py-0.5 rounded-full"
-                style={{
-                  backgroundColor: '#F59E0B',
-                  color: '#FFFFFF',
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  marginLeft: '2px'
-                }}
-              >
-                {pendingRequestsCount}
-              </span>
-            )}
-            {activeTab === 'requests' && (
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: '-2px',
-                  left: 0,
-                  right: 0,
-                  height: '2px',
-                  backgroundColor: '#0684F5'
-                }}
-              />
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab('connections')}
-            className="pb-4 transition-colors relative flex items-center gap-2"
-            style={{
-              fontSize: '16px',
-              fontWeight: 600,
-              color: activeTab === 'connections' ? '#FFFFFF' : '#94A3B8',
-              backgroundColor: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              flex: 1,
-              justifyContent: 'center'
-            }}
-          >
-            <Users size={18} />
-            <span className="tab-label">{t('networking.tabs.connections')}</span>
-            {activeTab === 'connections' && (
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: '-2px',
-                  left: 0,
-                  right: 0,
-                  height: '2px',
-                  backgroundColor: '#0684F5'
-                }}
-              />
-            )}
-          </button>
+        {user && <NetworkingProfileCard profileId={user.id} />}
+        <div className="networking-hub__tabs networking-tabs" aria-label={t('networking.title')}>
+          {([
+            ...(scopedEventId ? [{ id: 'people', label: t('networking.people.tab'), icon: Users, count: 0 }] : []),
+            { id: 'schedule', label: t('networking.tabs.schedule'), icon: Calendar, count: 0 },
+            { id: 'matches', label: t('networking.tabs.matches'), icon: Sparkles, count: newMatchesCount },
+            { id: 'availability', label: t('networkingScheduling.myAvailability'), icon: Clock, count: 0 },
+            { id: 'requests', label: t('networking.tabs.requests'), icon: UserPlus, count: pendingRequestsCount }
+          ]).map(tab => <button key={tab.id} onClick={() => setActiveTab(tab.id as TabType)} aria-pressed={activeTab === tab.id} aria-label={tab.label}>
+            <tab.icon size={18} /><span>{tab.label}</span>{tab.count > 0 && <span className="networking-tab-count" aria-hidden="true">{tab.count}</span>}
+          </button>)}
         </div>
 
         {/* Tab Content */}
         {activeTab === 'people' && scopedEventId && user && (
           <EventNetworkingPeople eventId={scopedEventId} userId={user.id}
-            onRequestMeeting={person => handleScheduleMeeting(person.id, scopedEventId, null, person.name)} />
+            onRequestMeeting={person => handleScheduleMeeting(person.id, scopedEventId, null, person.name, person.avatar)} />
         )}
+        {user && activeTab === 'availability' && <MeetingAvailability eventId={eventId} profileId={user.id} initiallyOpen eventOptions={networkingEvents} onEventChange={onNetworkingEventChange} />}
         {activeTab === 'schedule' && (
           <div>
             {/* Filters */}
-            <div className="networking-hub__filters flex items-center gap-4 mb-6">
-              <div className="relative">
-                <select
-                  value={selectedEvent}
-                  onChange={(e) => setSelectedEvent(e.target.value)}
-                  className="px-4 py-2 rounded-lg border outline-none appearance-none pr-10"
-                  style={{
-                    backgroundColor: 'rgba(255,255,255,0.05)',
-                    borderColor: 'rgba(255,255,255,0.2)',
-                    color: '#FFFFFF',
-                    fontSize: '14px',
-                    minWidth: '200px'
-                  }}
-                >
-                  <option value="all">{t('networking.filters.allEvents')}</option>
-                  {eventOptions.map((event) => (
-                    <option key={event.id} value={event.id}>
-                      {event.name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown 
-                  size={18} 
-                  className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                  style={{ color: '#94A3B8' }}
-                />
-              </div>
-
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showPastMeetings}
-                  onChange={(e) => setShowPastMeetings(e.target.checked)}
-                  className="w-4 h-4 rounded"
-                  style={{ accentColor: '#0684F5' }}
-                />
-                <span style={{ fontSize: '14px', color: '#94A3B8' }}>
-                  {t('networking.filters.showPastMeetings')}
+            <div className="networking-hub__filters networking-planning-filters">
+              <label className="networking-planning-event">
+                <span className="networking-planning-label"><Calendar size={17} />{t('networkingScheduling.chooseEvent')}</span>
+                <span className="networking-planning-select">
+                  <select value={scopedEventId || selectedEvent} onChange={e => {
+                    if (scopedEventId && onNetworkingEventChange) onNetworkingEventChange(e.target.value);
+                    else setSelectedEvent(e.target.value);
+                  }}>
+                    {!scopedEventId && <option value="all">{t('networking.filters.allEvents')}</option>}
+                    {planningEventOptions.map(event => <option key={event.id} value={event.id}>{event.name}</option>)}
+                  </select>
+                  <ChevronDown size={22} aria-hidden="true" />
                 </span>
+                <span className="networking-planning-hint">{t('networkingExperience.planningEventHint')}</span>
+              </label>
+              <label className="networking-planning-past">
+                <input type="checkbox" checked={showPastMeetings} onChange={e => setShowPastMeetings(e.target.checked)} />
+                <span>{t('networking.filters.showPastMeetings')}</span>
               </label>
             </div>
 
@@ -1631,7 +1540,7 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
                         <div className="flex items-center gap-2">
                           <Calendar size={14} style={{ color: '#0684F5' }} />
                           <span style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>
-                            {meeting.startAt ? formatDate(meeting.startAt) : ''}
+                            {meeting.startAt ? formatDate(meeting.startAt, meeting.timeZone) : ''}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1644,9 +1553,9 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
                     </div>
 
                     {/* Meeting Card */}
-                    <div 
+                    <div
                       className="flex-1 rounded-xl p-5"
-                      style={{ 
+                      style={{
                         backgroundColor: 'rgba(255,255,255,0.05)',
                         border: '1px solid rgba(255,255,255,0.1)'
                       }}
@@ -1678,7 +1587,7 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
                               <span
                                 className="px-2 py-1 rounded"
                                 style={{
-                                  backgroundColor: 
+                                  backgroundColor:
                                     meeting.status === 'confirmed' ? 'rgba(16, 185, 129, 0.2)' :
                                     meeting.status === 'pending' ? 'rgba(245, 158, 11, 0.2)' :
                                     'rgba(239, 68, 68, 0.2)',
@@ -1722,8 +1631,7 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
                             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
                           >
                             <QrCode size={14} />
-                            QR Code
-                          </button>
+                            {t('networking.ticket.qr')}</button>
                         )}
 
                         {meeting.type === 'video' && meeting.status === 'confirmed' && (
@@ -1745,8 +1653,7 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
                               </button>
                               {meeting.meetingUrl?.includes('meet.jit.si') && (
                                 <span style={{ fontSize: '10px', color: '#F59E0B', lineHeight: 1.3 }}>
-                                  Jitsi — first person signs in with Google to start
-                                </span>
+                                  {t('networking.meetings.jitsiHint')}</span>
                               )}
                             </div>
                           )}
@@ -1793,7 +1700,7 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
                               </button>
                             </>
                           )}
-                          
+
                           {meeting.status !== 'cancelled' && (meeting.organizerId === user?.id || (!meeting.startAt && meeting.status === 'pending')) && (
                             <button
                               onClick={() => handleScheduleMeeting(meeting.profileId, meeting.eventId, meeting)}
@@ -1813,13 +1720,15 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
                               }}
                             >
                               <Calendar size={14} />
-                              {!meeting.startAt ? t('networking.actions.scheduleMeeting', 'Schedule Meeting') : t('networking.actions.reschedule', 'Reschedule')}
+                              {!meeting.startAt ? t('networking.actions.scheduleMeeting', { defaultValue: 'Schedule Meeting' }) : t('networking.actions.reschedule', { defaultValue: 'Reschedule' })}
                             </button>
                           )}
 
-                          {meeting.status === 'pending' && meeting.organizerId === user?.id && (
+                          {(meeting.status === 'confirmed' || (meeting.status === 'pending' && meeting.organizerId === user?.id)) && (
                             <button
                               onClick={() => handleCancelMeeting(meeting.id, meeting.profileId)}
+                              disabled={cancellingMeetingId !== null}
+                              aria-busy={cancellingMeetingId === meeting.id}
                               className="px-4 py-2 rounded-lg transition-colors"
                               style={{
                                 backgroundColor: 'transparent',
@@ -1874,7 +1783,7 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
                   </div>
                 ))
               ) : (
-                <div 
+                <div
                   className="text-center py-16 rounded-xl"
                   style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)' }}
                 >
@@ -1892,222 +1801,26 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
         )}
 
         {activeTab === 'matches' && (
-          <div>
-            <p style={{ fontSize: '14px', color: '#94A3B8', marginBottom: '24px' }}>
-              {t('networking.matches.subtitle')}
-            </p>
-
-            <div className="networking-hub__matches-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {matches.filter(m => m.status !== 'dismissed').length > 0 ? (
-                matches.filter(m => m.status !== 'dismissed').map((match) => {
-                  const existingMeeting = meetingByProfileId.get(match.profileId);
-                  const requestedByThem =
-                    existingMeeting && existingMeeting.organizerId && existingMeeting.organizerId !== user?.id;
-                  const requestStatus = match.requestStatus;
-                  const showConnect = !requestStatus || requestStatus === 'withdrawn';
-                  const showPending = requestStatus === 'pending';
-                  const showConnected = requestStatus === 'accepted';
-                  const showClosed = requestStatus === 'declined' || requestStatus === 'cancelled';
-                  return (
-                    <div
-                      key={match.id}
-                      className="rounded-xl p-5 transition-all"
-                      style={{ 
-                        backgroundColor: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.1)'
-                      }}
-                    >
-                      {/* Match Score */}
-                      <div className="flex items-start justify-between mb-4">
-                        <div
-                          className="flex items-center justify-center rounded-full"
-                          style={{
-                            width: '56px',
-                            height: '56px',
-                            backgroundColor: `${getMatchColor(match.score)}20`,
-                            border: `2px solid ${getMatchColor(match.score)}`
-                          }}
-                        >
-                          <span style={{ fontSize: '16px', fontWeight: 700, color: getMatchColor(match.score) }}>
-                            {match.score}%
-                          </span>
-                        </div>
-
-                        {showPending && (
-                          <span
-                            className="px-2 py-1 rounded"
-                            style={{
-                              backgroundColor: 'rgba(245, 158, 11, 0.2)',
-                              color: '#F59E0B',
-                              fontSize: '11px',
-                              fontWeight: 600
-                            }}
-                          >
-                            {t('networking.status.pending')}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Profile */}
-                      <div className="mb-4">
-                        <div
-                          className="mx-auto mb-3 rounded-full flex items-center justify-center overflow-hidden"
-                          style={{
-                            width: '64px',
-                            height: '64px',
-                            backgroundColor: 'rgba(6, 132, 245, 0.2)',
-                            border: '2px solid #0684F5'
-                          }}
-                        >
-                          {match.avatar ? (
-                            <img src={match.avatar} alt={match.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                            <Users size={28} style={{ color: '#0684F5' }} />
-                          )}
-                        </div>
-
-                        <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px', textAlign: 'center' }}>
-                          {match.name}
-                        </h3>
-                        <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '2px', textAlign: 'center' }}>
-                          {match.title}
-                        </p>
-                        <p style={{ fontSize: '13px', color: '#94A3B8', textAlign: 'center' }}>
-                          {match.company}
-                        </p>
-                      </div>
-
-                      {/* Match Reason */}
-                      <div 
-                        className="mb-4 p-3 rounded-lg flex items-start gap-2"
-                        style={{ backgroundColor: 'rgba(168, 85, 247, 0.1)' }}
-                      >
-                        <Sparkles size={14} style={{ color: '#A855F7', marginTop: '2px', flexShrink: 0 }} />
-                        <p style={{ fontSize: '12px', color: '#94A3B8', lineHeight: '1.4' }}>
-                          {match.reason}
-                        </p>
-                      </div>
-
-                      {/* Tags */}
-                      <div className="flex flex-wrap gap-1.5 mb-4">
-                        {match.tags.map((tag, idx) => (
-                          <span
-                            key={idx}
-                            className="px-2 py-1 rounded"
-                            style={{
-                              backgroundColor: 'rgba(6, 132, 245, 0.15)',
-                              color: '#0684F5',
-                              fontSize: '11px',
-                              fontWeight: 500
-                            }}
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-
-                      {/* Actions */}
-                      {existingMeeting ? (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 networking-hub__meeting-actions">
-                            {requestedByThem ? (
-                              <>
-                                <button
-                                  className="flex-1 py-2 rounded-lg transition-colors"
-                                  style={{
-                                    backgroundColor: '#0684F5',
-                                    color: '#FFFFFF',
-                                    fontSize: '12px',
-                                    fontWeight: 600
-                                  }}
-                                  onClick={() => handleConfirmMeeting(existingMeeting.id, match.profileId)}
-                                >
-                                  {t('networking.actions.confirm')}
-                                </button>
-                                <button
-                                  onClick={() => handleDeclineMeeting(existingMeeting.id, match.profileId)}
-                                  className="flex-1 py-2 rounded-lg transition-colors"
-                                  style={{
-                                    backgroundColor: 'transparent',
-                                    color: '#94A3B8',
-                                    fontSize: '12px',
-                                    fontWeight: 500,
-                                    border: '1px solid rgba(255,255,255,0.2)'
-                                  }}
-                                >
-                                  {t('networking.actions.decline')}
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                <button
-                                  className="flex-1 py-2 rounded-lg transition-colors"
-                                  style={{
-                                    backgroundColor: '#0684F5',
-                                    color: '#FFFFFF',
-                                    fontSize: '12px',
-                                    fontWeight: 600
-                                  }}
-                                  onClick={() => handleScheduleMeeting(match.profileId, match.eventId, existingMeeting)}
-                                >
-                                  {t('networking.actions.reschedule')}
-                                </button>
-                                <button
-                                  onClick={() => handleCancelMeeting(existingMeeting.id, match.profileId)}
-                                  className="p-2 rounded-lg transition-colors"
-                                  style={{
-                                    backgroundColor: 'transparent',
-                                    color: '#94A3B8',
-                                    border: '1px solid rgba(255,255,255,0.2)'
-                                  }}
-                                >
-                                  <X size={14} />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <button
-                            onClick={() => handleConnect(match.id)}
-                            className="w-full py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
-                            style={{
-                              backgroundColor: '#0684F5',
-                              color: '#FFFFFF',
-                              fontSize: '13px',
-                              fontWeight: 600
-                            }}
-                          >
-                            <UserPlus size={14} />
-                            {t('networking.actions.connect')}
-                          </button>
-                          <button
-                            className="w-full py-2 rounded-lg transition-colors"
-                            style={{
-                              backgroundColor: 'transparent',
-                              color: '#94A3B8',
-                              fontSize: '12px',
-                              fontWeight: 500,
-                              border: '1px solid rgba(255,255,255,0.2)'
-                            }}
-                            onClick={() => handleScheduleMeeting(match.profileId, match.eventId)}
-                          >
-                            {t('networking.actions.scheduleMeeting')}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="col-span-full text-center py-12">
-                  <Sparkles size={48} style={{ color: '#94A3B8', margin: '0 auto 16px', opacity: 0.5 }} />
-                  <p style={{ color: '#FFFFFF' }}>{t('networking.matches.noMatches')}</p>
-                </div>
-              )}
+          <section className="networking-people" aria-label={t('networking.tabs.matches')}>
+            <div className="networking-people-header"><div><h2>{t('networking.tabs.matches')}</h2><p>{t('networking.matches.subtitle')}</p></div>
+              <span className="networking-match-count">{matches.filter(match => match.status !== 'dismissed').length} {t('networking.tabs.matches')}</span>
             </div>
-          </div>
+            <div className="networking-people-grid networking-hub__matches-grid">
+              {matches.filter(match => match.status !== 'dismissed').map(match => {
+                const meeting = meetingByProfileId.get(match.profileId);
+                const scheduled = meeting?.startAt;
+                return <ParticipantCard key={match.id || match.profileId} className="networking-match-card"
+                  name={match.name} avatar={match.avatar} title={match.title} company={match.company} tags={match.tags} score={match.score} reason={match.reason}
+                  onView={() => navigate(match.eventId ? `/event/${match.eventId}/profile/${match.profileId}?from=my-networking` : `/profile/${match.profileId}`)}
+                  bookLabel={scheduled ? t('networkingExperience.viewMeeting') : t('networking.people.requestMeeting')}
+                  onBook={() => {
+                    if (scheduled) setSearchParams(previous => { const next = new URLSearchParams(previous); next.set('tab', 'schedule'); next.set('meetingId', meeting.id); return next; });
+                    else handleScheduleMeeting(match.profileId, match.eventId, meeting, match.name, match.avatar);
+                  }} />;
+              })}
+            </div>
+            {!matches.some(match => match.status !== 'dismissed') && <p className="networking-people-state">{t('networking.matches.noMatches')}</p>}
+          </section>
         )}
 
         {activeTab === 'requests' && (
@@ -2125,7 +1838,7 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
                       </div>
                       <div className="flex-1">
                         <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#FFFFFF' }}>{request.name}</h3>
-                        <p style={{ fontSize: '13px', color: '#94A3B8' }}>{request.title} at {request.company}</p>
+                        <p style={{ fontSize: '13px', color: '#94A3B8' }}>{t('networking.labels.roleAtCompany', { role: request.title, company: request.company })}</p>
                         <p style={{ fontSize: '13px', color: '#94A3B8', marginTop: '8px', fontStyle: 'italic' }}>"{request.message}"</p>
                         <div className="mt-4 flex gap-3">
                           <button onClick={() => handleAcceptRequest(request.id)} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">{t('networking.actions.accept')}</button>
@@ -2141,25 +1854,7 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
           </div>
         )}
 
-        {activeTab === 'connections' && (
-          <div className="space-y-4">
-            {connections.map(c => (
-              <div key={c.id} className="rounded-xl p-5 flex items-center justify-between" style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <div className="flex items-center gap-4">
-                  <div className="rounded-full overflow-hidden" style={{ width: '48px', height: '48px' }}>
-                    {c.avatar ? <img src={c.avatar} alt={c.name} /> : <div className="w-full h-full bg-blue-900 flex items-center justify-center"><Users size={20} /></div>}
-                  </div>
-                  <div>
-                    <h3 style={{ color: '#FFF', fontWeight: 600 }}>{c.name}</h3>
-                    <p style={{ color: '#94A3B8', fontSize: '13px' }}>{c.title}</p>
-                  </div>
-                </div>
-                <button onClick={() => handleMessage(c.profileId)} className="p-2 rounded-lg bg-blue-600 text-white"><MessageSquare size={18} /></button>
-              </div>
-            ))}
-            {connections.length === 0 && <p style={{ color: '#94A3B8', textAlign: 'center' }}>No connections yet.</p>}
-          </div>
-        )}
+
       </div>
 
       {isMeetingModalOpen && meetingTarget && (
@@ -2176,85 +1871,15 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
           }}
           recipient={{
             id: meetingTarget.id,
-            name: meetingTarget.name
+            name: meetingTarget.name, avatar: meetingTarget.avatar
           }}
           existingMeeting={activeMeeting}
           eventId={activeMeetingEventId}
         />
       )}
 
-      {qrModalMeeting && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: 'rgba(0, 0, 0, 0.8)', backdropFilter: 'blur(8px)' }}
-          onClick={() => setQrModalMeeting(null)}
-        >
-          <div
-            className="rounded-2xl p-8 max-w-sm w-full text-center"
-            style={{ 
-              backgroundColor: '#1E3A5F',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center mb-6">
-              <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#FFFFFF' }}>Meeting Ticket</h3>
-              <button 
-                onClick={() => setQrModalMeeting(null)}
-                style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }}
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <div 
-              style={{ 
-                backgroundColor: 'white', 
-                padding: '20px', 
-                borderRadius: '16px', 
-                display: 'inline-block',
-                marginBottom: '24px'
-              }}
-            >
-              <img 
-                src={qrModalMeeting.qrCodeUrl} 
-                alt="Meeting QR Code" 
-                style={{ width: '200px', height: '200px', display: 'block' }} 
-              />
-            </div>
-
-            <div className="text-left space-y-3">
-              <div>
-                <p style={{ fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Event</p>
-                <p style={{ fontSize: '15px', color: '#FFFFFF', fontWeight: 600 }}>{qrModalMeeting.event}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p style={{ fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Time</p>
-                  <p style={{ fontSize: '14px', color: '#FFFFFF', fontWeight: 600 }}>{qrModalMeeting.time}</p>
-                </div>
-                <div>
-                  <p style={{ fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Location</p>
-                  <p style={{ fontSize: '14px', color: '#FFFFFF', fontWeight: 600 }}>{qrModalMeeting.location}</p>
-                </div>
-              </div>
-              <div>
-                <p style={{ fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>With</p>
-                <p style={{ fontSize: '15px', color: '#FFFFFF', fontWeight: 600 }}>{qrModalMeeting.name}</p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => window.print()}
-              className="mt-8 w-full py-3 rounded-xl transition-all font-bold text-white"
-              style={{ backgroundColor: '#0684F5' }}
-            >
-              Print / Save Ticket
-            </button>
-          </div>
-        </div>
-      )}
+      {qrModalMeeting && user?.id && <MeetingPassModal meeting={qrModalMeeting} profileId={user.id}
+        holderName={currentUserName} onClose={() => setQrModalMeeting(null)} />}
 
       {/* Guest in-surface messaging overlay. Guests cannot reach the global
           /messages route, so the full messaging center (event-scoped to the
@@ -2282,7 +1907,7 @@ export default function UserB2BCenter({ eventId, guest = false }: UserB2BCenterP
           >
             <button
               onClick={() => setGuestMessageThreadId(null)}
-              aria-label={t('common.close', 'Close')}
+              aria-label={t('common.close', { defaultValue: 'Close' })}
               className="absolute top-3 right-3 z-[110] flex items-center justify-center rounded-full transition-colors"
               style={{
                 width: '36px',

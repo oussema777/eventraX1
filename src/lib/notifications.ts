@@ -24,7 +24,7 @@ export interface CreateNotificationInput {
 }
 
 export async function createNotification(input: CreateNotificationInput) {
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('notifications')
     .insert([
       {
@@ -35,10 +35,8 @@ export async function createNotification(input: CreateNotificationInput) {
         action_url: input.action_url || null,
         actor_id: input.actor_id || null
       }
-    ])
-    .select()
-    .single();
+    ]);
 
   if (error) throw error;
-  return data as NotificationItem;
+  return true;
 }

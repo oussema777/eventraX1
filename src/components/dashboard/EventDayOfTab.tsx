@@ -1,3 +1,7 @@
+import DayOfScanner from './DayOfScanner';
+import { networkingTimeZone } from '../../utils/networkingSchedule';
+const ATTENDEE_PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80"><rect width="80" height="80" rx="40" fill="#244963"/><circle cx="40" cy="29" r="13" fill="#b9d4e9"/><path d="M16 70c0-28 48-28 48 0" fill="#b9d4e9"/></svg>');
+import { resolveCheckin, saveCheckin } from '../../lib/eventCheckin';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -9,19 +13,9 @@ import {
   Eye,
   Download,
   Settings,
-  Upload,
-  Camera,
-  Zap,
-  Keyboard,
   X,
-  Minimize,
   RefreshCw,
   ArrowRight,
-  XCircle,
-  AlertCircle,
-  Edit2,
-  Trash2,
-  Crown,
   TrendingUp
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -48,7 +42,8 @@ const DEFAULT_SCANNER_SETTINGS: ScannerSettings = {
 };
 
 export default function EventDayOfTab({ eventId }: { eventId: string }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const [scannerTimeZone, setScannerTimeZone] = useState(() => networkingTimeZone(eventId));
 
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -58,6 +53,13 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
   const lastScanRef = useRef<{ value: string; at: number } | null>(null);
   const autoAdvanceRef = useRef<number | null>(null);
 
+  const checkinLockRef = useRef(false);
+  const cameraGenerationRef = useRef(0);
+  const attemptIds = useRef(new Map<string, string>());
+  const handleDetectedCodeRef = useRef<(code: string) => Promise<void>>(async () => {});
+  const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [scanError, setScanError] = useState('');
+  const [participantChoice, setParticipantChoice] = useState<{ code: string; meetingId: string; candidates: any[] } | null>(null);
   const flushLockRef = useRef(false);
   const [showScanner, setShowScanner] = useState<ScannerType>(null);
   const [scanResult, setScanResult] = useState<ScanResult>(null);
@@ -104,6 +106,8 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
     summary: true
   });
   const [loadingData, setLoadingData] = useState(false);
+  const scannerStateRef = useRef({ showScanner, scanResult, manualEntryOpen, participantChoice });
+  scannerStateRef.current = { showScanner, scanResult, manualEntryOpen, participantChoice };
 
   const parseMaybeDate = (v: any) => {
     if (!v) return null;
@@ -115,7 +119,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
     if (!value) return '';
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return '';
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', timeZone: scannerTimeZone });
   };
 
   const resolveTicketBadgeKey = (ticketType?: string, ticketColor?: string) => {
@@ -154,7 +158,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
         supabase.from('event_checkins').select('id', { head: true, count: 'exact' }).eq('event_id', eventId).gte('created_at', lastHour.toISOString()),
         supabase.from('event_checkins').select('id', { head: true, count: 'exact' }).eq('event_id', eventId).eq('type', 'session').gte('created_at', todayStart.toISOString()),
         supabase.from('event_sessions').select('id,title,location,starts_at,ends_at').eq('event_id', eventId).order('starts_at', { ascending: true }),
-        supabase.from('event_b2b_meetings').select('id,start_at,end_at,status,attendee_a_id,attendee_b_id,profile_a_id,profile_b_id,location').eq('event_id', eventId).in('status', ['confirmed', 'pending', 'completed']).order('start_at', { ascending: true }).limit(200)
+        supabase.from('event_b2b_meetings').select('id,start_at,end_at,status,attendee_a_id,attendee_b_id,profile_a_id,profile_b_id,location').eq('event_id', eventId).in('status', ['confirmed', 'completed']).order('start_at', { ascending: true }).limit(200)
       ]);
 
       const sessionsData = sessionsRes.data || [];
@@ -244,7 +248,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
         const mapped = (checkinsData || []).map((checkIn: any) => {
           const attendee = checkIn.attendee || {};
           const name = attendee.name || attendee.email || 'Attendee';
-          const photo = attendee.photo_url || attendee.avatar_url || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=80&q=80';
+          const photo = attendee.photo_url || attendee.avatar_url || ATTENDEE_PLACEHOLDER;
           const ticketType = attendee.ticket_type || 'General';
           const ticketBadgeColor = resolveTicketBadgeKey(ticketType, attendee.ticket_color);
           const meta = typeMeta[checkIn.type] || { label: t('manageEvent.dayOf.checkInTypes.default'), color: '#94A3B8' };
@@ -302,11 +306,13 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
     try {
       const { data, error } = await supabase
         .from('events')
-        .select('attendee_settings')
+        .select('attendee_settings, timezone')
         .eq('id', eventId)
         .maybeSingle();
 
       if (error) throw error;
+      const { data: settings } = await supabase.from('event_b2b_settings').select('venue_config').eq('event_id', eventId).maybeSingle();
+      setScannerTimeZone(networkingTimeZone(eventId, settings?.venue_config, data?.timezone));
       const base = data?.attendee_settings || {};
       setScannerSettingsBase(base);
       const stored = base.day_of?.scanner_settings || base.scanner_settings || {};
@@ -356,40 +362,16 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
       const remaining: any[] = [];
       for (const item of queue) {
         try {
-          if (item.attendee_id) {
-            await supabase
-              .from('event_attendees')
-              .update({ checked_in: true, check_in_at: item.check_in_at || item.created_at })
-              .eq('id', item.attendee_id);
-          }
-
-          await supabase
-            .from('event_checkins')
-            .insert([{
-              event_id: eventId,
-              attendee_id: item.attendee_id,
-              type: item.type,
-              session_id: item.session_id,
-              meeting_id: item.meeting_id,
-              scanned_code: item.scanned_code || null,
-              created_at: item.created_at || new Date().toISOString()
-            }]);
-
-          if (item.type === 'b2b' && item.meeting_id) {
-            const { data } = await supabase
-              .from('event_checkins')
-              .select('attendee_id')
-              .eq('event_id', eventId)
-              .eq('type', 'b2b')
-              .eq('meeting_id', item.meeting_id);
-            const unique = new Set((data || []).map((r: any) => r.attendee_id));
-            if (unique.size >= 2) {
-              await supabase
-                .from('event_b2b_meetings')
-                .update({ status: 'completed' })
-                .eq('id', item.meeting_id);
-            }
-          }
+          const resolved = await resolveCheckin(supabase, { eventId, kind: item.type, code: item.attendee_id,
+            sessionId: item.session_id, meetingId: item.meeting_id });
+          if (!resolved.attendee) throw new Error('attendeeNotFound');
+          item.id ||= crypto.randomUUID();
+          writeOfflineQueue(queue);
+          await saveCheckin(supabase, { id: item.id, event_id: eventId, attendee_id: resolved.attendee.id,
+            type: item.type, session_id: item.session_id || null, meeting_id: item.meeting_id || null,
+            scanned_code: item.scanned_code || null, created_at: item.created_at || new Date().toISOString()
+          }, resolved.attendee, item.check_in_at || item.created_at || new Date().toISOString());
+          if (resolved.meeting) await completeB2bAttendance(resolved.meeting);
         } catch (e) {
           remaining.push(item);
         }
@@ -470,6 +452,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
     setManualEntryOpen(false);
     setLastScanDetails(null);
     setPendingDuplicate(null);
+    setParticipantChoice(null); setScanError('');
     lastScanRef.current = null;
   };
 
@@ -480,10 +463,12 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
     setLastScanDetails(null);
     setPendingDuplicate(null);
     setCameraError('');
+    setParticipantChoice(null); setScanError('');
     stopScannerCamera();
   };
 
   const stopScannerCamera = () => {
+    cameraGenerationRef.current += 1;
     if (scanIntervalRef.current !== null) {
       window.clearInterval(scanIntervalRef.current);
       scanIntervalRef.current = null;
@@ -516,25 +501,31 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
 
   const startScannerLoop = () => {
     if (scanIntervalRef.current !== null) return;
+    const generation = cameraGenerationRef.current;
     const Detector = (window as any).BarcodeDetector;
     const useBarcodeDetector = !!Detector;
-    const detector = useBarcodeDetector ? new Detector({ formats: ['qr_code'] }) : null;
+    let detector: any = null;
+    try { detector = useBarcodeDetector ? new Detector({ formats: ['qr_code'] }) : null; } catch { /* Use jsQR below. */ }
 
     scanIntervalRef.current = window.setInterval(async () => {
-      if (!videoRef.current || !showScanner || scanResult) return;
+      const current = scannerStateRef.current;
+      if (!videoRef.current || !current.showScanner || current.scanResult || current.manualEntryOpen || current.participantChoice) return;
       if (scanLockRef.current) return;
       if (videoRef.current.readyState < 2) return;
       scanLockRef.current = true;
       try {
         let rawValue: string | null = null;
         if (detector) {
-          const codes = await detector.detect(videoRef.current);
-          rawValue = codes?.[0]?.rawValue || codes?.[0]?.data || null;
+          try {
+            const codes = await detector.detect(videoRef.current);
+            rawValue = codes?.[0]?.rawValue || codes?.[0]?.data || null;
+          } catch { detector = null; rawValue = await scanWithJsQR(); }
         } else {
           rawValue = await scanWithJsQR();
         }
-        if (rawValue) {
-          await handleDetectedCode(rawValue);
+        const latest = scannerStateRef.current;
+        if (rawValue && generation === cameraGenerationRef.current && latest.showScanner && !latest.scanResult && !latest.manualEntryOpen && !latest.participantChoice) {
+          await handleDetectedCodeRef.current(rawValue);
         }
       } catch {
         // ignore scanner errors
@@ -547,26 +538,33 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
   const startScannerCamera = async () => {
     if (!showScanner) return;
     if (!navigator.mediaDevices?.getUserMedia) {
-      setCameraError('Camera access not available');
-      toast.error(t('manageEvent.dayOf.toasts.cameraUnavailable'));
+      setCameraError(t('scannerFlow.cameraUnavailable'));
+      setManualEntryOpen(true);
       return;
     }
     stopScannerCamera();
+    const generation = cameraGenerationRef.current;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: cameraFacingMode }
       });
+      if (generation !== cameraGenerationRef.current || !scannerStateRef.current.showScanner) {
+        stream.getTracks().forEach(track => track.stop());
+        return;
+      }
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
       }
+      if (generation !== cameraGenerationRef.current) return;
       setCameraReady(true);
       setCameraError('');
       startScannerLoop();
     } catch (e) {
-      setCameraError('Unable to access camera');
-      toast.error(t('manageEvent.dayOf.toasts.cameraDenied'));
+      if (generation !== cameraGenerationRef.current) return;
+      setCameraError(t('scannerFlow.cameraDenied'));
+      setManualEntryOpen(true);
     }
   };
 
@@ -654,118 +652,14 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
       }
     };
   }, [scanResult, scannerSettings.autoAdvance, scannerSettings.soundOnSuccess, scannerSettings.vibrateOnSuccess]);
-  const resolveAttendee = async (codeOrId: string) => {
-    let raw = (codeOrId || '').trim();
-    if (!raw) return null;
-
-    // Extract UUID from URL if the QR code contains a full URL
-    const uuidInUrl = raw.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
-    if (uuidInUrl && raw.includes('/')) {
-      raw = uuidInUrl[0];
-    }
-
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw);
-    const isEmail = raw.includes('@');
-
-    let attendee: any = null;
-
-    // 1. Try UUID / Primary ID
-    if (isUuid) {
-      const { data } = await supabase
-        .from('event_attendees')
-        .select('*')
-        .eq('event_id', eventId)
-        .eq('id', raw)
-        .maybeSingle();
-      if (data) attendee = data;
-    }
-
-    // 2. Try Email
-    if (!attendee && isEmail) {
-      const { data } = await supabase
-        .from('event_attendees')
-        .select('*')
-        .eq('event_id', eventId)
-        .eq('email', raw)
-        .maybeSingle();
-      if (data) attendee = data;
-    }
-
-    // 3. Try Standard Columns one by one
-    if (!attendee) {
-      for (const col of ['ticket_code', 'confirmation_code', 'qr_token']) {
-        const { data } = await supabase
-          .from('event_attendees')
-          .select('*')
-          .eq('event_id', eventId)
-          .eq(col, raw)
-          .maybeSingle();
-        if (data) { attendee = data; break; }
-      }
-    }
-
-    // 3b. Try the confirmation code stored in JSONB meta.
-    //     create-event-registration writes the "EVT-XXXX-XXXX" code to
-    //     meta.confirmation_code (there is no top-level confirmation_code
-    //     column), so this is what a manually-entered / pasted code matches.
-    //     Codes are generated uppercase, so normalize the input to uppercase
-    //     to make check-in case-insensitive (staff may retype in any case).
-    if (!attendee) {
-      const { data } = await supabase
-        .from('event_attendees')
-        .select('*')
-        .eq('event_id', eventId)
-        .eq('meta->>confirmation_code', raw.toUpperCase())
-        .maybeSingle();
-      if (data) attendee = data;
-    }
-
-    // 4. Fallback: try without event_id filter
-    if (!attendee && isUuid) {
-      const { data } = await supabase
-        .from('event_attendees')
-        .select('*')
-        .eq('id', raw)
-        .maybeSingle();
-      if (data) attendee = data;
-    }
-
-    if (!attendee) return null;
-
-    // 6. Fetch Profile Avatar independently
-    if (attendee.profile_id) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('avatar_url')
-        .eq('id', attendee.profile_id)
-        .maybeSingle();
-      
-      if (profile?.avatar_url) {
-        attendee.photo_url = profile.avatar_url;
-      }
-    }
-
-    return attendee;
-  };
-
-  const flattenProfilePhoto = (attendee: any) => {
-    return attendee; // No longer needed as we merged it above
-  };
-
-  const insertCheckin = async (payload: any) => {
-    const { data, error } = await supabase.from('event_checkins').insert([payload]).select('id').maybeSingle();
-    if (error) throw error;
-    return data;
-  };
-
   const buildScanDetails = (attendee: any, kind: 'event' | 'session' | 'b2b', checkInAt: string, previousCount: number, firstCheckInAt?: string | null) => ({
     attendeeId: attendee.id,
     name: attendee.name || attendee.email || 'Attendee',
     email: attendee.email || '',
     company: attendee.company || '',
-    photo: attendee.photo_url || attendee.avatar_url || attendee.meta?.photo || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=80&q=80',
+    photo: attendee.photo_url || attendee.avatar_url || attendee.meta?.photo || ATTENDEE_PLACEHOLDER,
     ticketType: attendee.ticket_type || 'General',
-    ticketCode: attendee.ticket_code || attendee.confirmation_code || attendee.qr_token || '',
+    ticketCode: attendee.meta?.confirmation_code || attendee.ticket_code || attendee.confirmation_code || attendee.qr_token || '',
     isVip: !!attendee.is_vip,
     kind,
     checkInTime: formatTime(checkInAt),
@@ -773,305 +667,104 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
     previousCount
   });
 
-  const doCheckin = async (kind: 'event' | 'session' | 'b2b', forcedAttendeeId?: string, codeOverride?: string) => {
-    try {
-      const code = (codeOverride || forcedAttendeeId || manualCode || '').trim();
-      if (!code) {
-        toast.error(t('manageEvent.dayOf.toasts.enterCode'));
-        return;
-      }
-
-      const attendee = await resolveAttendee(code);
-      if (!attendee?.id) {
-        setScanResult('error');
-        toast.error(t('manageEvent.dayOf.toasts.invalidCode'));
-        return;
-      }
-
-      if (kind === 'session' && !selectedSession) {
-        setScanResult('error');
-        toast.error(t('manageEvent.dayOf.toasts.selectSession'));
-        return;
-      }
-
-      if (kind === 'b2b' && !selectedMeeting) {
-        setScanResult('error');
-        toast.error(t('manageEvent.dayOf.toasts.selectMeeting'));
-        return;
-      }
-
-      if (kind === 'b2b') {
-        const localMeeting = meetings.find((mm: any) => mm.id === selectedMeeting);
-        let meetingRecord = localMeeting;
-        if (!meetingRecord) {
-          const { data } = await supabase
-            .from('event_b2b_meetings')
-            .select('id,attendee_a_id,attendee_b_id')
-            .eq('id', selectedMeeting)
-            .maybeSingle();
-          meetingRecord = data || null;
-        }
-        if (!meetingRecord) {
-          setScanResult('error');
-          toast.error(t('manageEvent.dayOf.toasts.meetingNotFound'));
-          return;
-        }
-        if (meetingRecord.attendee_a_id !== attendee.id && meetingRecord.attendee_b_id !== attendee.id) {
-          setScanResult('error');
-          toast.error(t('manageEvent.dayOf.toasts.notAssigned'));
-          return;
-        }
-      }
-
-      let existingQuery = supabase
-        .from('event_checkins')
-        .select('id,created_at', { count: 'exact' })
-        .eq('event_id', eventId)
-        .eq('attendee_id', attendee.id)
-        .eq('type', kind);
-      if (kind === 'session') existingQuery = existingQuery.eq('session_id', selectedSession);
-      if (kind === 'b2b') existingQuery = existingQuery.eq('meeting_id', selectedMeeting);
-
-      const { data: existingRows, count: existingCount } = await existingQuery
-        .order('created_at', { ascending: true })
-        .limit(1);
-      const previousCount = existingCount || 0;
-      const firstCheckInAt = existingRows?.[0]?.created_at || attendee.check_in_at || null;
-      const hasDuplicate = kind === 'event'
-        ? !!attendee.checked_in || previousCount > 0
-        : previousCount > 0;
-
-      const nowIso = new Date().toISOString();
-      const details = buildScanDetails(attendee, kind, nowIso, previousCount, firstCheckInAt);
-
-      if (hasDuplicate && scannerSettings.duplicatePolicy !== 'allow') {
-        setLastScanDetails(details);
-        setScanResult('duplicate');
-        if (scannerSettings.duplicatePolicy === 'confirm') {
-          setPendingDuplicate({
-            attendee,
-            kind,
-            code,
-            sessionId: selectedSession,
-            meetingId: selectedMeeting,
-            previousCount,
-            firstCheckInAt
-          });
-        } else {
-          setPendingDuplicate(null);
-          toast.error(t('manageEvent.dayOf.toasts.duplicateBlocked'));
-        }
-        return;
-      }
-
-      const payload = {
-        event_id: eventId,
-        attendee_id: attendee.id,
-        type: kind,
-        session_id: kind === 'session' ? selectedSession : null,
-        meeting_id: kind === 'b2b' ? selectedMeeting : null,
-        scanned_code: forcedAttendeeId ? null : code
-      };
-
-      // Mark attendee as checked in
-      if (!attendee.checked_in) {
-        await supabase
-          .from('event_attendees')
-          .update({ checked_in: true, check_in_at: nowIso })
-          .eq('id', attendee.id);
-      }
-
-      // Try to insert checkin log (non-blocking)
-      try {
-        await insertCheckin(payload);
-      } catch (logErr) {
-        console.error('Checkin log insert failed (non-blocking):', logErr);
-      }
-
-      // B2B meeting completion check
-      if (kind === 'b2b' && selectedMeeting) {
-        try {
-          const { data } = await supabase
-            .from('event_checkins')
-            .select('attendee_id')
-            .eq('event_id', eventId)
-            .eq('type', 'b2b')
-            .eq('meeting_id', selectedMeeting);
-          const unique = new Set((data || []).map((r: any) => r.attendee_id));
-          if (unique.size >= 2) {
-            await supabase
-              .from('event_b2b_meetings')
-              .update({ status: 'completed' })
-              .eq('id', selectedMeeting);
-          }
-        } catch { /* ignore */ }
-
-        // Send check-in alert email to the OTHER party
-        try {
-          const { data: mtg } = await supabase
-            .from('event_b2b_meetings')
-            .select('profile_a_id, profile_b_id, start_at, location')
-            .eq('id', selectedMeeting)
-            .maybeSingle();
-          if (mtg) {
-            const checkedInProfileId = attendee.profile_id;
-            const otherProfileId = mtg.profile_a_id === checkedInProfileId ? mtg.profile_b_id : mtg.profile_a_id;
-            const [{ data: checkedInProfile }, { data: otherProfile }, { data: ev }] = await Promise.all([
-              supabase.from('profiles').select('full_name, email').eq('id', checkedInProfileId).maybeSingle(),
-              supabase.from('profiles').select('full_name, email').eq('id', otherProfileId).maybeSingle(),
-              supabase.from('events').select('name').eq('id', eventId).maybeSingle()
-            ]);
-            if (otherProfile?.email && checkedInProfile) {
-              const startDate = mtg.start_at ? new Date(mtg.start_at) : new Date();
-              sendMeetingCheckinAlertEmail({
-                recipientName: otherProfile.full_name || 'Attendee',
-                recipientEmail: otherProfile.email,
-                partnerName: checkedInProfile.full_name || 'Your meeting partner',
-                eventName: ev?.name || 'Event',
-                meetingTime: startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                location: mtg.location || 'Networking Area',
-                checkinTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                meetingId: selectedMeeting
-              }).catch(() => {});
-            }
-          }
-        } catch { /* non-blocking */ }
-      }
-
-      setManualCode('');
-      setScanResult('success');
-      setLastScanDetails(details);
-      setPendingDuplicate(null);
-      toast.success(hasDuplicate ? t('manageEvent.dayOf.toasts.reentryLogged') : t('manageEvent.dayOf.toasts.checkInSuccess'));
-      if (kind === 'session') setSessionCheckinCount((prev) => prev + 1);
-      refreshDayOfData();
-    } catch (e) {
-      console.error('Check-in error', e);
-      setScanResult('error');
-      toast.error(t('manageEvent.dayOf.toasts.checkInFailed'));
+  const completeB2bAttendance = async (meeting: any) => {
+    const { data: attendees, error: attendeeError } = await supabase.from('event_attendees')
+      .select('id,profile_id').eq('event_id', eventId);
+    const { data: checkins, error: checkinError } = await supabase.from('event_checkins')
+      .select('attendee_id').eq('event_id', eventId).eq('type', 'b2b').eq('meeting_id', meeting.id);
+    if (attendeeError || checkinError) throw new Error('completionFailed');
+    const present = new Set((checkins || []).map(row => row.attendee_id));
+    const sidePresent = (side: 'a' | 'b') => (attendees || []).some(person => present.has(person.id) &&
+      (person.id === meeting['attendee_' + side + '_id'] || (person.profile_id && person.profile_id === meeting['profile_' + side + '_id'])));
+    if (sidePresent('a') && sidePresent('b') && meeting.status === 'confirmed') {
+      const { data, error } = await supabase.from('event_b2b_meetings').update({ status: 'completed' })
+        .eq('event_id', eventId).eq('id', meeting.id).eq('status', 'confirmed').select('id').maybeSingle();
+      if (error || !data?.id) throw new Error('completionFailed');
     }
   };
+
+  const notifyB2bArrival = async (meeting: any, attendee: any) => {
+    const isA = attendee.id === meeting.attendee_a_id || (attendee.profile_id && attendee.profile_id === meeting.profile_a_id);
+    const otherId = isA ? meeting.profile_b_id : meeting.profile_a_id;
+    if (!otherId) return;
+    const [{ data: other }, { data: event }] = await Promise.all([
+      supabase.from('profiles').select('full_name,email').eq('id', otherId).maybeSingle(),
+      supabase.from('events').select('name').eq('id', eventId).maybeSingle()
+    ]);
+    if (!other?.email) return;
+    const delivered = await sendMeetingCheckinAlertEmail(other.email, { recipientName: other.full_name || t('networking.defaults.user'),
+      partnerName: attendee.name || t('networking.defaults.user'),
+      eventName: event?.name || t('networking.defaults.event'), meetingTime: formatTime(meeting.start_at),
+      location: meeting.location || t('networking.common.tbd'), checkinTime: formatTime(new Date().toISOString()), meetingId: meeting.id });
+    if (!delivered) toast.warning(t('networking.notifications.emailFailed'));
+  };
+
+  const doCheckin = async (kind: 'event' | 'session' | 'b2b', chosenAttendeeId?: string, codeOverride?: string, allowDuplicate = false) => {
+    if (checkinLockRef.current) return;
+    const code = (codeOverride || manualCode || '').trim();
+    if (!code) { toast.error(t('manageEvent.dayOf.toasts.enterCode')); return; }
+    checkinLockRef.current = true; setIsCheckingIn(true); setScanError(''); setScanResult(null);
+    const scannerSession = cameraGenerationRef.current;
+    try {
+      const resolved = await resolveCheckin(supabase, { eventId, kind, code, chosenAttendeeId, sessionId: selectedSession, meetingId: selectedMeeting });
+      if (scannerSession !== cameraGenerationRef.current) return;
+      if (resolved.meeting) setSelectedMeeting(resolved.meeting.id);
+      if (resolved.candidates) {
+        setParticipantChoice({ code, meetingId: resolved.meeting.id, candidates: resolved.candidates });
+        return;
+      }
+      setParticipantChoice(null);
+      const attendee = resolved.attendee;
+      const meetingId = resolved.meeting?.id || null;
+      let query = supabase.from('event_checkins').select('id,created_at', { count: 'exact' })
+        .eq('event_id', eventId).eq('attendee_id', attendee.id).eq('type', kind);
+      if (kind === 'session') query = query.eq('session_id', selectedSession);
+      if (kind === 'b2b') query = query.eq('meeting_id', meetingId);
+      const { data: existing, count, error } = await query.order('created_at', { ascending: true }).limit(1);
+      if (scannerSession !== cameraGenerationRef.current) return;
+      if (error) throw new Error('lookupFailed');
+      const previousCount = count || existing?.length || 0;
+      const duplicate = (kind === 'event' && attendee.checked_in) || previousCount > 0;
+      const nowIso = new Date().toISOString();
+      const details = buildScanDetails(attendee, kind, nowIso, previousCount, existing?.[0]?.created_at || attendee.check_in_at);
+      const attemptKey = [eventId, kind, attendee.id, resolved.sessionId || '', meetingId || ''].join(':');
+      // A refresh loses in-memory attempts. Recover the saved log when its
+      // attendee update was interrupted, without creating another arrival.
+      const retryId = attemptIds.current.get(attemptKey)
+        || (!attendee.checked_in ? existing?.[0]?.id : undefined);
+      if (duplicate && !retryId && scannerSettings.duplicatePolicy !== 'allow' && !(allowDuplicate && scannerSettings.duplicatePolicy === 'confirm')) {
+        setScanResult('duplicate'); setLastScanDetails(details);
+        setPendingDuplicate(scannerSettings.duplicatePolicy === 'confirm' ? { kind, code, attendeeId: attendee.id } : null);
+        return;
+      }
+      const id = retryId || crypto.randomUUID(); attemptIds.current.set(attemptKey, id);
+      await saveCheckin(supabase, { id, event_id: eventId, attendee_id: attendee.id, type: kind,
+        session_id: kind === 'session' ? selectedSession : null, meeting_id: meetingId, scanned_code: code }, attendee, nowIso);
+      attemptIds.current.delete(attemptKey);
+      if (kind === 'b2b') {
+        try { await completeB2bAttendance(resolved.meeting); } catch { toast.warning(t('scannerFlow.completionFailed')); }
+        if (!duplicate) void notifyB2bArrival(resolved.meeting, attendee).catch(() => toast.warning(t('networking.notifications.emailFailed')));
+      }
+      if (scannerSession !== cameraGenerationRef.current) return;
+      setManualCode(''); setScanResult('success'); setLastScanDetails(details); setPendingDuplicate(null);
+      if (kind === 'session') setSessionCheckinCount(value => value + 1);
+      void refreshDayOfData();
+    } catch (error) {
+      if (scannerSession !== cameraGenerationRef.current) return;
+      const key = error instanceof Error ? error.message : 'saveFailed';
+      const message = t('scannerFlow.' + key, { defaultValue: t('manageEvent.dayOf.toasts.checkInFailed') });
+      setScanResult('error'); setScanError(message); toast.error(message);
+    } finally { checkinLockRef.current = false; setIsCheckingIn(false); }
+  };
+  handleDetectedCodeRef.current = async (code: string) => { await handleDetectedCode(code); };
 
   const handleNextScan = () => {
-    setScanResult(null);
-    setManualEntryOpen(false);
-    setLastScanDetails(null);
-    setPendingDuplicate(null);
-    setManualCode('');
-    lastScanRef.current = null;
+    setScanResult(null); setManualEntryOpen(false); setLastScanDetails(null); setPendingDuplicate(null);
+    setParticipantChoice(null); setScanError(''); setManualCode(''); lastScanRef.current = null;
   };
-
   const handleAllowDuplicate = async () => {
-    if (scannerSettings.duplicatePolicy === 'block') {
-      toast.error(t('manageEvent.dayOf.toasts.duplicateBlocked'));
-      return;
-    }
-    if (!pendingDuplicate?.attendee) {
-      toast.error(t('manageEvent.dayOf.toasts.noDuplicate'));
-      return;
-    }
-
-    const { attendee, kind, code, sessionId, meetingId, previousCount, firstCheckInAt } = pendingDuplicate;
-    const nowIso = new Date().toISOString();
-    const details = buildScanDetails(attendee, kind, nowIso, previousCount || 0, firstCheckInAt || attendee.check_in_at);
-
-    try {
-      if (!attendee.checked_in) {
-        await supabase
-          .from('event_attendees')
-          .update({ checked_in: true, check_in_at: nowIso })
-          .eq('id', attendee.id);
-      }
-
-      await insertCheckin({
-        event_id: eventId,
-        attendee_id: attendee.id,
-        type: kind,
-        session_id: sessionId || null,
-        meeting_id: meetingId || null,
-        scanned_code: code || null
-      });
-
-      if (kind === 'b2b' && meetingId) {
-        const { data } = await supabase
-          .from('event_checkins')
-          .select('attendee_id')
-          .eq('event_id', eventId)
-          .eq('type', 'b2b')
-          .eq('meeting_id', meetingId);
-        const unique = new Set((data || []).map((r: any) => r.attendee_id));
-        if (unique.size >= 2) {
-          await supabase
-            .from('event_b2b_meetings')
-            .update({ status: 'completed' })
-            .eq('id', meetingId);
-        }
-
-        // Send check-in alert email to the OTHER party
-        try {
-          const { data: mtg } = await supabase
-            .from('event_b2b_meetings')
-            .select('profile_a_id, profile_b_id, start_at, location')
-            .eq('id', meetingId)
-            .maybeSingle();
-          if (mtg) {
-            const checkedInProfileId = attendee.profile_id;
-            const otherProfileId = mtg.profile_a_id === checkedInProfileId ? mtg.profile_b_id : mtg.profile_a_id;
-            const [{ data: checkedInProfile }, { data: otherProfile }, { data: ev }] = await Promise.all([
-              supabase.from('profiles').select('full_name, email').eq('id', checkedInProfileId).maybeSingle(),
-              supabase.from('profiles').select('full_name, email').eq('id', otherProfileId).maybeSingle(),
-              supabase.from('events').select('name').eq('id', eventId).maybeSingle()
-            ]);
-            if (otherProfile?.email && checkedInProfile) {
-              const startDate = mtg.start_at ? new Date(mtg.start_at) : new Date();
-              sendMeetingCheckinAlertEmail({
-                recipientName: otherProfile.full_name || 'Attendee',
-                recipientEmail: otherProfile.email,
-                partnerName: checkedInProfile.full_name || 'Your meeting partner',
-                eventName: ev?.name || 'Event',
-                meetingTime: startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                location: mtg.location || 'Networking Area',
-                checkinTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                meetingId
-              }).catch(() => {});
-            }
-          }
-        } catch { /* non-blocking */ }
-      }
-    } catch (e) {
-      if (scannerSettings.offlineScanning) {
-        const queue = readOfflineQueue();
-        queue.push({
-          event_id: eventId,
-          attendee_id: attendee.id,
-          type: kind,
-          session_id: sessionId || null,
-          meeting_id: meetingId || null,
-          scanned_code: code || null,
-          created_at: nowIso,
-          check_in_at: nowIso
-        });
-        writeOfflineQueue(queue);
-        setScanResult('success');
-        setLastScanDetails(details);
-        setPendingDuplicate(null);
-        setManualCode('');
-        toast.info(t('manageEvent.dayOf.toasts.queuedOffline'));
-        return;
-      }
-      console.error('Check-in error', e);
-      setScanResult('error');
-      toast.error(t('manageEvent.dayOf.toasts.checkInFailed'));
-      return;
-    }
-
-    setScanResult('success');
-    setLastScanDetails(details);
-    setPendingDuplicate(null);
-    setManualCode('');
-    toast.success(t('manageEvent.dayOf.toasts.reentryLogged'));
-    if (kind === 'session') setSessionCheckinCount((prev) => prev + 1);
-    refreshDayOfData();
+    if (!pendingDuplicate || scannerSettings.duplicatePolicy !== 'confirm') return;
+    await doCheckin(pendingDuplicate.kind, pendingDuplicate.attendeeId, pendingDuplicate.code, true);
   };
 
   const updateReportInclude = (key: keyof typeof reportIncludes, value: boolean) => {
@@ -1105,6 +798,13 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
   return (
     <div className="event-dayof" style={{ padding: '32px 40px 80px', backgroundColor: '#0B2641', minHeight: '100vh' }}>
       <style>{`
+          .scanner-participants { padding:24px; border:1px solid #3c6286; border-radius:16px; background:#102f4c; color:white; }
+          .scanner-participants h3 { margin:0 0 8px; font-size:20px; }
+          .scanner-participants p { color:#bdd0e1; font-size:14px; line-height:1.6; }
+          .scanner-participants button { width:100%; display:flex; flex-direction:column; gap:6px; text-align:left; background:#1d466b; border:1px solid #6284a3; color:white; padding:16px; border-radius:10px; margin-top:12px; cursor:pointer; }
+          .scanner-participants button span { font-size:13px; color:#bdd0e1; }
+          .scanner-participants button:focus-visible { outline:3px solid #45c6f4; outline-offset:3px; }
+
         @media (max-width: 900px) {
           .event-dayof {
             padding: 24px 20px 80px !important;
@@ -1800,636 +1500,19 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
         </div>
       </div>
 
-      {/* SCANNER MODAL */}
-      {showScanner && (
-        <div
-          className="event-dayof__scanner-overlay"
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(11,38,65,0.95)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 200,
-            padding: '40px',
-            overflow: 'auto'
-          }}
-          onClick={handleCloseScanner}
-        >
-          <div
-            className="event-dayof__scanner-modal"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: '900px',
-              maxWidth: '100%',
-              maxHeight: 'calc(100vh - 80px)',
-              backgroundColor: '#1E3A5F',
-              borderRadius: '16px',
-              border: '1px solid rgba(255,255,255,0.2)',
-              boxShadow: '0px 8px 32px rgba(0,0,0,0.5)',
-              overflow: 'auto'
-            }}
-          >
-            {/* Modal Header */}
-            <div
-              className="event-dayof__scanner-modal-header"
-              style={{
-                backgroundColor: showScanner === 'event' ? 'rgba(6,132,245,0.15)' :
-                               showScanner === 'session' ? 'rgba(139,92,246,0.15)' :
-                               'rgba(245,158,11,0.15)',
-                padding: '24px 32px',
-                borderBottom: '1px solid rgba(255,255,255,0.15)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '8px'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                {showScanner === 'event' && <QrCode size={32} style={{ color: '#0684F5' }} />}
-                {showScanner === 'session' && <Calendar size={32} style={{ color: '#8B5CF6' }} />}
-                {showScanner === 'b2b' && <Handshake size={32} style={{ color: '#F59E0B' }} />}
-                <div>
-                  <h2 style={{ fontSize: '24px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>
-                    {showScanner === 'event' && t('manageEvent.dayOf.tools.event.title')}
-                    {showScanner === 'session' && t('manageEvent.dayOf.tools.session.title')}
-                    {showScanner === 'b2b' && t('manageEvent.dayOf.tools.b2b.title')}
-                  </h2>
-                  {showScanner === 'session' && (
-                    <select
-                      value={selectedSession}
-                      onChange={(e) => setSelectedSession(e.target.value)}
-                      style={{
-                        height: '36px',
-                        padding: '0 12px',
-                        backgroundColor: 'rgba(255,255,255,0.08)',
-                        border: '1px solid rgba(255,255,255,0.15)',
-                        borderRadius: '6px',
-                        color: '#FFFFFF',
-                        fontSize: '14px',
-                        marginTop: '8px'
-                      }}
-                    >
-                      {sessions.length ? sessions.map((ss: any) => (
-                        <option key={ss.id} value={ss.id}>
-                          {ss.title}{ss.location ? ` - ${ss.location}` : ''}{ss.starts_at ? ` (${new Date(ss.starts_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : ''}
-                        </option>
-                      )) : (
-                        <option value="" disabled>{t('manageEvent.dayOf.sessions.noSessions')}</option>
-                      )}
-                    </select>
-                  )}
-                  {showScanner === 'b2b' && (
-                    <select
-                      value={selectedMeeting}
-                      onChange={(e) => setSelectedMeeting(e.target.value)}
-                      style={{
-                        height: '36px',
-                        padding: '0 12px',
-                        backgroundColor: 'rgba(255,255,255,0.08)',
-                        border: '1px solid rgba(255,255,255,0.15)',
-                        borderRadius: '6px',
-                        color: '#FFFFFF',
-                        fontSize: '14px',
-                        marginTop: '8px'
-                      }}
-                    >
-                      {meetings.length ? meetings.map((mm: any) => {
-                        const nameA = mm.profile_a_name || 'Participant A';
-                        const nameB = mm.profile_b_name || 'Participant B';
-                        const time = mm.start_at ? new Date(mm.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-                        const statusTag = mm.status === 'completed' ? ' [Done]' : '';
-                        return (
-                          <option key={mm.id} value={mm.id}>
-                            {nameA} ↔ {nameB}{time ? ` — ${time}` : ''}{mm.location ? ` (${mm.location})` : ''}{statusTag}
-                          </option>
-                        );
-                      }) : (
-                        <option value="" disabled>{t('manageEvent.dayOf.meetings.noMeetings')}</option>
-                      )}
-                    </select>
-                  )}
-                </div>
-                {showScanner === 'session' && selectedSession && (
-                  <div
-                    style={{
-                      padding: '4px 12px',
-                      backgroundColor: 'rgba(139,92,246,0.15)',
-                      borderRadius: '12px',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      color: '#8B5CF6',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px'
-                    }}
-                  >
-                    <Users size={14} />
-                    {sessionCheckinCount} {t('manageEvent.dayOf.stats.checkedIn')}
-                  </div>
-                )}
-                <div
-                  className="event-dayof__scanner-status-badge"
-                  style={{
-                    padding: '4px 12px',
-                    backgroundColor: 'rgba(16,185,129,0.15)',
-                    borderRadius: '12px',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    color: '#10B981'
-                  }}
-                >
-                  {t('manageEvent.dayOf.scanner.status')}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  onClick={handleCloseScanner}
-                  style={{
-                    width: '40px',
-                    height: '40px',
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#FFFFFF',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  <Minimize size={20} />
-                </button>
-                <button
-                  onClick={handleCloseScanner}
-                  style={{
-                    width: '40px',
-                    height: '40px',
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#FFFFFF',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
-
-            {/* Modal Content */}
-            <div className="event-dayof__modal-grid" style={{ padding: '32px', display: 'grid', gridTemplateColumns: '60% 40%', gap: '32px' }}>
-              
-              {/* Left: Scanner Area */}
-              <div>
-                <div
-                  className="event-dayof__camera-area"
-                  style={{
-                    width: '100%',
-                    height: '400px',
-                    backgroundColor: '#000000',
-                    borderRadius: '12px',
-                    border: '2px solid rgba(255,255,255,0.2)',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      opacity: cameraReady ? 0.9 : 0
-                    }}
-                  />
-                  {/* Scanning overlay */}
-                  <div style={{ position: 'absolute', top: '30%', left: '30%', width: '40%', height: '2px', backgroundColor: '#0684F5', animation: 'scan 2s linear infinite' }} />
-                  
-                  {/* Corner brackets */}
-                  <svg style={{ position: 'absolute', width: '60%', height: '60%' }}>
-                    <path d="M0,0 L50,0 M0,0 L0,50" stroke="#0684F5" strokeWidth="4" fill="none"/>
-                    <path d="M300,0 L250,0 M300,0 L300,50" stroke="#0684F5" strokeWidth="4" fill="none"/>
-                    <path d="M0,300 L50,300 M0,300 L0,250" stroke="#0684F5" strokeWidth="4" fill="none"/>
-                    <path d="M300,300 L250,300 M300,300 L300,250" stroke="#0684F5" strokeWidth="4" fill="none"/>
-                  </svg>
-
-                  <div
-                    style={{
-                      padding: '8px 16px',
-                      backgroundColor: 'rgba(0,0,0,0.7)',
-                      borderRadius: '8px',
-                      fontSize: '16px',
-                      fontWeight: 500,
-                      color: '#FFFFFF'
-                    }}
-                  >
-                    {cameraError || (scanResult ? t('manageEvent.dayOf.scanner.complete') : cameraReady ? t('manageEvent.dayOf.scanner.ready') : t('manageEvent.dayOf.scanner.initializing'))}
-                  </div>
-                </div>
-
-                {/* Scanner Controls */}
-                <div className="event-dayof__modal-actions" style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginTop: '16px' }}>
-                  <button
-                    onClick={() => setCameraFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'))}
-                    style={{
-                      height: '40px',
-                      padding: '0 20px',
-                      backgroundColor: 'transparent',
-                      border: 'none',
-                      borderRadius: '8px',
-                      color: '#FFFFFF',
-                      fontSize: '14px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px'
-                    }}
-                  >
-                    <Camera size={18} />
-                    {t('manageEvent.dayOf.scanner.switchCamera')}
-                  </button>
-                  <button
-                    onClick={toggleTorch}
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      backgroundColor: 'transparent',
-                      border: 'none',
-                      borderRadius: '8px',
-                      color: '#FFFFFF',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                  >
-                    <Zap size={18} />
-                  </button>
-                  <button
-                    onClick={() => setManualEntryOpen(!manualEntryOpen)}
-                    style={{
-                      height: '40px',
-                      padding: '0 20px',
-                      backgroundColor: 'rgba(255,255,255,0.1)',
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      borderRadius: '8px',
-                      color: '#FFFFFF',
-                      fontSize: '14px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px'
-                    }}
-                  >
-                    <Keyboard size={18} />
-                    {t('manageEvent.dayOf.scanner.manualEntry')}
-                  </button>
-                </div>
-
-                {/* Manual Entry */}
-                {manualEntryOpen && (
-                  <div className="event-dayof__modal-actions" style={{ marginTop: '16px', display: 'flex', gap: '12px' }}>
-                    <input
-                      type="text"
-                      value={manualCode}
-                      onChange={(e) => setManualCode(e.target.value)}
-                      placeholder={t('manageEvent.dayOf.scanner.placeholder')}
-                      style={{
-                        flex: 1,
-                        height: '48px',
-                        padding: '0 16px',
-                        backgroundColor: 'rgba(255,255,255,0.08)',
-                        border: '1px solid rgba(255,255,255,0.15)',
-                        borderRadius: '8px',
-                        color: '#FFFFFF',
-                        fontSize: '15px'
-                      }}
-                    />
-                    <button
-                      onClick={() => {
-                      if (showScanner === 'session') return doCheckin('session');
-                      if (showScanner === 'b2b') return doCheckin('b2b');
-                      return doCheckin('event');
-                    }}
-                      style={{
-                        height: '48px',
-                        padding: '0 24px',
-                        backgroundColor: '#0684F5',
-                        border: 'none',
-                        borderRadius: '8px',
-                        color: '#FFFFFF',
-                        fontSize: '15px',
-                        fontWeight: 600,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {t('manageEvent.dayOf.scanner.checkIn')}
-                    </button>
-                  </div>
-                )}
-
-              </div>
-
-              {/* Right: Scan Results */}
-              <div>
-                {!scanResult && (
-                  <div
-                    style={{
-                      minHeight: '200px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#6B7280'
-                    }}
-                  >
-                    <Users size={64} style={{ color: '#6B7280', marginBottom: '16px' }} />
-                    <p style={{ fontSize: '15px', color: '#94A3B8', textAlign: 'center', maxWidth: '250px' }}>
-                      {t('manageEvent.dayOf.empty.scanPrompt')}
-                    </p>
-                  </div>
-                )}
-
-                {scanResult === 'success' && (
-                  <div
-                    style={{
-                      backgroundColor: 'rgba(16,185,129,0.15)',
-                      padding: '24px',
-                      borderRadius: '12px',
-                      border: '2px solid #10B981'
-                    }}
-                  >
-                    <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                      <CheckCircle size={56} style={{ color: '#10B981', margin: '0 auto 12px' }} />
-                      <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF' }}>
-                        {t('manageEvent.dayOf.scanner.success.title')}
-                      </h3>
-                    </div>
-
-                    <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                      <img
-                        src={lastScanDetails?.photo || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=80&q=80'}
-                        alt={lastScanDetails?.name || 'Profile'}
-                        style={{
-                          width: '80px',
-                          height: '80px',
-                          borderRadius: '50%',
-                          border: '3px solid #10B981',
-                          margin: '0 auto 12px',
-                          objectFit: 'cover'
-                        }}
-                      />
-                      <h4 style={{ fontSize: '22px', fontWeight: 600, color: '#FFFFFF', marginBottom: '8px' }}>
-                        {lastScanDetails?.name || 'Attendee'}
-                      </h4>
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          padding: '4px 12px',
-                          borderRadius: '12px',
-                          backgroundColor: 'rgba(245,158,11,0.15)',
-                          color: '#F59E0B',
-                          marginBottom: '4px'
-                        }}
-                      >
-                        {lastScanDetails?.ticketType || 'General'}
-                      </span>
-                      <p style={{ fontSize: '14px', color: '#94A3B8' }}>
-                        {lastScanDetails?.company || ''}
-                      </p>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-                      <div>
-                        <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '4px' }}>{t('manageEvent.dayOf.lastScan.registration')}</p>
-                        <p style={{ fontSize: '14px', color: '#FFFFFF' }}>{lastScanDetails?.ticketCode || lastScanDetails?.attendeeId || '-'}</p>
-                      </div>
-                      <div>
-                        <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '4px' }}>{t('manageEvent.dayOf.lastScan.checkInTime')}</p>
-                        <p style={{ fontSize: '14px', color: '#FFFFFF' }}>{lastScanDetails?.checkInTime || '-'}</p>
-                      </div>
-                      <div>
-                        <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '4px' }}>{t('manageEvent.dayOf.lastScan.previous')}</p>
-                        <p style={{ fontSize: '14px', color: '#10B981' }}>
-                          {lastScanDetails?.previousCount ? t('manageEvent.dayOf.scanner.success.prior', { count: lastScanDetails.previousCount }) : t('manageEvent.dayOf.scanner.success.firstTime')}
-                        </p>
-                      </div>
-                      <div>
-                        <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '4px' }}>{t('manageEvent.dayOf.lastScan.email')}</p>
-                        <p style={{ fontSize: '13px', color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lastScanDetails?.email || '-'}</p>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <button
-                        onClick={() => {
-                          if (eventId) navigate(`/event/${eventId}?tab=attendees`);
-                        }}
-                        style={{
-                          width: '100%',
-                          height: '40px',
-                          backgroundColor: 'transparent',
-                          border: 'none',
-                          borderRadius: '8px',
-                          color: '#FFFFFF',
-                          fontSize: '14px',
-                          fontWeight: 600,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {t('manageEvent.dayOf.scanner.success.viewProfile')}
-                      </button>
-                      <button
-                        onClick={handleNextScan}
-                        style={{
-                          width: '100%',
-                          height: '48px',
-                          backgroundColor: '#0684F5',
-                          border: 'none',
-                          borderRadius: '8px',
-                          color: '#FFFFFF',
-                          fontSize: '15px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '8px'
-                        }}
-                      >
-                        {t('manageEvent.dayOf.scanner.success.next')}
-                        <ArrowRight size={18} />
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {scanResult === 'error' && (
-                  <div
-                    style={{
-                      backgroundColor: 'rgba(239,68,68,0.15)',
-                      padding: '24px',
-                      borderRadius: '12px',
-                      border: '2px solid #EF4444',
-                      textAlign: 'center'
-                    }}
-                  >
-                    <XCircle size={56} style={{ color: '#EF4444', margin: '0 auto 12px' }} />
-                    <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#EF4444', marginBottom: '8px' }}>
-                      {t('manageEvent.dayOf.scanner.error.invalid')}
-                    </h3>
-                    <p style={{ fontSize: '14px', color: '#94A3B8', marginBottom: '24px' }}>
-                      {t('manageEvent.dayOf.scanner.error.invalidDesc')}
-                    </p>
-                    <button
-                      onClick={handleNextScan}
-                      style={{
-                        width: '100%',
-                        height: '40px',
-                        backgroundColor: 'transparent',
-                        border: 'none',
-                        borderRadius: '8px',
-                        color: '#FFFFFF',
-                        fontSize: '14px',
-                        fontWeight: 600,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {t('manageEvent.dayOf.scanner.error.tryAgain')}
-                    </button>
-                  </div>
-                )}
-
-                {scanResult === 'duplicate' && (
-                  <div
-                    style={{
-                      backgroundColor: 'rgba(245,158,11,0.15)',
-                      padding: '24px',
-                      borderRadius: '12px',
-                      border: '2px solid #F59E0B'
-                    }}
-                  >
-                    <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                      <AlertCircle size={56} style={{ color: '#F59E0B', margin: '0 auto 12px' }} />
-                      <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#F59E0B' }}>
-                        {t('manageEvent.dayOf.scanner.duplicate.title')}
-                      </h3>
-                    </div>
-
-                    <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                      <img
-                        src={lastScanDetails?.photo || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=80&q=80'}
-                        alt={lastScanDetails?.name || 'Profile'}
-                        style={{
-                          width: '80px',
-                          height: '80px',
-                          borderRadius: '50%',
-                          border: '3px solid #F59E0B',
-                          margin: '0 auto 12px',
-                          objectFit: 'cover'
-                        }}
-                      />
-                      <h4 style={{ fontSize: '22px', fontWeight: 600, color: '#FFFFFF', marginBottom: '8px' }}>
-                        {lastScanDetails?.name || 'Attendee'}
-                      </h4>
-                      <p style={{ fontSize: '14px', color: '#94A3B8', marginBottom: '12px' }}>
-                        {lastScanDetails?.company || ''}
-                      </p>
-                      <p style={{ fontSize: '14px', color: '#94A3B8' }}>
-                        {t('manageEvent.dayOf.scanner.duplicate.first', { time: lastScanDetails?.firstCheckInTime || '-' })}
-                      </p>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <button
-                        onClick={handleAllowDuplicate}
-                        style={{
-                          width: '100%',
-                          height: '40px',
-                          backgroundColor: 'rgba(255,255,255,0.1)',
-                          border: '1px solid rgba(255,255,255,0.2)',
-                          borderRadius: '8px',
-                          color: '#FFFFFF',
-                          fontSize: '14px',
-                          fontWeight: 600,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {t('manageEvent.dayOf.scanner.duplicate.allow')}
-                      </button>
-                      <button
-                        onClick={handleNextScan}
-                        style={{
-                          width: '100%',
-                          height: '48px',
-                          backgroundColor: '#0684F5',
-                          border: 'none',
-                          borderRadius: '8px',
-                          color: '#FFFFFF',
-                          fontSize: '15px',
-                          fontWeight: 600,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {t('manageEvent.dayOf.scanner.success.next')}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Live Stats */}
-                {scanResult && (
-                  <div
-                    style={{
-                      marginTop: '24px',
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      padding: '16px',
-                      borderRadius: '8px'
-                    }}
-                  >
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <p style={{ fontSize: '12px', color: '#94A3B8' }}>{t('manageEvent.dayOf.metrics.scannedNow')}</p>
-                        <p style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF' }}>{scanResult ? 1 : 0}</p>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <p style={{ fontSize: '12px', color: '#94A3B8' }}>{t('manageEvent.dayOf.metrics.totalToday')}</p>
-                        <p style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF' }}>{stats.totalScansToday}</p>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <p style={{ fontSize: '12px', color: '#94A3B8' }}>{t('manageEvent.dayOf.metrics.scanRate')}</p>
-                        <p style={{ fontSize: '18px', fontWeight: 700, color: '#10B981' }}>{t('manageEvent.dayOf.metrics.perHour', { count: stats.checkInsLastHour })}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {showScanner && <DayOfScanner
+        kind={showScanner} timeZone={scannerTimeZone} videoRef={videoRef} cameraReady={cameraReady} cameraError={cameraError}
+        torchEnabled={torchEnabled} busy={isCheckingIn} result={scanResult} error={scanError} details={lastScanDetails}
+        manualOpen={manualEntryOpen} code={manualCode} meetings={meetings} sessions={sessions}
+        meetingId={selectedMeeting} sessionId={selectedSession} candidates={participantChoice?.candidates}
+        canAllowDuplicate={!!pendingDuplicate && scannerSettings.duplicatePolicy === 'confirm'} totalToday={stats.totalScansToday}
+        onClose={handleCloseScanner} onSwitchCamera={() => setCameraFacingMode(prev => prev === 'environment' ? 'user' : 'environment')}
+        onTorch={toggleTorch} onManual={() => setManualEntryOpen(open => cameraError ? true : !open)} onCode={setManualCode}
+        onMeeting={setSelectedMeeting} onSession={setSelectedSession} onScan={() => void doCheckin(showScanner)}
+        onChoose={id => { if (participantChoice) void doCheckin('b2b', id, participantChoice.code); }}
+        onNext={handleNextScan} onAllowDuplicate={handleAllowDuplicate}
+        onViewAttendee={() => { handleCloseScanner(); navigate(`/event/${eventId}?tab=attendees`); }}
+      />}
 
       {/* SETTINGS MODAL */}
       {showSettings && (
@@ -2478,7 +1561,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
                 { key: 'autoAdvance', label: t('manageEvent.dayOf.settings.toggles.autoAdvance'), helper: '', checked: scannerSettings.autoAdvance },
                 { key: 'soundOnSuccess', label: t('manageEvent.dayOf.settings.toggles.sound'), helper: '', checked: scannerSettings.soundOnSuccess },
                 { key: 'vibrateOnSuccess', label: t('manageEvent.dayOf.settings.toggles.vibrate'), helper: '', checked: scannerSettings.vibrateOnSuccess },
-                { key: 'offlineScanning', label: t('manageEvent.dayOf.settings.toggles.offline'), helper: '', checked: scannerSettings.offlineScanning }
+                { key: 'offlineScanning', label: t('manageEvent.dayOf.settings.toggles.offline'), helper: t('scannerFlow.offlineHint'), checked: scannerSettings.offlineScanning }
               ].map((setting) => (
                 <div key={setting.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>

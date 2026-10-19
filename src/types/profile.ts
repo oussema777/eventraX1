@@ -9,7 +9,11 @@ export interface Profile {
   job_title: string | null;
   company: string | null;
   location: string | null;
+  country?: string | null;
+  phone_number?: string | null;
   bio: string | null;
+  date_of_birth?: string | null;
+  gender?: string | null;
   phone: string | null;
   website: string | null;
   linkedin_url: string | null;

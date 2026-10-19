@@ -5,7 +5,7 @@ import { useI18n } from '../i18n/I18nContext';
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
-  const { notifications, unreadCount, isLoading, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, unreadCount, isLoading, error, markAsRead, markAllAsRead } = useNotifications();
   const { t } = useI18n();
 
   return (
@@ -15,7 +15,7 @@ export default function NotificationsPage() {
           <div className="flex items-center gap-3">
             <Bell size={22} style={{ color: '#94A3B8' }} />
             <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#FFFFFF' }}>
-              {t('notifications.page.title')}
+              {t('flowRecovery.notificationsTitle')}
             </h1>
           </div>
           <button
@@ -27,7 +27,7 @@ export default function NotificationsPage() {
               color: '#3B9EFF'
             }}
           >
-            {t('notifications.page.markAllRead', { count: String(unreadCount) })}
+            {t('flowRecovery.markAllRead', { count: String(unreadCount) })}
           </button>
         </div>
 
@@ -44,13 +44,19 @@ export default function NotificationsPage() {
             </div>
           )}
 
-          {!isLoading && notifications.length === 0 && (
-            <div className="py-12 text-center" style={{ color: '#94A3B8' }}>
-              {t('notifications.page.empty')}
+          {!isLoading && error && (
+            <div role="alert" className="py-12 text-center" style={{ color: '#FCA5A5' }}>
+              {t('flowRecovery.notificationsLoadError')}
             </div>
           )}
 
-          {!isLoading &&
+          {!isLoading && !error && notifications.length === 0 && (
+            <div className="py-12 text-center" style={{ color: '#94A3B8' }}>
+              {t('flowRecovery.notificationsEmpty')}
+            </div>
+          )}
+
+          {!isLoading && !error &&
             notifications.map((item) => (
               <button
                 key={item.id}

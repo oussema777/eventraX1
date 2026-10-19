@@ -1,14 +1,16 @@
+import { useLocalizedLabels } from '../i18n/useLocalizedLabels';
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Upload, Linkedin, Twitter, Globe,
-  Calendar, Handshake, Users, Star, Mail, Phone, MapPin, Building2,
+  Calendar, Handshake, Users, Mail, Phone, MapPin, Building2,
   Eye, Check, X, Lock, Trash2, Plus, Edit2, Crown, ChevronDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../hooks/useProfile';
+import { useProfileActivityStats } from '../hooks/useProfileActivityStats';
 import { uploadFile } from '../utils/storage';
 import { supabase } from '../lib/supabase';
 import { useI18n } from '../i18n/I18nContext';
@@ -49,7 +51,6 @@ const userData = {
     eventsAttended: 0,
     b2bMeetings: 0,
     connections: 0,
-    profileViews: 0
   }
 };
 
@@ -66,7 +67,9 @@ const certifications: any[] = [];
 export default function MyProfile() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { stats: activityStats } = useProfileActivityStats(user?.id);
   const { t, tList } = useI18n();
+  const { label: localizedLabel } = useLocalizedLabels();
   const {
     profile,
     isLoading: isProfileLoading,
@@ -130,6 +133,7 @@ export default function MyProfile() {
   const [phoneNumber, setPhoneNumber] = useState(userData.phone);
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [location, setLocation] = useState(userData.location);
+  const [country, setCountry] = useState('');
   const [timezone, setTimezone] = useState(userData.timezone);
   const [jobTitle, setJobTitle] = useState(userData.jobTitle);
   const [company, setCompany] = useState(userData.company);
@@ -285,6 +289,7 @@ export default function MyProfile() {
     setPhoneNumber(sourceProfile?.phone_number || userData.phone);
     setDateOfBirth(formatDateValue(sourceProfile?.date_of_birth) || formatDateValue(userData.dateOfBirth));
     setLocation(sourceProfile?.location || userData.location);
+    setCountry(sourceProfile?.country || '');
     setTimezone(sourceProfile?.timezone || userData.timezone);
     setJobTitle(sourceProfile?.job_title || userData.jobTitle);
     setCompany(sourceProfile?.company || userData.company);
@@ -381,6 +386,7 @@ export default function MyProfile() {
     phone_number: phoneNumber,
     date_of_birth: dateOfBirth || null,
     location,
+    country,
     timezone,
     job_title: jobTitle,
     company,
@@ -444,6 +450,7 @@ export default function MyProfile() {
     checkText(t('profile.fields.phoneNumber'), sourceProfile.phone_number, payload.phone_number);
     checkText(t('profile.fields.dateOfBirth'), sourceProfile.date_of_birth, payload.date_of_birth);
     checkText(t('profile.fields.location'), sourceProfile.location, payload.location);
+    checkText(t('networkingExperience.country'), sourceProfile.country, payload.country);
     checkText(t('profile.fields.timezone'), sourceProfile.timezone, payload.timezone);
     checkText(t('profile.fields.jobTitle'), sourceProfile.job_title, payload.job_title);
     checkText(t('profile.fields.company'), sourceProfile.company, payload.company);
@@ -818,10 +825,9 @@ export default function MyProfile() {
   };
 
   const profileStats = {
-    eventsAttended: profile?.events_attended ?? userData.stats.eventsAttended,
-    b2bMeetings: profile?.b2b_meetings ?? userData.stats.b2bMeetings,
-    connections: profile?.connections_made ?? userData.stats.connections,
-    profileViews: profile?.profile_views ?? userData.stats.profileViews
+    eventsAttended: activityStats?.eventsAttended ?? '—',
+    b2bMeetings: activityStats?.b2bMeetings ?? '—',
+    connections: activityStats?.connections ?? '—',
   };
   const aiCriteria = [
     { key: 'industry', value: 85 },
@@ -829,7 +835,6 @@ export default function MyProfile() {
     { key: 'stage', value: 70 },
     { key: 'interests', value: 90 }
   ];
-  const hasPro = profile?.has_pro ?? userData.hasPro;
   const educationItems = profile?.profile_education?.length ? profile.profile_education : educationEntries;
   const certificationItems = profile?.profile_certifications?.length ? profile.profile_certifications : certifications;
   const hasEducation = !!profile?.profile_education?.length;
@@ -851,6 +856,7 @@ export default function MyProfile() {
       >
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           
+          <Link to="/my-networking" className="networking-return">&larr; {t('networkingExperience.backToHub')}</Link>
           {/* PAGE HEADER */}
           <div
             className="profile-header"
@@ -891,7 +897,7 @@ export default function MyProfile() {
               </button>
               
               <button
-                onClick={handleSaveChanges}
+                onClick={() => handleSaveChanges()}
                 style={{
                   height: '44px',
                   padding: '0 20px',
@@ -1157,13 +1163,6 @@ export default function MyProfile() {
                     <span style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF' }}>{profileStats.connections}</span>
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <Star size={16} style={{ color: '#F59E0B' }} />
-                      <span style={{ fontSize: '14px', color: '#94A3B8' }}>{t('profile.stats.profileViews')}</span>
-                    </div>
-                    <span style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF' }}>{profileStats.profileViews}</span>
-                  </div>
                 </div>
               </div>
             </div>
@@ -1435,6 +1434,11 @@ export default function MyProfile() {
                         </div>
 
                         <div>
+                          <label htmlFor="profile-country" style={{ display: 'block', fontSize: '14px', color: '#94A3B8', marginBottom: '8px' }}>{t('networkingExperience.country')}</label>
+                          <input id="profile-country" value={country} autoComplete="country-name" onChange={e => { setCountry(e.target.value); setHasUnsavedChanges(true); }}
+                            style={{ width: '100%', height: '48px', padding: '0 16px', backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', color: '#fff' }} />
+                        </div>
+                        <div>
                           <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#94A3B8', marginBottom: '8px' }}>
                             {t('profile.sections.personal.timezone')}
                           </label>
@@ -1640,7 +1644,7 @@ export default function MyProfile() {
                                   transition: 'all 0.2s'
                                 }}
                               >
-                                {item}
+                                {localizedLabel(item)}
                                 <button
                                   onClick={(e) => {
                                     e.preventDefault();
@@ -1934,7 +1938,7 @@ export default function MyProfile() {
                                 gap: '8px'
                               }}
                             >
-                              {interest}
+                              {localizedLabel(interest)}
                               <X
                                 size={14}
                                 style={{ cursor: 'pointer' }}
@@ -2240,7 +2244,7 @@ export default function MyProfile() {
                                 gap: '8px'
                               }}
                             >
-                              {industry}
+                              {localizedLabel(industry)}
                               <X
                                 size={14}
                                 style={{ cursor: 'pointer' }}
@@ -2466,90 +2470,16 @@ export default function MyProfile() {
                       </div>
                     </div>
 
-                    {/* AI Matchmaking Settings (PRO) */}
+                    {/* Matchmaking preferences */}
                     <div style={{ position: 'relative' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                         <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#FFFFFF' }}>
                           {t('profile.ai.title')}
                         </h3>
-                        <div
-                          style={{
-                            padding: '4px 12px',
-                            background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                            borderRadius: '12px',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            color: '#FFFFFF',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
-                        >
-                          <Crown size={12} />
-                          {t('profile.ai.proBadge')}
-                        </div>
                       </div>
                       <div style={{ width: '100%', height: '1px', backgroundColor: 'rgba(255,255,255,0.1)', marginBottom: '24px' }} />
                       
-                      {!hasPro && (
-                        <div
-                          style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            backgroundColor: 'rgba(11,38,65,0.85)',
-                            borderRadius: '8px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            padding: '16px',
-                            zIndex: 10
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: '36px',
-                              height: '36px',
-                              borderRadius: '50%',
-                              background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}
-                          >
-                            <Lock size={18} style={{ color: '#FFFFFF' }} />
-                          </div>
-                          <p style={{ fontSize: '14px', color: '#FFFFFF', textAlign: 'center' }}>
-                            {t('profile.ai.lockedMessage')}
-                          </p>
-                          <button
-                            style={{
-                              height: '38px',
-                              padding: '0 24px',
-                              background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                              border: 'none',
-                              borderRadius: '8px',
-                              color: '#FFFFFF',
-                              fontSize: '14px',
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}
-                            onClick={() => navigate('/pricing')}
-                          >
-                            <Crown size={16} />
-                            {t('profile.ai.upgrade')}
-                          </button>
-                        </div>
-                      )}
-
-                      <div style={{ opacity: hasPro ? 1 : 0.3, pointerEvents: hasPro ? 'auto' : 'none' }}>
+                      <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
                           <div>
                             <div style={{ fontSize: '15px', fontWeight: 500, color: '#FFFFFF', marginBottom: '4px' }}>
@@ -2974,7 +2904,7 @@ export default function MyProfile() {
                 {t('profile.sticky.discard')}
               </button>
               <button
-                onClick={handleSaveChanges}
+                onClick={() => handleSaveChanges()}
                 style={{
                   height: '44px',
                   padding: '0 20px',
@@ -3057,7 +2987,7 @@ export default function MyProfile() {
           company={company}
           bio={bio}
           skills={skillsState}
-          interests={interestsState}
+          interests={interestsState.map(localizedLabel)}
           onClose={() => setShowPreviewModal(false)}
         />
       )}

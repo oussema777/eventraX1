@@ -1,4 +1,32 @@
 export default {
+  meetingBooking: {"close": "Fermer", "eyebrow": "Une rencontre qui compte", "title": "Planifier une rencontre", "reschedule": "Reprogrammer la rencontre", "withPerson": "Avec {name}", "intro": "Choisissez un moment pour échanger", "hint": "Rencontrez-vous pour partager vos idées et explorer de nouvelles opportunités.", "date": "Choisir un jour", "time": "Choisir un créneau", "format": "Format de la rencontre", "duration": "{minutes} minutes", "message": "De quoi souhaitez-vous discuter ?", "optional": "Facultatif", "placeholder": "Présentez-vous ou proposez un sujet pour votre rencontre…", "pending": "Votre invitation sera confirmée lorsque l’autre participant l’acceptera.", "selection": "Votre rencontre", "selectHint": "Choisissez un créneau pour continuer", "cancel": "Annuler", "sending": "Envoi de l’invitation…", "loading": "Recherche des créneaux disponibles…", "empty": "Aucun créneau disponible ce jour-là. Essayez une autre date.", "videoLink": "Lien de visioconférence", "videoPlaceholder": "Collez un lien Google Meet / Zoom / Teams", "videoHint": "Laissez vide pour créer un lien Jitsi Meet. L’hôte devra se connecter pour démarrer.", "locked": "Le format reste fixe lors d’une reprogrammation.", "event": "Networking événementiel"},
+  flowRecovery: {"businessLoadError": "Impossible de charger cette entreprise. Veuillez réessayer.", "notificationsTitle": "Notifications", "markAllRead": "Tout marquer comme lu ({count})", "notificationsEmpty": "Aucune notification pour le moment.", "notificationsLoadError": "Impossible de charger les notifications. Réessayez plus tard.", "notificationSaveError": "Impossible de marquer cette notification comme lue. Veuillez réessayer.", "noSharedEvent": "Pour demander une réunion, vous devez tous les deux participer au networking B2B du même événement. Vous pouvez toujours envoyer un message depuis ce profil.", "browseEvents": "Explorer les événements"},
+  businessIdentity: {"owner": "Responsable de l’entreprise", "emailContact": "Contacter par e-mail", "contactUnavailable": "La messagerie directe n’est pas encore disponible pour cette entreprise.", "noTeam": "Aucun membre de l’équipe n’est encore associé.", "archivedContact": "Ancien contact entreprise", "archivedHint": "Cette conversation était liée à un contact indisponible. Ouvrez le profil de l’entreprise et sélectionnez Contacter pour joindre son responsable actuel."},
+  networkingExperience: {"yourEventSpace": "VOTRE ESPACE NETWORKING", "backToHub": "Retour au networking", "checkingProfile": "V\u00e9rification de votre profil\u2026", "profileBasics": "Votre profil networking", "readyTitle": "Vous pouvez prendre rendez-vous", "readyHint": "Ajoutez une photo, une courte pr\u00e9sentation et vos objectifs pour faciliter les bonnes rencontres.", "unlockTitle": "Une pr\u00e9sentation rapide. De meilleures rencontres.", "unlockHint": "Ajoutez votre nom, poste, entreprise et secteur pour d\u00e9bloquer les demandes de rendez-vous. Vous pouvez d\u00e9j\u00e0 d\u00e9couvrir les participants.", "completeBasics": "Compl\u00e9ter ma pr\u00e9sentation", "enrichProfile": "Enrichir mon profil", "saveBasics": "Enregistrer et d\u00e9bloquer les rendez-vous", "fullProfile": "Ouvrir mon profil complet", "profileError": "Impossible de charger ou enregistrer votre profil. R\u00e9essayez.", "eventsError": "Impossible de charger vos \u00e9v\u00e9nements.", "welcomeHint": "Vos informations d\u2019inscription sont enregistr\u00e9es. Compl\u00e9tez les informations manquantes pour commencer les rencontres.", "availabilityHint": "Vous \u00eates disponible pendant toutes les heures de networking, sauf si vous choisissez des horaires sp\u00e9cifiques. Les rendez-vous confirm\u00e9s bloquent automatiquement les cr\u00e9neaux occup\u00e9s.", "availableByDefault": "Disponible sur tous les cr\u00e9neaux networking", "customAvailability": "Vos cr\u00e9neaux personnalis\u00e9s sont actifs", "country": "Pays", "fields": {"full_name": "Nom complet", "job_title": "Poste", "company": "Entreprise / organisation", "industry": "Secteur"}, "matchScore": "Compatibilit\u00e9 de {score} %", "matchLabel": "compatible", "viewMeeting": "Voir le rendez-vous", "planningEventHint": "Choisissez un \u00e9v\u00e9nement pour voir vos rendez-vous."},
+    eventAccount: {
+      myProfile: 'Mon profil', createBusiness: 'Créer un profil entreprise', messages: 'Messages',
+      todayAt: "Aujourd’hui à {event}", dayHint: 'Gardez votre code d’accès et vos rendez-vous à portée de main pendant l’événement.',
+      checkInCode: 'Code d’accès', myMeetings: 'Mes rendez-vous', eventAgenda: 'Programme',
+      welcomeTitle: 'Votre événement et votre compte sont prêts',
+      welcomeHint: 'Les informations de votre inscription figurent déjà dans votre profil. Explorez les participants et les rendez-vous, ou complétez votre profil plus tard.',
+      dismiss: 'Fermer', editProfile: 'Modifier mon profil'
+    },
+    networkingScheduling: {
+      formats: { video: 'En ligne', 'in-person': 'En présentiel', hybrid: 'Hybride' },
+      myAvailability: 'Mes disponibilités', chooseEvent: 'Choisir un événement',
+      availabilityHint: 'Choisissez quand vous pouvez recevoir des demandes de rendez-vous. Les rendez-vous confirmés restent inchangés. Une demande en attente ne réserve ni créneau ni table.',
+      availabilityMode: 'Disponibilités pour les rendez-vous', allSlots: 'Tous les créneaux de l’organisateur', chosenSlots: 'Uniquement les créneaux choisis',
+      emptyAvailability: 'Sans créneau sélectionné, vous serez indisponible pour les nouvelles demandes.',
+      timeZone: 'Horaires affichés en {zone}', saveAvailability: 'Enregistrer mes disponibilités', saving: 'Enregistrement…',
+      saved: 'Disponibilités enregistrées.', saveError: 'Impossible d’enregistrer vos disponibilités. Vos choix sont conservés. Réessayez.',
+      loadError: 'Impossible de vérifier le planning ou les disponibilités. Réessayez.',
+      noSchedule: 'L’organisateur n’a pas encore publié les horaires de réseautage. Contactez-le ou revenez plus tard.',
+      busy: 'Occupé', unavailable: 'Indisponible', slotChanged: 'Ce créneau n’est plus disponible. Choisissez un autre horaire.',
+      participantBusy: 'Un participant a déjà un rendez-vous confirmé à cet horaire.', venueFull: 'Toutes les tables sont réservées à cet horaire. Choisissez un autre créneau.',
+      ineligible: 'Les deux participants doivent être inscrits et avoir activé le B2B pour cet événement.',
+      formatNotAllowed: 'Ce format de rendez-vous n’est pas autorisé pour cet événement.', outsideSchedule: 'Choisissez un créneau dans le planning actuel de l’organisateur.',
+      duplicateRequest: 'Une demande est déjà en attente avec cette personne à cet horaire.'
+    },
     businessFlows: {
   "sizes": {
     "s1": "1–10 employés",
@@ -29,6 +57,92 @@ export default {
   "selectSector": "Sélectionnez un secteur",
   "noSecondary": "Aucun secteur secondaire",
   "subsector": "Sous-secteur (facultatif)"
+,
+"teamMember": "Membre de l’équipe"
+,
+"alreadyMember": "Cet utilisateur fait déjà partie de l’équipe."
+,
+"memberAdded": "Membre ajouté avec succès."
+,
+"namedMemberAdded": "{name} a été ajouté avec succès."
+,
+"addMemberFailed": "Impossible d’ajouter le membre"
+,
+"userNotFound": "Utilisateur introuvable sur la plateforme."
+,
+"profileUpdated": "Profil mis à jour"
+,
+"profileUpdateFailed": "Impossible de mettre à jour le profil entreprise"
+,
+"noMoreOfferings": "Aucune autre offre sur cette page."
+,
+"listingEnabled": "Visibilité sur la place de marché activée"
+,
+"listingDisabled": "Visibilité sur la place de marché désactivée"
+,
+"listingEnabledHint": "Votre profil entreprise est désormais visible dans l’annuaire public."
+,
+"listingDisabledHint": "Votre profil entreprise n’est plus visible dans l’annuaire public."
+,
+"logoUploadFailed": "Échec de l’envoi du logo"
+,
+"coverUploadFailed": "Échec de l’envoi de la couverture"
+,
+"documentUploadFailed": "Échec de l’envoi du document"
+,
+"documentDeleteFailed": "Impossible de supprimer le document"
+,
+"analyticsRefreshed": "Statistiques actualisées"
+,
+"shareCopied": "Lien de partage copié"
+,
+"copyFailed": "Échec de la copie"
+,
+"emailRequired": "Ajoutez une adresse e-mail professionnelle pour envoyer un résumé"
+,
+"analyticsSummary": "Résumé des statistiques de l’entreprise"
+,
+"analyticsReset": "Statistiques réinitialisées"
+,
+"roleUpdated": "Rôle du membre mis à jour"
+,
+"roleUpdateFailed": "Impossible de modifier le membre"
+,
+"memberRemoved": "Membre supprimé"
+,
+"removeMemberFailed": "Impossible de supprimer le membre"
+,
+"openNavigation": "Ouvrir la navigation"
+,
+"closeNavigation": "Fermer la navigation"
+,
+"addressPlaceholder": "123 rue de l’Entreprise, ville, pays"
+,
+"quantityShort": "Qté :"
+,
+"quantityPlaceholder": "Saisissez la quantité"
+,
+"active": "Actif"
+,
+"pending": "En attente"
+,
+"lastDays": "{count} derniers jours"
+,
+"general": "Général"
+,
+"offeringDeleteFailed": "Impossible de supprimer l’offre"
+,
+"offeringSaveFailed": "Impossible d’enregistrer l’offre"
+,
+"galleryImage": "Image {number} de la galerie"
+,
+"removeTag": "Supprimer le mot-clé {tag}"
+,
+"preview": "Aperçu"
+,
+"ai": "IA"
+,
+"analyticsBody": "Voici votre résumé statistique pour {range} :\n\nVues : {views}\nProspects : {leads}\nEnregistrements : {saved}"
 },
     eventImprovements: {
       answerYes: "Oui",
@@ -117,7 +231,9 @@ export default {
       "message": "Message",
       "potentialMatches": "Correspondances potentielles",
       "sessionsError": "Impossible de charger les sessions. Veuillez réessayer."
-    },
+    ,
+"b2bParticipants": "Participants B2B"
+},
     agendaBooking: {
       switchHint: 'Vous avez déjà choisi un atelier ? Sélectionnez-en un autre pour changer votre choix.',
       replaceConfirm: 'Vous avez déjà choisi « {current} ». Choisir « {next} » remplacera cet atelier. Cliquez à nouveau sur cette session ou sur « Choisir cet atelier à la place » pour confirmer. Vos autres sessions resteront sélectionnées.',
@@ -169,7 +285,19 @@ export default {
         previous: 'Précédent',
         next: 'Suivant'
       }
-    },
+    ,
+"close": "Fermer"
+,
+"cancel": "Annuler"
+,
+"back": "Retour"
+,
+"signOut": "Se déconnecter"
+,
+"notAvailable": "Non renseign?"
+,
+"loading": "Chargement…"
+},
     nav: {
       communities: {
         label: 'Communautes',
@@ -398,7 +526,7 @@ export default {
         search: 'Nom, entreprise ou centres d’intérêt', loading: 'Chargement des participants…',
         error: 'Impossible de charger les participants. Veuillez réessayer.', retry: 'Réessayer',
         empty: 'Aucun autre participant B2B pour le moment. Revenez après de nouvelles inscriptions.',
-        noResults: 'Aucun participant ne correspond à votre recherche.', count: '{count} participants',
+        noResults: 'Aucun participant ne correspond à votre recherche.', count: "{count} participants B2B",
         requestMeeting: 'Demander un rendez-vous'
       },
       title: 'Centre de reseautage',
@@ -420,7 +548,9 @@ export default {
       },
       common: {
         tbd: 'A definir'
-      },
+      ,
+"toBeScheduled": "À planifier"
+},
       relative: {
         justNow: "A l'instant",
         minute: 'Il y a 1 min',
@@ -441,13 +571,33 @@ export default {
         unknownCountry: 'Inconnu',
         user: 'Utilisateur',
         someone: "Quelqu'un"
-      },
+      ,
+"networkingArea": "Espace de réseautage"
+},
       matches: {
         reasonFallback: 'Base sur votre profil et vos interets',
         subtitle: 'Recommandations basees sur votre profil, vos interets et vos objectifs de reseautage.',
         requestedByThem: 'Demande de leur part',
         noMatches: 'Aucun match disponible pour le moment'
-      },
+      ,
+"profileReason": "Suggestion basée sur les informations de votre profil."
+,
+"potentialFit": "Contact potentiel"
+,
+"sharedReason": "Points communs — {category} : {shared}."
+,
+"categories": {
+  "industries": "secteur"
+,
+"interests": "intérêts"
+,
+"topics": "sujets de discussion"
+,
+"goals": "objectifs de réseautage"
+,
+"skills": "compétences"
+}
+},
       requests: {
         defaultMessage: 'Echangeons pour explorer des opportunites.',
         receivedTitle: 'Demandes recues ({count})',
@@ -477,7 +627,9 @@ export default {
       },
       labels: {
         event: 'Evenement : {event}'
-      },
+      ,
+"roleAtCompany": "{role} chez {company}"
+},
       connections: {
         total: '{count} connexions',
         connectedOn: 'Connecte le {date}'
@@ -500,9 +652,12 @@ export default {
           slotNoTime: "Le creneau selectionne n'a pas d'heure.",
           slotFull: 'Le creneau selectionne est complet.'
         }
-      },
+      ,
+"jitsiHint": "Jitsi — la première personne se connecte avec Google pour démarrer"
+},
       errors: {
         loadData: 'Impossible de charger les donnees de reseautage',
+        cancelMeeting: 'Impossible d’annuler le rendez-vous. Actualisez la page et réessayez.',
         generateMatches: 'Impossible de generer les matchs',
         loadEvents: 'Impossible de charger les evenements',
         rescheduleMeeting: 'Impossible de replanifier le rendez-vous',
@@ -510,7 +665,15 @@ export default {
         sendRequest: "Impossible d'envoyer la demande",
         openConversation: "Impossible d'ouvrir la conversation",
         noMeetingLink: "Aucun lien de reunion pour l'instant."
-      },
+      ,
+"sessionExpired": "Votre session a expiré. Actualisez la page."
+,
+"participantMissing": "Impossible d’identifier le participant. Réessayez."
+,
+"verifyRegistration": "Impossible de vérifier l’inscription de l’un des participants."
+,
+"saveMeeting": "La demande de rendez-vous n’a pas été enregistrée. Réessayez."
+},
       notifications: {
         meetingRescheduled: {
           title: 'Rendez-vous replanifie',
@@ -520,6 +683,8 @@ export default {
           title: 'Rendez-vous demande',
           body: '{name} a planifie un rendez-vous avec vous.'
         },
+        emailFailed: "Le rendez-vous a été modifié, mais sa notification par e-mail n'a pas pu être envoyée.",
+        platformFailed: "Le rendez-vous a été modifié, mais sa notification sur la plateforme n'a pas pu être envoyée.",
         meetingCancelled: {
           title: 'Rendez-vous annule',
           body: '{name} a annule le rendez-vous.'
@@ -576,7 +741,29 @@ export default {
         meetingDate: 'Date du rendez-vous',
         meetingTime: 'Heure du rendez-vous'
       }
-    },
+    ,
+"auth": {
+  "messagePrompt": "Connectez-vous pour envoyer des messages."
+}
+,
+"ticket": {
+  "title": "Billet de rendez-vous"
+,
+"qr": "Code QR"
+,
+"qrAlt": "Code QR du rendez-vous"
+,
+"event": "Événement"
+,
+"time": "Heure"
+,
+"location": "Lieu"
+,
+"with": "Avec"
+,
+"print": "Imprimer / enregistrer le billet"
+}
+},
     messages: {
       title: 'Messages',
       tabs: {
@@ -619,10 +806,24 @@ export default {
         loadConversations: 'Impossible de charger les conversations',
         loadMessages: 'Impossible de charger les messages',
         sendMessage: "Impossible d'envoyer le message",
+        notificationFailed: "Message envoyé, mais la notification sur la plateforme n'a pas pu être envoyée.",
+        emailNotificationFailed: "Message envoyé, mais la notification par e-mail n'a pas pu être envoyée.",
         createConversation: 'Impossible de creer la conversation',
         loadSuggestions: 'Impossible de charger les suggestions'
       }
-    },
+    ,
+"notifications": {
+  "new": {
+    "title": "Nouveau message"
+  ,
+"body": "{name} : {message}"
+,
+"emailIntro": "{name} vous a envoyé un nouveau message sur Eventra."
+,
+"openMessages": "Ouvrir vos messages"
+}
+}
+},
     landing: {
       digest: {
         tagline: 'Personnalise pour vous',
@@ -770,6 +971,10 @@ export default {
       },
       login: {
         title: 'Bon retour',
+        emailLinkButton: 'Recevoir un lien de connexion',
+        emailLinkSending: 'Envoi du lien...',
+        emailLinkSent: 'Consultez votre e-mail. Le lien ouvrira directement votre compte.',
+        emailLinkError: 'Impossible d’envoyer le lien maintenant. Vérifiez l’adresse e-mail et réessayez.',
         subtitle: 'Connectez-vous a votre compte Eventra',
         continueWithGoogle: 'Continuer avec Google',
         divider: 'OU',
@@ -780,7 +985,7 @@ export default {
         rememberMe: 'Se souvenir de moi',
         forgotPassword: 'Mot de passe oublie ?',
         submit: 'Se connecter',
-        loggingIn: 'Connexion...', 
+        loggingIn: 'Connexion...',
         newToEventra: 'Nouveau sur Eventra ?',
         signUp: "S'inscrire",
         errors: {
@@ -794,7 +999,7 @@ export default {
         emailLabel: 'Adresse email',
         emailPlaceholder: 'vous@exemple.com',
         submit: 'Envoyer le lien',
-        sending: 'Envoi...', 
+        sending: 'Envoi...',
         backToLogin: 'Retour a la connexion',
         toastSuccess: 'Si un compte existe pour cet email, un lien de reinitialisation arrivera bientot.',
         toastError: 'Echec de l\'envoi du lien'
@@ -804,7 +1009,7 @@ export default {
         subtitle: 'Si un compte existe, un lien de reinitialisation sera envoye a :',
         instructions: 'Cliquez sur le lien dans l\'email pour creer un nouveau mot de passe',
         resend: 'Renvoyer l\'email',
-        resending: 'Renvoi...', 
+        resending: 'Renvoi...',
         backToLogin: 'Retour a la connexion',
         help: "Vous n'avez pas recu l\'email ? Verifiez vos spams"
       },
@@ -844,7 +1049,7 @@ export default {
           privacyPolicy: 'Politique de Confidentialite'
         },
         submit: 'Creer un compte',
-        submitting: 'Creation...', 
+        submitting: 'Creation...',
         alreadyAccount: 'Vous avez deja un compte ?',
         login: 'Se connecter',
         errors: {
@@ -856,7 +1061,7 @@ export default {
         subtitle: 'Nous avons envoye un lien de verification a :',
         instructions: 'Cliquez sur le lien dans l\'email pour verifier votre compte et continuer',
         resend: 'Renvoyer l\'email',
-        resending: 'Envoi...', 
+        resending: 'Envoi...',
         changeEmail: 'Changer d\'email',
         timer: 'Renvoi disponible dans {time}',
         helpPrefix: "Vous n'avez pas recu l\'email ? Verifiez vos spams ou",
@@ -865,7 +1070,27 @@ export default {
         resendError: 'Echec du renvoi de l\'email de verification'
       },
       demoEmail: 'demo@exemple.com'
-    },
+    ,
+"callback": {
+  "completing": "Connexion en cours..."
+,
+"failed": "La connexion n’a pas pu être finalisée. Veuillez réessayer de vous connecter."
+,
+"expired": "Le lien de connexion a expiré ou a déjà été utilisé. Veuillez demander un nouveau lien."
+,
+"activating": "Activation de votre compte Eventra..."
+,
+"activationFailed": "Vous êtes connecté. Nous n’avons pas pu terminer la configuration de votre compte. Réessayez pour continuer ; aucun nouveau lien par e-mail n’est nécessaire."
+,
+"refreshFailed": "Votre compte est prêt. Réessayez pour accéder à votre événement."
+,
+"retry": "Réessayer"
+,
+"signIn": "Revenir à la connexion"
+,
+"freshLink": "Demander un nouveau lien de connexion à l’événement"
+}
+},
     profileSetup: {
       progress: {
         stepLabel: 'Etape {current} sur {total}',
@@ -960,7 +1185,9 @@ export default {
         '1001-5000 employes',
         '5000+ employes'
       ]
-    },
+    ,
+"emailLabel": "Adresse e-mail"
+},
     registrationFlow: {
         eventNavigation: "Navigation de l’événement",
         progress: "Étapes de l’inscription",
@@ -987,6 +1214,10 @@ export default {
       allSet: 'Vous êtes prêt !',
       paidConfirmationDesc: 'Votre inscription est confirmée. Veuillez compléter le paiement pour garantir votre place.',
       freeConfirmationDesc: 'Votre inscription est confirmée. Présentez votre QR code à l\'entrée.',
+      confirmationEmailFailed: 'Votre inscription est enregistrée, mais nous n’avons pas pu envoyer l’e-mail de confirmation. Conservez le code ci-dessous et demandez un lien de connexion depuis la page de réseautage de l’événement.',
+      openNetworking: 'Ouvrir le réseautage de l’événement',
+      b2bAccountReady: 'Votre compte Eventra est prêt. Consultez votre e-mail pour ouvrir directement cet événement. Les informations de votre inscription figurent déjà dans votre profil.',
+      accessEmailFailed: 'Votre inscription est enregistrée, mais le lien de connexion n’a pas pu être envoyé. Utilisez le bouton ci-dessous pour demander un nouveau lien avec votre adresse d’inscription.',
       finalStepTitle: 'Dernière étape',
       finalStepDesc: 'Parcourez et réservez votre billet pour finaliser l\'inscription.',
       browseSecureTicket: 'Parcourir et réserver votre billet',
@@ -1023,8 +1254,22 @@ export default {
         fileUploaded: 'Fichier téléchargé avec succès',
         fileUploadFailed: 'Échec du téléchargement du fichier',
         fileUploadError: 'Erreur lors du téléchargement du fichier'
-      }
-    },
+      ,
+"b2bAccessUnavailable": "Impossible de finaliser votre accès B2B. Réessayez. Les informations saisies sont conservées."
+}
+    ,
+"accessCodePlaceholder": "Ex. : VIP2026"
+,
+"addressPlaceholder": "Saisissez l’adresse complète…"
+,
+"untitledField": "Champ sans titre"
+,
+"qrAlt": "Code QR d’entrée"
+,
+"seoTitle": "Inscription à {event}"
+,
+"seoDescription": "Inscrivez-vous à {event}. Réservez votre place et choisissez vos sessions."
+},
     profile: {
       header: {
         title: 'Mon Profil',
@@ -1036,7 +1281,7 @@ export default {
         changePhoto: 'Changer Photo',
         memberSince: 'Membre depuis {date}',
         profileCompletion: 'Completion du Profil',
-        completion: '{percent}% Complete',
+        completion: "Complété à {percent} %",
         addLinkedInHint: 'Ajoutez LinkedIn pour atteindre {percent}%',
         social: {
           linkedin: 'LinkedIn',
@@ -1189,7 +1434,7 @@ export default {
           current: 'Mot de passe actuel',
           new: 'Nouveau mot de passe',
           confirm: 'Confirmer le nouveau mot de passe',
-          updating: 'Mise a jour...', 
+          updating: 'Mise a jour...',
           update: 'Mettre a jour',
           requirements: {
             length: 'Au moins 8 caracteres',
@@ -1204,7 +1449,7 @@ export default {
           qrUnavailable: 'QR code indisponible',
           codeLabel: 'Code de Verification',
           codePlaceholder: '123456',
-          verifying: 'Verification...', 
+          verifying: 'Verification...',
           verify: 'Verifier & Activer'
         },
         deleteConfirm: {
@@ -1238,7 +1483,9 @@ export default {
         certificationName: 'Certification',
         certificationOrganization: 'Organisation',
         certificationYear: 'Annee'
-      },
+      ,
+"customSector": "Saisissez un secteur personnalisé…"
+},
       fields: {
         phoneNumber: 'Numero de telephone',
         dateOfBirth: 'Date de naissance',
@@ -1435,7 +1682,11 @@ export default {
           { value: 'ar', label: 'Arabe' }
         ]
       }
-    },
+    ,
+"placeholders": {
+  "department": "Ex. : ingénierie, marketing, ressources humaines…"
+}
+},
         dashboard: {
       breadcrumb: {
         home: 'Accueil',
@@ -1444,7 +1695,7 @@ export default {
       header: {
         title: 'Mes Evenements',
         subtitle: 'Gerez et suivez votre portefeuille d\'evenements',
-        initializing: 'Initialisation...', 
+        initializing: 'Initialisation...',
         create: 'Creer un Evenement'
       },
       stats: {
@@ -1461,7 +1712,7 @@ export default {
           draft: 'Brouillons',
           archived: 'Archives'
         },
-        searchPlaceholder: 'Rechercher des evenements...', 
+        searchPlaceholder: 'Rechercher des evenements...',
         sortLabel: 'Trier par : {option}',
         sortOptions: {
           recent: 'Recent',
@@ -1496,7 +1747,7 @@ export default {
       }
     },
     manageEvent: {
-      loading: 'Chargement evenement...', 
+      loading: 'Chargement evenement...',
       notFound: {
         title: 'Evenement non trouve',
         return: 'Retour au tableau de bord'
@@ -2057,7 +2308,7 @@ export default {
         modals: {
           attendees: {
             title: 'Participants',
-            loading: 'Chargement participants...', 
+            loading: 'Chargement participants...',
             columns: {
               attendee: 'Participant',
               company: 'Entreprise',
@@ -2156,7 +2407,7 @@ export default {
             confirmed: 'Confirme',
             pending: 'En attente'
           },
-          search: 'Rechercher...', 
+          search: 'Rechercher...',
           sort: 'Trier: Nom {order}',
           sortAsc: 'A-Z',
           sortDesc: 'Z-A',
@@ -2370,7 +2621,7 @@ export default {
           declined: 'Refuse',
           checkedIn: 'Check-in',
           vip: 'VIP',
-          search: 'Rechercher nom, email...', 
+          search: 'Rechercher nom, email...',
           sort: 'Trier: {option}',
           sortOptions: {
             recent: 'Recent',
@@ -2594,7 +2845,7 @@ export default {
           preview: 'Apercu Formulaire'
         },
         filters: {
-          search: 'Rechercher entreprise, stand...', 
+          search: 'Rechercher entreprise, stand...',
           booth: {
             all: 'Tous Stands',
             assigned: 'Assigne',
@@ -2861,233 +3112,7 @@ export default {
           missingEvent: 'Evenement manquant'
         }
       },
-      b2b: {
-        header: {
-          title: 'Hub Jumelage B2B',
-          subtitle: 'Reseautage par IA et facilitation reunions',
-          aiMatchmaker: 'Matchmaker IA',
-          createMeeting: 'Creer Reunion'
-        },
-        stats: {
-          activeConnections: 'Connexions Actives',
-          totalMeetings: 'Total reunions planifiees',
-          newThisWeek: '+{count} cette semaine',
-          aiMatchSuccess: 'Succes Match IA',
-          ofAiAccepted: 'Des matchs IA acceptes',
-          pendingSuggestions: 'Suggestions en Attente',
-          awaitingResponse: 'En attente reponse',
-          sendReminders: 'Envoyer Rappels',
-          completed: 'Complete',
-          completionRate: '{percent}% taux completion',
-          networkingScore: 'Score Reseautage',
-          overallEngagement: 'Engagement global'
-        },
-        tabs: {
-          aiMatchmaker: 'Matchmaker IA',
-          allMeetings: 'Toutes Reunions',
-          analytics: 'Analyses Reseautage',
-          suggestions: 'Suggestions Match'
-        },
-        aiMatchmaker: {
-          title: 'Moteur Jumelage IA',
-          subtitle: 'Reseautage intelligent',
-          whoToMatch: 'Qui jumeler ?',
-          options: {
-            all: {
-              label: 'Tous Participants',
-              desc: "Generer matchs pour tous ceux non connectes",
-              count: '{count} dispos'
-            },
-            category: {
-              label: 'Categorie Specifique',
-              desc: 'Cibler groupes specifiques',
-              count: '{count} avec categories'
-            },
-            individuals: {
-              label: 'Individus Selectionnes',
-              desc: 'Choisir participants specifiques',
-              count: '{count} opt-in'
-            },
-            recommended: 'Recommande',
-            noAttendees: 'Aucun participant',
-            noCategories: 'Aucune categorie',
-            noOptIn: 'Aucun opt-in'
-          },
-          criteria: {
-            title: 'Criteres Match',
-            industry: 'Alignement Industrie',
-            industryDesc: 'Haute priorite - Industries similaires',
-            role: 'Compatibilite Role',
-            roleDesc: 'Moyenne priorite',
-            stage: 'Alignement Stade Entreprise',
-            stageDesc: 'Moyenne-haute priorite',
-            interests: 'Interets Communs',
-            interestsDesc: 'Haute priorite - Focus interets',
-            goals: 'Alignement Objectifs',
-            goalsDesc: 'Haute priorite - Objectifs reseautage'
-          },
-          threshold: {
-            title: 'Score Min Match',
-            subtitle: 'Suggérer seulement si compatibilité > {percent}%',
-            recommended: 'Recommandé: 70-80%'
-          },
-          generate: {
-            info: 'IA analysera {total} participants et générera ~{count} matchs',
-            time: 'Temps traitement: ~30 sec',
-            button: 'Générer Matchs IA'
-          },
-          insights: {
-            title: 'Insights Jumelage',
-            subtitle: 'Analyse temps réel',
-            potential: 'Potentiel Réseautage Élevé',
-            potentialDesc: '{percent}% participants ont potentiel',
-            industries: 'Top Industries',
-            goals: 'Objectifs Réseautage',
-            lastRun: 'Dernier Run IA',
-            noRun: 'Jamais',
-            generated: 'Généré {count} matchs',
-            accepted: '{percent}% acceptés',
-            viewResults: 'Voir Résultats'
-          }
-        },
-        allMeetings: {
-          filters: {
-            all: 'Tout',
-            today: 'Aujourd\'hui',
-            ai: 'Généré par IA',
-            manual: 'Manuel',
-            pending: 'En Attente',
-            completed: 'Terminé',
-            search: 'Rechercher...', 
-            allDates: 'Toutes Dates',
-            thisWeek: 'Cette Semaine',
-            recent: 'Recents',
-            score: 'Score: Decroissant',
-            upcoming: 'Date: Prochainement'
-          },
-          table: {
-            headers: {
-              id: 'ID Reunion',
-              participants: 'Participants',
-              score: 'Score Match',
-              dateTime: 'Date & Heure',
-              status: 'Statut',
-              actions: 'Actions'
-            },
-            manual: 'Manuel',
-            view: 'Voir',
-            empty: 'Aucune reunion trouvee.'
-          }
-        },
-        analytics: {
-          title: 'Analyses Reseautage',
-          summary: '{total} reunions · {avg}% score moyen · {rate}% taux succes',
-          topIndustry: 'Top industrie: {industry} · Top objectif: {goal}'
-        },
-        suggestions: {
-          title: 'Suggestions Match IA',
-          subtitle: '{count} matchs en attente de revue',
-          card: {
-            match: 'MATCH IA',
-            why: 'Pourquoi ce match ?',
-            noCriteria: 'Aucun critere de match',
-            createMeeting: 'Creer Reunion',
-            dismiss: 'Ignorer',
-            sent: 'Envoye le {date}',
-            sentRecently: 'Envoye recemment'
-          },
-          empty: 'Aucune suggestion pour le moment. Generez des matchs pour voir les resultats.'
-        },
-        modals: {
-          processing: {
-            analyzing: {
-              title: 'L\'IA analyse les participants',
-              subtitle: 'Analyse de {count} profils...'
-            },
-            generating: {
-              title: 'Generation des matchs optimaux',
-              subtitle: 'Creation de connexions intelligentes...'
-            },
-            complete: {
-              title: 'Matchs generes avec succes !',
-              subtitle: 'L\'IA a cree des correspondances de haute qualite',
-              stats: {
-                created: 'Matchs Crees',
-                avgScore: 'Score Moyen',
-                matched: 'Participants Jumeles'
-              },
-              actions: {
-                viewAll: 'Voir tous les matchs',
-                sendNotif: 'Envoyer Notifications'
-              }
-            },
-            progress: {
-              analyzing: 'Analyse des alignements industries...',
-              generating: 'Construction des recommandations...',
-              remaining: 'Temps estime: {count} secondes restantes'
-            }
-          },
-          details: {
-            title: 'Analyse de Match IA',
-            score: '{percent}% Score de Match',
-            breakdown: 'Detail du Score',
-            noDetails: 'Details indisponibles. Generez des matchs pour voir les analyses.',
-            overall: '{percent}% Match Global',
-            insights: 'Insights IA',
-            noInsights: 'Aucun insight IA disponible.',
-            topics: 'Sujets de discussion suggeres',
-            noTopics: 'Aucun sujet suggere.',
-            actions: {
-              schedule: 'Planifier Reunion',
-              sendBoth: 'Envoyer aux deux participants'
-            }
-          },
-          create: {
-            title: 'Planifier Reunion Jumellee',
-            matchInfo: 'MATCH IA · {percent}% Score',
-            perfectMatch: 'Match parfait pour: {tags}',
-            fields: {
-              dateTime: 'Date & Heure',
-              duration: 'Duree',
-              location: 'Lieu'
-            },
-            placeholders: {
-              location: 'Salle B-12 ou lien Zoom'
-            },
-            durations: {
-              m30: '30 minutes',
-              m45: '45 minutes',
-              m60: '60 minutes'
-            },
-            actions: {
-              cancel: 'Annuler',
-              create: 'Creer & Notifier'
-            }
-          }
-        },
-        toasts: {
-          addTwo: 'Ajoutez au moins 2 participants',
-          noMatches: 'Aucun match trouvé',
-          matchesSuccess: '{count} matchs IA générés !',
-          matchesComplete: 'Jumelage IA terminé',
-          noSuggestionsExport: 'Rien à exporter',
-          suggestionsExported: 'Suggestions exportées',
-          suggestionsDismissed: 'Suggestion ignorée',
-          noMeetingsExport: 'Rien à exporter',
-          meetingsExported: 'Réunions exportées',
-          settingsSaved: 'Paramètres enregistrés',
-          noPendingRemind: 'Aucun rappel en attente',
-          remindersSent: 'Rappels envoyés',
-          selectMatchFirst: 'Sélectionnez un match',
-          matchNotifSent: 'Notif match envoyée',
-          notifSent: 'Notifications envoyées',
-          selectSuggestion: 'Sélectionnez une suggestion',
-          meetingCreated: 'Réunion créée',
-          meetingUpdated: 'Réunion mise à jour',
-          invitationsSent: 'Réunion créée et invitations envoyées !',
-          notificationsSent: 'Réunion mise à jour et notifications envoyées !'
-        }
-      },
+
       marketing: {
         header: {
           title: 'Outils marketing',
@@ -3332,69 +3357,47 @@ export default {
         }
       },
       b2b: {
-        header: {
-          title: 'Hub de Jumelage B2B',
-          subtitle: 'Réseautage propulsé par l\'IA — connectez les bonnes personnes au bon moment',
-          aiMatchmaker: 'IA Jumeleur',
-          createMeeting: 'Créer une réunion'
-        },
-        tabs: {
-          aiMatchmaker: 'IA Jumeleur',
-          allMeetings: 'Toutes les réunions',
-          logistics: 'Logistique',
-          analytics: 'Analytiques',
-          suggestions: 'Suggestions'
-        },
-        stats: {
-          activeConnections: 'Connexions actives',
-          totalMeetings: 'Total des réunions',
-          newThisWeek: '+{count} cette semaine',
-          aiMatchSuccess: 'Succès IA',
-          ofAiAccepted: 'des jumelages IA acceptés',
-          pendingSuggestions: 'Suggestions en attente',
-          awaitingResponse: 'En attente de réponse',
-          sendReminders: 'Envoyer des rappels',
-          completed: 'Terminées',
-          completionRate: 'Taux de complétion de {percent}%',
-          networkingScore: 'Score de réseautage',
-          overallEngagement: 'Engagement global'
-        },
-        toasts: {
-          suggestionsDismissed: 'Suggestion rejetée',
-          notificationsSent: 'Notifications envoyées',
-          invitationsSent: 'Invitations envoyées',
-          meetingUpdated: 'Réunion mise à jour',
-          meetingCreated: 'Réunion créée',
-          meetingCreateError: 'Erreur lors de la création',
-          matchesSuccess: '{count} jumelages créés',
-          matchesComplete: 'Jumelage terminé',
-          noSuggestionsExport: 'Aucune suggestion à exporter',
-          suggestionsExported: 'Suggestions exportées',
-          noMeetingsExport: 'Aucune réunion à exporter',
-          meetingsExported: 'Réunions exportées',
-          settingsSaved: 'Paramètres sauvegardés',
-          noPendingRemind: 'Aucune réunion en attente à rappeler',
-          remindersSent: 'Rappels envoyés',
-          selectMatchFirst: 'Sélectionnez un jumelage d\'abord',
-          matchNotifSent: 'Notification de jumelage envoyée',
-          selectSuggestion: 'Sélectionnez une suggestion d\'abord',
-          notifSent: 'Notification envoyée',
-          addTwo: 'Ajoutez au moins deux participants pour utiliser le jumelage'
-        },
-        aiMatchmaker: {
-          title: 'IA Jumeleur',
-          subtitle: 'Notre IA analyse les profils et suggère les connexions les plus pertinentes',
-          whoToMatch: 'Qui jumeler ?',
-          options: {
+    header: {
+        title: 'Hub de Jumelage B2B',
+        subtitle: 'Réseautage propulsé par l\'IA — connectez les bonnes personnes au bon moment',
+        aiMatchmaker: 'IA Jumeleur',
+        createMeeting: 'Créer une réunion'
+    },
+    stats: {
+        activeConnections: 'Connexions actives',
+        totalMeetings: 'Total des réunions',
+        newThisWeek: '+{count} cette semaine',
+        aiMatchSuccess: 'Succès IA',
+        ofAiAccepted: 'des jumelages IA acceptés',
+        pendingSuggestions: 'Suggestions en attente',
+        awaitingResponse: 'En attente de réponse',
+        sendReminders: 'Envoyer des rappels',
+        completed: 'Terminées',
+        completionRate: 'Taux de complétion de {percent}%',
+        networkingScore: 'Score de réseautage',
+        overallEngagement: 'Engagement global'
+    },
+    tabs: {
+        aiMatchmaker: 'IA Jumeleur',
+        allMeetings: 'Toutes les réunions',
+        analytics: 'Analytiques',
+        suggestions: 'Suggestions',
+        logistics: 'Logistique'
+    },
+    aiMatchmaker: {
+        title: 'IA Jumeleur',
+        subtitle: 'Notre IA analyse les profils et suggère les connexions les plus pertinentes',
+        whoToMatch: 'Qui jumeler ?',
+        options: {
             all: { label: 'Tous les participants', desc: 'Jumeler tous les inscrits', count: '{count} participants disponibles' },
             category: { label: 'Par catégorie', desc: 'Jumeler par catégorie', count: '{count} catégories' },
             individuals: { label: 'Individus spécifiques', desc: 'Sélectionner des personnes', count: '{count} inscrits' },
+            recommended: 'Recommandé',
             noAttendees: 'Aucun participant',
             noCategories: 'Aucune catégorie',
-            noOptIn: 'Aucun inscrit',
-            recommended: 'Recommandé'
-          },
-          criteria: {
+            noOptIn: 'Aucun inscrit'
+        },
+        criteria: {
             title: 'Critères de jumelage',
             industry: 'Industrie',
             industryDesc: 'Prioriser les industries similaires ou complémentaires',
@@ -3406,20 +3409,33 @@ export default {
             interestsDesc: 'Trouver des intérêts professionnels communs',
             goals: 'Objectifs de réseautage',
             goalsDesc: 'Aligner selon les objectifs déclarés'
-          },
-          threshold: {
+        },
+        threshold: {
             title: 'Score minimum de compatibilité',
             subtitle: 'Suggérer uniquement les jumelages au-dessus de {percent}%',
             recommended: 'Recommandé : 60-80%'
-          },
-          generate: {
+        },
+        generate: {
             info: '{total} participants seront analysés, environ {count} jumelages attendus',
             time: 'Le traitement prend généralement 15-30 secondes',
             button: 'Générer les jumelages IA'
-          }
         },
-        allMeetings: {
-          filters: {
+        insights: {
+            title: 'Insights Jumelage',
+            subtitle: 'Analyse temps réel',
+            potential: 'Potentiel Réseautage Élevé',
+            potentialDesc: '{percent}% participants ont potentiel',
+            industries: 'Top Industries',
+            goals: 'Objectifs Réseautage',
+            lastRun: 'Dernier Run IA',
+            noRun: 'Jamais',
+            generated: 'Généré {count} matchs',
+            accepted: '{percent}% acceptés',
+            viewResults: 'Voir Résultats'
+        }
+    },
+    allMeetings: {
+        filters: {
             all: 'Toutes',
             today: 'Aujourd\'hui',
             ai: 'IA',
@@ -3432,64 +3448,46 @@ export default {
             recent: 'Plus récentes',
             score: 'Score de jumelage',
             upcoming: 'À venir'
-          },
-          table: {
+        },
+        table: {
             headers: { id: 'ID', participants: 'Participants', score: 'Score', dateTime: 'Date et heure', status: 'Statut', actions: 'Actions' },
             manual: 'Créée manuellement',
+            view: 'Voir',
             empty: 'Aucune réunion ne correspond à vos filtres'
-          }
+        }
+    },
+    analytics: {
+        title: 'Tableau de bord analytique',
+        summary: '{total} réunions avec un score moyen de {avg}% et un taux de succès de {rate}%',
+        topIndustry: 'Industrie principale : {industry} — Objectif principal : {goal}'
+    },
+    suggestions: {
+        title: 'Suggestions IA',
+        subtitle: '{count} suggestions en attente de validation',
+        card: {
+            match: 'MATCH IA',
+            why: 'Pourquoi ce match ?',
+            noCriteria: 'Aucun critere de match',
+            createMeeting: 'Creer Reunion',
+            dismiss: 'Ignorer',
+            sent: 'Envoye le {date}',
+            sentRecently: 'Envoye recemment'
         },
-        logistics: {
-          venueCapacity: {
-            title: 'Capacité du lieu',
-            subtitle: 'Configurez l\'agencement et la disposition des tables',
-            tableCount: 'Nombre de tables',
-            tablePrefix: 'Préfixe des tables',
-            tablePrefixPlaceholder: 'ex. Table, Bureau, Stand',
-            slotDuration: 'Durée des créneaux'
-          },
-          capacityCalc: {
-            title: 'Aperçu de la capacité',
-            tableSetup: 'Disposition des tables',
-            slotDuration: 'Durée des créneaux',
-            totalTimeSlots: 'Créneaux totaux',
-            maxMeetings: 'Réunions max.'
-          },
-          schedule: {
-            title: 'Planning des réunions',
-            subtitle: 'Définissez les dates et créneaux disponibles pour les réunions B2B',
-            addDate: 'Ajouter un créneau',
-            to: 'à',
-            duplicateBlock: 'Dupliquer ce créneau',
-            noDates: 'Aucun créneau configuré',
-            noDatesHint: 'Ajoutez des créneaux pour définir les horaires de réunion',
-            saving: 'Enregistrement...',
-            saveConfig: 'Sauvegarder la configuration'
-          }
-        },
-        analytics: {
-          title: 'Tableau de bord analytique',
-          summary: '{total} réunions avec un score moyen de {avg}% et un taux de succès de {rate}%',
-          topIndustry: 'Industrie principale : {industry} — Objectif principal : {goal}'
-        },
-        suggestions: {
-          title: 'Suggestions IA',
-          subtitle: '{count} suggestions en attente de validation',
-          empty: 'Aucune suggestion. Lancez le jumeleur IA pour générer des correspondances.'
-        },
-        modals: {
-          processing: {
+        empty: 'Aucune suggestion. Lancez le jumeleur IA pour générer des correspondances.'
+    },
+    modals: {
+        processing: {
             analyzing: { title: 'Analyse des profils', subtitle: 'Scan de {count} profils...' },
             generating: { title: 'Génération des jumelages', subtitle: 'Recherche des meilleures connexions...' },
             complete: {
-              title: 'Jumelage terminé !',
-              subtitle: 'Voici les résultats',
-              stats: { created: 'Jumelages créés', avgScore: 'Score moyen', matched: 'Participants jumelés' },
-              actions: { viewAll: 'Voir tous les jumelages', sendNotif: 'Envoyer les notifications' }
+                title: 'Jumelage terminé !',
+                subtitle: 'Voici les résultats',
+                stats: { created: 'Jumelages créés', avgScore: 'Score moyen', matched: 'Participants jumelés' },
+                actions: { viewAll: 'Voir tous les jumelages', sendNotif: 'Envoyer les notifications' }
             },
             progress: { analyzing: 'Analyse des profils...', generating: 'Génération des jumelages...', remaining: 'Environ {count} secondes restantes' }
-          },
-          details: {
+        },
+        details: {
             title: 'Détails du jumelage',
             score: 'Score de {percent}%',
             breakdown: 'Détail du score',
@@ -3500,18 +3498,69 @@ export default {
             topics: 'Sujets de discussion suggérés',
             noTopics: 'Aucun sujet suggéré',
             actions: { schedule: 'Planifier une réunion', sendBoth: 'Notifier les deux parties' }
-          },
-          create: {
+        },
+        create: {
             title: 'Planifier une réunion',
             matchInfo: 'Compatibilité de {percent}%',
             perfectMatch: 'Connexion de personnes partageant des intérêts en {tags}',
             fields: { dateTime: 'Date et heure', duration: 'Durée', location: 'Lieu / Table' },
-            durations: { m30: '30 minutes', m45: '45 minutes', m60: '60 minutes' },
             placeholders: { location: 'ex. Table A3, Salle de réunion 2' },
+            durations: { m30: '30 minutes', m45: '45 minutes', m60: '60 minutes' },
             actions: { cancel: 'Annuler', create: 'Créer la réunion' }
-          }
         }
-      }
+    },
+    toasts: {
+        addTwo: 'Ajoutez au moins deux participants pour utiliser le jumelage',
+        noMatches: 'Aucun match trouvé',
+        matchesSuccess: '{count} jumelages créés',
+        matchesComplete: 'Jumelage terminé',
+        noSuggestionsExport: 'Aucune suggestion à exporter',
+        suggestionsExported: 'Suggestions exportées',
+        suggestionsDismissed: 'Suggestion rejetée',
+        noMeetingsExport: 'Aucune réunion à exporter',
+        meetingsExported: 'Réunions exportées',
+        settingsSaved: 'Paramètres sauvegardés',
+        noPendingRemind: 'Aucune réunion en attente à rappeler',
+        remindersSent: 'Rappels envoyés',
+        selectMatchFirst: 'Sélectionnez un jumelage d\'abord',
+        matchNotifSent: 'Notification de jumelage envoyée',
+        notifSent: 'Notification envoyée',
+        selectSuggestion: 'Sélectionnez une suggestion d\'abord',
+        meetingCreated: 'Réunion créée',
+        meetingUpdated: 'Réunion mise à jour',
+        invitationsSent: 'Invitations envoyées',
+        notificationsSent: 'Notifications envoyées',
+        meetingCreateError: 'Erreur lors de la création'
+    },
+    logistics: {
+        venueCapacity: {
+            title: 'Capacité du lieu',
+            subtitle: 'Configurez l\'agencement et la disposition des tables',
+            tableCount: 'Nombre de tables',
+            tablePrefix: 'Préfixe des tables',
+            tablePrefixPlaceholder: 'ex. Table, Bureau, Stand',
+            slotDuration: 'Durée des créneaux'
+        },
+        capacityCalc: {
+            title: 'Aperçu de la capacité',
+            tableSetup: 'Disposition des tables',
+            slotDuration: 'Durée des créneaux',
+            totalTimeSlots: 'Créneaux totaux',
+            maxMeetings: 'Réunions max.'
+        },
+        schedule: {
+            title: 'Planning des réunions',
+            subtitle: 'Définissez les dates et créneaux disponibles pour les réunions B2B',
+            addDate: 'Ajouter un créneau',
+            to: 'à',
+            duplicateBlock: 'Dupliquer ce créneau',
+            noDates: 'Aucun créneau configuré',
+            noDatesHint: 'Ajoutez des créneaux pour définir les horaires de réunion',
+            saving: 'Enregistrement...',
+            saveConfig: 'Sauvegarder la configuration'
+        }
+    }
+}
     },
     wizard: {
       common: {
@@ -5727,7 +5776,7 @@ export default {
           ready: 'Prêt à réseauter ?',
           join: 'Rejoindre la communauté',
           stats: {
-            participants: 'Participants',
+            participants: "Participants B2B",
             meetings: 'Rendez-vous',
             matchRate: 'Taux de correspondance'
           }
@@ -6353,7 +6402,8 @@ export default {
         },
         team: {
           title: 'Notre équipe',
-          addMember: 'Ajouter un membre'
+          addMember: 'Ajouter un membre',
+          viewProfile: 'Voir le profil'
         },
         offerings: {
           title: 'Nos offres',
@@ -6406,6 +6456,7 @@ export default {
           back: 'Retour',
           requestMeeting: 'Demander une reunion',
           sendMessage: 'Envoyer un message',
+          viewBusinessProfile: 'Voir le profil entreprise',
           editProfile: 'Modifier le profil'
         },
         toasts: {
@@ -6505,7 +6556,15 @@ export default {
           cancel: 'Annuler',
           send: 'Envoyer la demande'
         }
-      },
+      ,
+"seo": {
+  "title": "Profil | Eventra"
+,
+"description": "Découvrez ce profil professionnel sur Eventra."
+,
+"connect": "{name}. Entrez en contact sur Eventra."
+}
+},
       productsManagement: {
         title: 'Produits & Services',
         subtitle: 'Gerez vos offres, tarifs et informations produits',
@@ -6781,9 +6840,217 @@ export default {
         socialUrl: 'URL sociale / site web',
         socialUrlPlaceholder: 'https://linkedin.com/in/votreprofil',
         b2bOptIn: 'Souhaitez-vous le matching B2B ?',
-        b2bOptInDescription: 'Soyez mis en relation avec des participants pertinents pour le réseautage professionnel',
+        b2bOptInDescription: 'En choisissant Oui, vous créez votre compte Eventra. Nous vous enverrons un lien de connexion sécurisé pour le réseautage B2B, les messages, les rendez-vous et votre profil.',
       },
       additionalFields: 'Informations complémentaires',
       customFormsInfo: "Faites glisser les champs pour les reordonner. Utilisez Obligatoire pour choisir les champs a remplir.",
     },
-  };
+
+"platformLabels": {
+  "Technology": "Technologie"
+,
+"Finance & Banking": "Finance et banque"
+,
+"Healthcare": "Santé"
+,
+"Agriculture": "Agriculture"
+,
+"Education": "Éducation"
+,
+"Energy & Utilities": "Énergie et services publics"
+,
+"Manufacturing": "Industrie manufacturière"
+,
+"Retail & Commerce": "Commerce et distribution"
+,
+"Tourism & Hospitality": "Tourisme et hôtellerie"
+,
+"Creative Industries": "Industries créatives"
+,
+"Entrepreneuriat": "Entrepreneuriat"
+,
+"Logistics & Transport": "Logistique et transport"
+,
+"Real Estate": "Immobilier"
+,
+"Telecommunications": "Télécommunications"
+,
+"Food & Beverage": "Alimentation et boissons"
+,
+"Mining & Resources": "Mines et ressources"
+,
+"Government & Public Sector": "Gouvernement et secteur public"
+,
+"Non-Profit & NGO": "Associations et ONG"
+,
+"AI/ML": "IA / apprentissage automatique"
+,
+"FinTech": "FinTech"
+,
+"CleanTech": "Technologies propres"
+,
+"AgriTech": "Technologies agricoles"
+,
+"HealthTech": "Technologies de la santé"
+,
+"EdTech": "Technologies éducatives"
+,
+"E-commerce": "Commerce électronique"
+,
+"SaaS": "SaaS"
+,
+"IoT": "Internet des objets"
+,
+"Blockchain": "Blockchain"
+,
+"Cybersecurity": "Cybersécurité"
+,
+"Marketing": "Marketing"
+,
+"Investment": "Investissement"
+,
+"Export": "Exportation"
+,
+"Partnership": "Partenariat"
+,
+"Sustainability": "Développement durable"
+,
+"Digital Transformation": "Transformation numérique"
+,
+"Supply Chain": "Chaîne d’approvisionnement"
+,
+"Human Resources": "Ressources humaines"
+,
+"Legal/Compliance": "Juridique / conformité"
+}
+,
+"scannerFlow": {
+  "invalidCode": "Ce code QR Eventra n’est pas reconnu. Scannez un pass de rendez-vous ou saisissez un code d’inscription."
+,
+"wrongEvent": "Ce pass appartient à un autre événement. Ouvrez le scanner de cet événement."
+,
+"useB2bScanner": "Ceci est un pass de rendez-vous. Utilisez le scanner B2B."
+,
+"lookupFailed": "Impossible de vérifier ce code. Vérifiez votre connexion ou vos droits d’accès, puis réessayez. Aucun pointage n’a été effectué."
+,
+"ambiguousAttendee": "Plusieurs inscriptions correspondent. Utilisez le code d’inscription du participant."
+,
+"attendeeNotFound": "Aucune inscription ne correspond à ce code pour cet événement. Demandez le billet du participant."
+,
+"registrationInactive": "Cette inscription est annulée, refusée ou sur liste d’attente. Vérifiez-la avant d’admettre le participant."
+,
+"selectMeeting": "Sélectionnez un rendez-vous ou scannez son pass pour le sélectionner automatiquement."
+,
+"meetingNotFound": "Ce rendez-vous est introuvable dans cet événement. Vérifiez le pass et l’événement."
+,
+"meetingNotConfirmed": "Ce rendez-vous n’est pas confirmé. Les rendez-vous en attente ou annulés ne permettent pas le pointage."
+,
+"notAssigned": "Ce participant ne fait pas partie du rendez-vous sélectionné."
+,
+"selectSession": "Sélectionnez une session avant de scanner."
+,
+"sessionNotFound": "La session sélectionnée est indisponible dans cet événement. Actualisez la liste."
+,
+"saveFailed": "Le pointage n’a pas pu être entièrement enregistré. Réessayez ce code ; un enregistrement interrompu ne créera pas une seconde entrée."
+,
+"completionFailed": "Pointage enregistré. Le statut final du rendez-vous n’a pas pu être mis à jour ; actualisez et vérifiez-le."
+,
+"chooseParticipant": "Qui est arrivé ?"
+,
+"legacyHint": "Cet ancien code QR identifie le rendez-vous. Sélectionnez la personne présente pour enregistrer uniquement son arrivée."
+,
+"cameraUnavailable": "Caméra indisponible. Utilisez la saisie manuelle ci-dessous."
+,
+"cameraDenied": "L’accès à la caméra a été refusé ou interrompu. Autorisez-le ou utilisez la saisie manuelle."
+,
+"saving": "Vérification et enregistrement…"
+,
+"scanFailed": "Pointage à vérifier"
+,
+"manualReady": "Saisie manuelle disponible"
+,
+"offlineHint": "Une connexion est nécessaire pour vérifier les inscriptions et les rendez-vous. Les pointages déjà en attente sont revérifiés à la reconnexion."
+}
+,
+"meetingPass": {
+  "eyebrow": "PASS RENDEZ-VOUS B2B"
+,
+"title": "Votre rencontre est au programme."
+,
+"subtitle": "Votre rendez-vous est confirmé. Gardez votre pass personnel à portée de main."
+,
+"holder": "Titulaire du pass"
+,
+"personalHint": "Ce code enregistre uniquement votre présence à ce rendez-vous."
+,
+"reference": "Référence du rendez-vous"
+,
+"arrivalHint": "Présentez ce pass au personnel de l’espace de rencontre. Enregistrez le code QR ou imprimez le pass complet."
+,
+"saveQr": "Enregistrer le code QR"
+,
+"print": "Imprimer le pass"
+,
+"copy": "Copier le code de pointage"
+,
+"copied": "Code de pointage copié."
+,
+"preparing": "Préparation de votre pass…"
+,
+"qrFailed": "Impossible d’afficher le QR. Copiez le code ci-dessous ou communiquez la référence au personnel."
+}
+,
+"scannerDesign": {
+  "desk": "Espace d’accueil"
+,
+"subtitle": "De belles rencontres commencent par un bon accueil."
+,
+"entrySubtitle": "Un accueil fluide pour chaque participant."
+,
+"capture": "Scanner un pass"
+,
+"review": "Rencontre et arrivée"
+,
+"live": "Caméra prête"
+,
+"paused": "Scan en pause"
+,
+"passLabel": "EVENTRA • ACCUEIL QR"
+,
+"arrivalRecorded": "Bienvenue, votre arrivée est enregistrée."
+,
+"cameraFallback": "Votre espace d’accueil est prêt."
+,
+"cameraPaused": "À votre rythme."
+,
+"frameTitle": "Placez le pass dans le cadre"
+,
+"frameHint": "Gardez-le immobile. Nous nous occupons du reste."
+,
+"manualHint": "Sans caméra ? Saisissez le code ci-dessous."
+,
+"continueHint": "Terminez cet accueil, puis passez au participant suivant."
+,
+"flashlight": "Flash de la caméra"
+,
+"codeLabel": "Code du pass ou e-mail d’inscription"
+,
+"assurance": "Chaque pass est vérifié avant d’enregistrer la présence."
+,
+"meetingLabel": "Rendez-vous sélectionné"
+,
+"meetingHint": "Un pass personnel sélectionne automatiquement le bon rendez-vous."
+,
+"verifying": "Vérification du pass et enregistrement de l’arrivée."
+,
+"welcome": "Place à la prochaine rencontre."
+,
+"welcomeHint": "Scannez le pass d’un participant. Ses informations s’afficheront ici."
+,
+"stepScan": "Scanner le pass"
+,
+"stepWelcome": "Accueillir le participant"
+,
+"footer": "Moins d’attente. Plus de rencontres."
+}
+};

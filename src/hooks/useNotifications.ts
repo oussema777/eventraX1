@@ -1,10 +1,12 @@
+import { toast } from 'sonner';
+import { useI18n } from '../i18n/I18nContext';
 import { useCallback, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { NotificationItem } from '../lib/notifications';
 
-const NOTIFICATIONS_COLUMNS = 'id, recipient_id, type, title, message, read_at, created_at, metadata';
+const NOTIFICATIONS_COLUMNS = 'id, recipient_id, actor_id, type, title, body, action_url, read_at, created_at';
 
 async function fetchNotifications(userId: string): Promise<NotificationItem[]> {
   const { data, error } = await supabase
@@ -14,22 +16,21 @@ async function fetchNotifications(userId: string): Promise<NotificationItem[]> {
     .order('created_at', { ascending: false })
     .limit(20);
 
-  if (error) {
-    if (error.code === 'PGRST204' || error.code === '42P01') return [];
-    throw error;
-  }
+  if (error) throw error;
   return (data || []) as NotificationItem[];
 }
 
 export function useNotifications() {
   const { user } = useAuth();
+  const { t } = useI18n();
+  const userId = user?.id;
   const queryClient = useQueryClient();
-  const queryKey = ['notifications', user?.id];
+  const queryKey = ['notifications', userId];
 
   const { data: notifications = [], isLoading, error: queryError } = useQuery({
     queryKey,
-    queryFn: () => fetchNotifications(user!.id),
-    enabled: !!user?.id,
+    queryFn: () => fetchNotifications(userId!),
+    enabled: !!userId,
   });
 
   // Realtime subscription for new notifications
@@ -57,36 +58,36 @@ export function useNotifications() {
 
   const markAsRead = useCallback(
     async (notificationId: string) => {
-      if (!user?.id) return;
+      if (!userId) return;
       const now = new Date().toISOString();
       const { error: updateError } = await supabase
         .from('notifications')
         .update({ read_at: now })
         .eq('id', notificationId)
-        .eq('recipient_id', user.id);
-      if (updateError) throw updateError;
+        .eq('recipient_id', userId);
+      if (updateError) { toast.error(t('flowRecovery.notificationSaveError')); return; }
       // Optimistic update
       queryClient.setQueryData(queryKey, (old: NotificationItem[] | undefined) =>
         (old || []).map((item) => (item.id === notificationId ? { ...item, read_at: now } : item))
       );
     },
-    [user?.id, queryClient, queryKey]
+    [userId, queryClient, queryKey, t]
   );
 
   const markAllAsRead = useCallback(async () => {
-    if (!user?.id) return;
+    if (!userId) return;
     const now = new Date().toISOString();
     const { error: updateError } = await supabase
       .from('notifications')
       .update({ read_at: now })
-      .eq('recipient_id', user.id)
+      .eq('recipient_id', userId)
       .is('read_at', null);
-    if (updateError) throw updateError;
+    if (updateError) { toast.error(t('flowRecovery.notificationSaveError')); return; }
     // Optimistic update
     queryClient.setQueryData(queryKey, (old: NotificationItem[] | undefined) =>
       (old || []).map((item) => ({ ...item, read_at: now }))
     );
-  }, [user?.id, queryClient, queryKey]);
+  }, [userId, queryClient, queryKey, t]);
 
   const unreadCount = notifications.filter((item) => !item.read_at).length;
 

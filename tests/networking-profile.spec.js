@@ -60,7 +60,8 @@ test('guest meeting profiles open within their event and return to My Networking
   await expect(page.getByText('Participant biography', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(page).toHaveURL('http://127.0.0.1:3000/my-networking');
-  expect(requests.filter(r => !['GET', 'HEAD'].includes(r.method))).toEqual([]);
+  expect(requests.filter(r => !['GET', 'HEAD'].includes(r.method) && r.table !== 'get_profile_activity_stats')).toEqual([]);
+  expect(requests.some(r => r.table === 'record_profile_view')).toBe(false);
   await page.goto(`/profile/${participantId}`);
   await expect(page.getByRole('heading', { name: 'Profile Not Found' })).toBeVisible();
 });

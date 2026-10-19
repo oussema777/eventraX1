@@ -1,4 +1,32 @@
 export default {
+  meetingBooking: {"close": "Close", "eyebrow": "A conversation worth having", "title": "Schedule Meeting", "reschedule": "Reschedule Meeting", "withPerson": "With {name}", "intro": "Choose a time to meet", "hint": "Find a shared moment to exchange ideas and explore opportunities.", "date": "Choose a day", "time": "Choose a time", "format": "Meeting format", "duration": "{minutes} minutes", "message": "What would you like to discuss?", "optional": "Optional", "placeholder": "Introduce yourself or share an idea for your meeting…", "pending": "Your invitation is confirmed when the other participant accepts.", "selection": "Your meeting", "selectHint": "Choose a time to continue", "cancel": "Cancel", "sending": "Sending invitation…", "loading": "Finding available times…", "empty": "No available times on this day. Try another date.", "videoLink": "Video call link", "videoPlaceholder": "Paste a Google Meet / Zoom / Teams link", "videoHint": "Leave empty to create a Jitsi Meet link. The host will need to sign in to start it.", "locked": "The format is fixed when rescheduling.", "event": "Event networking"},
+  flowRecovery: {"businessLoadError": "We could not load this business. Please try again.", "notificationsTitle": "Notifications", "markAllRead": "Mark all as read ({count})", "notificationsEmpty": "No notifications yet.", "notificationsLoadError": "Notifications could not be loaded. Try again later.", "notificationSaveError": "We could not mark this notification as read. Please try again.", "noSharedEvent": "To request a meeting, you both need to join B2B networking at the same event. You can still send a message from this profile.", "browseEvents": "Browse events"},
+  businessIdentity: {"owner": "Business owner", "emailContact": "Contact by email", "contactUnavailable": "Direct messaging is not available for this business yet.", "noTeam": "No team members are linked yet.", "archivedContact": "Previous business contact", "archivedHint": "This conversation was linked to an unavailable contact. Open the business profile and select Contact to reach its current owner."},
+  networkingExperience: {"yourEventSpace": "YOUR NETWORKING SPACE", "backToHub": "Back to networking", "checkingProfile": "Checking your profile\u2026", "profileBasics": "Your networking profile", "readyTitle": "You\u2019re ready to meet", "readyHint": "Add a photo, a short bio and your goals to help the right people find you.", "unlockTitle": "A quick introduction. Better meetings.", "unlockHint": "Add your name, job title, company and sector to unlock meeting requests. You can explore people now.", "completeBasics": "Complete my introduction", "enrichProfile": "Improve my profile", "saveBasics": "Save and unlock meetings", "fullProfile": "Open full profile", "profileError": "We couldn\u2019t save or load your profile. Please try again.", "eventsError": "We couldn\u2019t load your events.", "welcomeHint": "Your registration details are saved. Add any missing basics, then start meeting people.", "availabilityHint": "You\u2019re available throughout the event\u2019s networking hours unless you choose specific times. Confirmed meetings automatically block busy slots.", "availableByDefault": "Available for all networking times", "customAvailability": "Using your chosen times", "country": "Country", "fields": {"full_name": "Full name", "job_title": "Job title", "company": "Company / organization", "industry": "Sector"}, "matchScore": "{score}% match", "matchLabel": "match", "viewMeeting": "View meeting", "planningEventHint": "Choose an event to see its meetings."},
+    eventAccount: {
+      myProfile: 'My profile', createBusiness: 'Create a business profile', messages: 'Messages',
+      todayAt: 'Today at {event}', dayHint: 'Keep your check-in code and meetings close while you are at the event.',
+      checkInCode: 'Check-in code', myMeetings: 'My meetings', eventAgenda: 'Event agenda',
+      welcomeTitle: 'Your event and account are ready',
+      welcomeHint: 'Your registration details are already in your profile. Explore people and meetings now, or add more details whenever you like.',
+      dismiss: 'Dismiss', editProfile: 'Edit my profile'
+    },
+    networkingScheduling: {
+      formats: { video: 'Online', 'in-person': 'In-person', hybrid: 'Hybrid' },
+      myAvailability: 'My availability', chooseEvent: 'Choose an event',
+      availabilityHint: 'Choose when people can request a meeting with you. Existing confirmed meetings stay unchanged. Pending requests do not reserve a time or a table.',
+      availabilityMode: 'Meeting availability', allSlots: 'All organizer slots', chosenSlots: 'Only the slots I choose',
+      emptyAvailability: 'If no slots are selected, you will be unavailable for new meeting requests.',
+      timeZone: 'Times shown in {zone}', saveAvailability: 'Save availability', saving: 'Saving…',
+      saved: 'Availability saved.', saveError: 'We could not save your availability. Your selections are still here. Please try again.',
+      loadError: 'We could not verify the networking schedule or availability. Please try again.',
+      noSchedule: 'The organizer has not published networking times yet. Please contact the organizer or check back later.',
+      busy: 'Busy', unavailable: 'Unavailable', slotChanged: 'This slot is no longer available. Please choose another time.',
+      participantBusy: 'A participant already has a confirmed meeting at this time.', venueFull: 'All meeting tables are booked at this time. Please choose another slot.',
+      ineligible: 'Both participants must be registered and opted in to B2B networking for this event.',
+      formatNotAllowed: 'This meeting format is not allowed for this event.', outsideSchedule: 'Choose a time from the organizer’s current networking schedule.',
+      duplicateRequest: 'There is already a pending request for this person at this time.'
+    },
     businessFlows: {
   "sizes": {
     "s1": "1–10 employees",
@@ -29,6 +57,92 @@ export default {
   "selectSector": "Select a sector",
   "noSecondary": "No secondary sector",
   "subsector": "Subsector (optional)"
+,
+"teamMember": "Team Member"
+,
+"alreadyMember": "User is already a team member."
+,
+"memberAdded": "Member added successfully."
+,
+"namedMemberAdded": "{name} added successfully."
+,
+"addMemberFailed": "Failed to add member"
+,
+"userNotFound": "User not found on the platform."
+,
+"profileUpdated": "Profile updated"
+,
+"profileUpdateFailed": "Failed to update business profile"
+,
+"noMoreOfferings": "No more offerings found on this page."
+,
+"listingEnabled": "Marketplace listing enabled"
+,
+"listingDisabled": "Marketplace listing disabled"
+,
+"listingEnabledHint": "Your business profile is now visible in the public directory."
+,
+"listingDisabledHint": "Your business profile is no longer visible in the public directory."
+,
+"logoUploadFailed": "Logo upload failed"
+,
+"coverUploadFailed": "Cover upload failed"
+,
+"documentUploadFailed": "Document upload failed"
+,
+"documentDeleteFailed": "Failed to delete document"
+,
+"analyticsRefreshed": "Analytics refreshed"
+,
+"shareCopied": "Share link copied"
+,
+"copyFailed": "Copy failed"
+,
+"emailRequired": "Add a business email to send a summary"
+,
+"analyticsSummary": "Business Analytics Summary"
+,
+"analyticsReset": "Analytics reset"
+,
+"roleUpdated": "Member role updated"
+,
+"roleUpdateFailed": "Failed to update member"
+,
+"memberRemoved": "Member removed"
+,
+"removeMemberFailed": "Failed to remove member"
+,
+"openNavigation": "Open navigation"
+,
+"closeNavigation": "Close navigation"
+,
+"addressPlaceholder": "123 Business St, City, Country"
+,
+"quantityShort": "Qty:"
+,
+"quantityPlaceholder": "Enter quantity"
+,
+"active": "Active"
+,
+"pending": "Pending"
+,
+"lastDays": "Last {count} days"
+,
+"general": "General"
+,
+"offeringDeleteFailed": "Failed to delete offering"
+,
+"offeringSaveFailed": "Failed to save offering"
+,
+"galleryImage": "Gallery image {number}"
+,
+"removeTag": "Remove tag {tag}"
+,
+"preview": "Preview"
+,
+"ai": "AI"
+,
+"analyticsBody": "Here is your {range} analytics summary:\n\nViews: {views}\nLeads: {leads}\nSaved: {saved}"
 },
     eventImprovements: {
       answerYes: "Yes",
@@ -117,7 +231,9 @@ export default {
       "message": "Message",
       "potentialMatches": "Potential matches",
       "sessionsError": "We could not load sessions. Please try again."
-    },
+    ,
+"b2bParticipants": "B2B Participants"
+},
     agendaBooking: {
       switchHint: 'Already chose a workshop? Select another to change your choice.',
       replaceConfirm: 'You already selected “{current}”. Choosing “{next}” will replace it. Click this session again or “Choose this workshop instead” to confirm. Your other sessions will stay selected.',
@@ -169,7 +285,19 @@ export default {
         previous: 'Previous',
         next: 'Next'
       }
-    },
+    ,
+"close": "Close"
+,
+"cancel": "Cancel"
+,
+"back": "Back"
+,
+"signOut": "Sign out"
+,
+"notAvailable": "N/A"
+,
+"loading": "Loading…"
+},
     nav: {
       communities: {
         label: 'Communities',
@@ -413,7 +541,7 @@ export default {
         search: 'Search name, company or interests', loading: 'Loading participants…',
         error: 'We could not load participants. Please try again.', retry: 'Try again',
         empty: 'No other B2B participants yet. Check back as more people join.',
-        noResults: 'No participants match your search.', count: '{count} participants',
+        noResults: 'No participants match your search.', count: "{count} B2B participants",
         requestMeeting: 'Request meeting'
       },
       title: 'Networking Hub',
@@ -435,7 +563,9 @@ export default {
       },
       common: {
         tbd: 'TBD'
-      },
+      ,
+"toBeScheduled": "To be scheduled"
+},
       relative: {
         justNow: 'Just now',
         minute: '1 min ago',
@@ -456,13 +586,33 @@ export default {
         unknownCountry: 'Unknown',
         user: 'User',
         someone: 'Someone'
-      },
+      ,
+"networkingArea": "Networking Area"
+},
       matches: {
         reasonFallback: 'Based on your profile and interests',
         subtitle: 'AI-powered recommendations based on your profile, interests, and networking goals.',
         requestedByThem: 'Requested by them',
         noMatches: 'No matches available yet'
-      },
+      ,
+"profileReason": "Suggested based on your profile details."
+,
+"potentialFit": "Potential fit"
+,
+"sharedReason": "Shared {category}: {shared}."
+,
+"categories": {
+  "industries": "industry"
+,
+"interests": "interests"
+,
+"topics": "meeting topics"
+,
+"goals": "networking goals"
+,
+"skills": "skills"
+}
+},
       requests: {
         defaultMessage: "Let's connect and explore opportunities.",
         receivedTitle: 'Received Requests ({count})',
@@ -492,7 +642,9 @@ export default {
       },
       labels: {
         event: 'Event: {event}'
-      },
+      ,
+"roleAtCompany": "{role} at {company}"
+},
       connections: {
         total: '{count} total connections',
         connectedOn: 'Connected: {date}'
@@ -515,9 +667,12 @@ export default {
           slotNoTime: 'Selected slot has no time assigned.',
           slotFull: 'Selected slot is full.'
         }
-      },
+      ,
+"jitsiHint": "Jitsi — first person signs in with Google to start"
+},
       errors: {
         loadData: 'Failed to load networking data',
+        cancelMeeting: 'The meeting could not be cancelled. Refresh and try again.',
         generateMatches: 'Failed to generate matches',
         loadEvents: 'Failed to load events',
         rescheduleMeeting: 'Failed to reschedule meeting',
@@ -525,7 +680,15 @@ export default {
         sendRequest: 'Failed to send request',
         openConversation: 'Failed to open conversation',
         noMeetingLink: 'No meeting link yet.'
-      },
+      ,
+"sessionExpired": "Session expired. Please refresh the page."
+,
+"participantMissing": "Could not identify the meeting participant. Please try again."
+,
+"verifyRegistration": "Could not verify registration for one or both users."
+,
+"saveMeeting": "Meeting request was not saved. Please try again."
+},
       notifications: {
         meetingRescheduled: {
           title: 'Meeting rescheduled',
@@ -535,6 +698,8 @@ export default {
           title: 'Meeting requested',
           body: '{name} scheduled a meeting with you.'
         },
+        emailFailed: 'The meeting changed, but its email notification could not be delivered.',
+        platformFailed: 'The meeting changed, but its in-app notification could not be delivered.',
         meetingCancelled: {
           title: 'Meeting cancelled',
           body: '{name} cancelled the meeting.'
@@ -591,7 +756,29 @@ export default {
         meetingDate: 'Meeting Date',
         meetingTime: 'Meeting Time'
       }
-    },
+    ,
+"auth": {
+  "messagePrompt": "Please sign in to send messages."
+}
+,
+"ticket": {
+  "title": "Meeting Ticket"
+,
+"qr": "QR Code"
+,
+"qrAlt": "Meeting QR Code"
+,
+"event": "Event"
+,
+"time": "Time"
+,
+"location": "Location"
+,
+"with": "With"
+,
+"print": "Print / Save Ticket"
+}
+},
     messages: {
       title: 'Messages',
       tabs: {
@@ -634,10 +821,24 @@ export default {
         loadConversations: 'Failed to load conversations',
         loadMessages: 'Failed to load messages',
         sendMessage: 'Failed to send message',
+        notificationFailed: 'Message sent, but its in-app notification could not be delivered.',
+        emailNotificationFailed: 'Message sent, but its email notification could not be delivered.',
         createConversation: 'Failed to create conversation',
         loadSuggestions: 'Failed to load suggestions'
       }
-    },
+    ,
+"notifications": {
+  "new": {
+    "title": "New message"
+  ,
+"body": "{name}: {message}"
+,
+"emailIntro": "{name} sent you a new message on Eventra."
+,
+"openMessages": "Open your messages"
+}
+}
+},
     landing: {
       digest: {
         tagline: 'Personalized for you',
@@ -785,6 +986,10 @@ export default {
       },
       login: {
         title: 'Welcome back',
+        emailLinkButton: 'Email me a sign-in link',
+        emailLinkSending: 'Sending sign-in link...',
+        emailLinkSent: 'Check your inbox for your sign-in link. It will open your account directly.',
+        emailLinkError: 'We could not send a sign-in link right now. Check the email address and try again.',
         subtitle: 'Login to your Eventra account',
         continueWithGoogle: 'Continue with Google',
         divider: 'OR',
@@ -795,7 +1000,7 @@ export default {
         rememberMe: 'Remember me',
         forgotPassword: 'Forgot password?',
         submit: 'Login',
-        loggingIn: 'Logging in...', 
+        loggingIn: 'Logging in...',
         newToEventra: 'New to Eventra?',
         signUp: 'Sign up',
         errors: {
@@ -809,7 +1014,7 @@ export default {
         emailLabel: 'Email address',
         emailPlaceholder: 'you@example.com',
         submit: 'Send Reset Link',
-        sending: 'Sending...', 
+        sending: 'Sending...',
         backToLogin: 'Back to Login',
         toastSuccess: 'If an account exists for this email, a reset link will arrive shortly.',
         toastError: 'Failed to send reset link'
@@ -819,7 +1024,7 @@ export default {
         subtitle: 'If an account exists, a password reset link will be sent to:',
         instructions: 'Click the link in the email to create a new password',
         resend: 'Resend Email',
-        resending: 'Resending...', 
+        resending: 'Resending...',
         backToLogin: 'Back to Login',
         help: "Didn't receive the email? Check your spam folder"
       },
@@ -859,7 +1064,7 @@ export default {
           privacyPolicy: 'Privacy Policy'
         },
         submit: 'Create Account',
-        submitting: 'Creating...', 
+        submitting: 'Creating...',
         alreadyAccount: 'Already have an account?',
         login: 'Login',
         errors: {
@@ -871,7 +1076,7 @@ export default {
         subtitle: 'We sent a verification link to:',
         instructions: 'Click the link in the email to verify your account and continue registration',
         resend: 'Resend Email',
-        resending: 'Sending...', 
+        resending: 'Sending...',
         changeEmail: 'Change Email',
         timer: 'Resend available in {time}',
         helpPrefix: "Didn't receive the email? Check your spam folder or",
@@ -880,7 +1085,27 @@ export default {
         resendError: 'Failed to resend verification email'
       },
       demoEmail: 'demo@example.com'
-    },
+    ,
+"callback": {
+  "completing": "Completing sign-in..."
+,
+"failed": "Sign-in could not be completed. Please try signing in again."
+,
+"expired": "Sign-in link expired or was already used. Please request a new link."
+,
+"activating": "Activating your Eventra account..."
+,
+"activationFailed": "You are signed in. We could not finish setting up your account. Try again to continue; you do not need another email link."
+,
+"refreshFailed": "Your account is ready. Try again to finish opening your event."
+,
+"retry": "Try again"
+,
+"signIn": "Return to sign-in"
+,
+"freshLink": "Request a fresh event sign-in link"
+}
+},
     profileSetup: {
       progress: {
         stepLabel: 'Step {current} of {total}',
@@ -975,7 +1200,9 @@ export default {
         '1001-5000 employees',
         '5000+ employees'
       ]
-    },
+    ,
+"emailLabel": "Email Address"
+},
     dashboard: {
       breadcrumb: {
         home: 'Home',
@@ -984,7 +1211,7 @@ export default {
       header: {
         title: 'My Events',
         subtitle: 'Manage and track your event portfolio',
-        initializing: 'Initializing...', 
+        initializing: 'Initializing...',
         create: 'Create Event'
       },
       stats: {
@@ -1001,7 +1228,7 @@ export default {
           draft: 'Draft',
           archived: 'Archived'
         },
-        searchPlaceholder: 'Search events...', 
+        searchPlaceholder: 'Search events...',
         sortLabel: 'Sort by: {option}',
         sortOptions: {
           recent: 'Recent',
@@ -1036,7 +1263,7 @@ export default {
       }
     },
     manageEvent: {
-      loading: 'Loading event...', 
+      loading: 'Loading event...',
       notFound: {
         title: 'Event not found',
         return: 'Return to Dashboard'
@@ -1214,7 +1441,7 @@ export default {
         modals: {
           attendees: {
             title: 'Attendees',
-            loading: 'Loading attendees...', 
+            loading: 'Loading attendees...',
             columns: {
               attendee: 'Attendee',
               company: 'Company',
@@ -1313,7 +1540,7 @@ export default {
             confirmed: 'Confirmed',
             pending: 'Pending'
           },
-          search: 'Search speakers...', 
+          search: 'Search speakers...',
           sort: 'Sort: Name {order}',
           sortAsc: 'A-Z',
           sortDesc: 'Z-A',
@@ -1527,7 +1754,7 @@ export default {
           declined: 'Declined',
           checkedIn: 'Checked In',
           vip: 'VIP',
-          search: 'Search by name, email, or ticket...', 
+          search: 'Search by name, email, or ticket...',
           sort: 'Sort: {option}',
           sortOptions: {
             recent: 'Recent',
@@ -1751,7 +1978,7 @@ export default {
           preview: 'Preview Form'
         },
         filters: {
-          search: 'Search by company name, booth number, or contact...', 
+          search: 'Search by company name, booth number, or contact...',
           booth: {
             all: 'All Booths',
             assigned: 'Assigned',
@@ -2018,231 +2245,7 @@ export default {
           missingEvent: 'Missing event'
         }
       },
-      b2b: {
-        header: {
-          title: 'B2B Matchmaking Hub',
-          subtitle: 'AI-powered networking and meeting facilitation',
-          aiMatchmaker: 'AI Matchmaker',
-          createMeeting: 'Create Meeting'
-        },
-        stats: {
-          activeConnections: 'Active Connections',
-          totalMeetings: 'Total meetings scheduled',
-          newThisWeek: '+{count} this week',
-          aiMatchSuccess: 'AI Match Success',
-          ofAiAccepted: 'Of AI matches accepted',
-          pendingSuggestions: 'Pending Suggestions',
-          awaitingResponse: 'Awaiting response',
-          sendReminders: 'Send Reminders',
-          completed: 'Completed',
-          completionRate: '{percent}% completion rate',
-          networkingScore: 'Networking Score',
-          overallEngagement: 'Overall engagement'
-        },
-        tabs: {
-          aiMatchmaker: 'AI Matchmaker',
-          allMeetings: 'All Meetings',
-          analytics: 'Networking Analytics',
-          suggestions: 'Match Suggestions'
-        },
-        aiMatchmaker: {
-          title: 'AI Matchmaking Engine',
-          subtitle: 'Intelligent networking powered by AI',
-          whoToMatch: 'Who should we match?',
-          options: {
-            all: {
-              label: 'Match All Attendees',
-              desc: "Generate matches for everyone who hasn't connected yet",
-              count: '{count} attendees available'
-            },
-            category: {
-              label: 'Match Specific Category',
-              desc: 'Target specific attendee groups',
-              count: '{count} with categories'
-            },
-            individuals: {
-              label: 'Match Selected Individuals',
-              desc: 'Choose specific attendees to match',
-              count: '{count} opted in'
-            },
-            recommended: 'Recommended',
-            noAttendees: 'No attendees yet',
-            noCategories: 'No categories detected',
-            noOptIn: 'No opt-in tags found'
-          },
-          criteria: {
-            title: 'Match Criteria',
-            industry: 'Industry Alignment',
-            industryDesc: 'High priority - Match similar industries',
-            role: 'Job Role Compatibility',
-            roleDesc: 'Medium priority',
-            stage: 'Company Stage Alignment',
-            stageDesc: 'Medium-high priority',
-            interests: 'Common Interests',
-            interestsDesc: 'High priority - Focus on interests',
-            goals: 'Goal Alignment',
-            goalsDesc: 'High priority - Match networking objectives'
-          },
-          threshold: {
-            title: 'Minimum Match Score',
-            subtitle: 'Only suggest matches with {percent}% or higher compatibility',
-            recommended: 'Recommended: 70-80%'
-          },
-          generate: {
-            info: 'AI will analyze {total} attendees and generate approximately {count} high-quality matches',
-            time: 'Processing time: ~30 seconds',
-            button: 'Generate AI Matches'
-          },
-          insights: {
-            title: 'Matching Insights',
-            subtitle: 'Real-time analysis',
-            potential: 'High Networking Potential',
-            potentialDesc: '{percent}% of attendees have match potential based on their profiles',
-            industries: 'Top Industries Present',
-            goals: 'Networking Goals',
-            lastRun: 'Last AI Run',
-            noRun: 'No AI run yet',
-            generated: 'Generated {count} matches',
-            accepted: '{percent}% accepted by attendees',
-            viewResults: 'View Results'
-          }
-        },
-        allMeetings: {
-          filters: {
-            all: 'All',
-            today: 'Today',
-            ai: 'AI Generated',
-            manual: 'Manual',
-            pending: 'Pending',
-            completed: 'Completed',
-            search: 'Search meetings...', 
-            allDates: 'All Dates',
-            thisWeek: 'This Week',
-            recent: 'Recent First',
-            score: 'Score: High to Low',
-            upcoming: 'Date: Upcoming'
-          },
-          table: {
-            headers: {
-              id: 'Meeting ID',
-              participants: 'Participants',
-              score: 'Match Score',
-              dateTime: 'Date & Time',
-              status: 'Status',
-              actions: 'Actions'
-            },
-            manual: 'Manual',
-            view: 'View',
-            empty: 'No meetings found.'
-          }
-        },
-        analytics: {
-          title: 'Networking Analytics',
-          summary: '{total} meetings · {avg}% avg match score · {rate}% success rate',
-          topIndustry: 'Top industry: {industry} · Top goal: {goal}'
-        },
-        suggestions: {
-          title: 'AI Match Suggestions',
-          subtitle: '{count} pending matches awaiting review',
-          card: {
-            match: 'AI MATCH',
-            why: 'Why this match?',
-            noCriteria: 'No matching criteria',
-            createMeeting: 'Create Meeting',
-            dismiss: 'Dismiss',
-            sent: 'Sent {date}',
-            sentRecently: 'Sent recently'
-          },
-          empty: 'No match suggestions yet. Generate matches to see results here.'
-        },
-        modals: {
-          processing: {
-            analyzing: {
-              title: 'AI is Analyzing Attendees',
-              subtitle: 'Processing {count} attendee profiles...'
-            },
-            generating: {
-              title: 'Generating Optimal Matches',
-              subtitle: 'Creating intelligent connections...'
-            },
-            complete: {
-              title: 'Matches Generated Successfully!',
-              subtitle: 'AI has created high-quality networking matches',
-              stats: {
-                created: 'Matches Created',
-                avgScore: 'Avg Match Score',
-                matched: 'Attendees Matched'
-              },
-              actions: {
-                viewAll: 'View All Matches',
-                sendNotif: 'Send Notifications'
-              }
-            },
-            progress: {
-              analyzing: 'Analyzing industry alignments...',
-              generating: 'Building match recommendations...',
-              remaining: 'Estimated time: {count} seconds remaining'
-            }
-          },
-          details: {
-            title: 'AI Match Analysis',
-            score: '{percent}% Match Score',
-            breakdown: 'Match Score Breakdown',
-            noDetails: 'Match details unavailable. Generate matches to see detailed insights.',
-            overall: '{percent}% Overall Match',
-            insights: 'AI Insights',
-            noInsights: 'No AI insights available yet.',
-            topics: 'Suggested Discussion Topics',
-            noTopics: 'No suggested topics yet.',
-            actions: {
-              schedule: 'Schedule Meeting',
-              sendBoth: 'Send to Both Attendees'
-            }
-          },
-          create: {
-            title: 'Schedule AI-Matched Meeting',
-            matchInfo: 'AI MATCH · {percent}% Score',
-            perfectMatch: 'Perfect match for: {tags}',
-            fields: {
-              dateTime: 'Date & Time',
-              duration: 'Duration',
-              location: 'Location'
-            },
-            placeholders: {
-              location: 'Room B-12 or Zoom link'
-            },
-            durations: {
-              m30: '30 minutes',
-              m45: '45 minutes',
-              m60: '60 minutes'
-            },
-            actions: {
-              cancel: 'Cancel',
-              create: 'Create & Notify'
-            }
-          }
-        },
-        toasts: {
-          addTwo: 'Add at least two attendees to generate matches',
-          noMatches: 'No matches found with the current criteria',
-          matchesSuccess: '{count} AI matches generated successfully!',
-          matchesComplete: 'AI matching complete',
-          noSuggestionsExport: 'No suggestions to export',
-          suggestionsExported: 'Suggestions exported',
-          suggestionsDismissed: 'Suggestion dismissed',
-          noMeetingsExport: 'No meetings to export',
-          meetingsExported: 'Meetings exported',
-          settingsSaved: 'Matchmaking settings saved',
-          noPendingRemind: 'No pending suggestions to remind',
-          remindersSent: 'Reminders sent',
-          selectMatchFirst: 'Select a match first',
-          matchNotifSent: 'Match notification sent',
-          notifSent: 'Notifications sent',
-          notificationsSent: 'Meeting updated and notifications sent!',
-          selectSuggestion: 'Select a match suggestion first',
-          meetingCreateError: 'Failed to create meeting'
-        }
-      },
+
       marketing: {
         header: {
           title: 'Marketing Tools',
@@ -2398,7 +2401,7 @@ export default {
           }
         }
       },
-      dayOf: { 
+      dayOf: {
         header: {
           title: 'Day-of-Event Tools',
           subtitle: 'Real-time check-in and attendance tracking',
@@ -2505,7 +2508,7 @@ export default {
           checkIn: 'Check In',
           placeholder: 'Enter ticket/confirmation code',
           ready: 'Ready to Scan',
-          initializing: 'Initializing camera...', 
+          initializing: 'Initializing camera...',
           complete: 'Scan Complete',
           error: {
             unsupported: 'QR scanning not supported on this device',
@@ -2764,7 +2767,7 @@ export default {
             password: 'Password protect link',
             expiration: 'Set expiration date',
             email: 'Send via Email',
-            emailPlaceholder: 'Enter email addresses...', 
+            emailPlaceholder: 'Enter email addresses...',
             message: 'Add a message... (optional)',
             actions: {
               cancel: 'Cancel',
@@ -2872,81 +2875,59 @@ export default {
         }
       },
       b2b: {
-        header: {
-          title: 'B2B Matchmaking Hub',
-          subtitle: 'AI-powered networking — connect the right people at the right time',
-          aiMatchmaker: 'AI Matchmaker',
-          createMeeting: 'Create Meeting'
-        },
-        tabs: {
-          aiMatchmaker: 'AI Matchmaker',
-          allMeetings: 'All Meetings',
-          logistics: 'Logistics',
-          analytics: 'Analytics',
-          suggestions: 'Suggestions'
-        },
-        stats: {
-          activeConnections: 'Active Connections',
-          totalMeetings: 'Total Meetings',
-          newThisWeek: '+{count} this week',
-          aiMatchSuccess: 'AI Match Success',
-          ofAiAccepted: 'of AI matches accepted',
-          pendingSuggestions: 'Pending Suggestions',
-          awaitingResponse: 'Awaiting response',
-          sendReminders: 'Send Reminders',
-          completed: 'Completed',
-          completionRate: '{percent}% completion rate',
-          networkingScore: 'Networking Score',
-          overallEngagement: 'Overall engagement'
-        },
-        toasts: {
-          suggestionsDismissed: 'Suggestion dismissed',
-          notificationsSent: 'Notifications sent successfully',
-          invitationsSent: 'Invitations sent successfully',
-          meetingUpdated: 'Meeting updated successfully',
-          meetingCreated: 'Meeting created successfully',
-          meetingCreateError: 'Failed to create meeting',
-          matchesSuccess: '{count} matches created successfully',
-          matchesComplete: 'Matching complete',
-          noSuggestionsExport: 'No suggestions to export',
-          suggestionsExported: 'Suggestions exported successfully',
-          noMeetingsExport: 'No meetings to export',
-          meetingsExported: 'Meetings exported successfully',
-          settingsSaved: 'Settings saved successfully',
-          noPendingRemind: 'No pending meetings to remind',
-          remindersSent: 'Reminders sent successfully',
-          selectMatchFirst: 'Select a match first',
-          matchNotifSent: 'Match notification sent',
-          selectSuggestion: 'Select a suggestion first',
-          notifSent: 'Notification sent',
-          addTwo: 'Add at least two attendees to use matchmaking'
-        },
-        aiMatchmaker: {
-          title: 'AI Matchmaker',
-          subtitle: 'Let our AI analyze attendee profiles and suggest the most valuable connections',
-          whoToMatch: 'Who should we match?',
-          options: {
+    header: {
+        title: 'B2B Matchmaking Hub',
+        subtitle: 'AI-powered networking — connect the right people at the right time',
+        aiMatchmaker: 'AI Matchmaker',
+        createMeeting: 'Create Meeting'
+    },
+    stats: {
+        activeConnections: 'Active Connections',
+        totalMeetings: 'Total Meetings',
+        newThisWeek: '+{count} this week',
+        aiMatchSuccess: 'AI Match Success',
+        ofAiAccepted: 'of AI matches accepted',
+        pendingSuggestions: 'Pending Suggestions',
+        awaitingResponse: 'Awaiting response',
+        sendReminders: 'Send Reminders',
+        completed: 'Completed',
+        completionRate: '{percent}% completion rate',
+        networkingScore: 'Networking Score',
+        overallEngagement: 'Overall engagement'
+    },
+    tabs: {
+        aiMatchmaker: 'AI Matchmaker',
+        allMeetings: 'All Meetings',
+        analytics: 'Analytics',
+        suggestions: 'Suggestions',
+        logistics: 'Logistics'
+    },
+    aiMatchmaker: {
+        title: 'AI Matchmaker',
+        subtitle: 'Let our AI analyze attendee profiles and suggest the most valuable connections',
+        whoToMatch: 'Who should we match?',
+        options: {
             all: {
-              label: 'All Attendees',
-              desc: 'Match across all registered attendees',
-              count: '{count} attendees available'
+                label: 'All Attendees',
+                desc: 'Match across all registered attendees',
+                count: '{count} attendees available'
             },
             category: {
-              label: 'By Category',
-              desc: 'Match within specific attendee categories',
-              count: '{count} categories'
+                label: 'By Category',
+                desc: 'Match within specific attendee categories',
+                count: '{count} categories'
             },
             individuals: {
-              label: 'Specific Individuals',
-              desc: 'Select specific people to match',
-              count: '{count} opted in'
+                label: 'Specific Individuals',
+                desc: 'Select specific people to match',
+                count: '{count} opted in'
             },
+            recommended: 'Recommended',
             noAttendees: 'No attendees yet',
             noCategories: 'No categories',
-            noOptIn: 'None opted in',
-            recommended: 'Recommended'
-          },
-          criteria: {
+            noOptIn: 'None opted in'
+        },
+        criteria: {
             title: 'Matching Criteria',
             industry: 'Industry Match',
             industryDesc: 'Prioritize same or complementary industries',
@@ -2958,20 +2939,33 @@ export default {
             interestsDesc: 'Find common professional interests',
             goals: 'Networking Goals',
             goalsDesc: 'Align based on stated objectives'
-          },
-          threshold: {
+        },
+        threshold: {
             title: 'Minimum Match Score',
             subtitle: 'Only suggest matches above {percent}% compatibility',
             recommended: 'Recommended: 60-80%'
-          },
-          generate: {
+        },
+        generate: {
             info: '{total} attendees will be analyzed, approximately {count} matches expected',
             time: 'Processing usually takes 15-30 seconds',
             button: 'Generate AI Matches'
-          }
         },
-        allMeetings: {
-          filters: {
+        insights: {
+            title: 'Matching Insights',
+            subtitle: 'Real-time analysis',
+            potential: 'High Networking Potential',
+            potentialDesc: '{percent}% of attendees have match potential based on their profiles',
+            industries: 'Top Industries Present',
+            goals: 'Networking Goals',
+            lastRun: 'Last AI Run',
+            noRun: 'No AI run yet',
+            generated: 'Generated {count} matches',
+            accepted: '{percent}% accepted by attendees',
+            viewResults: 'View Results'
+        }
+    },
+    allMeetings: {
+        filters: {
             all: 'All',
             today: 'Today',
             ai: 'AI Matched',
@@ -2984,88 +2978,70 @@ export default {
             recent: 'Most Recent',
             score: 'Match Score',
             upcoming: 'Upcoming'
-          },
-          table: {
+        },
+        table: {
             headers: {
-              id: 'ID',
-              participants: 'Participants',
-              score: 'Score',
-              dateTime: 'Date & Time',
-              status: 'Status',
-              actions: 'Actions'
+                id: 'ID',
+                participants: 'Participants',
+                score: 'Score',
+                dateTime: 'Date & Time',
+                status: 'Status',
+                actions: 'Actions'
             },
             manual: 'Manually created',
+            view: 'View',
             empty: 'No meetings found matching your filters'
-          }
+        }
+    },
+    analytics: {
+        title: 'Analytics Dashboard',
+        summary: '{total} meetings scheduled with {avg}% average match score and {rate}% success rate',
+        topIndustry: 'Top industry: {industry} — Top goal: {goal}'
+    },
+    suggestions: {
+        title: 'AI Suggestions',
+        subtitle: '{count} pending suggestions awaiting review',
+        card: {
+            match: 'AI MATCH',
+            why: 'Why this match?',
+            noCriteria: 'No matching criteria',
+            createMeeting: 'Create Meeting',
+            dismiss: 'Dismiss',
+            sent: 'Sent {date}',
+            sentRecently: 'Sent recently'
         },
-        logistics: {
-          venueCapacity: {
-            title: 'Venue Capacity',
-            subtitle: 'Configure your meeting space layout and table arrangement',
-            tableCount: 'Number of Tables',
-            tablePrefix: 'Table Prefix',
-            tablePrefixPlaceholder: 'e.g. Table, Desk, Booth',
-            slotDuration: 'Meeting Slot Duration'
-          },
-          capacityCalc: {
-            title: 'Capacity Overview',
-            tableSetup: 'Table Setup',
-            slotDuration: 'Slot Duration',
-            totalTimeSlots: 'Total Time Slots',
-            maxMeetings: 'Max Meetings'
-          },
-          schedule: {
-            title: 'Meeting Schedule',
-            subtitle: 'Set available dates and time blocks for B2B meetings',
-            addDate: 'Add Time Block',
-            to: 'to',
-            duplicateBlock: 'Duplicate this time block',
-            noDates: 'No time blocks configured',
-            noDatesHint: 'Add time blocks to define when meetings can be scheduled',
-            saving: 'Saving...',
-            saveConfig: 'Save Configuration'
-          }
-        },
-        analytics: {
-          title: 'Analytics Dashboard',
-          summary: '{total} meetings scheduled with {avg}% average match score and {rate}% success rate',
-          topIndustry: 'Top industry: {industry} — Top goal: {goal}'
-        },
-        suggestions: {
-          title: 'AI Suggestions',
-          subtitle: '{count} pending suggestions awaiting review',
-          empty: 'No suggestions available. Run the AI Matchmaker to generate matches.'
-        },
-        modals: {
-          processing: {
+        empty: 'No suggestions available. Run the AI Matchmaker to generate matches.'
+    },
+    modals: {
+        processing: {
             analyzing: {
-              title: 'Analyzing Profiles',
-              subtitle: 'Scanning {count} attendee profiles...'
+                title: 'Analyzing Profiles',
+                subtitle: 'Scanning {count} attendee profiles...'
             },
             generating: {
-              title: 'Generating Matches',
-              subtitle: 'Finding the best connections...'
+                title: 'Generating Matches',
+                subtitle: 'Finding the best connections...'
             },
             complete: {
-              title: 'Matching Complete!',
-              subtitle: 'Here are the results of your AI matchmaking run',
-              stats: {
-                created: 'Matches Created',
-                avgScore: 'Average Score',
-                matched: 'Attendees Matched'
-              },
-              actions: {
-                viewAll: 'View All Matches',
-                sendNotif: 'Send Notifications'
-              }
+                title: 'Matching Complete!',
+                subtitle: 'Here are the results of your AI matchmaking run',
+                stats: {
+                    created: 'Matches Created',
+                    avgScore: 'Average Score',
+                    matched: 'Attendees Matched'
+                },
+                actions: {
+                    viewAll: 'View All Matches',
+                    sendNotif: 'Send Notifications'
+                }
             },
             progress: {
-              analyzing: 'Analyzing attendee profiles...',
-              generating: 'Generating smart matches...',
-              remaining: 'Estimated {count} seconds remaining'
+                analyzing: 'Analyzing attendee profiles...',
+                generating: 'Generating smart matches...',
+                remaining: 'Estimated {count} seconds remaining'
             }
-          },
-          details: {
+        },
+        details: {
             title: 'Match Details',
             score: '{percent}% Match Score',
             breakdown: 'Score Breakdown',
@@ -3076,34 +3052,85 @@ export default {
             topics: 'Suggested Discussion Topics',
             noTopics: 'No topics suggested',
             actions: {
-              schedule: 'Schedule Meeting',
-              sendBoth: 'Notify Both Parties'
+                schedule: 'Schedule Meeting',
+                sendBoth: 'Notify Both Parties'
             }
-          },
-          create: {
+        },
+        create: {
             title: 'Schedule Meeting',
             matchInfo: '{percent}% match compatibility',
             perfectMatch: 'Connecting people with shared interests in {tags}',
             fields: {
-              dateTime: 'Date & Time',
-              duration: 'Duration',
-              location: 'Location / Table'
-            },
-            durations: {
-              m30: '30 minutes',
-              m45: '45 minutes',
-              m60: '60 minutes'
+                dateTime: 'Date & Time',
+                duration: 'Duration',
+                location: 'Location / Table'
             },
             placeholders: {
-              location: 'e.g. Table A3, Meeting Room 2'
+                location: 'e.g. Table A3, Meeting Room 2'
+            },
+            durations: {
+                m30: '30 minutes',
+                m45: '45 minutes',
+                m60: '60 minutes'
             },
             actions: {
-              cancel: 'Cancel',
-              create: 'Create Meeting'
+                cancel: 'Cancel',
+                create: 'Create Meeting'
             }
-          }
         }
-      }
+    },
+    toasts: {
+        addTwo: 'Add at least two attendees to use matchmaking',
+        noMatches: 'No matches found with the current criteria',
+        matchesSuccess: '{count} matches created successfully',
+        matchesComplete: 'Matching complete',
+        noSuggestionsExport: 'No suggestions to export',
+        suggestionsExported: 'Suggestions exported successfully',
+        suggestionsDismissed: 'Suggestion dismissed',
+        noMeetingsExport: 'No meetings to export',
+        meetingsExported: 'Meetings exported successfully',
+        settingsSaved: 'Settings saved successfully',
+        noPendingRemind: 'No pending meetings to remind',
+        remindersSent: 'Reminders sent successfully',
+        selectMatchFirst: 'Select a match first',
+        matchNotifSent: 'Match notification sent',
+        notifSent: 'Notification sent',
+        notificationsSent: 'Notifications sent successfully',
+        selectSuggestion: 'Select a suggestion first',
+        meetingCreateError: 'Failed to create meeting',
+        invitationsSent: 'Invitations sent successfully',
+        meetingUpdated: 'Meeting updated successfully',
+        meetingCreated: 'Meeting created successfully'
+    },
+    logistics: {
+        venueCapacity: {
+            title: 'Venue Capacity',
+            subtitle: 'Configure your meeting space layout and table arrangement',
+            tableCount: 'Number of Tables',
+            tablePrefix: 'Table Prefix',
+            tablePrefixPlaceholder: 'e.g. Table, Desk, Booth',
+            slotDuration: 'Meeting Slot Duration'
+        },
+        capacityCalc: {
+            title: 'Capacity Overview',
+            tableSetup: 'Table Setup',
+            slotDuration: 'Slot Duration',
+            totalTimeSlots: 'Total Time Slots',
+            maxMeetings: 'Max Meetings'
+        },
+        schedule: {
+            title: 'Meeting Schedule',
+            subtitle: 'Set available dates and time blocks for B2B meetings',
+            addDate: 'Add Time Block',
+            to: 'to',
+            duplicateBlock: 'Duplicate this time block',
+            noDates: 'No time blocks configured',
+            noDatesHint: 'Add time blocks to define when meetings can be scheduled',
+            saving: 'Saving...',
+            saveConfig: 'Save Configuration'
+        }
+    }
+}
     },
     registrationFlow: {
         eventNavigation: "Event navigation",
@@ -3131,6 +3158,10 @@ export default {
       allSet: "You're all set!",
       paidConfirmationDesc: 'Your registration is confirmed. Please complete payment to secure your spot.',
       freeConfirmationDesc: 'Your registration is confirmed. Show your QR code at the entrance.',
+      confirmationEmailFailed: 'Your registration was saved, but we could not send the confirmation email. Save the confirmation code below and request a sign-in link from the event networking page.',
+      openNetworking: 'Open event networking',
+      b2bAccountReady: 'Your Eventra account is ready. Check your email for a direct sign-in link to this event. Your registration details are already in your profile.',
+      accessEmailFailed: 'Your registration is saved, but we could not send the direct sign-in link. Use the button below to request a fresh link with your registration email.',
       finalStepTitle: 'One Last Step',
       finalStepDesc: 'Browse and secure your ticket to complete registration.',
       browseSecureTicket: 'Browse & Secure Your Ticket',
@@ -3167,8 +3198,22 @@ export default {
         fileUploaded: 'File uploaded successfully',
         fileUploadFailed: 'File upload failed',
         fileUploadError: 'Error uploading file'
-      }
-    },
+      ,
+"b2bAccessUnavailable": "We could not finish setting up your B2B access. Please try again. Your form entries are still here."
+}
+    ,
+"accessCodePlaceholder": "e.g. VIP2026"
+,
+"addressPlaceholder": "Enter full address..."
+,
+"untitledField": "Untitled Field"
+,
+"qrAlt": "Check-in QR Code"
+,
+"seoTitle": "Register for {event}"
+,
+"seoDescription": "Register for {event}. Secure your spot and select your sessions."
+},
     profile: {
       header: {
         title: 'My Profile',
@@ -3180,7 +3225,7 @@ export default {
         changePhoto: 'Change Photo',
         memberSince: 'Member since {date}',
         profileCompletion: 'Profile Completion',
-        completion: '{percent}% Complete',
+        completion: "{percent}% Complete",
         addLinkedInHint: 'Add LinkedIn to reach {percent}%',
         social: {
           linkedin: 'LinkedIn',
@@ -3333,7 +3378,7 @@ export default {
           current: 'Current Password',
           new: 'New Password',
           confirm: 'Confirm New Password',
-          updating: 'Updating...', 
+          updating: 'Updating...',
           update: 'Update Password',
           requirements: {
             length: 'At least 8 characters',
@@ -3348,7 +3393,7 @@ export default {
           qrUnavailable: 'QR code unavailable',
           codeLabel: 'Verification Code',
           codePlaceholder: '123456',
-          verifying: 'Verifying...', 
+          verifying: 'Verifying...',
           verify: 'Verify & Enable'
         },
         deleteConfirm: {
@@ -3382,7 +3427,9 @@ export default {
         certificationName: 'Certification',
         certificationOrganization: 'Organization',
         certificationYear: 'Year'
-      },
+      ,
+"customSector": "Enter custom sector..."
+},
       fields: {
         phoneNumber: 'Phone number',
         dateOfBirth: 'Date of birth',
@@ -3575,7 +3622,11 @@ export default {
           { value: 'ar', label: 'Arabic' }
         ]
       }
-    },
+    ,
+"placeholders": {
+  "department": "e.g. Engineering, Marketing, HR..."
+}
+},
     wizard: {
       common: {
         back: 'Back',
@@ -5816,7 +5867,7 @@ export default {
           ready: 'Ready to network?',
           join: 'Join the community',
           stats: {
-            participants: 'Participants',
+            participants: "B2B Participants",
             meetings: 'Meetings',
             matchRate: 'Match Rate'
           }
@@ -6596,7 +6647,8 @@ export default {
         },
         team: {
           title: 'Our Team',
-          addMember: 'Add Member'
+          addMember: 'Add Member',
+          viewProfile: 'View Profile'
         },
         offerings: {
           title: 'Our Offerings',
@@ -6649,6 +6701,7 @@ export default {
           back: 'Back',
           requestMeeting: 'Request Meeting',
           sendMessage: 'Send Message',
+          viewBusinessProfile: 'View Business Profile',
           editProfile: 'Edit Profile'
         },
         toasts: {
@@ -6748,7 +6801,15 @@ export default {
           cancel: 'Cancel',
           send: 'Send Request'
         }
-      },
+      ,
+"seo": {
+  "title": "Profile | Eventra"
+,
+"description": "View this professional profile on Eventra."
+,
+"connect": "{name}. Connect on Eventra."
+}
+},
       productsManagement: {
         title: 'Products & Services',
         subtitle: 'Manage your offerings, pricing, and product information',
@@ -7024,9 +7085,217 @@ export default {
         socialUrl: 'Social / Website URL',
         socialUrlPlaceholder: 'https://linkedin.com/in/yourprofile',
         b2bOptIn: 'Want B2B Matching?',
-        b2bOptInDescription: 'Get matched with relevant attendees for business networking',
+        b2bOptInDescription: 'Choosing Yes creates your Eventra account. We will email you a secure sign-in link for B2B networking, messages, meetings, and your profile.',
       },
       additionalFields: 'Additional Information',
       customFormsInfo: 'Drag fields to reorder them. Use Required to choose which built-in fields attendees must complete.',
     },
-  };
+
+"platformLabels": {
+  "Technology": "Technology"
+,
+"Finance & Banking": "Finance & Banking"
+,
+"Healthcare": "Healthcare"
+,
+"Agriculture": "Agriculture"
+,
+"Education": "Education"
+,
+"Energy & Utilities": "Energy & Utilities"
+,
+"Manufacturing": "Manufacturing"
+,
+"Retail & Commerce": "Retail & Commerce"
+,
+"Tourism & Hospitality": "Tourism & Hospitality"
+,
+"Creative Industries": "Creative Industries"
+,
+"Entrepreneuriat": "Entrepreneuriat"
+,
+"Logistics & Transport": "Logistics & Transport"
+,
+"Real Estate": "Real Estate"
+,
+"Telecommunications": "Telecommunications"
+,
+"Food & Beverage": "Food & Beverage"
+,
+"Mining & Resources": "Mining & Resources"
+,
+"Government & Public Sector": "Government & Public Sector"
+,
+"Non-Profit & NGO": "Non-Profit & NGO"
+,
+"AI/ML": "AI/ML"
+,
+"FinTech": "FinTech"
+,
+"CleanTech": "CleanTech"
+,
+"AgriTech": "AgriTech"
+,
+"HealthTech": "HealthTech"
+,
+"EdTech": "EdTech"
+,
+"E-commerce": "E-commerce"
+,
+"SaaS": "SaaS"
+,
+"IoT": "IoT"
+,
+"Blockchain": "Blockchain"
+,
+"Cybersecurity": "Cybersecurity"
+,
+"Marketing": "Marketing"
+,
+"Investment": "Investment"
+,
+"Export": "Export"
+,
+"Partnership": "Partnership"
+,
+"Sustainability": "Sustainability"
+,
+"Digital Transformation": "Digital Transformation"
+,
+"Supply Chain": "Supply Chain"
+,
+"Human Resources": "Human Resources"
+,
+"Legal/Compliance": "Legal/Compliance"
+}
+,
+"scannerFlow": {
+  "invalidCode": "This is not a recognized Eventra QR code. Scan a meeting pass or enter a registration code."
+,
+"wrongEvent": "This pass belongs to a different event. Open that event’s scanner."
+,
+"useB2bScanner": "This is a meeting pass. Use the B2B scanner to check in."
+,
+"lookupFailed": "We could not verify this code. Check your connection or access permissions, then retry. Nothing has been checked in."
+,
+"ambiguousAttendee": "More than one registration matches. Use the attendee’s registration code."
+,
+"attendeeNotFound": "No registration matches this code for this event. Ask for the attendee’s event ticket."
+,
+"registrationInactive": "This registration is cancelled, rejected, or waitlisted. Review it before admitting the attendee."
+,
+"selectMeeting": "Select a meeting, or scan a meeting pass to select it automatically."
+,
+"meetingNotFound": "This meeting was not found in the current event. Check the pass and event."
+,
+"meetingNotConfirmed": "This meeting is not confirmed. Pending or cancelled meetings cannot be checked in."
+,
+"notAssigned": "This attendee is not a participant in the selected meeting."
+,
+"selectSession": "Select a session before scanning."
+,
+"sessionNotFound": "The selected session is not available in this event. Refresh the session list."
+,
+"saveFailed": "The check-in could not be fully saved. Retry this code; an interrupted save will not create a second entry."
+,
+"completionFailed": "Check-in saved. We could not update the meeting’s completion status; refresh and verify it."
+,
+"chooseParticipant": "Who has arrived?"
+,
+"legacyHint": "This older QR code identifies the meeting. Select the person in front of you to record only their attendance."
+,
+"cameraUnavailable": "Camera unavailable. Use manual entry below."
+,
+"cameraDenied": "Camera access was denied or interrupted. Allow camera access, or use manual entry."
+,
+"saving": "Verifying and saving…"
+,
+"scanFailed": "Check-in needs attention"
+,
+"manualReady": "Manual entry available"
+,
+"offlineHint": "A connection is required to verify registrations and meeting status. Previously queued scans are revalidated when you reconnect."
+}
+,
+"meetingPass": {
+  "eyebrow": "B2B MEETING PASS"
+,
+"title": "You’re on the schedule."
+,
+"subtitle": "Your meeting is confirmed. Keep your personal pass ready."
+,
+"holder": "Pass holder"
+,
+"personalHint": "This code checks in only you, for this meeting."
+,
+"reference": "Meeting reference"
+,
+"arrivalHint": "Present this pass to staff at the meeting area. You can save the QR code or print the complete pass."
+,
+"saveQr": "Save QR code"
+,
+"print": "Print pass"
+,
+"copy": "Copy check-in code"
+,
+"copied": "Check-in code copied."
+,
+"preparing": "Preparing your pass…"
+,
+"qrFailed": "Unable to display the QR. Copy the check-in code below or give staff your meeting reference."
+}
+,
+"scannerDesign": {
+  "desk": "Welcome desk"
+,
+"subtitle": "Great conversations begin with a warm welcome."
+,
+"entrySubtitle": "A smooth arrival, one guest at a time."
+,
+"capture": "Scan a pass"
+,
+"review": "Meeting & arrival"
+,
+"live": "Camera ready"
+,
+"paused": "Scan paused"
+,
+"passLabel": "EVENTRA • QR CHECK-IN"
+,
+"arrivalRecorded": "A warm welcome. All checked in."
+,
+"cameraFallback": "Your welcome desk is ready."
+,
+"cameraPaused": "Ready when you are."
+,
+"frameTitle": "Place the pass inside the frame"
+,
+"frameHint": "Hold it steady. We’ll take care of the rest."
+,
+"manualHint": "No camera? Enter a pass code below."
+,
+"continueHint": "Complete the arrival, then welcome the next guest."
+,
+"flashlight": "Camera flashlight"
+,
+"codeLabel": "Pass code or registration email"
+,
+"assurance": "Each pass is verified before attendance is recorded."
+,
+"meetingLabel": "Selected meeting"
+,
+"meetingHint": "A personal meeting pass selects the right meeting automatically."
+,
+"verifying": "Checking the pass and saving this arrival."
+,
+"welcome": "Make the next connection."
+,
+"welcomeHint": "Scan a guest’s pass. Their arrival details will appear right here."
+,
+"stepScan": "Scan the pass"
+,
+"stepWelcome": "Welcome your guest"
+,
+"footer": "A little less waiting. A little more connecting."
+}
+};

@@ -1,3 +1,5 @@
+import { renderMeetingEmail, type MeetingEmailLocale } from './meetingEmail';
+import { meetingLink, qrImageUrl } from '../utils/meetingQr';
 import { escapeHTML } from '../utils/security';
 import { groupAgendaSessions, resolveAgendaTimeZone } from '../utils/agendaDates';
 
@@ -9,8 +11,7 @@ interface SendEmailParams {
 
 export async function sendEmail({ to, subject, html }: SendEmailParams): Promise<boolean> {
   try {
-    const isLocal = window.location.hostname === 'localhost';
-    const endpoint = isLocal ? 'http://localhost:5001/send-email' : '/api/send-email';
+    const endpoint = '/api/send-email';
 
     const res = await fetch(endpoint, {
       method: 'POST',
@@ -194,61 +195,22 @@ export async function sendWelcomeEmail(to: string, userName: string, userId: str
 }
 
 export async function sendMeetingConfirmationEmails(params: {
-  organizerEmail: string;
-  organizerName: string;
-  recipientEmail: string;
-  recipientName: string;
-  meetingDate: string;
-  meetingTime: string;
-  location: string;
-  eventName: string;
-  meetingId: string;
-  status: 'pending' | 'confirmed';
-  videoUrl?: string;
+  organizerEmail: string; organizerName: string; recipientEmail: string; recipientName: string;
+  meetingDate: string; meetingTime: string; location: string; eventName: string; meetingId: string;
+  status: 'pending' | 'confirmed'; videoUrl?: string; eventId?: string; organizerProfileId?: string;
+  recipientProfileId?: string; timeZone?: string; locale?: MeetingEmailLocale;
 }) {
-  const meetingUrl = `${window.location.origin}/my-networking?meetingId=${params.meetingId}`;
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(meetingUrl)}&size=250x250&bgcolor=ffffff&color=0684F5&margin=10`;
-
-  const commonParams = {
-    eventName: params.eventName,
-    meetingDate: params.meetingDate,
-    meetingTime: params.meetingTime,
-    location: params.location,
-    organizerName: params.organizerName,
-    recipientName: params.recipientName,
-    qrCodeUrl,
-    status: params.status,
-    videoUrl: params.videoUrl
-  };
-
-  const safeRecipientName = escapeHTML(params.recipientName);
-  const safeEventName = escapeHTML(params.eventName);
-
-  const orgSubject = params.status === 'pending'
-    ? `Meeting Request: ${safeRecipientName} at ${safeEventName}`
-    : `Meeting Confirmed: ${safeRecipientName} at ${safeEventName}`;
-
-  const recSubject = params.status === 'pending'
-    ? `New Meeting Request for ${safeEventName}`
-    : `Meeting Confirmed for ${safeEventName}`;
-
-  // Send to Organizer
-  const organizerHtml = generateMeetingConfirmationEmailHtml({ ...commonParams, role: 'organizer' });
-  const organizerSent = sendEmail({
-    to: params.organizerEmail,
-    subject: orgSubject,
-    html: organizerHtml
-  });
-
-  // Send to Recipient
-  const recipientHtml = generateMeetingConfirmationEmailHtml({ ...commonParams, role: 'recipient' });
-  const recipientSent = sendEmail({
-    to: params.recipientEmail,
-    subject: recSubject,
-    html: recipientHtml
-  });
-
-  return Promise.all([organizerSent, recipientSent]);
+  const networkingUrl = meetingLink(window.location.origin, params.meetingId, params.eventId);
+  const label = { en: { pending: 'Meeting invitation', confirmed: 'Meeting confirmed' },
+    fr: { pending: 'Invitation à un rendez-vous', confirmed: 'Rendez-vous confirmé' },
+    ar: { pending: 'دعوة لاجتماع', confirmed: 'تم تأكيد الاجتماع' } }[params.locale || 'en'][params.status];
+  return Promise.all((['organizer', 'recipient'] as const).map(role => {
+    const profileId = role === 'organizer' ? params.organizerProfileId : params.recipientProfileId;
+    const qrCodeUrl = qrImageUrl(meetingLink(window.location.origin, params.meetingId, params.eventId, profileId));
+    return sendEmail({ to: role === 'organizer' ? params.organizerEmail : params.recipientEmail,
+      subject: label + ': ' + params.eventName,
+      html: generateMeetingConfirmationEmailHtml({ ...params, role, networkingUrl, qrCodeUrl }) });
+  }));
 }
 
 // ─── EMAIL WRAPPER ───────────────────────────────────────────────────────────
@@ -514,43 +476,20 @@ export function generateEventReminderEmailHtml(params: {
 
 // ─── MEETING CANCELLED (#11) ────────────────────────────────────────────────
 export function generateMeetingCancelledEmailHtml(params: {
-  recipientName: string;
-  cancellerName: string;
-  eventName: string;
-  meetingDate: string;
-  meetingTime: string;
-  networkingUrl: string;
+  recipientName: string; cancellerName: string; eventName: string; meetingDate: string;
+  meetingTime: string; networkingUrl: string; locale?: MeetingEmailLocale; timeZone?: string;
 }) {
-  return emailWrapper(`
-    <h1 style="color:#EF4444;font-size:22px;font-weight:700;text-align:center;margin-bottom:12px;">Meeting Cancelled</h1>
-    <p>Hi ${escapeHTML(params.recipientName)},</p>
-    <p>Unfortunately, your meeting with <strong>${escapeHTML(params.cancellerName)}</strong> for <strong>${escapeHTML(params.eventName)}</strong> has been cancelled.</p>
-    <div style="background:#FEF2F2;padding:20px;border-radius:12px;margin:20px 0;border:1px solid #FECACA;">
-      <table style="width:100%;border-collapse:collapse;">
-        ${detailRow('Meeting with:', escapeHTML(params.cancellerName))}
-        ${detailRow('Was scheduled:', `${escapeHTML(params.meetingDate)} at ${escapeHTML(params.meetingTime)}`)}
-        ${detailRow('Status:', '<span style="background:#F3F4F6;color:#374151;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;">CANCELLED</span>')}
-      </table>
-    </div>
-    <p style="font-size:13px;color:#4B5563;">You can schedule new meetings from your Networking Dashboard.</p>
-    ${ctaButton('Browse Available Slots', params.networkingUrl)}
-    ${footerLine('Sent via Eventra Networking Engine')}
-  `);
+  return renderMeetingEmail({ ...params, status: 'cancelled', partnerName: params.cancellerName });
 }
 
 export async function sendMeetingCancelledEmail(to: string, params: {
-  recipientName: string;
-  cancellerName: string;
-  eventName: string;
-  meetingDate: string;
-  meetingTime: string;
+  recipientName: string; cancellerName: string; eventName: string; meetingDate: string; meetingTime: string;
+  eventId?: string; locale?: MeetingEmailLocale; timeZone?: string;
 }) {
-  const networkingUrl = `${window.location.origin}/my-networking`;
-  return sendEmail({
-    to,
-    subject: `Meeting Cancelled: ${escapeHTML(params.cancellerName)} at ${escapeHTML(params.eventName)}`,
-    html: generateMeetingCancelledEmailHtml({ ...params, networkingUrl })
-  });
+  const networkingUrl = new URL(params.eventId ? '/event/' + params.eventId + '/networking' : '/my-networking', window.location.origin).href;
+  const label = { en: 'Meeting cancelled', fr: 'Rendez-vous annulé', ar: 'تم إلغاء الاجتماع' }[params.locale || 'en'];
+  return sendEmail({ to, subject: label + ': ' + params.eventName,
+    html: generateMeetingCancelledEmailHtml({ ...params, networkingUrl }) });
 }
 
 // ─── MEETING RESCHEDULED (#12) ──────────────────────────────────────────────
@@ -921,98 +860,17 @@ export async function sendPostEventSummaryEmail(to: string, params: {
 
 // ─── EXISTING: MEETING CONFIRMATION ─────────────────────────────────────────
 export function generateMeetingConfirmationEmailHtml(params: {
-  eventName: string;
-  meetingDate: string;
-  meetingTime: string;
-  location: string;
-  organizerName: string;
-  recipientName: string;
-  qrCodeUrl: string;
-  status: 'pending' | 'confirmed';
-  role: 'organizer' | 'recipient';
-  videoUrl?: string;
+  eventName: string; meetingDate: string; meetingTime: string; location: string;
+  organizerName: string; recipientName: string; qrCodeUrl: string;
+  status: 'pending' | 'confirmed'; role: 'organizer' | 'recipient'; videoUrl?: string;
+  networkingUrl?: string; meetingId?: string; timeZone?: string; locale?: MeetingEmailLocale;
 }) {
-  const isConfirmed = params.status === 'confirmed';
-  const title = isConfirmed ? 'Meeting Confirmed!' : 'New Meeting Request';
-  const accentColor = isConfirmed ? '#0684F5' : '#F59E0B';
-  const safeEventName = escapeHTML(params.eventName);
-  const safeOrganizerName = escapeHTML(params.organizerName);
-  const safeRecipientName = escapeHTML(params.recipientName);
-  const safeLocation = escapeHTML(params.location);
-
-  return `
-    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #000000; padding: 20px; border: 1px solid #eee; border-radius: 12px;">
-      <h1 style="color: ${accentColor};">${title}</h1>
-      <p>Hello,</p>
-      <p>
-        ${params.status === 'pending'
-          ? (params.role === 'organizer'
-              ? `Your meeting request for <strong>${safeEventName}</strong> has been sent.`
-              : `You have received a new meeting request for <strong>${safeEventName}</strong>.`)
-          : `This is to confirm your B2B networking meeting for <strong>${safeEventName}</strong>.`
-        }
-      </p>
-      
-      <div style="background: #F8FAFC; padding: 20px; border-radius: 12px; margin: 24px 0; border: 1px solid #E2E8F0;">
-        <h3 style="margin-top: 0; color: #1E293B;">Meeting Details</h3>
-        <table style="width: 100%; border-collapse: collapse;">
-          <tr>
-            <td style="padding: 8px 0; color: #64748B; width: 120px;">Status:</td>
-            <td style="padding: 8px 0; font-weight: 600; color: ${accentColor}; text-transform: uppercase; font-size: 12px;">${params.status}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px 0; color: #64748B; width: 120px;">Date:</td>
-            <td style="padding: 8px 0; font-weight: 600;">${params.meetingDate}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px 0; color: #64748B;">Time:</td>
-            <td style="padding: 8px 0; font-weight: 600;">${params.meetingTime}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px 0; color: #64748B;">Location:</td>
-            <td style="padding: 8px 0; font-weight: 600;">${safeLocation}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px 0; color: #64748B;">Participants:</td>
-            <td style="padding: 8px 0; font-weight: 600;">${safeOrganizerName} & ${safeRecipientName}</td>
-          </tr>
-        </table>
-      </div>
-
-      ${isConfirmed && params.videoUrl ? `
-      <div style="text-align: center; margin: 32px 0;">
-        <a href="${escapeHTML(params.videoUrl)}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #0684F5, #0570D6); color: #FFFFFF; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">🎥 Join Video Call</a>
-        <p style="font-size: 12px; color: #64748B; margin-top: 12px; word-break: break-all;">
-          Or copy this link: <a href="${escapeHTML(params.videoUrl)}" style="color: #0684F5; text-decoration: none;">${escapeHTML(params.videoUrl)}</a>
-        </p>
-      </div>
-      ` : ''}
-      ${isConfirmed ? `
-      <div style="text-align: center; margin: 32px 0;">
-        <p style="margin-bottom: 16px; font-weight: 700; color: #1E293B;">Meeting QR Code</p>
-        <div style="display: inline-block; padding: 16px; background: white; border: 2px solid #0684F5; border-radius: 16px;">
-          <img src="${params.qrCodeUrl}" alt="Meeting QR Code" style="width: 200px; height: 200px; display: block;" />
-        </div>
-        <p style="font-size: 13px; color: #64748B; margin-top: 16px;">Scan this code at the meeting table for check-in.</p>
-      </div>
-      ` : `
-      <div style="text-align: center; margin: 32px 0;">
-        <a href="${window.location.origin}/my-networking" style="display: inline-block; padding: 14px 32px; background-color: #0684F5; color: #FFFFFF; text-decoration: none; border-radius: 8px; font-weight: 600;">Review Request</a>
-      </div>
-      `}
-
-      <p style="font-size: 14px; color: #475569; line-height: 1.6;">
-        Please manage your meetings through your <a href="${window.location.origin}/my-networking" style="color: #0684F5; text-decoration: none; font-weight: 600;">Networking Dashboard</a>.
-      </p>
-      
-      <p style="margin-top: 40px; font-size: 12px; color: #94A3B8; text-align: center; border-top: 1px solid #F1F5F9; padding-top: 20px;">
-        Sent via Eventra Networking Engine
-      </p>
-    </div>
-  `;
+  return renderMeetingEmail({ ...params,
+    recipientName: params.role === 'organizer' ? params.organizerName : params.recipientName,
+    partnerName: params.role === 'organizer' ? params.recipientName : params.organizerName,
+    networkingUrl: params.networkingUrl || new URL('/my-networking', window.location.origin).href });
 }
 
-// ─── B2B INVITATION EMAIL ───────────────────────────────────────────────────
 export function generateB2BInvitationEmailHtml(params: {
   attendeeName: string;
   eventName: string;

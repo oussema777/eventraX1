@@ -9,17 +9,17 @@ async function setup(page) {
   await page.route('**/auth/v1/**', r => r.fulfill({ json: {} }));
   await page.route('**/functions/v1/**', r => r.fulfill({ json: {} }));
   await page.route('**/rest/v1/**', route => {
-    if (!['GET', 'HEAD'].includes(route.request().method())) writes.push(route.request().method());
+    if (!['GET', 'HEAD'].includes(route.request().method()) && !new URL(route.request().url()).pathname.endsWith('/rpc/get_profile_activity_stats')) writes.push(route.request().method());
     const url = new URL(route.request().url()), table = url.pathname.split('/').pop();
     let data = [];
     if (table === 'events') data = { id: eventId, name: 'Business Forum', status: 'published' };
     if (table === 'event_attendees') {
-      if (url.searchParams.has('profile_id') || url.searchParams.has('id')) {
+      if (url.searchParams.get('profile_id')?.startsWith('eq.') || url.searchParams.get('id')?.startsWith('eq.')) {
         expect(url.searchParams.get('event_id')).toBe(`eq.${eventId}`);
         data = attendees.find(a =>
           (!url.searchParams.has('status') || url.searchParams.get('status') === `eq.${a.status}`) &&
           (url.searchParams.get('profile_id') === `eq.${a.profile_id}` || url.searchParams.get('id') === `eq.${a.id}`)) || null;
-      } else data = attendees;
+      } else data = url.searchParams.get('profile_id') === 'not.is.null' ? attendees.filter(a => a.profile_id) : attendees;
     }
     if (table === 'profiles') {
       const guest = { id: 'guest1', full_name: 'Amira Nasri', job_title: 'Founder', company: 'Solar Works', account_type: 'event_guest', bio: 'Developing solar energy projects.', b2b_profile: { enabled: true, skills: ['Solar design'] }, professional_data: {} };
@@ -40,6 +40,7 @@ test('View Profile opens the full guest page, survives refresh, and returns to t
   await expect(page.getByText('Developing solar energy projects.', { exact: true })).toBeVisible();
   await expect(page.getByText('University of Tunis')).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Upgrade to PRO' })).toHaveCount(0);
   await expect(page.getByText('private@example.test')).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Amira Nasri', exact: true })).toBeVisible();
@@ -50,14 +51,15 @@ test('View Profile opens the full guest page, survives refresh, and returns to t
 test('unlinked participants use the full page with registration details on mobile', async ({ page }) => {
   await setup(page);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(`/event/${eventId}/attendees`);
-  await page.getByRole('button', { name: 'View Profile', exact: true }).last().focus();
-  await page.keyboard.press('Enter');
+  // Unlinked registrations have a direct profile route but are not bookable directory entries.
+  await page.goto(`/event/${eventId}/participant/a2`);
   await expect(page).toHaveURL(new RegExp(`/event/${eventId}/participant/a2$`));
   await expect(page.getByRole('heading', { name: 'Aziz Jemai', exact: true })).toBeVisible();
   await expect(page.getByText('Building sustainable businesses.', { exact: true })).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /request meeting|send message/i })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: /Professional Information|Education & Certifications|Connect Elsewhere/ })).toHaveCount(0);
+  await expect(page.getByText('@ Atlas', { exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: '.tmp/full-event-profile-mobile.png', fullPage: true });
 });

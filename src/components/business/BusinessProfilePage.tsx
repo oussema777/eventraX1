@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useLocalizedLabels } from '../../i18n/useLocalizedLabels';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Globe, 
   Mail, 
@@ -33,6 +34,7 @@ import { sanitizeError } from '../../utils/errorHandler';
 import { createNotification } from '../../lib/notifications';
 import { useI18n } from '../../i18n/I18nContext';
 import { useMessageThread } from '../../hooks/useMessageThread';
+import { isSystemProfile, businessContactEmail } from '../../utils/profileIdentity';
 
 interface TeamMember {
   id: string;
@@ -46,10 +48,13 @@ export default function BusinessProfilePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { t } = useI18n();
+  const { label: localizedLabel } = useLocalizedLabels();
   
   const [business, setBusiness] = useState<any>(null);
   const [offerings, setOfferings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const businessRequest = useRef(0);
   const [isOwner, setIsOwner] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
@@ -63,7 +68,7 @@ export default function BusinessProfilePage() {
   const OFFERINGS_PER_PAGE = 6;
   const [isLoadingOfferings, setIsLoadingOfferings] = useState(false);
 
-  const fetchOfferingsBatch = async (bId: string, pageNum: number) => {
+  const fetchOfferingsBatch = async (bId: string, pageNum: number, request = businessRequest.current) => {
     if (!bId) return;
     setIsLoadingOfferings(true);
     try {
@@ -78,6 +83,7 @@ export default function BusinessProfilePage() {
         .range(start, end);
 
       if (error) throw error;
+      if (request !== businessRequest.current) return;
 
       setOfferings(data || []);
       setTotalOfferings(count || 0);
@@ -198,18 +204,24 @@ export default function BusinessProfilePage() {
   const [seekingInput, setSeekingInput] = useState('');
   const [offeringInput, setOfferingInput] = useState('');
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [contactOwnerId, setContactOwnerId] = useState<string | null>(null);
+  const contactEmail = business ? businessContactEmail(business) : null;
   const { getOrCreateThread, loading: connecting } = useMessageThread();
 
   const handleContact = async () => {
-    if (!business?.owner_profile_id) {
+    if (!user) {
+      navigate(`/login?next=${encodeURIComponent(`/business/${business.id}`)}`);
+      return;
+    }
+    if (!contactOwnerId) {
       toast.error(t('businessFlows.noOwner'));
       return;
     }
-    if (business.owner_profile_id === user?.id) {
+    if (contactOwnerId === user?.id) {
       toast.error(t('businessFlows.contactSelf'));
       return;
     }
-    const threadId = await getOrCreateThread(business.owner_profile_id);
+    const threadId = await getOrCreateThread(contactOwnerId);
     if (threadId) {
       navigate('/messages', { state: { threadId } });
     }
@@ -227,13 +239,13 @@ export default function BusinessProfilePage() {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, full_name, email, avatar_url')
+          .select('id, full_name, email, avatar_url, account_type')
           .neq('account_type', 'event_guest')
           .or(`email.ilike.%${query}%,full_name.ilike.%${query}%`)
           .limit(5);
 
         if (!error && data) {
-          setSearchResults(data);
+          setSearchResults(data.filter(profile => !isSystemProfile(profile)));
         }
       } catch (err) {
         console.error('Search error:', err);
@@ -247,13 +259,13 @@ export default function BusinessProfilePage() {
   }, [searchEmail]);
 
   const handleAddExistingUser = async (profile: any) => {
-    if (!business?.id) return;
+    if (!business?.id || isSystemProfile(profile)) return;
     
     try {
       setIsLoading(true);
       // Check if already a member
       if (teamMembers.some(m => m.id === profile.id)) {
-        toast.error('User is already a team member.');
+        toast.error(t('businessFlows.alreadyMember'));
         setIsLoading(false);
         return;
       }
@@ -270,7 +282,7 @@ export default function BusinessProfilePage() {
 
       setTeamMembers((prev) => [
         ...prev,
-        { id: profile.id, name: profile.full_name || 'Team Member', role: 'viewer', avatar: profile.avatar_url || undefined }
+        { id: profile.id, name: profile.full_name || t('businessFlows.teamMember'), role: 'viewer', avatar: profile.avatar_url || undefined }
       ]);
       try {
         await createNotification({
@@ -284,26 +296,36 @@ export default function BusinessProfilePage() {
       } catch {
         // Ignore notification errors
       }
-      toast.success(`${profile.full_name || 'User'} added successfully.`);
+      toast.success(t('businessFlows.namedMemberAdded', { name: profile.full_name || t('networking.defaults.user') }));
       setSearchEmail('');
       setSearchResults([]);
       setShowAddMemberModal(false);
     } catch (error: any) {
-      toast.error(sanitizeError(error, 'Failed to add member'));
+      toast.error(sanitizeError(error, t('businessFlows.addMemberFailed')));
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchBusinessData();
-  }, [urlBusinessId, user]);
+    void fetchBusinessData();
+    return () => { ++businessRequest.current; };
+  }, [urlBusinessId, user?.id]);
 
   const fetchBusinessData = async () => {
+    const request = ++businessRequest.current;
+    setLoadFailed(false);
+    setBusiness(null);
+    setIsOwner(false);
+    setIsEditMode(false);
+    setOfferings([]);
+    setOfferingPage(1);
+    setContactOwnerId(null);
+    setTeamMembers([]);
     try {
       setIsLoading(true);
       
-      let query = supabase.from('business_profiles').select('id, company_name, description, sectors, owner_profile_id, logo_url, website, email, phone, address, cover_url, company_size, verification_status, branding, created_at, updated_at');
+      let query = supabase.from('business_profiles').select('id, company_name, description, sectors, owner_profile_id, logo_url, website, email, contacts, phone, address, cover_url, company_size, verification_status, branding, created_at, updated_at');
       
       if (urlBusinessId) {
         query = query.eq('id', urlBusinessId);
@@ -314,15 +336,12 @@ export default function BusinessProfilePage() {
         return;
       }
 
-      const { data, error } = await query.single();
-
-      if (error) {
-        if (error.code === 'PGRST116' && !urlBusinessId && user) {
-           // No business yet, maybe redirect to wizard
-           navigate('/business-profile-wizard');
-           return;
-        }
-        throw error;
+      const { data, error } = await query.maybeSingle();
+      if (request !== businessRequest.current) return;
+      if (error) throw error;
+      if (!data && !urlBusinessId && user) {
+        navigate('/business-profile-wizard');
+        return;
       }
 
       if (data) {
@@ -333,37 +352,46 @@ export default function BusinessProfilePage() {
         setIsOwner(user?.id === data.owner_profile_id);
         
         // Fetch paginated offerings
-        await fetchOfferingsBatch(data.id, 1);
+        await fetchOfferingsBatch(data.id, 1, request);
+        if (request !== businessRequest.current) return;
         
-        // Handle social links and tags from branding/settings if implemented, or placeholders
-        // For now, let's assume we use JSONB branding for these extra fields
-        if (data.branding) {
-           setSocialLinks(data.branding.socialLinks || socialLinks);
-           setSeekingTags(data.branding.seekingTags || []);
-           setOfferingTags(data.branding.offeringTags || []);
-        }
+        setSocialLinks(data.branding?.socialLinks || { linkedin: '', twitter: '', facebook: '', instagram: '' });
+        setSeekingTags(data.branding?.seekingTags || []);
+        setOfferingTags(data.branding?.offeringTags || []);
 
-        const { data: membersData, error: membersError } = await supabase
-          .from('business_members')
-          .select('profile_id, role, profiles:profiles(id, full_name, avatar_url)')
-          .eq('business_id', data.id);
+        const [{ data: membersData, error: membersError }, { data: ownerData }] = await Promise.all([
+          supabase.from('business_members')
+            .select('profile_id, role, profiles:profiles(id, full_name, avatar_url, account_type)')
+            .eq('business_id', data.id),
+          data.owner_profile_id
+            ? supabase.from('profiles').select('id, full_name, avatar_url, account_type').eq('id', data.owner_profile_id).maybeSingle()
+            : Promise.resolve({ data: null })
+        ]);
+
+        if (request !== businessRequest.current) return;
+        const realOwner = ownerData?.id === data.owner_profile_id && !isSystemProfile(ownerData) ? ownerData : null;
+        setContactOwnerId(realOwner?.id || null);
 
         if (!membersError) {
-          const mapped = (membersData || []).map((member: any) => ({
+          const mapped = (membersData || []).filter((member: any) => member.profiles?.id === member.profile_id && !isSystemProfile(member.profiles)).map((member: any) => ({
             id: member.profile_id,
-            name: member.profiles?.full_name || 'Team Member',
+            name: member.profiles?.full_name || t('businessFlows.teamMember'),
             role: member.role || 'member',
             avatar: member.profiles?.avatar_url || undefined
           }));
+          if (realOwner && !mapped.some((member) => member.id === realOwner.id)) {
+            mapped.unshift({ id: realOwner.id, name: realOwner.full_name || t('businessIdentity.owner'), role: 'owner', avatar: realOwner.avatar_url || undefined });
+          }
           setTeamMembers(mapped);
         } else {
-          setTeamMembers([]);
+          setTeamMembers(realOwner ? [{ id: realOwner.id, name: realOwner.full_name || t('businessIdentity.owner'), role: 'owner', avatar: realOwner.avatar_url || undefined }] : []);
         }
       }
     } catch (error) {
       console.error('Error fetching business:', error);
+      if (request === businessRequest.current) { setLoadFailed(true); setBusiness(null); }
     } finally {
-      setIsLoading(false);
+      if (request === businessRequest.current) setIsLoading(false);
     }
   };
 
@@ -386,11 +414,11 @@ export default function BusinessProfilePage() {
 
       if (error) throw error;
       
-      toast.success('Profile updated');
+      toast.success(t('businessFlows.profileUpdated'));
       setIsEditMode(false);
       fetchBusinessData();
     } catch (error: any) {
-      toast.error(sanitizeError(error, 'Failed to update business profile'));
+      toast.error(sanitizeError(error, t('businessFlows.profileUpdateFailed')));
     }
   };
 
@@ -422,13 +450,13 @@ export default function BusinessProfilePage() {
       // Search for profile by email or exact name match
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
-        .select('id, full_name, email, avatar_url')
+        .select('id, full_name, email, avatar_url, account_type')
         .neq('account_type', 'event_guest')
         .or(`email.eq."${searchEmail.trim()}",full_name.ilike."%${searchEmail.trim()}%"`)
         .limit(1);
 
       if (profileError || !profiles || profiles.length === 0) {
-        toast.error('User not found on the platform.');
+        toast.error(t('businessFlows.userNotFound'));
         return;
       }
 
@@ -436,7 +464,7 @@ export default function BusinessProfilePage() {
 
       // Check if already a member
       if (teamMembers.some(m => m.id === profile.id)) {
-        toast.error('User is already a team member.');
+        toast.error(t('businessFlows.alreadyMember'));
         return;
       }
 
@@ -452,7 +480,7 @@ export default function BusinessProfilePage() {
 
       setTeamMembers((prev) => [
         ...prev,
-        { id: profile.id, name: profile.full_name || profile.email || 'Team Member', role: 'viewer', avatar: profile.avatar_url || undefined }
+        { id: profile.id, name: profile.full_name || profile.email || t('businessFlows.teamMember'), role: 'viewer', avatar: profile.avatar_url || undefined }
       ]);
       
       try {
@@ -468,11 +496,11 @@ export default function BusinessProfilePage() {
         // Ignore notification errors
       }
       
-      toast.success('Member added successfully.');
+      toast.success(t('businessFlows.memberAdded'));
       setSearchEmail('');
       setShowAddMemberModal(false);
     } catch (error: any) {
-      toast.error(sanitizeError(error, 'Failed to add member'));
+      toast.error(sanitizeError(error, t('businessFlows.addMemberFailed')));
     } finally {
       setIsLoading(false);
     }
@@ -491,6 +519,13 @@ export default function BusinessProfilePage() {
     );
   }
 
+  if (loadFailed) {
+    return <div role="alert" className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[#0B2641] text-white p-6 text-center">
+      <p>{t('flowRecovery.businessLoadError')}</p>
+      <button onClick={() => void fetchBusinessData()} className="px-6 py-3 rounded-lg bg-[#0684F5]">{t('networking.people.retry')}</button>
+    </div>;
+  }
+
   if (!business) {
     return (
       <div className="h-screen flex items-center justify-center bg-[#0B2641] text-white">
@@ -507,6 +542,57 @@ export default function BusinessProfilePage() {
   return (
     <div className="business-profile-page" style={{ backgroundColor: '#0B2641', minHeight: '100vh' }}>
       <style>{`
+        .business-profile-page .business-profile-team-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+          gap: 24px;
+        }
+        .business-profile-page .business-profile-team-member {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          min-width: 0;
+          width: 100%;
+          max-width: 280px;
+          padding: 20px 16px;
+          text-align: center;
+        }
+        .business-profile-page .business-profile-team-name {
+          margin: 0 0 8px;
+          font-size: 15px;
+          font-weight: 600;
+          line-height: 22px;
+          overflow-wrap: anywhere;
+        }
+        .business-profile-page .business-profile-team-role {
+          display: inline-block;
+          max-width: 100%;
+          padding: 4px 10px;
+          border-radius: 8px;
+          font-size: 12px;
+          font-weight: 500;
+          line-height: 18px;
+          letter-spacing: normal;
+          text-transform: none;
+          overflow-wrap: anywhere;
+        }
+        .business-profile-page .business-profile-team-link {
+          margin-top: 12px;
+          padding: 8px 12px;
+          min-height: 40px;
+          font-size: 14px;
+          font-weight: 600;
+          line-height: 20px;
+          color: #93C5FD;
+          border-radius: 8px;
+        }
+        .business-profile-page .business-profile-team-link:hover {
+          background: rgba(6, 132, 245, 0.1);
+        }
+        .business-profile-page .business-profile-team-link:focus-visible {
+          outline: 2px solid #60A5FA;
+          outline-offset: 2px;
+        }
         @media (max-width: 1024px) {
           .business-profile-page .business-profile-grid {
             grid-template-columns: 1fr !important;
@@ -547,9 +633,6 @@ export default function BusinessProfilePage() {
           .business-profile-page .business-profile-title {
             font-size: 26px !important;
           }
-          .business-profile-page .business-profile-team-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-          }
           .business-profile-page .business-profile-offerings-grid {
             grid-template-columns: 1fr !important;
           }
@@ -575,9 +658,6 @@ export default function BusinessProfilePage() {
           }
           .business-profile-page .business-profile-title {
             font-size: 22px !important;
-          }
-          .business-profile-page .business-profile-team-grid {
-            grid-template-columns: 1fr !important;
           }
           .business-profile-page .business-profile-offering-gallery {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -707,7 +787,7 @@ export default function BusinessProfilePage() {
                     </div>
                     
                     <p style={{ fontSize: '14px', color: '#94A3B8', marginBottom: '8px' }}>
-                      {business.sectors?.join(' - ') || t('businessProfilePage.noSectors')} - {business.company_size ? t('businessProfilePage.employees', { count: business.company_size }) : 'N/A'} - {business.address || t('businessProfilePage.locationTbd')}
+                      {business.sectors?.map(localizedLabel).join(' - ') || t('businessProfilePage.noSectors')} - {business.company_size ? t('businessProfilePage.employees', { count: business.company_size }) : t('common.notAvailable')} - {business.address || t('businessProfilePage.locationTbd')}
                     </p>
                   </div>
 
@@ -765,7 +845,7 @@ export default function BusinessProfilePage() {
                       )
                     ) : (
                       <>
-                        <button
+                        {contactOwnerId ? <button
                           onClick={handleContact}
                           disabled={connecting}
                           className="px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2"
@@ -782,7 +862,11 @@ export default function BusinessProfilePage() {
                         >
                           {connecting && <Loader2 size={16} className="animate-spin" />}
                           {t('businessProfilePage.actions.contact')}
-                        </button>
+                        </button> : contactEmail ? (
+                          <a href={`mailto:${encodeURIComponent(contactEmail)}`} className="px-4 py-2.5 rounded-lg bg-[#0684F5] text-white text-sm font-semibold flex items-center gap-2">
+                            <Mail size={16} />{t('businessIdentity.emailContact')}
+                          </a>
+                        ) : <span className="text-sm text-gray-300">{t('businessIdentity.contactUnavailable')}</span>}
                         <button
                           className="px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2"
                           style={{
@@ -944,11 +1028,12 @@ export default function BusinessProfilePage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-4 gap-6 business-profile-team-grid">
+              {teamMembers.length === 0 && <p className="text-sm text-gray-400">{t('businessIdentity.noTeam')}</p>}
+              <div className="business-profile-team-grid">
                 {teamMembers.map((member) => (
                   <div
                     key={member.id}
-                    className="group text-center p-4 rounded-xl transition-all hover:bg-white/5"
+                    className="business-profile-team-member group rounded-xl transition-all hover:bg-white/5"
                   >
                     <div
                       className="mx-auto mb-4 rounded-full overflow-hidden flex items-center justify-center transition-transform group-hover:scale-105"
@@ -972,19 +1057,27 @@ export default function BusinessProfilePage() {
                         </div>
                       )}
                     </div>
-                    <h4 className="text-sm font-bold text-white mb-1 group-hover:text-[#0684F5] transition-colors">
+                    <h4 className="business-profile-team-name text-white group-hover:text-[#0684F5] transition-colors">
                       {member.name}
                     </h4>
                     <span 
-                      className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                      className="business-profile-team-role"
                       style={{ 
                         backgroundColor: 'rgba(6, 132, 245, 0.1)',
-                        color: '#0684F5',
+                        color: '#93C5FD',
                         border: '1px solid rgba(6, 132, 245, 0.2)'
                       }}
                     >
-                      {member.role}
+                      {member.role === 'owner' ? t('businessIdentity.owner') : t(`businessDashboard.team.roles.${member.role}`, { defaultValue: member.role })}
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/profile/${member.id}`)}
+                      className="business-profile-team-link transition-colors"
+                      aria-label={`${t('businessProfilePage.team.viewProfile')}: ${member.name}`}
+                    >
+                      {t('businessProfilePage.team.viewProfile')}
+                    </button>
                   </div>
                 ))}
               </div>
@@ -1084,7 +1177,7 @@ export default function BusinessProfilePage() {
                                 fontWeight: 500
                               }}
                             >
-                              {tag}
+                              {localizedLabel(tag)}
                             </span>
                           ))}
                         </div>
@@ -1134,7 +1227,7 @@ export default function BusinessProfilePage() {
                 ))}
                 {offerings.length === 0 && (
                    <div className="col-span-2 text-center py-10 text-gray-500">
-                     {offeringPage === 1 ? t('businessProfilePage.offerings.empty') : 'No more offerings found on this page.'}
+                     {offeringPage === 1 ? t('businessProfilePage.offerings.empty') : t('businessFlows.noMoreOfferings')}
                    </div>
                 )}
               </div>
@@ -1418,7 +1511,7 @@ export default function BusinessProfilePage() {
                             fontWeight: 500
                           }}
                         >
-                          {tag}
+                          {localizedLabel(tag)}
                           <button
                             onClick={() => setSeekingTags(seekingTags.filter((_, i) => i !== index))}
                             style={{ color: '#4A7C6D' }}
@@ -1455,7 +1548,7 @@ export default function BusinessProfilePage() {
                           border: '1px solid rgba(74, 124, 109, 0.3)'
                         }}
                       >
-                        {tag}
+                        {localizedLabel(tag)}
                       </span>
                     ))}
                   </div>
@@ -1492,7 +1585,7 @@ export default function BusinessProfilePage() {
                             fontWeight: 500
                           }}
                         >
-                          {tag}
+                          {localizedLabel(tag)}
                           <button
                             onClick={() => setOfferingTags(offeringTags.filter((_, i) => i !== index))}
                             style={{ color: '#0684F5' }}
@@ -1529,7 +1622,7 @@ export default function BusinessProfilePage() {
                           border: '1px solid rgba(6, 132, 245, 0.3)'
                         }}
                       >
-                        {tag}
+                        {localizedLabel(tag)}
                       </span>
                     ))}
                   </div>
@@ -1559,7 +1652,7 @@ export default function BusinessProfilePage() {
                       border: '1px solid rgba(6, 132, 245, 0.3)'
                     }}
                   >
-                    {sector}
+                    {localizedLabel(sector)}
                   </span>
                 ))}
               </div>
