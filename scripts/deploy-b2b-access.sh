@@ -9,6 +9,9 @@ test -f build/index.html || { echo 'Expected the existing site at build/index.ht
 release_dir=".tmp/b2b-access-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$release_dir"
 cp build/index.html "$release_dir/previous-index.html"
+# Build from the committed dependency set, including Vite when NODE_ENV=production.
+# A failed install/build stops before the currently served entrypoint is replaced.
+npm ci --include=dev
 npm run build -- --outDir "$release_dir/site"
 
 # Keep older hashed assets for participants with an already-open browser tab.

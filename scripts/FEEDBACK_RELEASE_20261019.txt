@@ -17,10 +17,10 @@ Website deployment is to be run by the operator on the VPS:
 
   cd /var/www/eventraX1
   git pull --ff-only origin main
-  npm ci
   bash scripts/deploy-b2b-access.sh
 
-Stop if a command fails. The existing deployment script builds in a separate
+Stop if a command fails. The deployment script installs the committed dependencies
+with npm ci --include=dev before building. It builds in a separate
 release directory, keeps older hashed assets for open browser tabs, and replaces
 the website entrypoint only after the new assets have been copied.
 The production .env and current build/index.html must already exist.
