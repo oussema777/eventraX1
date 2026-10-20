@@ -26,6 +26,8 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
   const { t, locale } = useI18n();
   const dialogRef = useRef<HTMLDivElement>(null);
   const [failedAvatar, setFailedAvatar] = useState<string | null>(null);
+  const [recipientProfile, setRecipientProfile] = useState<{ id: string; bio: string } | null>(null);
+  const recipientBio = recipientProfile?.id === recipient?.id ? recipientProfile.bio : '';
   const [profileReady, setProfileReady] = useState(false);
   const [meetingType, setMeetingType] = useState<'video' | 'in-person' | 'hybrid' | ''>('');
   const [meetingDate, setMeetingDate] = useState('');
@@ -55,6 +57,32 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
   // Submission State
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const slotStatusLabel = (slot: (typeof generatedSlots)[number]) => {
+    const ownConflict = slot.busyParticipantIds?.includes(currentUser?.id);
+    const recipientConflict = slot.busyParticipantIds?.includes(recipient?.id);
+    if (ownConflict && recipientConflict) return t('networkingScheduling.busyBoth');
+    if (ownConflict) return t('networkingScheduling.busySelf');
+    if (recipientConflict) return t('networkingScheduling.busyRecipient');
+    if (slot.unavailable) return t('networkingScheduling.unavailable');
+    if (slot.venueFull) return t('networkingScheduling.full');
+    return '';
+  };
+
+  useEffect(() => {
+    if (!isOpen || !recipient?.id) return;
+    let active = true;
+    const profileId = recipient.id;
+    setRecipientProfile(null);
+    void (async () => {
+      try {
+        const { data, error } = await supabase.from('profiles').select('bio').eq('id', profileId).maybeSingle();
+        if (active && !error) setRecipientProfile({ id: profileId, bio: data?.bio?.trim() || '' });
+      } catch {
+        // A missing bio should not prevent booking a meeting.
+      }
+    })();
+    return () => { active = false; };
+  }, [isOpen, recipient?.id]);
 
   useEffect(() => {
     if (isOpen && currentUser?.id && recipient?.id) {
@@ -481,7 +509,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
           <aside className="meeting-booking__summary">
             <div className="meeting-booking__avatar" aria-hidden="true">{recipient.avatar && failedAvatar !== recipient.avatar ? <img src={recipient.avatar} alt="" onError={() => setFailedAvatar(recipient.avatar!)} /> : recipient.name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase()}</div>
             <p className="meeting-booking__with">{t('meetingBooking.withPerson', { name: recipient.name })}</p>
-            <p className="meeting-booking__intro">{t('meetingBooking.hint')}</p>
+            {recipientBio && <p className="meeting-booking__intro" dir="auto">{recipientBio}</p>}
             <div className="meeting-booking__facts">
               <div><Calendar size={17} /><span>{eventDetails?.name || t('meetingBooking.event')}</span></div>
               {venueConfig && <div><Clock size={17} /><span>{t('meetingBooking.duration', { minutes: venueConfig.slotDuration || 30 })}</span></div>}
@@ -511,12 +539,13 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
                 </fieldset>
                 {meetingDate && <fieldset className="meeting-booking__field"><legend><span className="meeting-booking__step">2</span>{t('meetingBooking.time')}</legend>
                   <p className="meeting-booking__zone">{t('networkingScheduling.timeZone', { zone: timeZone })}</p>
+                  <p className="meeting-booking__muted meeting-booking__slot-hint">{t('networkingScheduling.confirmedOnlyHint')}</p>
                   {slotsFailed ? <div role="alert" className="meeting-booking__error"><p>{t('networkingScheduling.loadError')}</p><button onClick={() => generateSlots(meetingDate)}>{t('networking.people.retry')}</button></div>
                     : generatedSlots.length ? <div className="meeting-booking__slots">{generatedSlots.map(slot => <button key={slot.iso}
-                        aria-label={`${slot.time}${slot.isConflicted ? ' ' + t('networkingScheduling.busy') : slot.unavailable ? ' ' + t('networkingScheduling.unavailable') : ''}`}
+                        aria-label={`${slot.time}${slotStatusLabel(slot) ? ' ' + slotStatusLabel(slot) : ''}`}
                         aria-pressed={selectedSlot?.iso === slot.iso} disabled={slot.available <= 0 || slot.isConflicted} onClick={() => setSelectedSlot(slot)}>
                         {slot.time}{selectedSlot?.iso === slot.iso && <Check size={14} />}
-                        {(slot.isConflicted || slot.unavailable) && <small>{t(slot.unavailable ? 'networkingScheduling.unavailable' : 'networkingScheduling.busy')}</small>}
+                        {slotStatusLabel(slot) && <small>{slotStatusLabel(slot)}</small>}
                       </button>)}</div> : <p className="meeting-booking__muted">{t('meetingBooking.empty')}</p>}
                 </fieldset>}
               </>}

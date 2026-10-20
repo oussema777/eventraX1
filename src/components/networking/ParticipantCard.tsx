@@ -1,3 +1,4 @@
+import { hasTransparency } from '../../utils/imageTransparency';
 import { useLocalizedLabels } from '../../i18n/useLocalizedLabels';
 import { useState } from 'react';
 import { ArrowUpRight, Building2, Calendar, MessageCircle, Sparkles } from 'lucide-react';
@@ -19,6 +20,8 @@ export default function ParticipantCard({ name, avatar, title, company, tags = [
   const { t } = useI18n();
   const { label: localizedLabel, matchReason } = useLocalizedLabels();
   const [failedAvatar, setFailedAvatar] = useState<string | null>(null);
+  const [plainAvatar, setPlainAvatar] = useState<string | null>(null);
+  const [transparentAvatar, setTransparentAvatar] = useState<string | null>(null);
   const visibleTags = [...new Set(tags.filter(tag => tag.trim()))].slice(0, 3);
   return <article className={`participant-card ${className}`}>
     <div className="participant-card__cover">
@@ -29,8 +32,11 @@ export default function ParticipantCard({ name, avatar, title, company, tags = [
       <button className="participant-card__profile" onClick={onView}>{t('eventImprovements.viewProfile')}<ArrowUpRight size={16} aria-hidden="true" /></button>
     </div>
     <div className="participant-card__top">
-      <div className="participant-card__avatar" aria-hidden="true">
-        {avatar && failedAvatar !== avatar ? <img src={avatar} alt="" loading="lazy" onError={() => setFailedAvatar(avatar)} />
+      <div className="participant-card__avatar" data-transparent={!!avatar && failedAvatar !== avatar && transparentAvatar === avatar} aria-hidden="true">
+        {avatar && failedAvatar !== avatar ? <img key={`${avatar}:${plainAvatar === avatar}`} src={avatar} alt="" loading="lazy"
+          crossOrigin={plainAvatar === avatar ? undefined : 'anonymous'}
+          onLoad={e => setTransparentAvatar(hasTransparency(e.currentTarget) ? avatar : null)}
+          onError={() => plainAvatar !== avatar ? setPlainAvatar(avatar) : setFailedAvatar(avatar)} />
           : name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase()}
       </div>
       <div className="participant-card__identity">

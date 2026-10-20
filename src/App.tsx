@@ -3,6 +3,7 @@ import { Toaster } from 'sonner';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/navigation/ProtectedRoute';
 import AdminRoute from './components/auth/AdminRoute';
+import EventEditorRoute from './components/auth/EventEditorRoute';
 import { GuestAllowedEventRoute, GuestLockout } from './components/auth/GuestRouteGuard';
 import { useEventWizard } from './hooks/useEventWizard';
 import { lazy, Suspense, useEffect } from 'react';
@@ -32,6 +33,7 @@ const AuthFlowDemo = lazy(() => import('./pages/00_Auth_Flow_Demo'));
 const AuthCallback = lazy(() => import('./pages/99_Auth_Callback'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const EventAuthBridge = lazy(() => import('./pages/98_Event_Auth_Bridge'));
+const EventTeamInvitation = lazy(() => import('./pages/EventTeamInvitation'));
 const FormResponsePage = lazy(() => import('./pages/FormResponsePage'));
 const BrowseEventsDiscoveryPage = lazy(() => import('./pages/24_Browse_Events_Discovery'));
 const B2BMarketplaceDiscoveryPage = lazy(() => import('./pages/27_B2B_Marketplace_Discovery'));
@@ -142,6 +144,7 @@ export default function App() {
             {/* Public Routes */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LandingPage />} />
+            <Route path="/event-team/invite/:invitationId" element={<EventTeamInvitation />} />
             <Route path="/register" element={<LandingPage />} />
             <Route path="/auth-flow-demo" element={<AuthFlowDemo />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
@@ -216,11 +219,13 @@ export default function App() {
               {/* Redirect old route to correct route */}
               <Route path="/event-management-dashboard" element={<Navigate to="/event/saas-summit-2024" replace />} />
 
+              <Route element={<EventEditorRoute />}>
               <Route path="/create/details/:eventId" element={<WizardStep1Details />} />
               <Route path="/create/design/:eventId" element={<WizardStep2DesignStudio />} />
               <Route path="/design-studio-preview" element={<DesignStudioPreview />} />
               <Route path="/create/registration/:eventId" element={<WizardStep3Registration />} />
               <Route path="/create/launch/:eventId" element={<WizardStep4Launch />} />
+              </Route>
               <Route path="/create/launch-new" element={<CreateEventWizardStep4 />} />
               <Route path="/success" element={<SuccessPublished />} />
               <Route path="/success-live" element={<EventLiveSuccess />} />

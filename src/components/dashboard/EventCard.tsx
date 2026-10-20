@@ -17,6 +17,9 @@ interface Event {
   isPremium?: boolean;
   countdown?: string;
   isFavorite: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  accessLabel?: string;
 }
 
 interface EventCardProps {
@@ -197,7 +200,8 @@ export default memo(function EventCard({ event, onDuplicate, onMoreActions, onDe
       >
         {/* Action Buttons */}
         <div className="flex items-center gap-2 ml-auto">
-          <button
+          {event.accessLabel && <span className="text-xs text-slate-600">{event.accessLabel}</span>}
+          {event.canEdit !== false && <button
             onClick={(e) => {
               e.stopPropagation();
               handleNavigate('03_Wizard_Step1_Details');
@@ -206,9 +210,9 @@ export default memo(function EventCard({ event, onDuplicate, onMoreActions, onDe
             title={t('dashboard.card.edit')}
           >
             <Edit size={16} style={{ color: '#6B7280' }} />
-          </button>
+          </button>}
 
-          <button
+          {event.canEdit !== false && <button
             onClick={(e) => {
               e.stopPropagation();
               if (onDuplicate) onDuplicate(event.id);
@@ -217,9 +221,9 @@ export default memo(function EventCard({ event, onDuplicate, onMoreActions, onDe
             title={t('dashboard.card.duplicate')}
           >
             <Copy size={16} style={{ color: '#6B7280' }} />
-          </button>
+          </button>}
 
-          <button
+          {event.canDelete !== false && <button
             onClick={(e) => {
               e.stopPropagation();
               const confirmed = window.confirm(t('dashboard.delete.confirm', 'Are you really sure you want to delete this event? This action cannot be undone.'));
@@ -231,7 +235,7 @@ export default memo(function EventCard({ event, onDuplicate, onMoreActions, onDe
             title={t('dashboard.card.delete')}
           >
             <Trash2 size={16} style={{ color: '#EF4444' }} />
-          </button>
+          </button>}
 
           <button
             onClick={(e) => {

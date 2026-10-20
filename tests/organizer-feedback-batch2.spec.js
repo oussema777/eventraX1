@@ -101,7 +101,31 @@ test('FB-07: overlapping confirmed meetings block participants; adjacent slots s
   const { state } = await setup(page);
   state.meetings = [{ id: 'confirmed', event_id: eventId, status: 'confirmed', profile_a_id: partnerId, start_at: '2026-11-20T12:45Z', end_at: '2026-11-20T13:15Z' }];
   await selectDate(page);
-  await expect(page.getByRole('button', { name: '14:00 Busy', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: '14:00 Participant booked', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: '14:30', exact: true })).toBeEnabled();
+});
+
+test('confirmed own bookings explain why a slot is blocked with any recipient; generated suggestions remain available', async ({ page }) => {
+  const { state } = await setup(page);
+  state.meetings = Array.from({ length: 173 }, (_, i) => ({ id: `suggestion-${i}`, event_id: eventId, status: 'pending',
+    profile_a_id: viewerId, profile_b_id: `generated-${i}`, start_at: '2026-11-20T13:00Z', end_at: '2026-11-20T13:30Z',
+    location: 'Table-01', meta: { is_bulk_match_all: true } }));
+  await selectDate(page);
+  await expect(page.getByRole('button', { name: '14:00', exact: true })).toBeEnabled();
+  state.meetings.push({ id: 'real-booking', event_id: eventId, status: 'confirmed', profile_a_id: viewerId,
+    profile_b_id: 'someone-else', start_at: '2026-11-20T13:00Z', end_at: '2026-11-20T13:30Z' });
+  await selectDate(page);
+  await expect(page.getByRole('button', { name: '14:00 You are booked', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: '14:30', exact: true })).toBeEnabled();
+  await expect(page.getByText('Only confirmed meetings reserve a time slot.', { exact: false })).toBeVisible();
+});
+
+test('full tables are distinct from a participant conflict', async ({ page }) => {
+  const { state } = await setup(page);
+  state.meetings = [{ id: 'other-booking', event_id: eventId, status: 'confirmed', profile_a_id: 'someone-else',
+    profile_b_id: 'another-person', start_at: '2026-11-20T13:00Z', end_at: '2026-11-20T13:30Z' }];
+  await selectDate(page);
+  await expect(page.getByRole('button', { name: '14:00 Tables full', exact: true })).toBeDisabled();
   await expect(page.getByRole('button', { name: '14:30', exact: true })).toBeEnabled();
 });
 

@@ -1,0 +1,59 @@
+.event-team { max-width: 1080px; margin: 0 auto; color: #eef5fc; }
+.event-team__heading { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
+.event-team__icon { display: grid; place-items: center; width: 48px; height: 48px; flex-shrink: 0; border-radius: 14px; background: #32a6ff18; color: #8dccff; border: 1px solid #8dccff30; }
+.event-team h2 { font-size: 26px; font-weight: 650; margin: 0 0 5px; }
+.event-team p { color: #abc2d6; font-size: 13px; line-height: 1.6; }
+.event-team__roles { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+.event-team__roles > div { padding: 18px; background: #14344e; border: 1px solid #b7d8f024; border-radius: 12px; }
+.event-team__roles strong { font-size: 14px; }
+.event-team__roles p { margin: 8px 0 0; }
+.event-team__owner-note { display: flex; align-items: center; gap: 8px; margin: 16px 0 24px; }
+.event-team__owner-note svg { flex-shrink: 0; }
+.event-team__invite { display: grid; grid-template-columns: minmax(0,1.5fr) minmax(0,1fr) auto; gap: 14px; align-items: end; padding: 22px; border: 1px solid #b7d8f02e; border-radius: 14px; background: #102e47; }
+.event-team label { display: block; font-size: 12px; font-weight: 550; margin-bottom: 8px; }
+.event-team input, .event-team select { min-width: 0; width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #9ab9d24d; border-radius: 8px; color: #eef5fc; background: #0b253d; font: inherit; font-size: 14px; }
+.event-team input:focus, .event-team select:focus { outline: 2px solid #8dccff; outline-offset: 2px; }
+.event-team button, .event-team a.event-team__primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 9px 12px; border: 1px solid #9ab9d240; border-radius: 8px; color: #d9edfc; background: transparent; font-size: 12px; line-height: 1.4; cursor: pointer; text-decoration: none; }
+.event-team button:hover:not(:disabled) { background: #ffffff0a; }
+.event-team button:focus-visible, .event-team a:focus-visible, .event-team summary:focus-visible { outline: 2px solid #8dccff; outline-offset: 3px; }
+.event-team button:disabled { opacity: .55; cursor: not-allowed; }
+.event-team button.event-team__primary, .event-team a.event-team__primary { min-height: 44px; background: #1279c6; color: white; font-weight: 600; }
+.event-team__invite > p { grid-column: 1 / -1; margin: 0; font-size: 12px; }
+.event-team__notice { padding: 14px; border-radius: 10px; background: #28b48a13; border: 1px solid #58cfa438; margin: 16px 0; }
+.event-team__notice--error { background: #f17c7814; border-color: #f17c7840; }
+.event-team__load-error { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.event-team__load-error > span { flex: 1 1 240px; }
+.event-team__link { display: flex; gap: 8px; margin-bottom: 18px; }
+.event-team__link button { flex-shrink: 0; }
+.event-team__members { list-style: none; padding: 0; margin: 24px 0; }
+.event-team__members > li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 0; border-bottom: 1px solid #b7d8f022; }
+.event-team__identity { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.event-team__identity > span { display: grid; place-items: center; flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%; background: #2f5870; color: #c5e4f5; }
+.event-team__identity strong { display: block; font-size: 14px; overflow-wrap: anywhere; }
+.event-team__status { display: inline-block; font-size: 11px; color: #a9c1d6; margin-top: 5px; }
+.event-team__status--active { color: #91e0bd; }
+.event-team__status--pending { color: #f1ce88; }
+.event-team__actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; font-size: 12px; flex-shrink: 0; }
+.event-team__actions select { width: auto; font-size: 12px; }
+.event-team button.event-team__revoke { color: #f2aaa7; border-color: transparent; }
+.event-team__empty { display: flex; align-items: center; gap: 16px; padding: 30px 0; color: #8fabc2; }
+.event-team__history { margin-top: 24px; }
+.event-team__history summary { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: #bbd5e9; padding: 12px 0; }
+.event-team__history ul { list-style: none; padding: 0; }
+.event-team__history li { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid #b7d8f016; font-size: 12px; }
+.event-team__history li div { display: flex; flex-wrap: wrap; gap: 8px; }
+.event-team__history time, .event-team__history small { color: #a0b9cd; }
+.event-team-invitation { min-height: 100dvh; background: #0b2035; display: grid; place-items: center; padding: 24px 16px; }
+.event-team-invitation .event-team { width: 100%; max-width: 460px; padding: 26px; border: 1px solid #b7d8f029; border-radius: 16px; background: #102e47; }
+.event-team-invitation h1 { font-size: 23px; font-weight: 650; margin: 18px 0 10px; }
+.event-team-invitation .event-team__actions { justify-content: flex-start; flex-wrap: wrap; margin-top: 20px; }
+.event-team-invitation .event-team__roles { grid-template-columns: 1fr; margin: 18px 0; }
+@media(max-width: 800px) {
+  .event-team__roles { grid-template-columns: 1fr; }
+  .event-team__roles > div { padding: 14px 16px; }
+  .event-team__invite { grid-template-columns: 1fr; padding: 16px; }
+  .event-team__members > li { align-items: flex-start; flex-direction: column; }
+  .event-team__actions { flex-wrap: wrap; justify-content: flex-start; }
+  .event-team__link { flex-direction: column; }
+  .event-team__history li { flex-direction: column; gap: 4px; }
+}

@@ -3,7 +3,7 @@ import fr from '../src/i18n/locales/fr';
 import ar from '../src/i18n/locales/ar';
 const eventId = '769d7854-9bae-49e6-9db9-c88c0586a402';
 const user = { id: '11111111-1111-4111-8111-111111111111', email: 'viewer@example.test', aud: 'authenticated', role: 'authenticated', app_metadata: { account_type: 'user' }, user_metadata: {}, created_at: '2026-01-01' };
-const partner = { id: '22222222-2222-4222-8222-222222222222', full_name: 'Amira Mansour', job_title: 'Founder', company: 'Solar Works', industry: 'Energy', sector: 'Energy' };
+const partner = { id: '22222222-2222-4222-8222-222222222222', full_name: 'Amira Mansour', job_title: 'Founder', company: 'Solar Works', industry: 'Energy', sector: 'Energy', bio: 'Fondatrice de Solar Works.\nJe développe des projets solaires en Tunisie.' };
 const event = { id: eventId, name: "L'INVESTISSEMENT", start_date: '2027-11-20', end_date: '2027-11-20', timezone: 'Africa/Tunis' };
 async function setup(page, { ready = false, availabilityError = false, savedPair = false, multipleEvents = false, locale = 'en' } = {}) {
   await page.addInitScript(locale => localStorage.setItem('eventra_locale', locale), locale);
@@ -24,7 +24,7 @@ async function setup(page, { ready = false, availabilityError = false, savedPair
     if (method !== 'GET') writes.push({ table, method, data: route.request().postDataJSON() });
     if (table === 'profiles') {
       if (method === 'PATCH') profile = { ...profile, ...route.request().postDataJSON() };
-      data = url.searchParams.get('id')?.startsWith('in.') ? [profile, ...people] : profile;
+      data = url.searchParams.get('id')?.startsWith('in.') ? [profile, ...people] : url.searchParams.get('id') === `eq.${partner.id}` ? partner : profile;
     }
     // Match the live schema: location is only available through location_address.
     if (table === 'events' && select.split(',').map(field => field.trim()).includes('location')) return route.fulfill({ status: 400, json: { code: '42703', message: 'column events.location does not exist' } });
@@ -92,6 +92,21 @@ test('one hub remembers the event after visiting the profile, with a responsive 
   await page.getByRole('link', { name: 'Back to networking' }).click();
   await expect(page.getByRole('heading', { name: "L'INVESTISSEMENT" })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Amira Mansour' })).toBeVisible();
+});
+
+test('booking shows the recipient bio on desktop and mobile and leaves room above slots', async ({ page }, testInfo) => {
+  await setup(page, { ready: true, locale: 'fr' });
+  await page.getByRole('button', { name: fr.networking.people.requestMeeting, exact: true }).click();
+  const bio = page.locator('.meeting-booking__intro');
+  await expect(bio).toHaveText(partner.bio);
+  await expect(bio).toBeVisible();
+  const hint = await page.locator('.meeting-booking__slot-hint').boundingBox();
+  const slots = await page.locator('.meeting-booking__slots').boundingBox();
+  expect(slots.y - (hint.y + hint.height)).toBeGreaterThanOrEqual(23);
+  await page.screenshot({ path: testInfo.outputPath('booking-bio-desktop.png') });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(bio).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('booking-bio-mobile.png') });
 });
 
 test('missing basics block booking and can be completed without leaving the selected person', async ({ page }) => {

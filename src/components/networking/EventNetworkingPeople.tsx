@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { Loader2, Search, Users } from 'lucide-react';
 import { loadEventNetworkingParticipants } from '../../lib/eventNetworkingParticipants';
+import { compareParticipantImages } from '../../utils/participantOrder';
 import { useI18n } from '../../i18n/I18nContext';
 import { useLocalizedLabels } from '../../i18n/useLocalizedLabels';
 import './EventNetworkingPeople.css';
@@ -43,7 +44,7 @@ export default function EventNetworkingPeople({ eventId, userId, onRequestMeetin
       try {
         const participants = await loadEventNetworkingParticipants(eventId);
         const profiles = participants.filter(person => person.id !== userId);
-        if (!cancelled) setPeople(profiles.sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '')));
+        if (!cancelled) setPeople(profiles.sort(compareParticipantImages));
       } catch {
         if (!cancelled) setFailed(true);
       } finally {

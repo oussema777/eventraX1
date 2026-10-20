@@ -21,10 +21,14 @@ import {
   Menu,
   X,
   FileText,
-  Bell
+  Bell,
+  ShieldCheck
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
+import { useEventAccess } from '../hooks/useEventAccess';
+import { canManageDetails, roleTabs } from '../lib/eventAccess';
+import { eventTeamCopy } from '../components/dashboard/eventTeamCopy';
+import '../components/dashboard/EventTeam.css';
 import { useI18n } from '../i18n/I18nContext';
 const EventOverviewTab = lazy(() => import('../components/dashboard/EventOverviewTab'));
 const EventAttendeesTab = lazy(() => import('../components/dashboard/EventAttendeesTab'));
@@ -38,6 +42,7 @@ const EventDayOfTab = lazy(() => import('../components/dashboard/EventDayOfTab')
 const EventReportingTab = lazy(() => import('../components/dashboard/EventReportingTab'));
 const EventFormsTab = lazy(() => import('../components/dashboard/EventFormsTab'));
 const EventNotificationCenterTab = lazy(() => import('../components/dashboard/EventNotificationCenterTab'));
+const EventTeamTab = lazy(() => import('../components/dashboard/EventTeamTab'));
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 
 type NavigationTab =
@@ -52,7 +57,8 @@ type NavigationTab =
   | 'marketing'
   | 'dayof'
   | 'reporting'
-  | 'notifications';
+  | 'notifications'
+  | 'team';
 
 interface NavigationItem {
   id: NavigationTab;
@@ -65,8 +71,9 @@ export default function EventManagementDashboard() {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
-  const { t } = useI18n();
+  const access = useEventAccess(eventId);
+  const { t, locale } = useI18n();
+  const teamCopy = eventTeamCopy[locale] || eventTeamCopy.en;
   const [activeTab, setActiveTab] = useState<NavigationTab>('overview');
   const [event, setEvent] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -106,8 +113,10 @@ export default function EventManagementDashboard() {
     { id: 'ticketing', label: t('manageEvent.nav.ticketing.label'), icon: Ticket, description: t('manageEvent.nav.ticketing.desc') },
     { id: 'b2b', label: t('manageEvent.nav.b2b.label'), icon: Handshake, description: t('manageEvent.nav.b2b.desc') },
     { id: 'dayof', label: t('manageEvent.nav.dayof.label'), icon: Wrench, description: t('manageEvent.nav.dayof.desc') },
-    { id: 'notifications', label: 'Notifications', icon: Bell, description: 'Manage notification settings and history' }
-  ];
+    { id: 'notifications', label: 'Notifications', icon: Bell, description: 'Manage notification settings and history' },
+    { id: 'team', label: teamCopy.title, icon: ShieldCheck, description: teamCopy.subtitle }
+  ].filter(item => access.role && roleTabs[access.role].includes(item.id)) as NavigationItem[];
+  const visibleTab = navigationItems.some(item => item.id === activeTab) ? activeTab : navigationItems[0]?.id;
 
   useEffect(() => {
     const sp = new URLSearchParams(location.search);
@@ -115,7 +124,7 @@ export default function EventManagementDashboard() {
     if (tab && navigationItems.some(i => i.id === tab)) {
       setActiveTab(tab);
     }
-  }, [location.search]);
+  }, [location.search, access.role]);
 
   useEffect(() => {
     if (!isMobileNavOpen) {
@@ -129,13 +138,21 @@ export default function EventManagementDashboard() {
   }, [isMobileNavOpen]);
 
 
-  if (isLoading) {
+  if (isLoading || access.loading) {
     return (
       <div className="h-screen flex items-center justify-center bg-[#0B2641]">
         <Loader2 className="animate-spin text-[#0684F5]" size={40} />
       </div>
     );
   }
+
+  if (!access.role) return (
+    <div className="event-team-invitation"><main className="event-team">
+      <h1>{access.error ? teamCopy.loadFailed : teamCopy.denied}</h1>
+      <p>{teamCopy.deniedHint}</p>
+      <button onClick={() => navigate('/dashboard')}>{teamCopy.dashboard}</button>
+    </main></div>
+  );
 
   if (!event) {
     return (
@@ -300,9 +317,9 @@ export default function EventManagementDashboard() {
           <button onClick={() => window.open(eventPublicPath(event), '_blank')} className="flex items-center gap-2 px-4 h-10 rounded-lg border border-white/10 text-[#E2E8F0] font-semibold text-sm hover:bg-white/10 transition-colors">
             <Eye size={16} /> {t('manageEvent.header.viewLive')}
           </button>
-          <button onClick={() => navigate(`/create/details/${event.id}`)} className="flex items-center gap-2 px-4 h-10 rounded-lg border border-white/10 text-[#E2E8F0] font-semibold text-sm hover:bg-white/10 transition-colors">
+          {canManageDetails(access.role) && <button onClick={() => navigate(`/create/details/${event.id}`)} className="flex items-center gap-2 px-4 h-10 rounded-lg border border-white/10 text-[#E2E8F0] font-semibold text-sm hover:bg-white/10 transition-colors">
             <Settings size={16} /> {t('manageEvent.header.editDetails')}
-          </button>
+          </button>}
         </div>
       </header>
 
@@ -342,10 +359,11 @@ export default function EventManagementDashboard() {
           <nav className="event-dashboard__nav p-3 overflow-y-auto flex-1">
             {navigationItems.map((item) => {
               const Icon = item.icon;
-              const isActive = activeTab === item.id;
+              const isActive = visibleTab === item.id;
               return (
                 <button
                   key={item.id}
+                  aria-label={item.label}
                   onClick={() => {
                     setActiveTab(item.id);
                     setIsMobileNavOpen(false);
@@ -367,17 +385,17 @@ export default function EventManagementDashboard() {
         {/* CONTENT AREA */}
         <main className="event-dashboard__main flex-1 overflow-y-auto p-8">
           <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}><Loader2 className="animate-spin" size={24} /></div>}>
-            {activeTab === 'overview' && <EventOverviewTab eventId={eventId} />}
-            {activeTab === 'agenda' && <EventScheduleTab eventId={eventId} />}
-            {activeTab === 'speakers' && <EventSpeakersTab eventId={eventId} />}
-            {activeTab === 'attendees' && <EventAttendeesTab eventId={eventId} />}
-            {activeTab === 'forms' && <EventFormsTab eventId={eventId} />}
-            {activeTab === 'exhibitors' && <EventExhibitorsTab eventId={eventId} />}
-            {activeTab === 'ticketing' && <EventTicketingTab eventId={eventId} />}
-            {activeTab === 'b2b' && <EventB2BMatchmakingTab eventId={eventId} />}
-            {activeTab === 'marketing' && <EventMarketingTab eventId={eventId} />}
-            {activeTab === 'dayof' && <EventDayOfTab eventId={eventId} />}
-            {activeTab === 'notifications' && <EventNotificationCenterTab eventId={eventId} />}
+            {visibleTab === 'overview' && <EventOverviewTab eventId={eventId} />}
+            {visibleTab === 'agenda' && <EventScheduleTab eventId={eventId} />}
+            {visibleTab === 'speakers' && <EventSpeakersTab eventId={eventId} />}
+            {visibleTab === 'attendees' && <EventAttendeesTab eventId={eventId} />}
+            {visibleTab === 'forms' && <EventFormsTab eventId={eventId} />}
+            {visibleTab === 'exhibitors' && <EventExhibitorsTab eventId={eventId} />}
+            {visibleTab === 'ticketing' && <EventTicketingTab eventId={eventId} />}
+            {visibleTab === 'b2b' && <EventB2BMatchmakingTab eventId={eventId} />}
+            {visibleTab === 'dayof' && <EventDayOfTab eventId={eventId} canManageSettings={canManageDetails(access.role)} scannerOnly={access.role === 'checkin'} />}
+            {visibleTab === 'notifications' && <EventNotificationCenterTab eventId={eventId} />}
+            {visibleTab === 'team' && eventId && <EventTeamTab key={eventId} eventId={eventId} />}
           </Suspense>
         </main>
       </div>

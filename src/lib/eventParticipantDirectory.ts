@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { resolveEventSector } from '../utils/eventNetworkingFields';
+import { compareParticipantImages } from '../utils/participantOrder';
 
 export async function loadEventParticipantDirectory(eventId: string, { networkingOnly = false } = {}) {
   const attendees = [];
@@ -28,10 +29,10 @@ export async function loadEventParticipantDirectory(eventId: string, { networkin
     return {
       id: a.id, profile_id: a.profile_id, name: a.name,
       company: a.company || meta.Company || meta.Organization || profile.company,
-      final_avatar: profile.avatar_url || a.avatar_url || a.photo_url,
+      final_avatar: [profile.avatar_url, a.avatar_url, a.photo_url].find(value => typeof value === 'string' && value.trim())?.trim(),
       sector,
       profile_industries: sector ? [sector] : [],
       meta: { 'Job Title': meta['Job Title'] || meta.Title || profile.job_title || '', Industry: sector || '' },
     };
-  });
+  }).sort(compareParticipantImages);
 }

@@ -26,7 +26,17 @@ export default {
       ineligible: 'Both participants must be registered and opted in to B2B networking for this event.',
       formatNotAllowed: 'This meeting format is not allowed for this event.', outsideSchedule: 'Choose a time from the organizer’s current networking schedule.',
       duplicateRequest: 'There is already a pending request for this person at this time.'
-    },
+    ,
+"busySelf": "You are booked"
+,
+"busyRecipient": "Participant booked"
+,
+"busyBoth": "Both booked"
+,
+"full": "Tables full"
+,
+"confirmedOnlyHint": "Only confirmed meetings reserve a time slot. Your own bookings also apply when choosing another participant."
+},
     businessFlows: {
   "sizes": {
     "s1": "1–10 employees",
@@ -7297,5 +7307,47 @@ export default {
 "stepWelcome": "Welcome your guest"
 ,
 "footer": "A little less waiting. A little more connecting."
+}
+,
+"attendeeExperience": {
+  "title": "B2B Networking Center"
+,
+"filterEyebrow": "Find your people"
+,
+"search": "Search by name, company, or title..."
+,
+"clearFilters": "Clear filters"
+,
+"noResults": "No participants match these filters. Try another sector or clear your search."
+,
+"previous": "Previous"
+,
+"next": "Next"
+,
+"page": "Page {page}"
+,
+"accessEyebrow": "Make your next connection"
+,
+"joinTitle": "Your next opportunity starts with a hello."
+,
+"joinDescription": "Register for this event and choose B2B networking to discover relevant people and arrange meetings."
+,
+"register": "Register for the event"
+,
+"enableTitle": "Bring your registration into the conversation."
+,
+"enableDescription": "You are registered. Enable B2B networking in your event registration to receive personal suggestions."
+,
+"enableB2b": "Enable B2B networking"
+,
+"returnTitle": "Already registered by email?"
+,
+"returnDescription": "Your registration stays with you. Use the same email to get a fresh sign-in link and return to your event space."
+,
+"returnAction": "Access with my registration email"
+,
+"returnHint": "No password needed. You do not need to register again."
+,
+"pageRange": "Profiles {start}–{end} of {total}"
 }
 };

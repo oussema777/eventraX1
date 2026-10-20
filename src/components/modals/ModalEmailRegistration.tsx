@@ -7,13 +7,19 @@ interface ModalEmailRegistrationProps {
   onClose: () => void;
   onBack: () => void;
   onRegister: (email: string, password: string) => Promise<void>;
+  submitError?: string;
+  onEmailChange?: () => void;
+  onLogin?: () => void;
 }
 
 export default function ModalEmailRegistration({ 
   isOpen, 
   onClose, 
   onBack,
-  onRegister 
+  onRegister,
+  submitError,
+  onEmailChange,
+  onLogin
 }: ModalEmailRegistrationProps) {
   const { t } = useI18n();
   const [email, setEmail] = useState('');
@@ -69,6 +75,7 @@ export default function ModalEmailRegistration({
   // Handle email change
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
+    onEmailChange?.();
     if (touchedEmail) {
       if (e.target.value && !isValidEmail(e.target.value)) {
         setEmailError(t('auth.emailRegistration.errors.invalidEmail'));
@@ -82,7 +89,7 @@ export default function ModalEmailRegistration({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!isFormValid) return;
+    if (!isFormValid || isLoading) return;
 
     setIsLoading(true);
     try {
@@ -468,6 +475,15 @@ export default function ModalEmailRegistration({
               </div>
 
               {/* Create Account Button */}
+              {submitError && (
+                <div role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-slate-800">
+                  <p>{submitError}</p>
+                  {onLogin && <button type="button" onClick={onLogin}
+                    className="mt-3 rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white">
+                    {t('auth.registrationEntry.login')}
+                  </button>}
+                </div>
+              )}
               <button
                 type="submit"
                 disabled={!isFormValid || isLoading}

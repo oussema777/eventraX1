@@ -14,6 +14,10 @@ export function eventAuthPath(destination: string): string {
   return `/event-auth?redirect=${encodeURIComponent(destination)}`;
 }
 
+export function eventMeetingAuthPath(eventId: string, profileId: string): string {
+  return eventAuthPath(`/event/${encodeURIComponent(eventId)}/attendees?bookMeeting=${encodeURIComponent(profileId)}`);
+}
+
 /** Reject auth pages as return destinations to avoid sign-in redirect loops. */
 export function loginReturnPath(value: string | null | undefined, origin: string): string | null {
   const path = safeAuthPath(value, origin);

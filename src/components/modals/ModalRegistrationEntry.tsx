@@ -9,13 +9,14 @@ import { sanitizeError } from '../../utils/errorHandler';
 import { useAuth } from '../../contexts/AuthContext';
 import { useI18n } from '../../i18n/I18nContext';
 import { sendWelcomeEmail } from '../../lib/email';
+import { loginReturnPath } from '../../utils/authRedirect';
 
 interface ModalRegistrationEntryProps {
   isOpen: boolean;
   onClose: () => void;
   onGoogleSignup?: () => void;
   onEmailSignup?: () => void;
-  onLoginClick?: () => void;
+  onLoginClick?: (email?: string) => void;
 }
 
 export default function ModalRegistrationEntry({
@@ -32,6 +33,11 @@ export default function ModalRegistrationEntry({
   const [showEmailVerification, setShowEmailVerification] = useState(false);
   const [showProfileSetup, setShowProfileSetup] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
+  const [registrationError, setRegistrationError] = useState('');
+  const [existingAccountEmail, setExistingAccountEmail] = useState('');
+  const destination = loginReturnPath(new URLSearchParams(window.location.search).get('next'), window.location.origin)
+    || loginReturnPath(window.location.pathname + window.location.search, window.location.origin) || '/';
+  const callbackUrl = `${window.location.origin}/auth/callback?next=${encodeURIComponent(destination)}`;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -78,7 +84,7 @@ export default function ModalRegistrationEntry({
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(window.location.pathname)}`
+          redirectTo: callbackUrl
         }
       });
 
@@ -94,18 +100,21 @@ export default function ModalRegistrationEntry({
   };
 
   const handleEmailRegister = async (email: string, password: string) => {
-    const normalizedEmail = email.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+    setRegistrationError('');
+    setExistingAccountEmail('');
+    const showLoginPrompt = () => {
+      setRegistrationError(t('auth.registrationEntry.errors.accountExistsReset'));
+      setExistingAccountEmail(normalizedEmail);
+    };
     try {
       // 1. Pre-check for existing user to prevent duplicates
       const { data: exists, error: rpcError } = await supabase.rpc('check_user_exists', { 
         email_input: normalizedEmail 
       });
 
-      if (!rpcError && exists) {
-        toast.error(t('auth.registrationEntry.errors.accountExists'));
-        setShowEmailForm(false);
-        onLoginClick?.();
-        onClose();
+      if (!rpcError && exists === true) {
+        showLoginPrompt();
         return;
       }
 
@@ -116,19 +125,12 @@ export default function ModalRegistrationEntry({
         setShowEmailVerification(true);
       };
 
-      const showLoginPrompt = (message?: string) => {
-        toast.error(message || t('auth.registrationEntry.errors.accountExists'));
-        setShowEmailForm(false);
-        onLoginClick?.();
-        onClose();
-      };
-
       // Direct sign-up attempt
       const { data, error } = await supabase.auth.signUp({
         email: normalizedEmail,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`
+          emailRedirectTo: callbackUrl
         }
       });
 
@@ -166,8 +168,7 @@ export default function ModalRegistrationEntry({
       setShowProfileSetup(true);
 
     } catch (error: any) {
-      toast.error(sanitizeError(error, t('auth.registrationEntry.errors.registrationFailed')));
-      // Don't re-throw to keep modal open on generic errors
+      setRegistrationError(sanitizeError(error, t('auth.registrationEntry.errors.registrationFailed')));
     }
   };
 
@@ -312,6 +313,12 @@ export default function ModalRegistrationEntry({
         }}
         onBack={handleBackToEntry}
         onRegister={handleEmailRegister}
+        submitError={registrationError}
+        onEmailChange={() => { setRegistrationError(''); setExistingAccountEmail(''); }}
+        onLogin={existingAccountEmail && onLoginClick ? () => {
+          setShowEmailForm(false);
+          onLoginClick(existingAccountEmail);
+        } : undefined}
       />
     );
   }
@@ -325,6 +332,7 @@ export default function ModalRegistrationEntry({
           onClose();
         }}
         userEmail={registeredEmail}
+        emailRedirectTo={callbackUrl}
         onChangeEmail={handleChangeEmail}
       />
     );
@@ -502,7 +510,7 @@ export default function ModalRegistrationEntry({
               {t('auth.registrationEntry.alreadyAccount')}{' '}
             </span>
             <button
-              onClick={onLoginClick}
+              onClick={() => onLoginClick?.()}
               className="transition-colors"
               style={{
                 fontSize: '15px',

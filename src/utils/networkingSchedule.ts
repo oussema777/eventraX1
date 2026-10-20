@@ -13,7 +13,7 @@ export interface ScheduledMeeting {
   id: string; start_at: string; end_at?: string; status: string;
   event_id?: string;
   profile_a_id?: string; profile_b_id?: string; location?: string;
-  meta?: { meeting_type?: string };
+  meta?: { meeting_type?: string; meeting_format?: string; is_bulk_match_all?: boolean };
 }
 
 export function networkingTimeZone(eventId?: string, venue?: NetworkingVenue | null, eventZone?: string | null) {
@@ -77,13 +77,14 @@ export function slotAvailability(slot: NetworkingSlot, venue: NetworkingVenue, m
   participants: string[], availability: Map<string, string[]>, editId?: string | null, eventId?: string) {
   const confirmed = meetings.filter(m => m.id !== editId && m.status === 'confirmed' &&
     intervalsOverlap(slot.iso, slot.end, m.start_at, m.end_at || new Date(Date.parse(m.start_at) + (venue.slotDuration || 30) * 60000).toISOString()));
-  const isConflicted = confirmed.some(m => participants.includes(m.profile_a_id || '') || participants.includes(m.profile_b_id || ''));
+  const busyParticipantIds = participants.filter(id => confirmed.some(m => m.profile_a_id === id || m.profile_b_id === id));
+  const isConflicted = busyParticipantIds.length > 0;
   const unavailable = participants.some(id => availability.has(id) && !availability.get(id)!.some(iso => Date.parse(iso) === Date.parse(slot.iso)));
-  const physical = confirmed.filter(m => m.meta?.meeting_type !== 'video' && (!eventId || m.event_id === eventId));
+  const physical = confirmed.filter(m => (m.meta?.meeting_format || m.meta?.meeting_type) !== 'video' && (!eventId || m.event_id === eventId));
   const tables = Math.max(1, venue.tableCount || 10);
   const occupied = new Set(physical.map(m => Number(m.location?.match(/(\d+)$/)?.[1])).filter(Number.isFinite));
   const next = Array.from({ length: tables }, (_, i) => i + 1).find(i => !occupied.has(i));
-  return { ...slot, isConflicted, unavailable, total: tables,
+  return { ...slot, isConflicted, busyParticipantIds, unavailable, venueFull: physical.length >= tables, total: tables,
     available: isConflicted || unavailable ? 0 : Math.max(0, tables - physical.length),
     nextTable: next ? `${venue.tablePrefix || 'Table-'}${String(next).padStart(2, '0')}` : undefined };
 }

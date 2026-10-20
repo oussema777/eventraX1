@@ -5,20 +5,26 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { sanitizeError } from '../../utils/errorHandler';
 import { useI18n } from '../../i18n/I18nContext';
+import { loginReturnPath } from '../../utils/authRedirect';
 
 interface ModalForgotPasswordProps {
   isOpen: boolean;
   onClose: () => void;
   onBack: () => void;
+  initialEmail?: string;
 }
 
 export default function ModalForgotPassword({
   isOpen,
   onClose,
-  onBack
+  onBack,
+  initialEmail = ''
 }: ModalForgotPasswordProps) {
   const { t } = useI18n();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(initialEmail);
+  const destination = loginReturnPath(new URLSearchParams(window.location.search).get('next'), window.location.origin)
+    || loginReturnPath(window.location.pathname + window.location.search, window.location.origin);
+  const redirectTo = `${window.location.origin}/reset-password${destination ? `?next=${encodeURIComponent(destination)}` : ''}`;
   const [isSending, setIsSending] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -46,7 +52,7 @@ export default function ModalForgotPassword({
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo,
       });
 
       if (error) throw error;
@@ -74,6 +80,7 @@ export default function ModalForgotPassword({
         onClose={handleClose}
         onBack={handleBackToLogin}
         email={email}
+        redirectTo={redirectTo}
       />
     );
   }

@@ -48,6 +48,15 @@ test('View Profile opens the full guest page, survives refresh, and returns to t
   await expect(page).toHaveURL(new RegExp(`/event/${eventId}/attendees$`));
   expect(writes).toEqual([]);
 });
+test('booking from an event profile keeps the recipient through registration-email sign-in', async ({ page }) => {
+  await setup(page);
+  await page.goto(`/event/${eventId}/profile/guest1`);
+  await page.locator('.public-profile-action--primary').click();
+  const destination = `/event/${eventId}/attendees?bookMeeting=guest1`;
+  await expect(page).toHaveURL(`http://127.0.0.1:3000/event-auth?redirect=${encodeURIComponent(destination)}`);
+  await expect(page.getByRole('heading', { name: 'Sign in to plan your meeting' })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Registration email address' })).toBeVisible();
+});
 test('unlinked participants use the full page with registration details on mobile', async ({ page }) => {
   await setup(page);
   await page.setViewportSize({ width: 390, height: 844 });

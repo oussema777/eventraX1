@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Mail, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { toast } from 'sonner';
 import { sanitizeError } from '../../utils/errorHandler';
 import { useI18n } from '../../i18n/I18nContext';
 
@@ -9,6 +8,7 @@ interface ModalEmailVerificationProps {
   isOpen: boolean;
   onClose: () => void;
   userEmail: string;
+  emailRedirectTo: string;
   onChangeEmail: () => void;
 }
 
@@ -16,11 +16,14 @@ export default function ModalEmailVerification({
   isOpen, 
   onClose, 
   userEmail,
+  emailRedirectTo,
   onChangeEmail
 }: ModalEmailVerificationProps) {
   const { t } = useI18n();
   const [resendTimer, setResendTimer] = useState(0);
   const [isResending, setIsResending] = useState(false);
+  const [feedback, setFeedback] = useState('');
+  const [resendFailed, setResendFailed] = useState(false);
 
   // Countdown timer for resend
   useEffect(() => {
@@ -41,24 +44,28 @@ export default function ModalEmailVerification({
 
   // Handle resend email
   const handleResendEmail = async () => {
+    if (isResending || resendTimer > 0) return;
     setIsResending(true);
+    setFeedback('');
+    setResendFailed(false);
     
     try {
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email: userEmail,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`
+          emailRedirectTo
         }
       });
 
       if (error) throw error;
 
-      toast.success(t('auth.emailVerification.resendSuccess'));
+      setFeedback(t('auth.emailVerification.resendSuccess'));
       setResendTimer(60); // 60 seconds cooldown
     } catch (error: any) {
       console.error('Error resending verification:', error);
-      toast.error(sanitizeError(error, t('auth.emailVerification.resendError')));
+      setResendFailed(true);
+      setFeedback(sanitizeError(error, t('auth.emailVerification.resendError')));
     } finally {
       setIsResending(false);
     }
@@ -189,6 +196,9 @@ export default function ModalEmailVerification({
             >
               {t('auth.emailVerification.instructions')}
             </p>
+
+            {feedback && <p role={resendFailed ? 'alert' : 'status'} className="mb-4 text-sm"
+              style={{ color: resendFailed ? '#b91c1c' : '#047857' }}>{feedback}</p>}
 
             {/* Action Buttons */}
             <div className="flex items-center justify-center gap-3 mb-3">

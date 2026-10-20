@@ -7,6 +7,8 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEventWizard } from '../../hooks/useEventWizard';
 import { useI18n } from '../../i18n/I18nContext';
+import { canManageDetails, canManageTeam, type EventRole } from '../../lib/eventAccess';
+import { eventTeamCopy } from './eventTeamCopy';
 
 interface EventsGridProps {
   events: any[];
@@ -79,7 +81,10 @@ export default function EventsGrid({ events, isLoading, refreshEvents }: EventsG
             views: '0',
             ticketsSold: '0%',
             coverImage: resolveCoverImage(event),
-            isFavorite: false
+            isFavorite: false,
+            canEdit: canManageDetails(event.access_role as EventRole),
+            canDelete: canManageTeam(event.access_role as EventRole),
+            accessLabel: event.access_role && !canManageTeam(event.access_role) ? (eventTeamCopy[locale] || eventTeamCopy.en).roles[event.access_role as EventRole] : undefined,
           }}
           onDelete={handleDeleteEvent}
           onDuplicate={async (eventId) => {

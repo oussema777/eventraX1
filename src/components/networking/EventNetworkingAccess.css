@@ -1,0 +1,17 @@
+.networking-access { display: grid; grid-template-columns: 1.25fr 1fr; overflow: hidden; border: 1px solid #84becd35; border-radius: 24px; background: radial-gradient(ellipse at 0 0,#347dab26,transparent 70%),#10314b; color: #e8f1f8; box-shadow: inset 0 1px #ffffff0a; }
+.networking-access__join { padding: 30px; }
+.networking-access__eyebrow { display: inline-flex; gap: 7px; align-items: center; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #a4d9e4; margin-bottom: 13px; }
+.networking-access h3 { font-size: 25px; font-weight: 650; letter-spacing: -.5px; line-height: 1.25; margin: 0 0 12px; max-width: 390px; }
+.networking-access p { font-size: 13px; color: #afc3d4; line-height: 1.7; margin: 0 0 20px; max-width: 440px; }
+.networking-access__primary { display: inline-flex; align-items: center; justify-content: center; gap: 12px; padding: 14px 19px; min-height: 48px; background: #c5eef0; border: 1px solid #e1f9fa; border-radius: 12px; color: #153b4a; font-size: 13px; font-weight: 650; cursor: pointer; box-shadow: 0 6px 20px #021a3320; }
+.networking-access__primary:hover { background: #dff8f9; }
+.networking-access__return { align-self: center; margin: 24px 24px 24px 0; padding: 22px; border-radius: 18px; border: 1px solid #ffffff17; background: #081f3540; }
+.networking-access__mail { display: inline-flex; padding: 10px; border: 1px solid #b8d6ee20; background: #b8d6ee0d; color: #b3d8f0; border-radius: 12px; margin-bottom: 12px; }
+.networking-access h4 { font-size: 16px; font-weight: 650; margin: 0 0 8px; }
+.networking-access__return p { margin-bottom: 14px; font-size: 12px; }
+.networking-access__return button { display: flex; justify-content: space-between; gap: 12px; align-items: center; width: 100%; color: #e1effb; background: #ffffff08; border: 1px solid #ffffff30; border-radius: 10px; padding: 12px; font-size: 12px; text-align: start; cursor: pointer; }
+.networking-access__return button:hover { background: #ffffff12; border-color: #b5ddee80; }
+.networking-access__hint { display: block; font-size: 10px; color: #91acbf; line-height: 1.6; margin-top: 10px; }
+.networking-access button:focus-visible { outline: 3px solid #bde8e9; outline-offset: 3px; }
+.networking-access button svg { flex-shrink: 0; }
+@media (max-width: 640px) { .networking-access { grid-template-columns: 1fr; } .networking-access__join { padding: 24px; } .networking-access__return { margin: 0 16px 16px; } .networking-access h3 { font-size: 23px; } .networking-access__primary { width: 100%; } }

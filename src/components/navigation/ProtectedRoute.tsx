@@ -20,7 +20,7 @@ export default function ProtectedRoute() {
     if (/^\/event\/[^/]+\/networking\/?$/.test(location.pathname)) {
       return <Navigate to={eventAuthPath(location.pathname + location.search)} replace />;
     }
-    if (/^\/my-networking\/?$/.test(location.pathname)) {
+    if (/^\/my-networking\/?$/.test(location.pathname) || /^\/event\/[^/]+\/?$/.test(location.pathname)) {
       return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search + location.hash)}`} replace />;
     }
     return <Navigate to="/" replace />;

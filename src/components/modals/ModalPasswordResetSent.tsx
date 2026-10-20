@@ -9,13 +9,15 @@ interface ModalPasswordResetSentProps {
   onClose: () => void;
   onBack: () => void;
   email: string;
+  redirectTo: string;
 }
 
 export default function ModalPasswordResetSent({
   isOpen,
   onClose,
   onBack,
-  email
+  email,
+  redirectTo
 }: ModalPasswordResetSentProps) {
   const { t } = useI18n();
   const [isResending, setIsResending] = useState(false);
@@ -27,7 +29,7 @@ export default function ModalPasswordResetSent({
     setIsResending(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo,
       });
       if (error) throw error;
       toast.success(t('auth.forgotPassword.toastSuccess'));

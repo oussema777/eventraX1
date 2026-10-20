@@ -168,14 +168,28 @@ test('expired email link sends a fresh magic link with an absolute event return 
   await expect(page.getByRole('heading', { name: 'Test Networking Event' })).toBeVisible();
 });
 
-test('event access offers registration email sign-in only', async ({ page }) => {
+test('event access offers email-link and existing Eventra account methods', async ({ page }) => {
   await mock(page);
   await page.goto(bridge);
   await expect(page.getByRole('heading', { name: 'Access your event networking hub' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Continue with Google' })).toHaveCount(0);
   await expect(page.getByRole('textbox', { name: 'Registration email address' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Email me a sign-in link' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Email link/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: /^Eventra account/ })).toHaveAttribute('aria-pressed', 'false');
   await expect(page.getByRole('link', { name: 'Return to event registration' })).toHaveAttribute('href', `/event/${eventId}/register`);
+});
+
+test('password sign-in can finish an explicit account switch without redirecting back to access', async ({ page }) => {
+  await mock(page, true, true);
+  await page.goto(`${bridge}&switch_account=1`);
+  await signIn(page);
+  await expect(page.getByRole('heading', { name: 'Access your event networking hub' })).toBeVisible();
+  await page.getByRole('button', { name: /^Eventra account/ }).click();
+  await page.getByRole('textbox', { name: 'Registration email address' }).fill('guest@example.test');
+  await page.getByLabel('Eventra password', { exact: true }).fill('test-password');
+  await page.getByRole('button', { name: 'Sign in and continue', exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`${destination}$`));
 });
 
 test('a signed-out hub visit retains its event through sign-in', async ({ page }) => {

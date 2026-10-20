@@ -28,7 +28,7 @@ export default function LandingPage() {
   const { t } = useI18n();
   const location = useLocation();
   const navigate = useNavigate();
-  const loginDestination = location.pathname === '/login'
+  const loginDestination = ['/login', '/register'].includes(location.pathname)
     ? loginReturnPath(new URLSearchParams(location.search).get('next'), window.location.origin)
     : null;
 
@@ -38,6 +38,7 @@ export default function LandingPage() {
   const { saveDraft, resetWizard } = useEventWizard();
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
   
   // Effect to handle direct links to /login or /register
   useEffect(() => {
@@ -131,7 +132,8 @@ export default function LandingPage() {
   };
 
   // Switch from signup to login
-  const handleSwitchToLogin = () => {
+  const handleSwitchToLogin = (email = '') => {
+    setLoginEmail(email);
     setShowRegistrationModal(false);
     setShowLoginModal(true);
   };
@@ -212,6 +214,8 @@ export default function LandingPage() {
 
       {/* Login Modal */}
       <ModalLogin
+        key={loginEmail}
+        initialEmail={loginEmail}
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
         onGoogleLogin={handleGoogleLogin}

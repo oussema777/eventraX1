@@ -26,7 +26,17 @@ export default {
       ineligible: 'Les deux participants doivent être inscrits et avoir activé le B2B pour cet événement.',
       formatNotAllowed: 'Ce format de rendez-vous n’est pas autorisé pour cet événement.', outsideSchedule: 'Choisissez un créneau dans le planning actuel de l’organisateur.',
       duplicateRequest: 'Une demande est déjà en attente avec cette personne à cet horaire.'
-    },
+    ,
+"busySelf": "Vous êtes occupé"
+,
+"busyRecipient": "Participant occupé"
+,
+"busyBoth": "Vous êtes tous deux occupés"
+,
+"full": "Tables complètes"
+,
+"confirmedOnlyHint": "Seuls les rendez-vous confirmés bloquent un créneau. Vos rendez-vous s’appliquent aussi lorsque vous choisissez un autre participant."
+},
     businessFlows: {
   "sizes": {
     "s1": "1–10 employés",
@@ -7052,5 +7062,47 @@ export default {
 "stepWelcome": "Accueillir le participant"
 ,
 "footer": "Moins d’attente. Plus de rencontres."
+}
+,
+"attendeeExperience": {
+  "title": "Espace de rencontres B2B"
+,
+"filterEyebrow": "Trouvez les bons contacts"
+,
+"search": "Rechercher par nom, entreprise ou fonction..."
+,
+"clearFilters": "Effacer les filtres"
+,
+"noResults": "Aucun participant ne correspond à ces filtres. Essayez un autre secteur ou effacez votre recherche."
+,
+"previous": "Précédent"
+,
+"next": "Suivant"
+,
+"page": "Page {page}"
+,
+"accessEyebrow": "Préparez votre prochaine rencontre"
+,
+"joinTitle": "Votre prochaine opportunité commence par une rencontre."
+,
+"joinDescription": "Inscrivez-vous à cet événement et activez le B2B pour découvrir des contacts pertinents et organiser vos rendez-vous."
+,
+"register": "S’inscrire à l’événement"
+,
+"enableTitle": "Votre inscription, vos prochaines rencontres."
+,
+"enableDescription": "Vous êtes déjà inscrit. Activez le B2B dans votre inscription pour recevoir des suggestions personnalisées."
+,
+"enableB2b": "Activer les rencontres B2B"
+,
+"returnTitle": "Déjà inscrit avec votre email ?"
+,
+"returnDescription": "Votre inscription est conservée. Utilisez le même email pour recevoir un nouveau lien de connexion et retrouver votre espace événement."
+,
+"returnAction": "Accéder avec mon email d’inscription"
+,
+"returnHint": "Sans mot de passe. Inutile de vous inscrire à nouveau."
+,
+"pageRange": "Profils {start}–{end} sur {total}"
 }
 };

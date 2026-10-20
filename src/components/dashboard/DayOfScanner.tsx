@@ -16,7 +16,7 @@ type Props = {
   meetingId: string; sessionId: string; candidates?: Choice[]; canAllowDuplicate: boolean; totalToday: number;
   onClose: () => void; onSwitchCamera: () => void; onTorch: () => void;
   onManual: () => void; onCode: (value: string) => void; onMeeting: (id: string) => void; onSession: (id: string) => void;
-  onScan: () => void; onChoose: (id: string) => void; onNext: () => void; onAllowDuplicate: () => void; onViewAttendee: () => void;
+  onScan: () => void; onChoose: (id: string) => void; onNext: () => void; onAllowDuplicate: () => void; onViewAttendee?: () => void;
 };
 
 export default function DayOfScanner({ videoRef, ...p }: Props) {
@@ -97,7 +97,7 @@ export default function DayOfScanner({ videoRef, ...p }: Props) {
                   </>}
                   {p.result === 'error' ? <button className="dayof-scanner__primary" onClick={p.onNext}>{t('manageEvent.dayOf.scanner.error.tryAgain')}<ArrowRight size={17} aria-hidden="true" /></button> : next}
                   {p.result === 'duplicate' && p.canAllowDuplicate && <button className="dayof-scanner__text-button" onClick={p.onAllowDuplicate}>{t('manageEvent.dayOf.scanner.duplicate.allow')}</button>}
-                  {p.result === 'success' && <button className="dayof-scanner__text-button" onClick={p.onViewAttendee}>{t('manageEvent.dayOf.scanner.success.viewProfile')}</button>}
+                  {p.result === 'success' && p.onViewAttendee && <button className="dayof-scanner__text-button" onClick={p.onViewAttendee}>{t('manageEvent.dayOf.scanner.success.viewProfile')}</button>}
                 </div>}
             </div>
           </section>

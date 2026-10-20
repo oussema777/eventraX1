@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProfile } from '../../hooks/useProfile';
 import { useI18n } from '../../i18n/I18nContext';
+import { getManagedEvents } from '../../lib/eventAccess';
 
 export default function StatsRow() {
   const { user } = useAuth();
@@ -25,23 +26,13 @@ export default function StatsRow() {
     if (!user || !profile) return;
     const fetchStats = async () => {
       try {
-        let query = supabase
-          .from('events')
-          .select('id, status');
-        
-        // Only filter by owner if not admin
-        if (profile?.role !== 'admin') {
-          query = query.eq('owner_id', user.id);
-        }
-
-        const { data: events, error } = await query;
-
-        if (error) throw error;
-        const eventIds = (events || []).map((item: any) => item.id);
-        const totalEvents = eventIds.length;
+        const events = await getManagedEvents(user.id, profile?.role === 'admin');
+        const eventIds = events.filter(item => item.access_role !== 'checkin').map(item => item.id);
+        const totalEvents = events.length;
         const activeEvents = (events || []).filter((item: any) => item.status !== 'archived').length;
 
         let totalAttendees = 0;
+        const financeIds = events.filter(item => ['owner','platform_admin','administrator'].includes(item.access_role)).map(item => item.id);
         if (eventIds.length) {
           const { count, error: attendeeError } = await supabase
             .from('event_attendees')
@@ -54,11 +45,11 @@ export default function StatsRow() {
         }
 
         let revenue = 0;
-        if (eventIds.length) {
+        if (financeIds.length) {
           const ticketsResult = await supabase
             .from('event_tickets')
             .select('price, quantity_sold')
-            .in('event_id', eventIds);
+            .in('event_id', financeIds);
           if (!ticketsResult.error && Array.isArray(ticketsResult.data)) {
             revenue = ticketsResult.data.reduce((sum: number, ticket: any) => {
               const price = Number(ticket.price || 0);

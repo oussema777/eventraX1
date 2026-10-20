@@ -41,7 +41,7 @@ const DEFAULT_SCANNER_SETTINGS: ScannerSettings = {
   duplicatePolicy: 'allow'
 };
 
-export default function EventDayOfTab({ eventId }: { eventId: string }) {
+export default function EventDayOfTab({ eventId, canManageSettings = true, scannerOnly = false }: { eventId: string; canManageSettings?: boolean; scannerOnly?: boolean }) {
   const { t, locale } = useI18n();
   const [scannerTimeZone, setScannerTimeZone] = useState(() => networkingTimeZone(eventId));
 
@@ -323,7 +323,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
   };
 
   const saveScannerSettings = async (nextSettings: ScannerSettings) => {
-    if (!eventId) return false;
+    if (!eventId || !canManageSettings) return false;
     setSavingScannerSettings(true);
     try {
       const base = scannerSettingsBase || {};
@@ -1000,7 +1000,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
               </span>
             </div>
 
-            <button
+            {!scannerOnly && <button
               onClick={() => setShowDownload(true)}
               style={{
                 height: '44px',
@@ -1019,9 +1019,9 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
             >
               <Download size={18} />
               {t('manageEvent.dayOf.header.reports')}
-            </button>
+            </button>}
 
-            <button
+            {canManageSettings && <button
               onClick={() => setShowSettings(true)}
               style={{
                 width: '44px',
@@ -1037,7 +1037,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
               }}
             >
               <Settings size={20} />
-            </button>
+            </button>}
           </div>
         </div>
 
@@ -1475,8 +1475,8 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
             })}
           </div>
 
-          <button
-            onClick={() => navigate(`/event/${eventId}?tab=reporting`)}
+          {!scannerOnly && <button
+            onClick={() => setShowDownload(true)}
             style={{
               width: '100%',
               height: '40px',
@@ -1496,7 +1496,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
           >
             {t('manageEvent.dayOf.recent.viewAll')}
             <ArrowRight size={16} />
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -1511,7 +1511,7 @@ export default function EventDayOfTab({ eventId }: { eventId: string }) {
         onMeeting={setSelectedMeeting} onSession={setSelectedSession} onScan={() => void doCheckin(showScanner)}
         onChoose={id => { if (participantChoice) void doCheckin('b2b', id, participantChoice.code); }}
         onNext={handleNextScan} onAllowDuplicate={handleAllowDuplicate}
-        onViewAttendee={() => { handleCloseScanner(); navigate(`/event/${eventId}?tab=attendees`); }}
+        onViewAttendee={scannerOnly ? undefined : () => { handleCloseScanner(); navigate(`/event/${eventId}?tab=attendees`); }}
       />}
 
       {/* SETTINGS MODAL */}

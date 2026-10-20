@@ -1,15 +1,16 @@
 import ParticipantCard from './ParticipantCard';
+import EventNetworkingAccess from './EventNetworkingAccess';
 import { useI18n } from '../../i18n/I18nContext';
 import { useRef, useState } from 'react';
 import { nextMatchBatch } from '../../utils/eventRecommendations';
 import type { rankEventParticipants } from '../../utils/eventRecommendations';
 import type { RecommendationState } from '../../hooks/useEventRecommendations';
 
-export default function EventMatchSuggestions({ matches, state, signedIn, loading, failed, onRetry, onGenerate, onLogin, onView, onBook, onMessage, messagePending, brandColor }: {
+export default function EventMatchSuggestions({ matches, state, signedIn, loading, failed, onRetry, onGenerate, onRegister, onAccess, onView, onBook, onMessage, messagePending, brandColor }: {
   state?: RecommendationState;
   matches: ReturnType<typeof rankEventParticipants>;
   signedIn: boolean; loading: boolean; failed: boolean; messagePending: boolean;
-  onRetry: () => void; onLogin: () => void;
+  onRetry: () => void; onRegister: () => void; onAccess: () => void;
   onGenerate: () => Promise<ReturnType<typeof rankEventParticipants>>;
   onView: (person: { id: string }) => void;
   onBook: (person: { id: string; name: string; avatar?: string | null }) => void;
@@ -45,9 +46,10 @@ export default function EventMatchSuggestions({ matches, state, signedIn, loadin
     </div>
     {generationError && <p role="alert" style={{ color: '#FCA5A5', marginBottom: 12 }}>{t('eventImprovements.generationError')}</p>}
     {restarted && <p role="status" style={{ color: '#94A3B8', marginBottom: 12 }}>{t('eventImprovements.allMatchesSeen')}</p>}
-    {!signedIn ? <button onClick={onLogin} style={{ color: '#93C5FD' }}>{t('eventImprovements.signInMatches')}</button>
+    {!signedIn ? <EventNetworkingAccess b2bDisabled={false} onRegister={onRegister} onAccess={onAccess} />
       : loading ? <p role="status" style={{ color: '#94A3B8' }}>{t('eventImprovements.loadingMatches')}</p>
       : failed && !matches.length ? <div role="alert" style={{ color: '#94A3B8' }}><p>{t('eventImprovements.matchesError')}</p><button onClick={onRetry}>{t('eventImprovements.retry')}</button></div>
+      : state === 'notRegistered' || state === 'b2bDisabled' ? <EventNetworkingAccess b2bDisabled={state === 'b2bDisabled'} onRegister={onRegister} onAccess={onAccess} />
       : state && state !== 'ready' ? <p style={{ color: '#94A3B8' }}>{t(`eventImprovements.${state}`)}</p>
       : !matches.length ? <p style={{ color: '#94A3B8' }}>{t('eventImprovements.noMatches')}</p>
       : <>

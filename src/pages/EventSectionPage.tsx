@@ -1,3 +1,6 @@
+import EventNetworkingBanner from '../components/networking/EventNetworkingBanner';
+import ParticipantDirectoryFilters from '../components/networking/ParticipantDirectoryFilters';
+import { eventAuthPath, eventMeetingAuthPath } from '../utils/authRedirect';
 import ParticipantCard from '../components/networking/ParticipantCard';
 import { loadEventParticipantDirectory } from '../lib/eventParticipantDirectory';
 import { normalizeNetworkingValue, sectorOptions } from '../utils/eventNetworkingFields';
@@ -6,7 +9,7 @@ import { useEventRecommendations } from '../hooks/useEventRecommendations';
 import { eventPublicPath } from '../utils/eventLinks';
 import { useEventRouteParams } from '../components/navigation/EventPublicRoute';
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, User, MapPin, Check, Heart, Sparkles, Users, CreditCard, Building, Share2, Ticket, Calendar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
@@ -31,6 +34,7 @@ type SectionType = 'agenda' | 'speakers' | 'exhibitors' | 'attendees' | 'sponsor
 export default function EventSectionPage({ type }: { type: SectionType }) {
   const { eventId } = useEventRouteParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, isLoading: isLoadingAuth, signOut } = useAuth();
   const { getOrCreateThread, loading: isMessageLoading } = useMessageThread();
   const { t, locale } = useI18n();
@@ -52,10 +56,45 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
   const [selectedSector, setSelectedSector] = useState<string>('All');
   const [directoryFailed, setDirectoryFailed] = useState(false);
   const [page, setPage] = useState(1);
-  const ITEMS_PER_PAGE = 50;
+  const ITEMS_PER_PAGE = type === 'attendees' ? 48 : 50;
 
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+
+  // Event attendees use their registration email for every sign-in entry point.
+  // Also recover a general login dialog left open before a route change or hot update.
+  useEffect(() => {
+    if (type !== 'attendees' || !eventId || (!showLoginModal && !showRegistrationModal)) return;
+    setShowLoginModal(false);
+    setShowRegistrationModal(false);
+    navigate(showRegistrationModal ? `/event/${eventId}/register` : eventAuthPath(`/event/${eventId}/attendees`));
+  }, [type, eventId, showLoginModal, showRegistrationModal, navigate]);
+
+  // The email link carries the selected profile, including when opened on another device.
+  // Only restore a person from this event's loaded B2B directory; never create a meeting here.
+  const requestedMeeting = searchParams.get('bookMeeting');
+  useEffect(() => {
+    if (type !== 'attendees' || !requestedMeeting || !user || isLoadingAuth || isLoadingData || directoryFailed || event?.id !== eventId) return;
+    const person = (data || []).find((attendee: { profile_id?: string }) => attendee.profile_id === requestedMeeting);
+    if (person && person.profile_id !== user.id) {
+      setSelectedAttendee({ id: person.profile_id, name: person.name, avatar: person.final_avatar });
+    } else if (!person) {
+      toast.error(t('networking.errors.participantMissing'));
+    }
+    setSearchParams(previous => {
+      const next = new URLSearchParams(previous);
+      next.delete('bookMeeting');
+      return next;
+    }, { replace: true });
+  }, [type, requestedMeeting, user, isLoadingAuth, isLoadingData, directoryFailed, event?.id, eventId, data, setSearchParams, t]);
+
+  const handleBookMeeting = (person: { id: string; name: string; avatar?: string | null }) => {
+    if (!user) {
+      if (eventId) navigate(eventMeetingAuthPath(eventId, person.id));
+      return;
+    }
+    setSelectedAttendee(person);
+  };
 
   // 1. Fetch Public Data (Event, Counts, Section Content)
   useEffect(() => {
@@ -197,7 +236,9 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
 
   const handlePageChange = async (newPage: number) => {
     setPage(newPage);
-    if (type === 'speakers') {
+    if (type === 'attendees') {
+      document.getElementById('attendee-directory')?.scrollIntoView({ block: 'start' });
+    } else if (type === 'speakers') {
       await fetchSpeakerBatch(newPage);
     } else if (type === 'exhibitors') {
       await fetchExhibitorBatch(newPage);
@@ -226,22 +267,18 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
             transition: 'all 0.2s'
           }}
         >
-          Previous
+          {t('attendeeExperience.previous')}
         </button>
         
         <div style={{ display: 'flex', gap: '8px' }}>
           {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-            // Logic to show pages around current page
-            let pageNum = page;
-            if (page <= 3) pageNum = i + 1;
-            else if (page >= totalPages - 2) pageNum = totalPages - 4 + i;
-            else pageNum = page - 2 + i;
-
-            if (pageNum <= 0 || pageNum > totalPages) return null;
+            const pageNum = Math.max(1, Math.min(page - 2, totalPages - 4)) + i;
 
             return (
               <button
                 key={pageNum}
+                aria-label={t('attendeeExperience.page', { page: pageNum })}
+                aria-current={page === pageNum ? 'page' : undefined}
                 onClick={() => handlePageChange(pageNum)}
                 disabled={isLoadingMore}
                 style={{
@@ -280,7 +317,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
             transition: 'all 0.2s'
           }}
         >
-          Next
+          {t('attendeeExperience.next')}
         </button>
       </div>
     );
@@ -424,7 +461,8 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
 
   const handleMessage = async (otherUserId: string) => {
     if (!user) {
-      setShowLoginModal(true);
+      if (type === 'attendees' && eventId) navigate(eventAuthPath(`/event/${eventId}/attendees`));
+      else setShowLoginModal(true);
       return;
     }
     const threadId = await getOrCreateThread(otherUserId);
@@ -492,8 +530,6 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
         }
 
         @media (max-width: 768px) {
-          .event-networking-hero { flex-direction: column !important; align-items: stretch !important; padding: 24px !important; gap: 24px !important; }
-          .event-networking-filters { width: 100% !important; }
           .agenda-card {
             grid-template-columns: 1fr auto;
             gap: 16px;
@@ -535,87 +571,21 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
         onRegister={handleRegister}
       />
 
-      <div style={{ padding: '60px 24px', maxWidth: '1200px', margin: '0 auto' }}>
-        {type !== 'sponsors' && (
+        {type === 'attendees' && <EventNetworkingBanner
+          eventName={event?.name} participantCount={counts.attendees} participants={participantData}
+          matchCount={!user || recommendations.isLoading || recommendations.isError || recommendations.data?.state !== 'ready' ? null : recommendations.data.matches.length}
+          onExplore={() => document.getElementById('attendee-directory')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' })}
+        />}
+
+      <div style={{ padding: type === 'attendees' ? '40px 24px 60px' : '60px 24px', maxWidth: '1200px', margin: '0 auto' }}>
+        {type === 'attendees' && <h2 style={{ fontSize: '28px', fontWeight: 700, marginBottom: '24px' }}>{t('attendeeExperience.title')}</h2>}
+        {type !== 'sponsors' && type !== 'attendees' && (
           <h1 style={{ fontSize: '32px', fontWeight: 700, color: '#FFFFFF', marginBottom: '40px', textTransform: 'capitalize' }}>
-            {type === 'attendees' ? 'B2B Networking Center' : t(`wizard.designStudio.navbar.${type}`, { defaultValue: type })}
+            {t(`wizard.designStudio.navbar.${type}`, { defaultValue: type })}
           </h1>
         )}
 
-        {type === 'attendees' && (
-          <div style={{ marginBottom: '48px' }}>
-            {/* Networking Hero / Stats */}
-            <div className="event-networking-hero"
-              style={{ 
-                background: `linear-gradient(135deg, ${brandColor}20 0%, rgba(11, 38, 65, 0.5) 100%)`,
-                borderRadius: '24px',
-                padding: '40px',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                marginBottom: '40px',
-                display: 'flex',
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: '40px'
-              }}
-            >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#FFFFFF', marginBottom: '12px' }}>
-                  Connect with Industry Leaders
-                </h2>
-                <p style={{ fontSize: '16px', color: '#94A3B8', lineHeight: '1.6', marginBottom: '24px', maxWidth: '500px' }}>
-                  Schedule 1-on-1 meetings, exchange messages, and expand your professional network during the {event?.name}.
-                </p>
-                <div style={{ display: 'flex', gap: '24px' }}>
-                  <div>
-                    <div style={{ fontSize: '24px', fontWeight: 800, color: brandColor }}>{counts.attendees}</div>
-                    <div style={{ fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('eventImprovements.b2bParticipants')}</div>
-                  </div>
-                  <div style={{ width: '1px', backgroundColor: 'rgba(255, 255, 255, 0.1)' }} />
-                  <div>
-                    <div style={{ fontSize: '24px', fontWeight: 800, color: '#10B981' }}>{!user || recommendations.isLoading || recommendations.isError || recommendations.data?.state !== 'ready' ? '\u2014' : recommendations.data.matches.length}</div>
-                    <div style={{ fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '1px' }}>{t('eventImprovements.potentialMatches')}</div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="event-networking-filters" style={{ width: '400px', maxWidth: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {/* Search */}
-                <div style={{ position: 'relative' }}>
-                  <input 
-                    type="text" 
-                    placeholder="Search by name, company, or title..." 
-                    value={searchQuery}
-                    onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-                    style={{ 
-                      width: '100%', 
-                      height: '52px', 
-                      backgroundColor: 'rgba(255, 255, 255, 0.05)', 
-                      border: '1px solid rgba(255, 255, 255, 0.1)', 
-                      borderRadius: '12px', 
-                      padding: '0 20px 0 48px',
-                      color: '#FFFFFF',
-                      fontSize: '15px',
-                      outline: 'none'
-                    }}
-                  />
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }}><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                </div>
-                
-                <label style={{ display: 'flex', alignItems: 'center', gap: 12, color: '#94A3B8', fontSize: 13 }}>
-                  <span style={{ flexShrink: 0 }}>{t('eventImprovements.filterSector')}</span>
-                  <select value={selectedSector} onChange={e => { setSelectedSector(e.target.value); setPage(1); }}
-                    style={{ flex: 1, minWidth: 0, width: '100%', height: 44, padding: '0 12px', borderRadius: 10, border: '1px solid #475569', background: '#1E293B', color: '#fff', fontSize: 14, textOverflow: 'ellipsis', colorScheme: 'dark' }}>
-                  {['All', ...sectorOptions(participantData), ...(participantData.some((person: any) => !person.sector) ? ['__none'] : [])].map(sector => (
-                    <option key={sector} value={sector}>
-                      {sector === 'All' ? t('eventImprovements.allSectors') : sector === '__none' ? t('eventImprovements.noSector') : sector}
-                    </option>
-                  ))}
-                  </select>
-                </label>
-              </div>
-            </div>
-          </div>
-        )}
+
 
         {type === 'agenda' && (
           <div className="space-y-8">
@@ -1186,7 +1156,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
 
         {type === 'attendees' && (
           <div>
-            {searchQuery === '' && selectedSector === 'All' && <EventMatchSuggestions
+            {<EventMatchSuggestions
               key={`${eventId}:${user?.id || ''}`}
               matches={recommendations.data?.matches || []} state={recommendations.data?.state} signedIn={!!user} loading={recommendations.isLoading}
               failed={recommendations.isError} onRetry={() => { void recommendations.refetch(); }}
@@ -1195,18 +1165,23 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                 if (result.error) throw result.error;
                 return result.data?.matches || [];
               }}
-              onLogin={() => setShowLoginModal(true)} onView={person => navigate(eventPublicPath(event, `profile/${person.id}`))}
-              onBook={setSelectedAttendee} onMessage={handleMessage} messagePending={isMessageLoading}
+              onRegister={handleRegister}
+              onAccess={() => navigate(`${eventAuthPath(`/event/${eventId}/networking`)}${user ? '&switch_account=1' : ''}`)}
+              onView={person => navigate(eventPublicPath(event, `profile/${person.id}`))}
+              onBook={handleBookMeeting} onMessage={handleMessage} messagePending={isMessageLoading}
               brandColor={brandColor}
             />}
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '48px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF' }}>{t('eventImprovements.b2bParticipants')}</h3>
-              <span style={{ fontSize: '13px', color: '#94A3B8', fontWeight: 500 }}>({counts.attendees})</span>
-            </div>
-
-            {directoryFailed ? <div role="alert" style={{ color: '#94A3B8' }}>{t('eventImprovements.directoryError')} <button onClick={() => { void fetchAttendeeBatch(1); }}>{t('eventImprovements.retry')}</button></div>
-              : <p role="status" style={{ color: '#94A3B8', marginBottom: 16 }}>{t('eventImprovements.filteredCount', { count: filteredParticipants.length, total: participantData.length })}</p>}
+            <section id="attendee-directory" className="attendee-directory" aria-label={t('eventImprovements.b2bParticipants')}>
+            <ParticipantDirectoryFilters
+              sectors={[...sectorOptions(participantData), ...(participantData.some((person: any) => !person.sector) ? ['__none'] : [])]}
+              selected={selectedSector} search={searchQuery}
+              onSector={value => { setSelectedSector(value); setPage(1); }}
+              onSearch={value => { setSearchQuery(value); setPage(1); }}
+              count={filteredParticipants.length} total={participantData.length}
+            />
+            {directoryFailed && <div role="alert" style={{ color: '#94A3B8' }}>{t('eventImprovements.directoryError')} <button onClick={() => { void fetchAttendeeBatch(1); }}>{t('eventImprovements.retry')}</button></div>}
+            {!directoryFailed && filteredParticipants.length === 0 && <p style={{ color: '#b8cbdc', padding: '32px 0' }}>{t('attendeeExperience.noResults')}</p>}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '24px', opacity: isLoadingMore ? 0.5 : 1, transition: 'opacity 0.2s' }}>
               {filteredParticipants.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE)
                 .map((a: any) => (
@@ -1215,20 +1190,18 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
                   tags={a.profile_industries || []}
                   onView={() => navigate(eventPublicPath(event, a.profile_id ? `profile/${a.profile_id}` : `participant/${a.id}`))}
                   bookLabel={t('eventImprovements.bookMeeting')}
-                  onBook={a.profile_id && a.profile_id !== user?.id ? () => {
-                    if (!user) { setShowLoginModal(true); return; }
-                    setSelectedAttendee({ id: a.profile_id, name: a.name, avatar: a.final_avatar });
-                  } : undefined}
+                  onBook={a.profile_id && a.profile_id !== user?.id ? () => handleBookMeeting({ id: a.profile_id, name: a.name, avatar: a.final_avatar }) : undefined}
                   messagePending={isMessageLoading}
-                  onMessage={a.profile_id && a.profile_id !== user?.id ? () => {
-                    if (!user) { setShowLoginModal(true); return; }
-                    handleMessage(a.profile_id);
-                  } : undefined} />
+                  onMessage={a.profile_id && a.profile_id !== user?.id ? () => handleMessage(a.profile_id) : undefined} />
               ))}
             </div>
+            </section>
           </div>
         )}
 
+        {type === 'attendees' && filteredParticipants.length > 0 && <p style={{ textAlign: 'center', color: '#a2b6c9', fontSize: 13, marginTop: 28 }}>
+          {t('attendeeExperience.pageRange', { start: (page - 1) * ITEMS_PER_PAGE + 1, end: Math.min(page * ITEMS_PER_PAGE, filteredParticipants.length), total: filteredParticipants.length })}
+        </p>}
         {(type === 'speakers' || type === 'exhibitors' || type === 'attendees') && (
           <PaginationControls totalItems={type === 'attendees' ? filteredParticipants.length : counts[type]} />
         )}
@@ -1244,7 +1217,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
 
       {/* Auth Modals */}
       <ModalRegistrationEntry
-        isOpen={showRegistrationModal}
+        isOpen={type !== 'attendees' && showRegistrationModal}
         onClose={() => setShowRegistrationModal(false)}
         onGoogleSignup={handleGoogleSignup}
         onEmailSignup={handleEmailSignup}
@@ -1252,7 +1225,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
       />
 
       <ModalLogin
-        isOpen={showLoginModal}
+        isOpen={type !== 'attendees' && showLoginModal}
         onClose={() => setShowLoginModal(false)}
         onGoogleLogin={handleGoogleLogin}
         onLoginSuccess={handleLoginSuccess}

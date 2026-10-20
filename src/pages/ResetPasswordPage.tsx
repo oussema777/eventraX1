@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useI18n } from '../i18n/I18nContext';
 import './ResetPasswordPage.css';
+import { loginReturnPath } from '../utils/authRedirect';
 
 export default function ResetPasswordPage() {
   const { t } = useI18n();
+  const destination = loginReturnPath(new URLSearchParams(window.location.search).get('next'), window.location.origin);
   const [isReady, setIsReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -110,7 +112,7 @@ export default function ResetPasswordPage() {
           </form>
         )}
         {errorMessage && <p role="alert" className="mt-4 text-sm text-red-600">{errorMessage}</p>}
-        <Link to="/login">{t('auth.forgotPassword.backToLogin')}</Link>
+        <Link to={destination ? `/login?next=${encodeURIComponent(destination)}` : '/login'}>{t('auth.forgotPassword.backToLogin')}</Link>
       </div>
     </main>
   );

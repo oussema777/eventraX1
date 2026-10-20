@@ -13,7 +13,7 @@ export default function AuthCallback() {
   const [needsSignIn, setNeedsSignIn] = useState(false);
   const [expiredLink, setExpiredLink] = useState(false);
   const next = safeAuthPath(new URLSearchParams(window.location.search).get('next'), window.location.origin);
-  const eventDestination = next && /^\/event\/[^/]+\/networking(?:[/?#]|$)/.test(next) ? next : null;
+  const eventDestination = next && /^\/event\/[^/]+\/(?:networking|attendees)(?:[/?#]|$)/.test(next) ? next : null;
 
   useEffect(() => {
     const finishAuth = async () => {

@@ -3,7 +3,7 @@ import { useEventRouteParams } from '../components/navigation/EventPublicRoute';
 import { useEventParticipantProfile } from '../hooks/useEventParticipantProfile';
 import ProfileMeetingRequest from '../components/networking/ProfileMeetingRequest';
 import BookMeetingModal from '../components/networking/BookMeetingModal';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useState, useMemo, useEffect } from 'react';
 import {
   MapPin,
@@ -49,7 +49,9 @@ import SEOHead from '../components/SEOHead';
 import { canonicalUrl } from '../utils/seo';
 import { supabase } from '../lib/supabase';
 import { isSystemProfile } from '../utils/profileIdentity';
+import { eventMeetingAuthPath } from '../utils/authRedirect';
 import { useProfileActivityStats } from '../hooks/useProfileActivityStats';
+import './PublicProfileActions.css';
 
 export default function PublicProfilePage() {
   const { userId: routeUserId, eventId, attendeeId } = useEventRouteParams();
@@ -99,6 +101,12 @@ export default function PublicProfilePage() {
   // Auth Modals
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+
+  const handleMeetingRequest = () => {
+    if (currentUser) setShowMeetingModal(true);
+    else if (eventId && userId) navigate(eventMeetingAuthPath(eventId, userId));
+    else setShowLoginModal(true);
+  };
 
   const handleMessage = async () => {
     if (!currentUser) {
@@ -328,14 +336,6 @@ export default function PublicProfilePage() {
           .profile-info-row {
             justify-content: center !important;
           }
-          .profile-actions {
-            justify-content: center;
-            width: 100%;
-          }
-          .profile-actions button {
-            flex: 1;
-            justify-content: center;
-          }
           .professional-info-grid {
             grid-template-columns: 1fr;
           }
@@ -345,9 +345,6 @@ export default function PublicProfilePage() {
         }
 
         @media (max-width: 480px) {
-          .profile-actions {
-            flex-direction: column;
-          }
           .profile-header-title {
             font-size: 24px !important;
           }
@@ -502,93 +499,60 @@ export default function PublicProfilePage() {
               )}
             </div>
 
-            <div className="profile-actions" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-              {linkedBusinesses.map((business) => (
-                <button
-                  key={business.id}
-                  onClick={() => navigate(`/business/${business.id}`)}
-                  aria-label={`${t('publicProfilePage.actions.viewBusinessProfile')}: ${business.company_name}`}
-                  style={{ padding: '12px 24px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.15)', color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '8px' }}
-                >
-                  <Building size={18} />
-                  {t('publicProfilePage.actions.viewBusinessProfile')}: {business.company_name}
-                </button>
-              ))}
-              {!isOwnProfile && !!userId && (
-                <>
-                  <button
-                    onClick={() => {
-                      if (!currentUser) {
-                        setShowLoginModal(true);
-                        return;
-                      }
-                      setShowMeetingModal(true);
-                    }}
-                    style={{
-                      padding: '12px 24px',
-                      borderRadius: '8px',
-                      background: '#0684F5',
-                      border: 'none',
-                      fontSize: '15px',
-                      fontWeight: 600,
-                      color: '#FFFFFF',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      boxShadow: '0px 4px 16px rgba(6, 132, 245, 0.3)',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <Calendar size={18} />
-                    {t('publicProfilePage.actions.requestMeeting')}
-                  </button>
-                  <button
-                    onClick={handleMessage}
-                    disabled={connecting}
-                    style={{
-                      padding: '12px 24px',
-                      borderRadius: '8px',
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      fontSize: '15px',
-                      fontWeight: 500,
-                      color: '#FFFFFF',
-                      cursor: connecting ? 'not-allowed' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      opacity: connecting ? 0.7 : 1
-                    }}
-                  >
-                    <MessageCircle size={18} />
-                    {connecting ? t('common.loading') : t('publicProfilePage.actions.sendMessage')}
-                  </button>
-                </>
+            {(!!userId || linkedBusinesses.length > 0) && <div className="public-profile-actions">
+              {!!userId && (
+                <div className="public-profile-actions__conversation">
+                  {!isOwnProfile && !!userId && (
+                    <>
+                      <button
+                        type="button"
+                        className="public-profile-action public-profile-action--primary"
+                        onClick={handleMeetingRequest}
+                      >
+                        <span className="public-profile-action__icon"><Calendar size={20} aria-hidden="true" /></span>
+                        <span>{t('publicProfilePage.actions.requestMeeting')}</span>
+                        <ChevronRight className="public-profile-action__arrow" size={18} aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        className="public-profile-action public-profile-action--message"
+                        onClick={handleMessage}
+                        disabled={connecting}
+                        aria-busy={connecting}
+                      >
+                        <span className="public-profile-action__icon"><MessageCircle size={20} aria-hidden="true" /></span>
+                        <span>{connecting ? t('common.loading') : t('publicProfilePage.actions.sendMessage')}</span>
+                      </button>
+                    </>
+                  )}
+                  {isOwnProfile && (
+                    <Link to="/my-profile" className="public-profile-action public-profile-action--message">
+                      <span className="public-profile-action__icon"><Edit size={20} aria-hidden="true" /></span>
+                      <span>{t('publicProfilePage.actions.editProfile')}</span>
+                    </Link>
+                  )}
+                </div>
               )}
-
-              {isOwnProfile && (
-                <button
-                  onClick={() => navigate('/my-profile')}
-                  style={{
-                    padding: '12px 24px',
-                    borderRadius: '8px',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    fontSize: '15px',
-                    fontWeight: 500,
-                    color: '#FFFFFF',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
-                  >
-                    <Edit size={18} />
-                    {t('publicProfilePage.actions.editProfile')}
-                  </button>
+              {linkedBusinesses.length > 0 && (
+                <div className="public-profile-actions__businesses">
+                  {linkedBusinesses.map((business) => (
+                    <Link
+                      key={business.id}
+                      to={`/business/${business.id}`}
+                      className="public-profile-business-link"
+                      aria-label={`${t('publicProfilePage.actions.viewBusinessProfile')}: ${business.company_name}`}
+                    >
+                      <span className="public-profile-business-link__icon"><Building size={23} aria-hidden="true" /></span>
+                      <span className="public-profile-business-link__copy">
+                        <span className="public-profile-business-link__label">{t('publicProfilePage.actions.viewBusinessProfile')}</span>
+                        <span className="public-profile-business-link__name">{business.company_name}</span>
+                      </span>
+                      <ChevronRight className="public-profile-action__arrow" size={20} aria-hidden="true" />
+                    </Link>
+                  ))}
+                </div>
               )}
-            </div>
+            </div>}
           </div>
         </div>
 
@@ -927,7 +891,7 @@ export default function PublicProfilePage() {
               <div style={{ background: 'linear-gradient(135deg, #0684F5 0%, #4A7C6D 100%)', padding: '24px', borderRadius: '12px', boxShadow: '0px 4px 20px rgba(6, 132, 245, 0.3)', color: '#FFFFFF' }}>
                 <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>{t('publicProfilePage.connect.title')}</h3>
                 <p style={{ fontSize: '14px', marginBottom: '20px', color: 'rgba(255, 255, 255, 0.9)' }}>{t('publicProfilePage.connect.subtitle')}</p>
-                <button onClick={() => currentUser ? setShowMeetingModal(true) : setShowLoginModal(true)} style={{ width: '100%', padding: '14px', borderRadius: '8px', background: '#FFFFFF', border: 'none', fontSize: '15px', fontWeight: 600, color: '#0684F5', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <button onClick={handleMeetingRequest} style={{ width: '100%', padding: '14px', borderRadius: '8px', background: '#FFFFFF', border: 'none', fontSize: '15px', fontWeight: 600, color: '#0684F5', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                   <Calendar size={18} /> {t('publicProfilePage.actions.requestMeeting')}
                 </button>
               </div>

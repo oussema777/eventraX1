@@ -24,6 +24,24 @@ test('pending meetings do not hold participant time or physical capacity', () =>
   assert.equal(slotAvailability(slots[0], venue, [{ ...pending, status: 'confirmed' }], ['a', 'c'], new Map()).available, 0);
   assert.equal(slotAvailability(slots[0], venue, [{ ...pending, status: 'confirmed' }], ['a', 'c'], new Map(), 'm').available, 1);
 });
+test('bulk-generated suggestions reserve nothing; confirmed meetings identify the participant who is busy', () => {
+  const suggestions = Array.from({ length: 173 }, (_, i) => ({ id: `suggestion-${i}`, status: 'pending', start_at: slots[0].iso,
+    end_at: slots[0].end, profile_a_id: 'a', profile_b_id: `person-${i}`, location: 'Table-01', meta: { is_bulk_match_all: true } }));
+  const open = slotAvailability(slots[0], venue, suggestions, ['a', 'b'], new Map());
+  assert.equal(open.available, 1);
+  assert.deepEqual(open.busyParticipantIds, []);
+  const confirmed = { ...suggestions[0], id: 'real-meeting', status: 'confirmed' };
+  const busy = slotAvailability(slots[0], venue, [...suggestions, confirmed], ['a', 'b'], new Map());
+  assert.equal(busy.available, 0);
+  assert.deepEqual(busy.busyParticipantIds, ['a']);
+});
+test('video meetings using meeting_format do not use physical tables', () => {
+  const video = { id: 'video', status: 'confirmed', start_at: slots[0].iso, end_at: slots[0].end,
+    profile_a_id: 'x', profile_b_id: 'y', meta: { meeting_format: 'video', meeting_type: 'in-person' } };
+  assert.equal(slotAvailability(slots[0], venue, [video], ['a', 'b'], new Map()).available, 1);
+  assert.equal(slotAvailability(slots[0], venue, [video], ['a', 'b'], new Map()).venueFull, false);
+  assert.equal(slotAvailability(slots[0], venue, [video], ['x', 'b'], new Map()).isConflicted, true);
+});
 test('overlapping confirmed meetings block participants across events but do not consume another event\'s tables', () => {
   const meeting = { id: 'm', event_id: 'other-event', status: 'confirmed', start_at: '2026-11-20T12:45Z', end_at: '2026-11-20T13:15Z', profile_a_id: 'a', profile_b_id: 'b', location: 'Table-01' };
   assert.equal(slotAvailability(slots[0], venue, [meeting], ['a', 'c'], new Map(), null, 'this-event').isConflicted, true);

@@ -11,6 +11,7 @@ interface ModalLoginProps {
   onGoogleLogin?: () => void;
   onLoginSuccess?: () => void;
   onSignUpClick?: () => void;
+  initialEmail?: string;
 }
 
 export default function ModalLogin({
@@ -18,10 +19,11 @@ export default function ModalLogin({
   onClose,
   onGoogleLogin,
   onLoginSuccess,
-  onSignUpClick
+  onSignUpClick,
+  initialEmail = ''
 }: ModalLoginProps) {
   const { t } = useI18n();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -41,6 +43,7 @@ export default function ModalLogin({
         isOpen={true}
         onClose={onClose}
         onBack={() => setShowForgotPassword(false)}
+        initialEmail={email}
       />
     );
   }
@@ -54,7 +57,7 @@ export default function ModalLogin({
     setShowError(false);
     
     try {
-      const destination = (window.location.pathname === '/login'
+      const destination = (['/login', '/register'].includes(window.location.pathname)
         ? loginReturnPath(new URLSearchParams(window.location.search).get('next'), window.location.origin)
         : loginReturnPath(window.location.pathname + window.location.search + window.location.hash, window.location.origin)) || '/';
       const { error } = await supabase.auth.signInWithOAuth({
@@ -124,7 +127,7 @@ export default function ModalLogin({
     if (!email.trim() || magicStatus === 'sending') return;
     setMagicStatus('sending');
     setShowError(false);
-    const destination = (window.location.pathname === '/login'
+    const destination = (['/login', '/register'].includes(window.location.pathname)
       ? loginReturnPath(new URLSearchParams(window.location.search).get('next'), window.location.origin)
       : loginReturnPath(window.location.pathname + window.location.search + window.location.hash, window.location.origin)) || '/';
     const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(destination)}`;
