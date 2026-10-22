@@ -46,6 +46,7 @@ const BusinessProfilePageRoute = lazy(() => import('./pages/21_Business_Profile_
 const SingleEventLandingPage = lazy(() => import('./pages/25_Single_Event_Landing_Page'));
 const EventSectionPage = lazy(() => import('./pages/EventSectionPage'));
 const SponsorshipInquiryPage = lazy(() => import('./pages/38_Sponsorship_Inquiry_Page'));
+const EventOnlineAccess = lazy(() => import('./pages/EventOnlineAccess'));
 const EventRegistrationFlow = lazy(() => import('./pages/32_Event_Registration_Flow'));
 const PublicProfilePage = lazy(() => import('./pages/PublicProfilePage'));
 const EventGuestNetworkingPage = lazy(() => import('./pages/99_Event_Guest_Networking'));
@@ -177,6 +178,7 @@ export default function App() {
               <Route path="/event/:eventId/attendees" element={<EventSectionPage type="attendees" />} />
               <Route path="/event/:eventId/profile/:userId" element={<PublicProfilePage />} />
               <Route path="/event/:eventId/participant/:attendeeId" element={<PublicProfilePage />} />
+              <Route path="/event/:eventId/access" element={<EventOnlineAccess />} />
               <Route path="/event/:eventId/register" element={<EventRegistrationFlow />} />
             </Route>
             <Route path="/profile/:userId" element={<PublicProfilePage />} />

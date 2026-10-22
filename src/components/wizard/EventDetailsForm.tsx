@@ -1,3 +1,5 @@
+import OnlineExperienceSettings from './OnlineExperienceSettings';
+import { onlineErrors, type OnlineExperience } from '../../../supabase/functions/_shared/onlineExperience';
 import { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import './EventDetailsForm.css';
 import {
@@ -47,6 +49,7 @@ const EventDetailsForm = forwardRef<EventDetailsFormHandle, EventDetailsFormProp
   const { isPro } = usePlan();
   const initializedRef = useRef(false);
 
+  const [onlineExperience,setOnlineExperience] = useState<OnlineExperience|null>(null);
   const [eventName, setEventName] = useState('');
   const [tagline, setTagline] = useState('');
   const [eventType, setEventType] = useState('Conference');
@@ -146,6 +149,9 @@ const EventDetailsForm = forwardRef<EventDetailsFormHandle, EventDetailsFormProp
       (!isKnownType && rawEventType !== 'Other' ? rawEventType : '') ||
       '';
 
+    // This existing, ref-guarded hydration runs once when the async event draft arrives.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOnlineExperience(stored.onlineExperience || eventData.attendee_settings?.onlineExperience || null);
     setEventName(resolvedName);
     setTagline(stored.tagline || eventData.tagline || '');
     setEventType(resolvedEventType);
@@ -204,7 +210,8 @@ const EventDetailsForm = forwardRef<EventDetailsFormHandle, EventDetailsFormProp
       waitlistCapacity: enableWaitlist ? parseInt(waitlistCapacity || '0', 10) : undefined,
       isPrivateEvent,
       accessCode,
-      requireAccountForB2B
+      requireAccountForB2B,
+      onlineExperience
     }, eventId);
   }, [
     eventName,
@@ -223,6 +230,7 @@ const EventDetailsForm = forwardRef<EventDetailsFormHandle, EventDetailsFormProp
     isPrivateEvent,
     accessCode,
     requireAccountForB2B,
+    onlineExperience,
     eventId
   ]);
 
@@ -259,6 +267,10 @@ const EventDetailsForm = forwardRef<EventDetailsFormHandle, EventDetailsFormProp
   ];
 
   const buildPayload = () => {
+    if (onlineExperience?.enabled && eventStatus !== 'paid' && !isPrivateEvent && eventFormat !== 'in-person') {
+      const errors = onlineErrors(onlineExperience);
+      if (errors.length) { toast.error(errors[0]); throw new Error(errors[0]); }
+    }
     const normalizedType = eventType === 'Other' && otherEventType.trim() ? otherEventType.trim() : eventType;
     return {
       name: eventName.trim() || eventData.name || t('wizard.common.untitledEvent'),
@@ -274,7 +286,8 @@ const EventDetailsForm = forwardRef<EventDetailsFormHandle, EventDetailsFormProp
       attendee_settings: {
         ...(eventData.attendee_settings || {}),
         waitlist_capacity: enableWaitlist ? parseInt(waitlistCapacity || '0', 10) : null,
-        requireAccountForB2B
+        requireAccountForB2B,
+        ...(onlineExperience ? { onlineExperience: {...onlineExperience, enabled: onlineExperience.enabled && eventStatus !== 'paid' && !isPrivateEvent && eventFormat !== 'in-person'} } : {})
       },
       access_code: isPrivateEvent && accessCode.length >= 4 ? accessCode : null,
     };
@@ -282,7 +295,7 @@ const EventDetailsForm = forwardRef<EventDetailsFormHandle, EventDetailsFormProp
 
   useImperativeHandle(ref, () => ({
     getPayload: buildPayload
-  }), [eventName, tagline, eventType, otherEventType, eventStatus, eventFormat, venueAddress, startDate, endDate, hasCapacityLimit, maxAttendees, enableWaitlist, waitlistCapacity, isPrivateEvent, accessCode, requireAccountForB2B]);
+  }), [eventName, tagline, eventType, otherEventType, eventStatus, eventFormat, venueAddress, startDate, endDate, hasCapacityLimit, maxAttendees, enableWaitlist, waitlistCapacity, isPrivateEvent, accessCode, requireAccountForB2B, onlineExperience, eventData]);
 
   const ensureEventAndNavigate = async (target: string) => {
     // Validation
@@ -310,7 +323,8 @@ const EventDetailsForm = forwardRef<EventDetailsFormHandle, EventDetailsFormProp
       }
     }
 
-    const payload = buildPayload();
+    let payload;
+    try { payload = buildPayload(); } catch { return; }
     
     // If skipping to registration, add a default hero block to design studio settings
     if (target === 'registration') {
@@ -746,6 +760,7 @@ const EventDetailsForm = forwardRef<EventDetailsFormHandle, EventDetailsFormProp
           )}
         </div>
 
+        <OnlineExperienceSettings value={onlineExperience} onChange={setOnlineExperience} eligible={eventFormat !== 'in-person' && eventStatus !== 'paid' && !isPrivateEvent}/>
         {/* Event Visibility */}
         <div>
           <label className="block text-sm mb-4" style={{ fontWeight: 500, color: '#6B7280' }}>

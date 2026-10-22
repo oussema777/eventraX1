@@ -1,3 +1,5 @@
+import {onlineConfig} from '../../../supabase/functions/_shared/onlineExperience';
+import {safeMeetingUrl,meetingIsOnline} from '../../utils/onlineMeeting';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { allowedMeetingFormats, networkingTimeZone, networkingSlots, slotAvailability, type NetworkingVenue } from '../../utils/networkingSchedule';
 import { X, Calendar, Clock, MapPin, ArrowRight, Check, Globe, Loader2 } from 'lucide-react';
@@ -135,7 +137,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
     try {
       if (!eventId) return;
       const [eventResult, settingsResult] = await Promise.all([
-        supabase.from('events').select('id, name, start_date, location:location_address, timezone').eq('id', eventId).maybeSingle(),
+        supabase.from('events').select('id, name, start_date, location:location_address, timezone, attendee_settings, event_format, event_status, access_code, is_public').eq('id', eventId).maybeSingle(),
         supabase.from('event_b2b_settings').select('venue_config').eq('event_id', eventId).maybeSingle()
       ]);
       if (eventResult.error) throw eventResult.error;
@@ -145,7 +147,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
       const venue = settingsResult.data?.venue_config || null;
       setVenueConfig(venue);
       setTimeZone(networkingTimeZone(eventId, venue, event?.timezone));
-      if (event) setEventCatalog([{ id: event.id, name: event.name, startDate: event.start_date, location: event.location }]);
+      if (event) setEventCatalog([{ id: event.id, name: event.name, startDate: event.start_date, location: event.location, onlineExperienceEnabled: !!onlineConfig(event) }]);
       const allowed = allowedMeetingFormats(eventId, venue);
       setMeetingType(previous => allowed.includes(previous as any) ? previous : allowed.length === 1 ? allowed[0] : '');
     } catch {
@@ -253,6 +255,9 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
     }
 
     // Resolve Attendee IDs
+    if (eventCatalog.some(e=>e.id===(meetingEventId||eventId) && e.onlineExperienceEnabled) && meetingIsOnline(meetingType) && videoUrl.trim() && !safeMeetingUrl(videoUrl.trim())) {
+      setIsSubmitting(false); toast.error('Use a secure meeting URL beginning with https://.'); return;
+    }
     const targetEventId = isVirtual(meetingType) ? (meetingEventId || eventCatalog[0]?.id) : (eventId || meetingEventId);
 
     if (!targetEventId) {
@@ -352,7 +357,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
             meeting_format: meetingType,
             session_id: meetingType === 'video' ? null : meetingSessionId,
             message: meetingMessage,
-            ...(meetingType === 'video' && videoUrl.trim() ? { video_url: videoUrl.trim() } : {})
+            ...((meetingType === 'video' || (meetingType === 'hybrid' && eventCatalog.some(e=>e.id===targetEventId && e.onlineExperienceEnabled))) && videoUrl.trim() ? { video_url: videoUrl.trim() } : {})
           }
         };
 
@@ -428,7 +433,13 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
                 oldTime: existingMeeting?.startAt ? new Date(existingMeeting.startAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : 'N/A',
                 newDate: startAt.toLocaleDateString(locale),
                 newTime: startAt.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }),
-                location: location
+                location: location,
+                ...(currentEvent?.onlineExperienceEnabled ? {eventId: targetEventId, meetingId: savedMeetingId!,
+                  oldDate: existingMeeting?.startAt ? new Date(existingMeeting.startAt).toLocaleDateString(locale,{timeZone}) : 'N/A',
+                  oldTime: existingMeeting?.startAt ? new Date(existingMeeting.startAt).toLocaleTimeString(locale,{timeZone,hour:'2-digit',minute:'2-digit'}) : 'N/A',
+                  newDate: startAt.toLocaleDateString(locale,{timeZone}),
+                  newTime: startAt.toLocaleTimeString(locale,{timeZone,hour:'2-digit',minute:'2-digit'}) + ` (${timeZone})`
+                } : {})
               });
               if (!delivered) toast.warning(t('networking.notifications.emailFailed'));
             } else {
@@ -445,7 +456,8 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
                 meetingId: savedMeetingId!,
                 status: 'pending',
                 organizerProfileId: currentUser.id, recipientProfileId: recipient.id,
-                eventId: targetEventId, locale, timeZone
+                eventId: targetEventId, locale, timeZone,
+                onlineExperience: !!currentEvent?.onlineExperienceEnabled, meetingFormat: meetingType as any
               });
               if (deliveries.some((delivered) => !delivered)) toast.warning(t('networking.notifications.emailFailed'));
             }
@@ -549,6 +561,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
                       </button>)}</div> : <p className="meeting-booking__muted">{t('meetingBooking.empty')}</p>}
                 </fieldset>}
               </>}
+              {meetingType === 'hybrid' && eventDetails?.onlineExperienceEnabled && <label className="meeting-booking__message">Online room link<input type="url" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} placeholder="https://"/><small>Optional. A room will be assigned when the meeting is confirmed.</small></label>}
               {meetingType === 'video' && <>
                 <div className="meeting-booking__video-fields">
                   <label>{t('meetingBooking.date')}<input type="date" value={meetingDate} onChange={event => setMeetingDate(event.target.value)} /></label>

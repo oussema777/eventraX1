@@ -1,3 +1,4 @@
+import { renderOnlineEmail } from '../_shared/onlineExperience.ts';
 // supabase/functions/create-event-registration/index.ts
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -42,7 +43,7 @@ function escapeHtml(value: string): string {
 
 async function sendB2BAccessEmail(
   supabaseAdmin: ReturnType<typeof createClient>,
-  details: { email: string; name: string; eventName: string; eventId: string; attendeeId: string; confirmationCode: string },
+  details: { email: string; name: string; eventName: string; eventId: string; attendeeId: string; confirmationCode: string; event: any },
 ): Promise<boolean> {
   const resendKey = Deno.env.get('RESEND_API_KEY');
   const appOrigin = (Deno.env.get('EVENTRA_APP_ORIGIN') || 'https://eventra.cloud').replace(/\/$/, '');
@@ -57,7 +58,7 @@ async function sendB2BAccessEmail(
   if (error || !data?.properties?.action_link) return false;
 
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(details.attendeeId)}`;
-  const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#0B2641">
+  const html = renderOnlineEmail(details.event, details.name, `${appOrigin}/event/${details.eventId}/access`, data.properties.action_link, qrUrl) || `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#0B2641">
     <h1>You're registered for ${escapeHtml(details.eventName)}</h1>
     <p>Hi ${escapeHtml(details.name)}, your registration is confirmed. Your Eventra account is ready to use.</p>
     <p><a href="${escapeHtml(data.properties.action_link)}" style="display:inline-block;padding:14px 22px;background:#0684F5;color:#fff;border-radius:8px;text-decoration:none">Open your event and sign in</a></p>
@@ -110,7 +111,7 @@ Deno.serve(async (req: Request) => {
     // --- Validate event exists and is active ---
     const { data: event, error: eventError } = await supabaseAdmin
       .from('events')
-      .select('id, name, event_status, start_date, end_date, capacity_limit, owner_id, workshop_selection_limit')
+      .select('id, name, event_status, start_date, end_date, capacity_limit, owner_id, workshop_selection_limit, event_format, attendee_settings, access_code, location_address, is_public')
       .eq('id', event_id)
       .single();
 
@@ -277,7 +278,7 @@ Deno.serve(async (req: Request) => {
       const accessEmailSent = b2b_opt_in && userId
         ? await sendB2BAccessEmail(supabaseAdmin, {
           email, name: full_name, eventName: event.name || 'Event', eventId: event_id,
-          attendeeId: existing.id, confirmationCode: existingConfirmationCode,
+          attendeeId: existing.id, confirmationCode: existingConfirmationCode, event,
         })
         : false;
 
@@ -299,7 +300,7 @@ Deno.serve(async (req: Request) => {
     const accessEmailSent = b2b_opt_in && userId
       ? await sendB2BAccessEmail(supabaseAdmin, {
         email, name: full_name, eventName: event.name || 'Event', eventId: event_id,
-        attendeeId: attendee.id, confirmationCode,
+        attendeeId: attendee.id, confirmationCode, event,
       })
       : false;
 

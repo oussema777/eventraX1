@@ -1,5 +1,6 @@
 import { ArrowRight, Image, Type, Palette } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
+import './HeroBackground.css';
 import { useI18n } from '../../../i18n/I18nContext';
 import EditModule from './EditModule';
 
@@ -19,6 +20,7 @@ interface HeroBlockProps {
     title?: string;
     subtitle?: string;
     backgroundImage?: string;
+    backgroundImageMobile?: string;
     button1?: { text: string; url: string; visible: boolean };
     button2?: { text: string; url: string; visible: boolean };
   };
@@ -57,7 +59,9 @@ export default function HeroBlock({
 
   return (
     <div
+      className={settings?.backgroundImageMobile ? 'event-hero-responsive-background' : undefined}
       style={{
+        '--hero-mobile-image': settings?.backgroundImageMobile ? `url(${JSON.stringify(settings.backgroundImageMobile)})` : undefined,
         width: '100%',
         minHeight: 'clamp(400px, 70vh, 600px)',
         background: bgImage ? `url(${bgImage})` : `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
@@ -69,7 +73,7 @@ export default function HeroBlock({
         justifyContent: 'center',
         padding: 'clamp(32px, 6vw, 60px) clamp(16px, 5vw, 40px)',
         overflow: 'hidden'
-      }}
+      } as CSSProperties}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >

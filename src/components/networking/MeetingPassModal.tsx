@@ -1,3 +1,4 @@
+import OnlineMeetingJoin from './OnlineMeetingJoin';
 import { useEffect, useRef, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Check, Calendar, Clock, MapPin, Download, Printer, Copy, X, Video } from 'lucide-react';
@@ -9,11 +10,12 @@ import './MeetingPassModal.css';
 
 export interface MeetingPass {
   id: string; eventId?: string | null; event: string; name: string;
+  endAt?: string | null; status?: string; onlineExperienceEnabled?: boolean;
   startAt?: string | null; time: string; location: string; meetingUrl?: string;
   meetingFormat?: 'video' | 'in-person' | 'hybrid'; timeZone?: string;
 }
-export default function MeetingPassModal({ meeting, profileId, holderName, onClose }: {
-  meeting: MeetingPass; profileId: string; holderName: string; onClose: () => void;
+export default function MeetingPassModal({ meeting, profileId, holderName, onClose, onJoin }: {
+  onJoin?:()=>Promise<void>|void; meeting: MeetingPass; profileId: string; holderName: string; onClose: () => void;
 }) {
   const { t, locale } = useI18n();
   const [image, setImage] = useState('');
@@ -66,7 +68,8 @@ export default function MeetingPassModal({ meeting, profileId, holderName, onClo
               <div><Clock aria-hidden="true" size={19} /><dt>{t('networking.ticket.time')}</dt><dd>{timeLabel}<small>{timeZone}</small></dd></div>
               <div><MapPin aria-hidden="true" size={19} /><dt>{t('networking.ticket.location')}</dt><dd>{meeting.location}</dd></div>
             </dl>
-            {meeting.meetingUrl && <a className="meeting-pass__video" href={meeting.meetingUrl} target="_blank" rel="noreferrer"><Video aria-hidden="true" size={16} />{t('networking.actions.joinCall')}</a>}
+            {meeting.onlineExperienceEnabled && onJoin && (meeting.meetingFormat === 'video' || meeting.meetingFormat === 'hybrid') && <OnlineMeetingJoin meeting={meeting} onJoin={onJoin}/>}
+            {!meeting.onlineExperienceEnabled && meeting.meetingUrl && <a className="meeting-pass__video" href={meeting.meetingUrl} target="_blank" rel="noreferrer"><Video aria-hidden="true" size={16} />{t('networking.actions.joinCall')}</a>}
             <p className="meeting-pass__reference">{t('meetingPass.reference')}<span>{meeting.id}</span></p>
           </section>
         </div>

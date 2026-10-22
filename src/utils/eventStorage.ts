@@ -4,6 +4,7 @@
 export type EventStatus = 'free' | 'paid' | 'continuous';
 
 interface EventBasicDetails {
+  onlineExperience?: import('../../supabase/functions/_shared/onlineExperience').OnlineExperience | null;
   eventName: string;
   tagline: string;
   eventType: string;

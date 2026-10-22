@@ -52,14 +52,20 @@ export function renderMeetingEmail(params: {
   status: 'pending' | 'confirmed' | 'cancelled'; role?: 'organizer' | 'recipient';
   recipientName: string; partnerName: string; eventName: string; meetingDate: string; meetingTime: string;
   location?: string; timeZone?: string; meetingId?: string; networkingUrl: string; qrCodeUrl?: string;
-  videoUrl?: string; locale?: MeetingEmailLocale;
+  videoUrl?: string; locale?: MeetingEmailLocale; onlineExperience?: boolean; meetingFormat?: 'video'|'in-person'|'hybrid';
 }) {
   const locale = params.locale || 'en';
   const c = copy[locale] || copy.en;
   const confirmed = params.status === 'confirmed', cancelled = params.status === 'cancelled';
   const sent = params.role === 'organizer';
   const title = cancelled ? c.cancelledTitle : confirmed ? c.confirmedTitle : sent ? c.sentTitle : c.requestTitle;
-  const intro = cancelled ? c.cancel : confirmed ? (params.videoUrl ? c.online : c.confirm) : sent ? c.sent : c.request;
+  const onlineOnly = params.onlineExperience && params.meetingFormat === 'video';
+  const scheduledOnline = {
+    en: 'View your meeting for the latest joining details. The join button appears at your appointment time.',
+    fr: 'Consultez votre rendez-vous pour les informations de connexion à jour. Le bouton pour rejoindre apparaît à l’heure prévue.',
+    ar: 'افتح تفاصيل اجتماعك للاطلاع على أحدث معلومات الانضمام. يظهر زر الانضمام في موعد اجتماعك.',
+  }[locale];
+  const intro = cancelled ? c.cancel : confirmed ? (params.onlineExperience && (params.meetingFormat === 'video' || params.meetingFormat === 'hybrid') ? scheduledOnline : params.videoUrl ? c.online : c.confirm) : sent ? c.sent : c.request;
   const accent = cancelled ? '#a34246' : confirmed ? '#137653' : '#936318';
   const tint = cancelled ? '#fff0f0' : confirmed ? '#e8f6ef' : '#fff5dd';
   const action = cancelled ? c.browse : confirmed ? c.view : sent ? c.view : c.review;
@@ -82,8 +88,8 @@ export function renderMeetingEmail(params: {
 <h2 style="font-size:23px;line-height:1.3;margin:0 0 16px;color:#0b2641;word-break:break-word">${escapeHTML(params.partnerName)}</h2>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #dce5ec">${row(c.event, params.eventName)}${row(c.date, params.meetingDate)}${row(c.time, params.meetingTime, 'ltr')}${row(c.zone, params.timeZone, 'ltr')}${row(c.location, params.location)}</table>
 </td></tr></table></td></tr>
-${confirmed && qr ? `<tr><td align="center" style="padding:18px 28px"><h2 style="font-size:18px;margin:0 0 16px">${escapeHTML(c.pass)}</h2><img src="${qr}" alt="${escapeHTML(c.pass)}" width="200" height="200" style="display:block;border:12px solid #ffffff;background:#ffffff;max-width:100%"><p style="font-size:13px;line-height:1.7;color:#526579;max-width:360px;margin:12px auto">${escapeHTML(c.hint)}</p>${params.meetingId ? `<p style="font-size:11px;color:#69788b;margin:16px 0 6px">${escapeHTML(c.reference)}</p><p style="font-size:11px;word-break:break-all;margin:0;color:#142c43;font-family:monospace">${escapeHTML(params.meetingId)}</p>` : ''}<p style="font-size:12px;line-height:1.6;color:#69788b;margin:14px 0 0">${escapeHTML(c.fallback)}</p></td></tr>` : ''}
-<tr><td align="center" style="padding:0 28px 28px">${confirmed && video ? button(c.join, video) : ''}${button(action, link)}<p style="font-size:11px;color:#69788b;margin:22px 0 6px">${escapeHTML(c.copiedLink)}</p><a href="${link}" style="font-size:11px;line-height:1.5;color:#087fea;word-break:break-all">${link}</a></td></tr>
+${confirmed && qr && !onlineOnly ? `<tr><td align="center" style="padding:18px 28px"><h2 style="font-size:18px;margin:0 0 16px">${escapeHTML(c.pass)}</h2><img src="${qr}" alt="${escapeHTML(c.pass)}" width="200" height="200" style="display:block;border:12px solid #ffffff;background:#ffffff;max-width:100%"><p style="font-size:13px;line-height:1.7;color:#526579;max-width:360px;margin:12px auto">${escapeHTML(c.hint)}</p>${params.meetingId ? `<p style="font-size:11px;color:#69788b;margin:16px 0 6px">${escapeHTML(c.reference)}</p><p style="font-size:11px;word-break:break-all;margin:0;color:#142c43;font-family:monospace">${escapeHTML(params.meetingId)}</p>` : ''}<p style="font-size:12px;line-height:1.6;color:#69788b;margin:14px 0 0">${escapeHTML(c.fallback)}</p></td></tr>` : ''}
+<tr><td align="center" style="padding:0 28px 28px">${confirmed && video && !params.onlineExperience ? button(c.join, video) : ''}${button(action, link)}<p style="font-size:11px;color:#69788b;margin:22px 0 6px">${escapeHTML(c.copiedLink)}</p><a href="${link}" style="font-size:11px;line-height:1.5;color:#087fea;word-break:break-all">${link}</a></td></tr>
 <tr><td style="padding:22px 28px;border-top:1px solid #e1e9f0;text-align:center"><p style="font-size:12px;color:#526579;margin:0 0 8px">${escapeHTML(c.footer)}</p><p style="font-size:11px;line-height:1.6;color:#7c8b9b;margin:0">${escapeHTML(c.notification)}</p></td></tr>
 </table></td></tr></table></body></html>`;
 }

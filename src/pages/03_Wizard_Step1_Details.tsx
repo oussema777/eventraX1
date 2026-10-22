@@ -55,7 +55,9 @@ export default function WizardStep1Details() {
   };
 
   const handleSaveDraft = async () => {
-    const created = await saveDraft(buildDraftPayload(), !eventData.id);
+    let payload;
+    try { payload = buildDraftPayload(); } catch { return; } // The form displays the validation error.
+    const created = await saveDraft(payload, !eventData.id);
     const eventName = created?.name || eventData.name || draftName || untitledEvent;
     if (user?.id) {
       try {
@@ -77,7 +79,8 @@ export default function WizardStep1Details() {
   };
 
   const handleContinue = async () => {
-    const details = buildDraftPayload();
+    let details;
+    try { details = buildDraftPayload(); } catch { return; }
     const nameToSave = details.name?.trim();
     if (!nameToSave) {
       toast.error(t('wizard.details.errors.nameRequired'));

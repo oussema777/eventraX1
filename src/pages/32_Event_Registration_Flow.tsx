@@ -1,3 +1,5 @@
+import OnlineEventExperience from '../components/events/OnlineEventExperience';
+import {onlineConfig, renderOnlineEmail} from '../../supabase/functions/_shared/onlineExperience';
 import { useLocalizedLabels } from '../i18n/useLocalizedLabels';
 import { eventPublicPath } from '../utils/eventLinks';
 import { eventAuthReturnUrl } from '../utils/authRedirect';
@@ -670,7 +672,7 @@ export default function EventRegistrationFlow() {
         const magicLink = edgeFnData?.magic_link || null;
         const networkingUrl = systemFields.b2bOptIn && eventId
           ? eventAuthReturnUrl(`/event/${eventId}/networking`, window.location.origin) : null;
-        const emailHtml = generateRegistrationEmailHtml(
+        const emailHtml = renderOnlineEmail(event, systemFields.fullName || 'Attendee', new URL(`/event/${eventId}/access`,window.location.origin).href, networkingUrl, qrUrl) || generateRegistrationEmailHtml(
           event?.name || 'Event',
           systemFields.fullName || 'Attendee',
           qrUrl,
@@ -1716,8 +1718,10 @@ export default function EventRegistrationFlow() {
           )}
 
           {/* Step 3: Confirmation */}
-          {currentStep === 3 && (
+          {currentStep === 3 && onlineConfig(event) && <OnlineEventExperience event={event} registered name={systemFields.fullName} emailFailed={confirmationEmailFailed} accessEmailFailed={accessEmailFailed} b2b={systemFields.b2bOptIn}/>}
+          {currentStep === 3 && (!onlineConfig(event) || event?.event_format === 'hybrid') && (
             <div className="text-center py-6">
+              {!onlineConfig(event) && <>
               <div 
                 className="mx-auto mb-6 rounded-full w-20 h-20 flex items-center justify-center no-print"
                 style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)' }}
@@ -1754,6 +1758,7 @@ export default function EventRegistrationFlow() {
                 </a>
               )}
 
+              </>}
               {/* Final Step Card for Paid Events */}
               {isPaidEvent && (
                 <div 

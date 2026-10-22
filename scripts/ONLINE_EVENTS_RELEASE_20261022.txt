@@ -1,0 +1,40 @@
+Online events release — 22 October 2026
+
+Adds opt-in online registration confirmation, calendar download, scheduled joining,
+online confirmation emails, B2B meeting access states, and responsive hero images.
+Secure email sign-in and account access remain available. Legacy event flows stay
+active unless the organizer explicitly enables the new online experience.
+
+Validation: 20 targeted tests passed; production build passed; targeted lint has
+no errors (three existing-style any-type warnings in new components). Production
+source excludes the local review harness, preview assets, and credentials.
+
+Backend: create-event-registration version 10 deployed to the existing Supabase
+project. JWT verification setting preserved. No schema migrations required.
+GEW desktop/mobile background images uploaded to versioned public storage paths.
+GEW activation is deliberately pending until the website is deployed, because
+the new emails link to /event/:eventId/access, a route added in this release.
+No other event settings have been changed.
+
+PuTTY commands (stop on any failure):
+
+  cd /var/www/eventraX1
+  git pull --ff-only origin main
+  bash scripts/deploy-b2b-access.sh
+
+The deploy script installs locked dependencies, builds separately, preserves old
+hashed assets for existing browser tabs, then atomically replaces index.html.
+It prints the previous-index.html backup path. It does not restart services or
+modify production .env. Do not reset or discard server changes to make pull pass.
+
+After deployment: report the command output so the live bundle can be verified
+and the prepared GEW-only database settings can be activated. This final step
+sets its online config, responsive hero images and Beirut-only display copy.
+Keep all other events, including L'INVESTISSEMENT, on their current settings.
+
+Frontend rollback: copy the printed previous-index.html to build/index.html.next,
+then rename it over build/index.html. Keep all hashed assets. If GEW was activated,
+restore its previous online setting before reverting the frontend.
+
+Actual inbox delivery and a two-person live video call are still operational
+checks; unit tests do not establish meeting-provider capacity or room privacy.

@@ -1,0 +1,2 @@
+/* Only the background asset changes; content, buttons and layout stay intact. */
+@media(max-width:600px){.event-hero-responsive-background{background-image:var(--hero-mobile-image)!important}}

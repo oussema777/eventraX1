@@ -197,7 +197,7 @@ export async function sendWelcomeEmail(to: string, userName: string, userId: str
 export async function sendMeetingConfirmationEmails(params: {
   organizerEmail: string; organizerName: string; recipientEmail: string; recipientName: string;
   meetingDate: string; meetingTime: string; location: string; eventName: string; meetingId: string;
-  status: 'pending' | 'confirmed'; videoUrl?: string; eventId?: string; organizerProfileId?: string;
+  status: 'pending' | 'confirmed'; videoUrl?: string; onlineExperience?: boolean; meetingFormat?: 'video'|'in-person'|'hybrid'; eventId?: string; organizerProfileId?: string;
   recipientProfileId?: string; timeZone?: string; locale?: MeetingEmailLocale;
 }) {
   const networkingUrl = meetingLink(window.location.origin, params.meetingId, params.eventId);
@@ -520,6 +520,7 @@ export function generateMeetingRescheduledEmailHtml(params: {
 }
 
 export async function sendMeetingRescheduledEmail(to: string, params: {
+  eventId?: string; meetingId?: string;
   recipientName: string;
   reschedulerName: string;
   eventName: string;
@@ -529,7 +530,9 @@ export async function sendMeetingRescheduledEmail(to: string, params: {
   newTime: string;
   location: string;
 }) {
-  const networkingUrl = `${window.location.origin}/my-networking`;
+  const networkingUrl = params.eventId && params.meetingId
+    ? meetingLink(window.location.origin,params.meetingId,params.eventId)
+    : `${window.location.origin}/my-networking`;
   return sendEmail({
     to,
     subject: `Meeting Rescheduled: ${escapeHTML(params.reschedulerName)} at ${escapeHTML(params.eventName)}`,
@@ -862,7 +865,7 @@ export async function sendPostEventSummaryEmail(to: string, params: {
 export function generateMeetingConfirmationEmailHtml(params: {
   eventName: string; meetingDate: string; meetingTime: string; location: string;
   organizerName: string; recipientName: string; qrCodeUrl: string;
-  status: 'pending' | 'confirmed'; role: 'organizer' | 'recipient'; videoUrl?: string;
+  status: 'pending' | 'confirmed'; role: 'organizer' | 'recipient'; videoUrl?: string; onlineExperience?: boolean; meetingFormat?: 'video'|'in-person'|'hybrid';
   networkingUrl?: string; meetingId?: string; timeZone?: string; locale?: MeetingEmailLocale;
 }) {
   return renderMeetingEmail({ ...params,

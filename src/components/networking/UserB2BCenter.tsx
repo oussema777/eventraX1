@@ -1,3 +1,6 @@
+import {onlineConfig} from '../../../supabase/functions/_shared/onlineExperience';
+import {checkedMeetingUrl,meetingIsOnline} from '../../utils/onlineMeeting';
+import OnlineMeetingJoin from './OnlineMeetingJoin';
 import { resolveAgendaTimeZone } from '../../utils/agendaDates';
 import { networkingTimeZone } from '../../utils/networkingSchedule';
 import MeetingPassModal from './MeetingPassModal';
@@ -60,6 +63,8 @@ interface Meeting {
   profileId: string;
   eventId?: string | null;
   startAt?: string | null;
+  endAt?: string | null;
+  onlineExperienceEnabled?: boolean;
   meetingUrl?: string;
   organizerId?: string;
   meetingFormat?: 'video' | 'in-person' | 'hybrid';
@@ -363,7 +368,7 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
           ? supabase.from('profiles').select(OTHER_PROFILE_COLUMNS).in('id', cleanProfileIds)
           : { data: [] },
         cleanEventIds.length > 0
-          ? supabase.from('events').select('id, name, timezone').in('id', cleanEventIds)
+          ? supabase.from('events').select('id, name, timezone, attendee_settings, event_format, event_status, access_code, is_public').in('id', cleanEventIds)
           : { data: [] },
         cleanAttendeeIds.length > 0
           // Only the linked profile id and display name are consumed below —
@@ -394,7 +399,9 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
 
       const eventsLookup: Record<string, string> = {};
       const eventTimeZones: Record<string, string> = {};
+      const onlineEvents: Record<string, boolean> = {};
       (eventsData.data || []).forEach(e => {
+        onlineEvents[e.id] = !!onlineConfig(e);
         eventsLookup[e.id] = e.name || t('networking.defaults.event');
         const venue = (Array.isArray(venueData.data) ? venueData.data : []).find(v => v.event_id === e.id)?.venue_config;
         eventTimeZones[e.id] = networkingTimeZone(e.id, venue, e.timezone);
@@ -492,10 +499,12 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
           event: eventName,
           eventId: row.event_id || null,
           startAt: row.start_at,
+          endAt: row.end_at,
+          onlineExperienceEnabled: !!onlineEvents[row.event_id],
           timeZone: eventTimeZones[row.event_id],
           organizerId: row.organizer_id || (isCurrentUserA ? user.id : otherProfileId),
           meetingFormat: row.meta?.meeting_format || (row.meta?.meeting_type === 'video' ? 'video' : 'in-person'),
-          meetingUrl: row.meta?.video_url || (row.meta?.meeting_type === 'video' ? `https://meet.jit.si/Eventra${row.id.replace(/-/g, '').slice(0, 12)}` : undefined),
+          meetingUrl: row.meta?.video_url || (!onlineEvents[row.event_id] && row.meta?.meeting_type === 'video' ? `https://meet.jit.si/Eventra${row.id.replace(/-/g, '').slice(0, 12)}` : undefined),
           qrCodeUrl: row.status === 'confirmed' ? qrCodeUrl : undefined,
           attendeeAId: row.attendee_a_id || null,
           attendeeBId: row.attendee_b_id || null,
@@ -948,14 +957,14 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
       if (updateError) throw updateError;
       if (confirmed?.id !== meetingId) throw new Error(t('networkingScheduling.slotChanged'));
       const confirmedPass = meetings.find(item => item.id === meetingId);
-      if (confirmedPass) setQrModalMeeting({ ...confirmedPass, status: 'confirmed' });
+      if (confirmedPass && !(confirmedPass.onlineExperienceEnabled && confirmedPass.meetingFormat === 'video')) setQrModalMeeting({ ...confirmedPass, status: 'confirmed' });
 
       // 2. Fetch full meeting details for email
       const { data: meeting, error: fetchError } = await supabase
         .from(MEETINGS_TABLE)
         .select(`
           *,
-          event:event_id(id, name, timezone),
+          event:event_id(id, name, timezone, attendee_settings, event_format, event_status, access_code, is_public),
           organizer:organizer_id(id, full_name, email),
           profile_a:profile_a_id(id, full_name, email),
           profile_b:profile_b_id(id, full_name, email)
@@ -968,11 +977,12 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
       } else {
         // 2b. Auto-generate Jitsi link for video meetings without a custom URL
         let videoUrl = meeting.meta?.video_url || '';
-        if (meeting.meta?.meeting_type === 'video' && !videoUrl) {
+        if ((meeting.meta?.meeting_type === 'video' || (!!onlineConfig(meeting.event) && meeting.meta?.meeting_format === 'hybrid')) && !videoUrl) {
           videoUrl = `https://meet.jit.si/Eventra${meetingId.replace(/-/g, '').slice(0, 12)}`;
           // Persist the auto-generated link so both participants see it
           const updatedMeta = { ...meeting.meta, video_url: videoUrl };
-          await supabase.from(MEETINGS_TABLE).update({ meta: updatedMeta }).eq('id', meetingId);
+          const {error: roomError} = await supabase.from(MEETINGS_TABLE).update({ meta: updatedMeta }).eq('id', meetingId);
+          if (roomError && onlineConfig(meeting.event)) { videoUrl = ''; toast.warning('The meeting is confirmed, but its room could not be saved. Contact the organizer.'); }
         }
 
         // 3. Prepare Email Data
@@ -999,7 +1009,9 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
             status: 'confirmed',
             organizerProfileId: organizer.id, recipientProfileId: recipient.id,
             eventId: meeting.event_id, locale, timeZone: (meetings.find(item => item.id === meeting.id)?.timeZone || networkingTimeZone(meeting.event_id, null, meeting.event?.timezone)),
-            videoUrl: videoUrl || undefined
+            videoUrl: videoUrl || undefined,
+            onlineExperience: !!onlineConfig(meeting.event),
+            meetingFormat: meeting.meta?.meeting_format || meeting.meta?.meeting_type
           });
           if (deliveries.some((delivered) => !delivered)) toast.warning(t('networking.notifications.emailFailed'));
         }
@@ -1246,11 +1258,34 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
     }
   };
 
-  const handleJoinCall = (meeting: Meeting) => {
-    if (meeting.meetingUrl) {
-      window.open(meeting.meetingUrl, '_blank', 'noopener,noreferrer');
-    } else {
-      toast.info(t('networking.errors.noMeetingLink'));
+  const handleJoinCall = async (meeting: Meeting) => {
+    if (!meeting.onlineExperienceEnabled) {
+      if (meeting.meetingUrl) window.open(meeting.meetingUrl, '_blank', 'noopener,noreferrer');
+      else toast.info(t('networking.errors.noMeetingLink'));
+      return;
+    }
+    const popup = window.open('about:blank', '_blank');
+    if (popup) popup.opener = null;
+    try {
+      const {data: fresh,error} = await supabase.from(MEETINGS_TABLE)
+        .select('status,start_at,end_at,meta,event_id,profile_a_id,profile_b_id,attendee_a_id,attendee_b_id').eq('id',meeting.id).maybeSingle();
+      if (error || !fresh || fresh.event_id !== meeting.eventId) throw new Error('We couldn’t verify this meeting. Please refresh and try again.');
+      let participant = !!user?.id && [fresh.profile_a_id,fresh.profile_b_id].includes(user.id);
+      if (!participant && user?.id) {
+        const ids = [fresh.attendee_a_id,fresh.attendee_b_id].filter(Boolean);
+        if (ids.length) {
+          const {data: attendees,error: attendeeError} = await supabase.from('event_attendees').select('id').in('id',ids).eq('profile_id',user.id);
+          if (attendeeError) throw new Error('We couldn’t verify your meeting access. Please try again.');
+          participant = !!attendees?.length;
+        }
+      }
+      const url = checkedMeetingUrl(fresh,meeting.eventId,participant);
+      if (popup) popup.location.href = url;
+      else toast.info('Allow pop-ups for Eventra, then try joining again.');
+    } catch (error) {
+      popup?.close();
+      loadNetworkingData();
+      toast.error(error instanceof Error ? error.message : 'Unable to open this meeting. Please try again.');
     }
   };
 
@@ -1614,9 +1649,9 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
                         </div>
 
                         {/* Actions */}
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2" style={meeting.onlineExperienceEnabled ? {flexWrap:'wrap'} : undefined}>
                           {/* QR Code Button - Only for confirmed meetings */}
-                        {meeting.status === 'confirmed' && meeting.qrCodeUrl && (
+                        {meeting.status === 'confirmed' && meeting.qrCodeUrl && !(meeting.onlineExperienceEnabled && meeting.meetingFormat === 'video') && (
                           <button
                             onClick={() => setQrModalMeeting(meeting)}
                             className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
@@ -1634,7 +1669,8 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
                             {t('networking.ticket.qr')}</button>
                         )}
 
-                        {meeting.type === 'video' && meeting.status === 'confirmed' && (
+                        {meeting.onlineExperienceEnabled && meetingIsOnline(meeting.meetingFormat) && <OnlineMeetingJoin meeting={meeting} onJoin={()=>handleJoinCall(meeting)}/>}
+                        {!meeting.onlineExperienceEnabled && meeting.type === 'video' && meeting.status === 'confirmed' && (
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
                               <button
                                 onClick={() => handleJoinCall(meeting)}
@@ -1878,7 +1914,7 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
         />
       )}
 
-      {qrModalMeeting && user?.id && <MeetingPassModal meeting={qrModalMeeting} profileId={user.id}
+      {qrModalMeeting && user?.id && <MeetingPassModal onJoin={()=>handleJoinCall(qrModalMeeting)} meeting={qrModalMeeting} profileId={user.id}
         holderName={currentUserName} onClose={() => setQrModalMeeting(null)} />}
 
       {/* Guest in-surface messaging overlay. Guests cannot reach the global
