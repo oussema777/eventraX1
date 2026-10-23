@@ -20,7 +20,8 @@ async function generateSitemap() {
     .from('events')
     .select('id, name, start_date, seo_slug')
     .eq('status', 'published')
-    .eq('is_public', true);
+    .eq('is_public', true)
+    .or('visibility.eq.public,visibility.is.null');
 
   if (error) {
     console.error('Error fetching events:', error);

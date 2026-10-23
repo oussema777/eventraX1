@@ -126,10 +126,10 @@ export default function BrowseEventsDiscovery() {
         // Filtering based on role
         if (!isAdmin) {
           // Public users only see published and approved events
-          query = query.or('status.eq.published,event_status.eq.published').eq('is_approved', true);
+          query = query.or('and(or(status.eq.published,event_status.eq.published),or(visibility.eq.public,visibility.is.null))').eq('is_approved', true);
         } else {
-          // Admins see all published events
-          query = query.or('status.eq.published,event_status.eq.published');
+          // Unlisted events stay out of discovery for admins too; manage them in the dashboard.
+          query = query.or('and(or(status.eq.published,event_status.eq.published),or(visibility.eq.public,visibility.is.null))');
         }
 
         // Order by start_date to show soonest first

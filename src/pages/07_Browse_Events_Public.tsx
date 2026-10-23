@@ -54,6 +54,7 @@ export default function BrowseEventsPublic() {
         .from('events')
         .select('*')
         .eq('is_public', true)
+        .or('visibility.eq.public,visibility.is.null')
         .eq('status', 'published')
         .order('start_date', { ascending: true })
         .range(from, to);
