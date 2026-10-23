@@ -1,0 +1,38 @@
+Online registration follow-up — 23 October 2026
+
+Problem: successful confirmation email obscured the webinar joining action;
+calendar button downloaded an unexplained file; a separate B2B email failed.
+
+Changes:
+- Email now leads with Join the online session, a durable event access link,
+  exact joining opening time, and missing-room guidance where relevant.
+- Confirmation/access pages keep a disabled join button visible before opening,
+  distinguish B2B email failure from confirmation failure, and expose a saved
+  event access link independently of the networking space.
+- Google Calendar opens directly; Download calendar (.ics) explains import.
+  Both calendar formats retain the durable access link and absolute timestamps.
+- Registration sender uses an isolated, verified provider credential override;
+  existing shared credential remains untouched. Failures log stage/status only.
+
+Backend function deployed independently. No event records changed by this fix.
+Existing sent emails cannot be changed. Real inbox delivery needs a retest.
+
+Validation: 23 targeted tests, production build, connected browser checks at
+320/390/1440px; waiting/open/ended/missing-room states, error message, ICS download
+and Google Calendar URL. No browser errors/overflow. Frontend lint: no errors,
+two any-type warnings. Edge code exercised by isolated handler tests.
+
+Frontend deployment in PuTTY (stop if any command fails):
+  cd /var/www/eventraX1
+  git pull --ff-only origin main
+  bash scripts/deploy-b2b-access.sh
+
+Verify the test event /access page shows Add to Google Calendar and Download
+calendar (.ics). Before the session, Join live session is disabled with its
+opening time. Test registration email delivery with a team-controlled account.
+
+Function v10 backup and prior metadata:
+  .tmp/registration-email-release-20261023
+New secret EVENTRA_REGISTRATION_RESEND_API_KEY is used only by this function.
+Rollback: redeploy the backed-up function/source; the unused override can then
+be removed. Frontend script prints its prior entrypoint rollback path.

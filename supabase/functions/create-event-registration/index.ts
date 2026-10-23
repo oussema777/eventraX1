@@ -45,9 +45,12 @@ async function sendB2BAccessEmail(
   supabaseAdmin: ReturnType<typeof createClient>,
   details: { email: string; name: string; eventName: string; eventId: string; attendeeId: string; confirmationCode: string; event: any },
 ): Promise<boolean> {
-  const resendKey = Deno.env.get('RESEND_API_KEY');
+  const resendKey = Deno.env.get('EVENTRA_REGISTRATION_RESEND_API_KEY') || Deno.env.get('RESEND_API_KEY');
   const appOrigin = (Deno.env.get('EVENTRA_APP_ORIGIN') || 'https://eventra.cloud').replace(/\/$/, '');
-  if (!resendKey || !/^https:\/\/[^/]+$/.test(appOrigin)) return false;
+  if (!resendKey || !/^https:\/\/[^/]+$/.test(appOrigin)) {
+    console.error('registration_email_failed', {stage:'configuration',eventId:details.eventId});
+    return false;
+  }
   const destination = `${appOrigin}/event/${encodeURIComponent(details.eventId)}/networking`;
   const redirectTo = `${appOrigin}/auth/callback?next=${encodeURIComponent(destination)}`;
   const { data, error } = await supabaseAdmin.auth.admin.generateLink({
@@ -55,7 +58,10 @@ async function sendB2BAccessEmail(
     email: details.email,
     options: { redirectTo },
   });
-  if (error || !data?.properties?.action_link) return false;
+  if (error || !data?.properties?.action_link) {
+    console.error('registration_email_failed', {stage:'generate_link',eventId:details.eventId,status:error?.status});
+    return false;
+  }
 
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(details.attendeeId)}`;
   const html = renderOnlineEmail(details.event, details.name, `${appOrigin}/event/${details.eventId}/access`, data.properties.action_link, qrUrl) || `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#0B2641">
@@ -80,8 +86,10 @@ async function sendB2BAccessEmail(
         html,
       }),
     });
+    if (!response.ok) console.error('registration_email_failed', {stage:'provider',eventId:details.eventId,status:response.status});
     return response.ok;
   } catch {
+    console.error('registration_email_failed', {stage:'network',eventId:details.eventId});
     return false;
   }
 }

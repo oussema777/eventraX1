@@ -10,7 +10,7 @@ const shared = stripTypeScriptTypes(readFileSync(new URL('../supabase/functions/
 const source = shared + '\n' + stripTypeScriptTypes(readFileSync(new URL('../supabase/functions/create-event-registration/index.ts', import.meta.url), 'utf8')
   .replace(/^import .*?;\r?\n/gm, ''));
 
-function setup({ duplicate = false, profileId = null, linkError = false, profileError = false, profileUpdateError = false, sendEmail = false, online = false } = {}) {
+function setup({ duplicate = false, profileId = null, linkError = false, profileError = false, profileUpdateError = false, sendEmail = false, online = false, providerStatus = 200 } = {}) {
   let handler;
   const writes = [];
   let rpcPayload;
@@ -49,8 +49,8 @@ function setup({ duplicate = false, profileId = null, linkError = false, profile
     }
   };
   vm.runInNewContext(source, {
-    createClient: () => admin, Response, Request, URL, TextEncoder, console, setTimeout,
-    fetch: async (_url, options) => { emailPayload = JSON.parse(options.body); return new Response('{}'); },
+    createClient: () => admin, Response, Request, URL, URLSearchParams, TextEncoder, console, setTimeout,
+    fetch: async (_url, options) => { emailPayload = JSON.parse(options.body); return new Response('{}',{status:providerStatus}); },
     Deno: { env: { get: key => sendEmail && key === 'EVENTRA_APP_ORIGIN' ? undefined : 'test' }, serve: fn => { handler = fn; } }
   });
   return {
@@ -136,4 +136,14 @@ test('enabled virtual event email keeps secure B2B access and omits the physical
     assert.equal(app.emailPayload.html.includes('qrserver.com'),false);
     assert.equal(JSON.stringify(body).includes('one-time-test-link'),false);
   }
+});
+
+test('provider rejection preserves registration and truthfully reports email failure', async () => {
+ const app=setup({sendEmail:true,online:true,providerStatus:403});
+ const response=await app.request({full_name:'Guest'});
+ const result=await response.json();
+ assert.equal(response.status,200);
+ assert.equal(result.success,true);
+ assert.equal(result.access_email_sent,false);
+ assert.equal(JSON.stringify(result).includes('one-time-test-link'),false);
 });
