@@ -11,7 +11,6 @@ import {
   Filter,
   ChevronDown,
   Eye,
-  MoreVertical,
   Check,
   X,
   ChevronLeft,
@@ -22,8 +21,6 @@ import {
   Mail,
   Edit,
   RefreshCw,
-  QrCode,
-  Trash,
   Phone,
   Linkedin,
   Utensils,
@@ -46,6 +43,7 @@ import { supabase } from '../../lib/supabase';
 import { createNotification } from '../../lib/notifications';
 import { sendRegistrationCancelledEmail } from '../../lib/email';
 import { useI18n } from '../../i18n/I18nContext';
+import AttendeeActionsMenu from './AttendeeActionsMenu';
 
 interface CustomField {
   id: string;
@@ -78,7 +76,6 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
   // View State
   const [isAdding, setIsAdding] = useState(false);
   const [selectedAttendee, setSelectedAttendee] = useState<any>(null);
-  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [attendees, setAttendees] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -537,7 +534,6 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
     <div
       className="event-attendees"
       style={{ backgroundColor: '#0B2641', minHeight: '100vh' }}
-      onClick={() => setOpenDropdownId(null)}
     >
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
@@ -1104,32 +1100,10 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
                                   Decline
                                 </button>
                               )}
-                              <div style={{ position: 'relative' }}>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); setOpenDropdownId(openDropdownId === att.id ? null : att.id); }}
-                                  style={{ width: '30px', height: '30px', borderRadius: '8px', backgroundColor: openDropdownId === att.id ? 'rgba(255,255,255,0.1)' : 'transparent', border: 'none', color: openDropdownId === att.id ? '#FFFFFF' : '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                >
-                                  <MoreVertical size={15} />
-                                </button>
-                                {openDropdownId === att.id && (
-                                  <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', right: 0, top: '100%', marginTop: '6px', width: '192px', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', boxShadow: '0 12px 40px rgba(0,0,0,0.3)', zIndex: 50, overflow: 'hidden' }}>
-                                    <button onClick={() => { updateAttendee(att.id, { checkedIn: !att.checkedIn }); toast.success(att.checkedIn ? 'Check-in cancelled' : 'Attendee checked in'); setOpenDropdownId(null); }}
-                                      style={{ width: '100%', padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: 600, backgroundColor: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', color: '#0F172A' }}
-                                      onMouseEnter={e => e.currentTarget.style.backgroundColor = '#F0FDF4'}
-                                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                                    >
-                                      <QrCode size={16} style={{ color: '#10B981' }} /> {att.checkedIn ? 'Cancel Check-in' : 'Manual Check-in'}
-                                    </button>
-                                    <button onClick={() => { if (confirm('Remove this attendee?')) { deleteAttendee(att.id); toast.success('Attendee removed'); } setOpenDropdownId(null); }}
-                                      style={{ width: '100%', padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: 600, backgroundColor: 'transparent', border: 'none', borderTop: '1px solid #F1F5F9', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', color: '#0F172A' }}
-                                      onMouseEnter={e => e.currentTarget.style.backgroundColor = '#FEF2F2'}
-                                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                                    >
-                                      <Trash size={16} style={{ color: '#EF4444' }} /> Delete Attendee
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
+                              <AttendeeActionsMenu name={att.name} checkedIn={att.checkedIn}
+                                onCheckIn={() => { updateAttendee(att.id, { checkedIn: !att.checkedIn }); toast.success(att.checkedIn ? 'Check-in cancelled' : 'Attendee checked in'); }}
+                                onDelete={() => { if (confirm('Remove this attendee?')) { deleteAttendee(att.id); toast.success('Attendee removed'); } }}
+                              />
                             </div>
                           </td>
                         </tr>
@@ -1166,30 +1140,10 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
                               </div>
                               <p style={{ fontSize: '12px', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.email}</p>
                             </div>
-                            <div style={{ position: 'relative', flexShrink: 0 }}>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setOpenDropdownId(openDropdownId === att.id ? null : att.id); }}
-                                style={{ width: '30px', height: '30px', borderRadius: '8px', backgroundColor: 'transparent', border: 'none', color: '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                              >
-                                <MoreVertical size={16} />
-                              </button>
-                              {openDropdownId === att.id && (
-                                <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', right: 0, top: '100%', marginTop: '4px', width: '192px', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', boxShadow: '0 12px 40px rgba(0,0,0,0.3)', zIndex: 50, overflow: 'hidden' }}>
-                                  <button onClick={() => { updateAttendee(att.id, { status: att.status === 'approved' ? 'pending' : 'approved' }); setOpenDropdownId(null); }}
-                                    style={{ width: '100%', padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: 600, backgroundColor: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', color: '#0F172A' }}>
-                                    <CheckCircle size={16} style={{ color: '#10B981' }} /> {att.status === 'approved' ? 'Set Pending' : 'Approve'}
-                                  </button>
-                                  <button onClick={() => { updateAttendee(att.id, { checkedIn: !att.checkedIn }); setOpenDropdownId(null); }}
-                                    style={{ width: '100%', padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: 600, backgroundColor: 'transparent', border: 'none', borderTop: '1px solid #F1F5F9', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', color: '#0F172A' }}>
-                                    <QrCode size={16} style={{ color: '#0684F5' }} /> {att.checkedIn ? 'Cancel Check-in' : 'Check In'}
-                                  </button>
-                                  <button onClick={() => { if (confirm('Remove this attendee?')) { deleteAttendee(att.id); } setOpenDropdownId(null); }}
-                                    style={{ width: '100%', padding: '12px 16px', textAlign: 'left', fontSize: '13px', fontWeight: 600, backgroundColor: 'transparent', border: 'none', borderTop: '1px solid #F1F5F9', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', color: '#0F172A' }}>
-                                    <Trash size={16} style={{ color: '#EF4444' }} /> Delete
-                                  </button>
-                                </div>
-                              )}
-                            </div>
+                            <AttendeeActionsMenu name={att.name} approved={att.status === 'approved'} onToggleApproval={() => { updateAttendee(att.id, { status: att.status === 'approved' ? 'pending' : 'approved' }); }} checkedIn={att.checkedIn}
+                                onCheckIn={() => { updateAttendee(att.id, { checkedIn: !att.checkedIn }); }}
+                                onDelete={() => { if (confirm('Remove this attendee?')) { deleteAttendee(att.id); } }}
+                              />
                           </div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
                             <span style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '3px 8px', fontSize: '10px', fontWeight: 600, borderRadius: '6px', backgroundColor: 'rgba(255,255,255,0.06)', color: '#94A3B8', border: '1px solid rgba(255,255,255,0.05)' }}>
