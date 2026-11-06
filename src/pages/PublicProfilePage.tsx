@@ -1,8 +1,7 @@
 import { useLocalizedLabels } from '../i18n/useLocalizedLabels';
 import { useEventRouteParams } from '../components/navigation/EventPublicRoute';
 import { useEventParticipantProfile } from '../hooks/useEventParticipantProfile';
-import ProfileMeetingRequest from '../components/networking/ProfileMeetingRequest';
-import BookMeetingModal from '../components/networking/BookMeetingModal';
+import ProfileBookingPanel from '../components/networking/ProfileBookingPanel';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useState, useMemo, useEffect } from 'react';
 import {
@@ -17,9 +16,7 @@ import {
   Users,
   Handshake,
   MessageCircle,
-  Video,
   Phone,
-  Info,
   Edit,
   Share2,
   Linkedin,
@@ -71,9 +68,7 @@ export default function PublicProfilePage() {
   const isInternalProfile = isSystemProfile({ ...profile, id: userId });
   const { stats: activityStats } = useProfileActivityStats(profile && !isInternalProfile ? userId : null);
   const { getOrCreateThread, loading: connecting } = useMessageThread();
-  const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [selectedDuration, setSelectedDuration] = useState('30 min');
   const [businessLinks, setBusinessLinks] = useState<{ profileId: string; items: Array<{ id: string; company_name: string }> } | null>(null);
   const linkedBusinesses = businessLinks && businessLinks.profileId === userId ? businessLinks.items : [];
 
@@ -103,7 +98,11 @@ export default function PublicProfilePage() {
   const [showRegistrationModal, setShowRegistrationModal] = useState(false);
 
   const handleMeetingRequest = () => {
-    if (currentUser) setShowMeetingModal(true);
+    if (currentUser) {
+      const panel = document.getElementById('profile-booking');
+      panel?.scrollIntoView({ behavior: 'instant', block: 'start' });
+      panel?.focus({ preventScroll: true });
+    }
     else if (eventId && userId) navigate(eventMeetingAuthPath(eventId, userId));
     else setShowLoginModal(true);
   };
@@ -223,15 +222,6 @@ export default function PublicProfilePage() {
     level: 'Expert' // Default level if not in DB
   }));
 
-  const preferredFormats = [
-    { id: 'inperson', label: t('publicProfilePage.meeting.formats.inPerson'), icon: Users },
-    { id: 'virtual', label: t('publicProfilePage.meeting.formats.virtual'), icon: Video },
-    { id: 'phone', label: t('publicProfilePage.meeting.formats.phone'), icon: Phone }
-  ].map(f => ({
-    ...f,
-    selected: Array.isArray(profile.b2b_profile?.meeting_formats) && profile.b2b_profile.meeting_formats.includes(f.id)
-  }));
-
   const getExpertiseColor = (level: string) => {
     switch (level) {
       case 'Expert': return '#10B981';
@@ -247,15 +237,6 @@ export default function PublicProfilePage() {
       case 'Intermediate': return t('publicProfilePage.expertise.intermediate');
       case 'Beginner': return t('publicProfilePage.expertise.beginner');
       default: return level;
-    }
-  };
-
-  const getAvailabilityLabel = (status: string) => {
-    switch (status) {
-      case 'always': return t('publicProfilePage.meeting.availability.always');
-      case 'events-only': return t('publicProfilePage.meeting.availability.eventsOnly');
-      case 'closed': return t('publicProfilePage.meeting.availability.closed');
-      default: return t('publicProfilePage.meeting.availability.open');
     }
   };
 
@@ -750,140 +731,14 @@ export default function PublicProfilePage() {
               </div>
             )}
 
-            {/* 04. MEETING AVAILABILITY SECTION */}
-            <div
-              style={{
-                background: 'rgba(255, 255, 255, 0.03)',
-                padding: '32px',
-                borderRadius: '12px',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.2)'
-              }}
-            >
-              <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF', marginBottom: '24px' }}>
-                {t('publicProfilePage.meeting.title')}
-              </h2>
-
-              {/* Availability Status */}
-              <div style={{ marginBottom: '28px' }}>
-                <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'rgba(255, 255, 255, 0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
-                  {t('publicProfilePage.meeting.availability.title')}
-                </h3>
-                <div
-                  style={{
-                    padding: '16px 20px',
-                    borderRadius: '10px',
-                    background: 'rgba(6, 132, 245, 0.15)',
-                    border: '2px solid rgba(6, 132, 245, 0.4)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px'
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '50%',
-                      background: '#0684F5',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0
-                    }}
-                  >
-                    <Check size={20} style={{ color: '#FFFFFF' }} />
-                  </div>
-                  <span style={{ fontSize: '15px', fontWeight: 600, color: '#0684F5' }}>
-                    {getAvailabilityLabel(profile.b2b_profile?.availability_status || 'always')}
-                  </span>
-                </div>
-              </div>
-
-              {/* Preferred Meeting Formats */}
-              <div style={{ marginBottom: '28px' }}>
-                <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'rgba(255, 255, 255, 0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
-                  {t('publicProfilePage.meeting.formats.title')}
-                </h3>
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                  {preferredFormats.map((format) => {
-                    const Icon = format.icon;
-                    return (
-                      <div
-                        key={format.id}
-                        style={{
-                          flex: '1 1 auto',
-                          minWidth: '140px',
-                          padding: '16px',
-                          borderRadius: '10px',
-                          background: format.selected ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                          border: `2px solid ${format.selected ? 'rgba(16, 185, 129, 0.4)' : 'rgba(255, 255, 255, 0.08)'}`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
-                          opacity: format.selected ? 1 : 0.5
-                        }}
-                      >
-                        <Icon size={20} style={{ color: format.selected ? '#10B981' : 'rgba(255, 255, 255, 0.5)' }} />
-                        <span style={{ fontSize: '14px', fontWeight: 600, color: format.selected ? '#10B981' : 'rgba(255, 255, 255, 0.5)' }}>
-                          {format.label}
-                        </span>
-                        {format.selected && (
-                          <Check size={16} style={{ color: '#10B981', marginLeft: 'auto' }} />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Preferred Duration */}
-              <div style={{ marginBottom: '28px' }}>
-                <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'rgba(255, 255, 255, 0.5)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
-                  {t('publicProfilePage.meeting.durationTitle')}
-                </h3>
-                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                  {(profile.b2b_profile?.meeting_durations || ['30 min']).map((duration: string) => (
-                    <div
-                      key={duration}
-                      style={{
-                        padding: '10px 20px',
-                        borderRadius: '20px',
-                        background: 'rgba(6, 132, 245, 0.15)',
-                        border: '2px solid #0684F5',
-                        fontSize: '14px',
-                        fontWeight: 600,
-                        color: '#FFFFFF'
-                      }}
-                    >
-                      {localizedLabel(duration)}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Meeting Instructions */}
-              <div
-                style={{
-                  padding: '16px 20px',
-                  borderRadius: '10px',
-                  background: 'rgba(245, 158, 11, 0.1)',
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
-                  display: 'flex',
-                  gap: '12px'
-                }}
-              >
-                <Info size={20} style={{ color: '#F59E0B', flexShrink: 0, marginTop: '2px' }} />
-                <div>
-                  <p style={{ fontSize: '13px', fontWeight: 600, color: '#F59E0B', marginBottom: '4px' }}>
-                    {t('publicProfilePage.meeting.instructions.title')}
-                  </p>
-                  <p style={{ fontSize: '14px', color: 'rgba(245, 158, 11, 0.9)', lineHeight: '1.6' }}>
-                    {profile.b2b_profile?.meeting_instructions || t('publicProfilePage.meeting.instructions.placeholder')}
-                  </p>
-                </div>
-              </div>
-            </div>
+            <ProfileBookingPanel
+              key={`${eventId || 'member'}:${userId || attendeeId}:${currentUser?.id || 'visitor'}`}
+              currentUser={currentUser}
+              recipient={{ id: userId || '', name: fullName, avatar: profile.avatar_url }}
+              eventId={eventId}
+              onSignIn={handleMeetingRequest}
+              instructions={profile.b2b_profile?.meeting_instructions}
+            />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -971,10 +826,7 @@ export default function PublicProfilePage() {
         </div>
       </div>
 
-      {showMeetingModal && !eventId && currentUser && userId && <ProfileMeetingRequest
-        currentUser={currentUser} recipient={{ id: userId, name: fullName }} onClose={() => setShowMeetingModal(false)} />}
 
-      {eventId && userId && <BookMeetingModal isOpen={showMeetingModal} onClose={() => setShowMeetingModal(false)} recipient={{ id: userId, name: fullName }} currentUser={currentUser} eventId={eventId} />}
 
       {/* Auth Modals */}
       <ModalRegistrationEntry

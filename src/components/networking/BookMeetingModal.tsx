@@ -1,7 +1,7 @@
 import {onlineConfig} from '../../../supabase/functions/_shared/onlineExperience';
 import {safeMeetingUrl,meetingIsOnline} from '../../utils/onlineMeeting';
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { allowedMeetingFormats, networkingTimeZone, networkingSlots, slotAvailability, type NetworkingVenue } from '../../utils/networkingSchedule';
+import { allowedMeetingFormats, networkingTimeZone, networkingSlots, slotAvailability, zonedTimeToIso, type NetworkingVenue } from '../../utils/networkingSchedule';
 import { X, Calendar, Clock, MapPin, ArrowRight, Check, Globe, Loader2 } from 'lucide-react';
 import './BookMeetingModal.css';
 import { supabase } from '../../lib/supabase';
@@ -20,11 +20,14 @@ interface BookMeetingModalProps {
   recipient: { id: string; name: string; avatar?: string | null };
   existingMeeting?: any;
   eventId?: string;
+  embedded?: boolean;
+  previewOnly?: boolean;
+  onSubmittingChange?: (sending: boolean) => void;
 }
 
 const MEETINGS_TABLE = 'event_b2b_meetings';
 
-export default function BookMeetingModal({ isOpen, onClose, currentUser, recipient, existingMeeting, eventId }: BookMeetingModalProps) {
+export default function BookMeetingModal({ isOpen, onClose, currentUser, recipient, existingMeeting, eventId, embedded = false, previewOnly = false, onSubmittingChange }: BookMeetingModalProps) {
   const { t, locale } = useI18n();
   const dialogRef = useRef<HTMLDivElement>(null);
   const [failedAvatar, setFailedAvatar] = useState<string | null>(null);
@@ -58,8 +61,10 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
 
   // Submission State
   const [isSubmitting, setIsSubmitting] = useState(false);
+  useEffect(() => { onSubmittingChange?.(isSubmitting); }, [isSubmitting, onSubmittingChange]);
 
   const slotStatusLabel = (slot: (typeof generatedSlots)[number]) => {
+    if (embedded && Date.parse(slot.iso) <= Date.now()) return t('profileBooking.past');
     const ownConflict = slot.busyParticipantIds?.includes(currentUser?.id);
     const recipientConflict = slot.busyParticipantIds?.includes(recipient?.id);
     if (ownConflict && recipientConflict) return t('networkingScheduling.busyBoth');
@@ -144,6 +149,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
       if (settingsResult.error) throw settingsResult.error;
       if (request !== configRequest.current) return;
       const event = eventResult.data;
+      if (!event) throw new Error('Event unavailable');
       const venue = settingsResult.data?.venue_config || null;
       setVenueConfig(venue);
       setTimeZone(networkingTimeZone(eventId, venue, event?.timezone));
@@ -161,6 +167,9 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
     if (!venueConfig || !eventId || !currentUser?.id || !recipient?.id) return [];
     const slots = schedule.filter(s => s.date === dateStr);
     if (!slots.length) return [];
+    // Preview uses the organizer's timetable, never invented participant
+    // availability. No private availability reads or writes are needed.
+    if (previewOnly) return slots.map(slot => ({ ...slot, available: 1, isConflicted: false, busyParticipantIds: [], unavailable: false, venueFull: false }));
     const [meetingResult, availabilityResult] = await Promise.all([
       supabase.from(MEETINGS_TABLE)
         .select('id, event_id, start_at, end_at, location, profile_a_id, profile_b_id, status, meta')
@@ -194,16 +203,16 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
 
   useEffect(() => {
     if (!isOpen || meetingType === 'video' || !venueConfig) return;
-    const dates = [...new Set(schedule.map(slot => slot.date))];
-    if (!meetingDate && dates.length === 1) setMeetingDate(dates[0]);
-  }, [isOpen, schedule, venueConfig, meetingType, meetingDate]);
+    const dates = [...new Set(schedule.filter(slot => !embedded || Date.parse(slot.iso) > Date.now()).map(slot => slot.date))];
+    if (!meetingDate && (dates.length === 1 || embedded && dates.length > 0)) setMeetingDate(dates[0]);
+  }, [isOpen, schedule, venueConfig, meetingType, meetingDate, embedded]);
 
   useEffect(() => {
     if (isOpen && currentUser?.id && recipient?.id && meetingDate && venueConfig && meetingType && meetingType !== 'video') void generateSlots(meetingDate);
   }, [isOpen, meetingDate, venueConfig, timeZone, meetingType, currentUser?.id, recipient?.id]);
 
   const handleSubmit = async () => {
-    if (isSubmitting || !profileReady) return;
+    if (previewOnly || isSubmitting || !profileReady) return;
     if (!currentUser?.id) {
       console.error('[BookMeetingModal] currentUser.id is missing:', currentUser);
       toast.error(t('networking.errors.sessionExpired'));
@@ -234,7 +243,8 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
 
     if (meetingType === 'video') {
        if (!meetingDate || !meetingTime) { toast.error(t('networking.meetings.validation.selectDateTime')); setIsSubmitting(false); return; }
-       startAt = new Date(`${meetingDate}T${meetingTime}:00`);
+       const zonedStart = zonedTimeToIso(meetingDate, meetingTime, timeZone);
+       startAt = new Date(zonedStart || NaN);
        if (Number.isNaN(startAt.getTime())) {
         toast.error(t('networking.meetings.validation.invalidDateTime'));
         setIsSubmitting(false);
@@ -252,6 +262,11 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
        const duration = venueConfig?.slotDuration || 30;
        endAt = new Date(startAt.getTime() + duration * 60000);
        location = selectedSlot.nextTable || `Networking Area`;
+    }
+
+    if (embedded && startAt.getTime() <= Date.now()) {
+      setSelectedSlot(null); setIsSubmitting(false);
+      toast.error(t('profileBooking.past')); return;
     }
 
     // Resolve Attendee IDs
@@ -480,11 +495,11 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
 
   const isVirtual = (type: string) => type === 'video';
 
-  const submitDisabled = !profileReady || isSubmitting || isLoadingEvents || configFailed || slotsFailed || (meetingType !== 'video' && !selectedSlot);
+  const submitDisabled = previewOnly || !profileReady || isSubmitting || isLoadingEvents || configFailed || slotsFailed || (meetingType !== 'video' && !selectedSlot);
 
 
   useEffect(() => {
-    if (!isOpen || !currentUser?.id || !recipient?.id) return;
+    if (embedded || !isOpen || !currentUser?.id || !recipient?.id) return;
     const previousFocus = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -500,7 +515,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
     };
     document.addEventListener('keydown', onKey);
     return () => { document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', onKey); previousFocus?.focus(); };
-  }, [isOpen, currentUser?.id, recipient?.id, isSubmitting]);
+  }, [isOpen, currentUser?.id, recipient?.id, isSubmitting, embedded]);
 
   if (!isOpen || !currentUser?.id || !recipient?.id) return null;
   const formatDate = (date: string, options: Intl.DateTimeFormatOptions) => new Date(`${date}T12:00:00Z`).toLocaleDateString(locale, { timeZone: 'UTC', ...options });
@@ -509,13 +524,15 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
   const selectionReady = !!(meetingDate && selectedTime && !slotsFailed && !configFailed);
   const close = () => { if (!isSubmitting) onClose(); };
 
-  return <div className="meeting-booking-overlay" onClick={close}>
-    <div className="meeting-booking" role="dialog" aria-modal="true" aria-labelledby="meeting-booking-title" tabIndex={-1} ref={dialogRef} onClick={event => event.stopPropagation()}>
+  return <div className={embedded ? 'meeting-booking-inline' : 'meeting-booking-overlay'} onClick={embedded ? undefined : close}>
+    <div className={`meeting-booking ${embedded ? 'meeting-booking--embedded' : ''}`} role={embedded ? 'region' : 'dialog'} aria-modal={embedded ? undefined : true} aria-labelledby={embedded ? 'profile-booking-title' : 'meeting-booking-title'} tabIndex={-1} ref={dialogRef} onClick={event => event.stopPropagation()}>
       <header className="meeting-booking__header">
         <div><span className="meeting-booking__eyebrow">{t('meetingBooking.eyebrow')}</span>
-          <h2 id="meeting-booking-title">{t(meetingEditId ? 'meetingBooking.reschedule' : 'meetingBooking.title')}</h2></div>
-        <button className="meeting-booking__close" disabled={isSubmitting} aria-label={t('meetingBooking.close')} onClick={close}><X size={21} /></button>
+          <h2 id={embedded ? 'profile-booking-title' : 'meeting-booking-title'}>{t(embedded ? 'profileBooking.title' : meetingEditId ? 'meetingBooking.reschedule' : 'meetingBooking.title')}</h2>
+          {embedded && <p className="profile-booking__lead">{t('profileBooking.intro', { name: recipient.name })}</p>}</div>
+        {!embedded && <button className="meeting-booking__close" disabled={isSubmitting} aria-label={t('meetingBooking.close')} onClick={close}><X size={21} /></button>}
       </header>
+      {previewOnly && <div className="profile-booking__preview" role="note"><strong>{t('profileBooking.previewTitle')}</strong><p>{t('profileBooking.previewHint')}</p></div>}
       <div className="meeting-booking__scroll">
         <div className="meeting-booking__layout">
           <aside className="meeting-booking__summary">
@@ -524,7 +541,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
             {recipientBio && <p className="meeting-booking__intro" dir="auto">{recipientBio}</p>}
             <div className="meeting-booking__facts">
               <div><Calendar size={17} /><span>{eventDetails?.name || t('meetingBooking.event')}</span></div>
-              {venueConfig && <div><Clock size={17} /><span>{t('meetingBooking.duration', { minutes: venueConfig.slotDuration || 30 })}</span></div>}
+              {venueConfig && <div><Clock size={17} /><span>{t('meetingBooking.duration', { minutes: meetingType === 'video' ? 30 : venueConfig.slotDuration || 30 })}</span></div>}
               {meetingType && <div><MapPin size={17} /><span>{t(`networkingScheduling.formats.${meetingType}`)}</span></div>}
               <div><Globe size={17} /><span>{timeZone.replace(/_/g, ' ')}</span></div>
             </div>
@@ -535,8 +552,8 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
             <p className="meeting-booking__note">{t('meetingBooking.pending')}</p>
           </aside>
           <div className="meeting-booking__form">
-            <div className="booking-readiness"><NetworkingProfileCard profileId={currentUser.id} compact onReady={setProfileReady} /></div>
-            <h3>{t('meetingBooking.intro')}</h3>
+            {!previewOnly && <div className="booking-readiness"><NetworkingProfileCard profileId={currentUser.id} compact onReady={setProfileReady} /></div>}
+            {!embedded && <h3>{t('meetingBooking.intro')}</h3>}
             {configFailed ? <div role="alert" className="meeting-booking__error"><p>{t('networkingScheduling.loadError')}</p><button onClick={loadEventData}>{t('networking.people.retry')}</button></div>
             : isLoadingEvents ? <p role="status" className="meeting-booking__loading"><Loader2 size={18} className="animate-spin" />{t('meetingBooking.loading')}</p> : <>
               {formats.length > 1 && <fieldset className="meeting-booking__field"><legend>{t('meetingBooking.format')}</legend><div className="meeting-booking__formats">
@@ -544,21 +561,23 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
               </div>{meetingEditId && !existingMeeting?._isUnscheduled && <small>{t('meetingBooking.locked')}</small>}</fieldset>}
               {meetingType && meetingType !== 'video' && <>
                 <fieldset className="meeting-booking__field"><legend><span className="meeting-booking__step">1</span>{t('meetingBooking.date')}</legend>
-                  <div className="meeting-booking__dates">{[...new Set(schedule.map(slot => slot.date))].map(date => <button key={date} aria-label={formatDate(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} aria-pressed={meetingDate === date} onClick={() => { if (meetingDate === date) void generateSlots(date); else { setMeetingDate(date); setSelectedSlot(null); } }}>
+                  <div className="meeting-booking__dates">{[...new Set(schedule.map(slot => slot.date))].map(date => <button key={date} disabled={embedded && !schedule.some(slot => slot.date === date && Date.parse(slot.iso) > Date.now())} aria-label={formatDate(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} aria-pressed={meetingDate === date} onClick={() => { if (meetingDate === date) void generateSlots(date); else { setMeetingDate(date); setSelectedSlot(null); } }}>
                     <span>{formatDate(date, { weekday: 'short' })}</span><strong>{formatDate(date, { day: 'numeric' })}</strong><span>{formatDate(date, { month: 'short' })}</span>
                   </button>)}</div>
                   {!schedule.length && <p className="meeting-booking__muted">{t('networkingScheduling.noSchedule')}</p>}
+                  {embedded && schedule.length > 0 && schedule.every(slot => Date.parse(slot.iso) <= Date.now()) && <p className="meeting-booking__muted" role="status">{t('profileBooking.ended')}</p>}
                 </fieldset>
                 {meetingDate && <fieldset className="meeting-booking__field"><legend><span className="meeting-booking__step">2</span>{t('meetingBooking.time')}</legend>
                   <p className="meeting-booking__zone">{t('networkingScheduling.timeZone', { zone: timeZone })}</p>
-                  <p className="meeting-booking__muted meeting-booking__slot-hint">{t('networkingScheduling.confirmedOnlyHint')}</p>
+                  <p className="meeting-booking__muted meeting-booking__slot-hint">{t(previewOnly ? 'profileBooking.previewSlots' : embedded ? 'profileBooking.slotHint' : 'networkingScheduling.confirmedOnlyHint')}</p>
                   {slotsFailed ? <div role="alert" className="meeting-booking__error"><p>{t('networkingScheduling.loadError')}</p><button onClick={() => generateSlots(meetingDate)}>{t('networking.people.retry')}</button></div>
                     : generatedSlots.length ? <div className="meeting-booking__slots">{generatedSlots.map(slot => <button key={slot.iso}
                         aria-label={`${slot.time}${slotStatusLabel(slot) ? ' ' + slotStatusLabel(slot) : ''}`}
-                        aria-pressed={selectedSlot?.iso === slot.iso} disabled={slot.available <= 0 || slot.isConflicted} onClick={() => setSelectedSlot(slot)}>
+                        aria-pressed={selectedSlot?.iso === slot.iso} disabled={slot.available <= 0 || slot.isConflicted || embedded && Date.parse(slot.iso) <= Date.now()} onClick={() => setSelectedSlot(slot)}>
                         {slot.time}{selectedSlot?.iso === slot.iso && <Check size={14} />}
                         {slotStatusLabel(slot) && <small>{slotStatusLabel(slot)}</small>}
                       </button>)}</div> : <p className="meeting-booking__muted">{t('meetingBooking.empty')}</p>}
+                  {embedded && !slotsFailed && generatedSlots.length > 0 && generatedSlots.every(slot => slot.available <= 0 || Date.parse(slot.iso) <= Date.now()) && <p className="meeting-booking__muted" role="status">{t('profileBooking.allBusy')}</p>}
                 </fieldset>}
               </>}
               {meetingType === 'hybrid' && eventDetails?.onlineExperienceEnabled && <label className="meeting-booking__message">Online room link<input type="url" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} placeholder="https://"/><small>Optional. A room will be assigned when the meeting is confirmed.</small></label>}
@@ -570,16 +589,16 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
                 <label className="meeting-booking__message">{t('meetingBooking.videoLink')}<input type="url" value={videoUrl} onChange={event => setVideoUrl(event.target.value)} placeholder={t('meetingBooking.videoPlaceholder')} /><small>{t('meetingBooking.videoHint')}</small></label>
               </>}
             </>}
-            <label className="meeting-booking__message"><span>{t('meetingBooking.message')} <small>{t('meetingBooking.optional')}</small></span>
+            {(!embedded || selectionReady) && <label className="meeting-booking__message"><span>{t('meetingBooking.message')} <small>{t('meetingBooking.optional')}</small></span>
               <textarea value={meetingMessage} onChange={event => setMeetingMessage(event.target.value)} placeholder={t('meetingBooking.placeholder')} rows={3} />
-            </label>
+            </label>}
           </div>
         </div>
       </div>
       <footer className="meeting-booking__footer">
-        <button className="meeting-booking__cancel" disabled={isSubmitting} onClick={close}>{t('meetingBooking.cancel')}</button>
+        {embedded ? <div className="profile-booking__receipt" aria-live="polite"><span>{t('profileBooking.invitation')}</span><strong>{selectionReady ? `${formatDate(meetingDate, { day: 'numeric', month: 'short' })} · ${selectedTime}` : t('meetingBooking.selectHint')}</strong><small>{t('meetingBooking.pending')}</small></div> : <button className="meeting-booking__cancel" disabled={isSubmitting} onClick={close}>{t('meetingBooking.cancel')}</button>}
         <button className="meeting-booking__submit" disabled={submitDisabled || (meetingType === 'video' && (!meetingDate || !meetingTime))} onClick={handleSubmit}>
-          {isSubmitting ? <Loader2 size={17} className="animate-spin" /> : <Calendar size={17} />}{t(isSubmitting ? 'meetingBooking.sending' : meetingEditId ? 'meetingBooking.reschedule' : 'meetingBooking.title')}<ArrowRight size={17} />
+          {isSubmitting ? <Loader2 size={17} className="animate-spin" /> : <Calendar size={17} />}{t(isSubmitting ? 'meetingBooking.sending' : embedded ? 'profileBooking.send' : meetingEditId ? 'meetingBooking.reschedule' : 'meetingBooking.title')}<ArrowRight size={17} />
         </button>
       </footer>
     </div>

@@ -44,6 +44,7 @@ import { createNotification } from '../../lib/notifications';
 import { sendRegistrationCancelledEmail } from '../../lib/email';
 import { useI18n } from '../../i18n/I18nContext';
 import AttendeeActionsMenu from './AttendeeActionsMenu';
+import { attendeeStatus, attendeeStatusCounts, attendeeStatusLabel } from '../../lib/attendeeStatus';
 
 interface CustomField {
   id: string;
@@ -148,7 +149,7 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
         price: typeof row.price === 'number' ? row.price : Number(row.price || row.meta?.price || 0),
         regDate: reg.regDate,
         regTime: reg.regTime,
-        status: (row.status || 'pending').toLowerCase(),
+        status: attendeeStatus(row.status),
         checkedIn: !!row.checked_in,
         checkInAt: row.check_in_at,
         checkInTime: row.check_in_at ? formatCheckIn(row.check_in_at) : '',
@@ -454,37 +455,37 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
 
   const getStatusBadge = (status: string) => {
     const configs = {
+      registered: { bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.3)', color: '#60A5FA', icon: CheckCircle, label: 'Registered' },
       approved: { bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(16, 185, 129, 0.3)', color: '#10B981', icon: CheckCircle, label: t('manageEvent.attendees.filters.approved') },
       pending: { bg: 'rgba(245, 158, 11, 0.15)', border: 'rgba(245, 158, 11, 0.3)', color: '#F59E0B', icon: Clock, label: t('manageEvent.attendees.filters.pending') },
       declined: { bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(239, 68, 68, 0.3)', color: '#EF4444', icon: XCircle, label: t('manageEvent.attendees.filters.declined') }
     };
-    const key = (status || 'pending').toLowerCase() as keyof typeof configs;
-    return configs[key] || configs.pending;
+    const key = attendeeStatus(status) as keyof typeof configs;
+    return configs[key] || { bg: 'rgba(148, 163, 184, 0.15)', border: 'rgba(148, 163, 184, 0.3)', color: '#94A3B8', icon: User, label: attendeeStatusLabel(status) };
   };
 
   const counts = useMemo(() => {
     const total = attendees.length;
-    const approved = attendees.filter((a) => a.status === 'approved').length;
-    const pending = attendees.filter((a) => a.status === 'pending').length;
-    const declined = attendees.filter((a) => a.status === 'declined').length;
+    const statuses = attendeeStatusCounts(attendees);
+    const approved = statuses.approved || 0;
+    const pending = statuses.pending || 0;
+    const declined = statuses.declined || 0;
     const checkedIn = attendees.filter((a) => a.checkedIn).length;
     const vip = attendees.filter((a) => a.isVIP).length;
     const noShows = attendees.filter((a) => a.status === 'approved' && !a.checkedIn).length;
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
     const thisWeek = attendees.filter((a) => a.createdAt && new Date(a.createdAt) >= weekAgo).length;
-    return { total, approved, pending, declined, checkedIn, vip, noShows, thisWeek };
+    return { total, statuses, approved, pending, declined, checkedIn, vip, noShows, thisWeek };
   }, [attendees]);
 
   const pageSize = 50;
 
   const filteredAttendees = useMemo(() => {
     let list = attendees;
-    if (activeFilterTab === 'approved') list = list.filter((a) => a.status === 'approved');
-    else if (activeFilterTab === 'pending') list = list.filter((a) => a.status === 'pending');
-    else if (activeFilterTab === 'declined') list = list.filter((a) => a.status === 'declined');
-    else if (activeFilterTab === 'checkedIn') list = list.filter((a) => a.checkedIn);
+    if (activeFilterTab === 'checkedIn') list = list.filter((a) => a.checkedIn);
     else if (activeFilterTab === 'vip') list = list.filter((a) => a.isVIP);
+    else if (activeFilterTab !== 'all') list = list.filter((a) => attendeeStatus(a.status) === activeFilterTab);
     const q = searchTerm.trim().toLowerCase();
     if (q) {
       list = list.filter((a) =>
@@ -911,9 +912,13 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
             <div className="no-scrollbar" style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
               {[
                 { key: 'all', label: 'All', count: counts.total },
+                { key: 'registered', label: 'Registered', count: counts.statuses.registered || 0 },
                 { key: 'approved', label: 'Approved', count: counts.approved },
                 { key: 'pending', label: 'Pending', count: counts.pending },
                 { key: 'declined', label: 'Declined', count: counts.declined },
+                ...Object.entries(counts.statuses)
+                  .filter(([status]) => !['registered', 'approved', 'pending', 'declined'].includes(status))
+                  .map(([status, count]) => ({ key: status, label: attendeeStatusLabel(status), count })),
                 { key: 'checkedIn', label: 'Checked In', count: counts.checkedIn },
                 { key: 'vip', label: 'VIP', count: counts.vip }
               ].map((tab) => (
@@ -939,9 +944,7 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
                 >
                   {tab.key === 'vip' && <Star size={12} />}
                   {tab.label}
-                  {tab.key !== 'all' && (
-                    <span style={{ fontSize: '10px', opacity: 0.7 }}>{tab.count}</span>
-                  )}
+                  <span style={{ fontSize: '10px', opacity: 0.7 }}>{tab.count}</span>
                 </button>
               ))}
             </div>

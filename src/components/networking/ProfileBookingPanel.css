@@ -1,0 +1,56 @@
+.profile-booking { min-width: 0; scroll-margin-top: 100px; border-radius: 24px; outline: none; }
+.profile-booking:focus-visible { outline: 2px solid #86c7ff; outline-offset: 5px; }
+.profile-booking__welcome, .profile-booking__event-picker { padding: 30px; border: 1px solid #ffffff24; border-radius: 24px; background: radial-gradient(ellipse at 100% 0, #257b9c26, transparent 65%), #112f48; color: #ecf5ff; }
+.profile-booking__welcome > svg { color: #9fd7f5; margin-bottom: 24px; }
+.profile-booking__eyebrow { display: block; font-size: 12px; color: #afc9dd; margin-bottom: 8px; }
+.profile-booking__welcome h2 { font-size: 27px; line-height: 1.25; letter-spacing: -.7px; margin-bottom: 12px; font-weight: 650; }
+.profile-booking__welcome p, .profile-booking__event-picker p { font-size: 14px; color: #b8cddd; line-height: 1.75; margin-bottom: 20px; }
+.profile-booking__action { display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-height: 46px; padding: 12px 20px; border: 1px solid #7cc2ff80; border-radius: 12px; background: #096bbd; color: white; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; }
+.profile-booking__action:hover { background: #117dcc; }
+.profile-booking :is(button, a, select):focus-visible { outline: 2px solid #a6dcff; outline-offset: 4px; }
+.profile-booking__event-picker { margin-bottom: 12px; }
+.profile-booking__event-picker label { font-size: 17px; font-weight: 600; }
+.profile-booking__event-picker p { margin: 6px 0 16px; }
+.profile-booking__event-picker select { width: 100%; color: #eef7ff; background: #173c58; border: 1px solid #6e91ab; padding: 12px; border-radius: 10px; }
+.profile-booking__instructions { color: #c3d9e9; font-size: 13px; line-height: 1.7; border-inline-start: 2px solid #8ab9d8; padding: 4px 16px; margin: 0 0 18px; white-space: pre-line; }
+.profile-booking__check { display: grid; place-items: center; width: 62px; height: 62px; border-radius: 50%; background: #54d3ae1c; color: #9ce9d0; border: 1px solid #54d3ae50; margin-bottom: 24px; }
+.profile-booking__success { padding-block: 44px; }
+.profile-booking__preview { padding: 18px 30px; background: #24465e; border-block: 1px solid #9bbcd233; color: #e5f1fb; }
+.profile-booking__preview strong { font-size: 13px; }
+.profile-booking__preview p { margin: 6px 0 0; font-size: 13px; line-height: 1.65; color: #c4d8e7; }
+.meeting-booking--embedded { width: 100%; max-height: none; border-radius: 24px; background: #112f48; backdrop-filter: none; box-shadow: 0 16px 45px #00101d20; }
+.meeting-booking--embedded .meeting-booking__header { padding: 30px 30px 24px; background: radial-gradient(ellipse at 100% 0, #257b9c26, transparent 70%); }
+.meeting-booking--embedded .meeting-booking__header h2 { font-size: 28px; letter-spacing: -.7px; }
+.profile-booking__lead { color: #b9d0e2; line-height: 1.65; font-size: 14px; margin: 10px 0 0; }
+.meeting-booking--embedded .meeting-booking__scroll { overflow: visible; }
+.meeting-booking--embedded .meeting-booking__layout { display: flex; flex-direction: column; }
+.meeting-booking--embedded .meeting-booking__summary { padding: 18px 30px; border: 0; border-bottom: 1px solid #ffffff12; background: #ffffff03; display: block; }
+.meeting-booking--embedded .meeting-booking__summary :is(.meeting-booking__avatar, .meeting-booking__with, .meeting-booking__intro, .meeting-booking__selection, .meeting-booking__note) { display: none; }
+.meeting-booking--embedded .meeting-booking__facts { flex-direction: row; flex-wrap: wrap; gap: 12px 22px; margin: 0; font-size: 12px; }
+.meeting-booking--embedded .meeting-booking__facts > div:first-child { width: 100%; color: #edf6ff; font-weight: 600; font-size: 14px; }
+.meeting-booking--embedded .meeting-booking__facts > div:last-child { display: flex; }
+.meeting-booking--embedded .meeting-booking__form { padding: 26px 30px; }
+.meeting-booking--embedded .meeting-booking__dates { gap: 12px; padding: 4px 3px 8px; }
+.meeting-booking--embedded .meeting-booking__dates button { min-width: 85px; min-height: 98px; border-radius: 14px; }
+.meeting-booking--embedded .meeting-booking__dates button[aria-pressed=true] { background: #edf6ff; color: #154466; border-color: #edf6ff; box-shadow: 0 6px 16px #001b3540; }
+.meeting-booking--embedded .meeting-booking__dates button[aria-pressed=true] strong { color: #103b5b; }
+.meeting-booking--embedded .meeting-booking__dates button:disabled { opacity: .45; cursor: not-allowed; }
+.meeting-booking--embedded .meeting-booking__slots { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; }
+.meeting-booking--embedded .meeting-booking__slots button { min-height: 48px; border-radius: 12px; font-size: 15px; }
+.meeting-booking--embedded .meeting-booking__slots button[aria-pressed=true] { background: #c5f1e3; color: #103f35; border-color: #c5f1e3; }
+.meeting-booking--embedded .meeting-booking__footer { padding: 22px 30px; border-top: 1px dashed #8baec14d; background: #0a243a; flex-wrap: wrap; gap: 18px; }
+.profile-booking__receipt { display: flex; flex-direction: column; gap: 6px; flex: 1 1 200px; }
+.profile-booking__receipt > span { color: #9fbdd2; font-size: 11px; letter-spacing: .4px; }
+.profile-booking__receipt strong { font-weight: 600; color: #eaf5ff; font-size: 16px; }
+.profile-booking__receipt small { color: #aac3d5; font-size: 11px; line-height: 1.6; max-width: 280px; }
+.meeting-booking--embedded .meeting-booking__submit { border-radius: 12px; min-height: 48px; }
+@media (max-width: 680px) {
+  .profile-booking__welcome, .profile-booking__event-picker { padding: 24px 20px; }
+  .meeting-booking--embedded :is(.meeting-booking__header, .meeting-booking__summary, .meeting-booking__form, .meeting-booking__footer) { padding-inline: 20px; }
+  .meeting-booking--embedded .meeting-booking__header h2 { font-size: 25px; }
+  .meeting-booking--embedded .meeting-booking__slots { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .meeting-booking--embedded .meeting-booking__footer { flex-direction: column; align-items: stretch; }
+  .profile-booking__receipt { flex: auto; }
+  .profile-booking__receipt small { max-width: none; }
+  .meeting-booking--embedded .meeting-booking__submit { flex: auto; }
+}
