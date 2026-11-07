@@ -71,3 +71,20 @@ User reported the newly received investor mail lacked branding, then identified 
 New review-email payload version 2 uses the Eventra navy/blue branded layout with a clear status heading/button, French primary content, secondary English/Arabic and dark-mode styles. Version 1 remains byte-identical for retries (snapshot test). The worker supports both versions. Deploy/pull that worker code BEFORE applying 20261107150000_branded_review_mail.sql; the migration changes only the default version for newly frozen payloads, without resetting or resending existing jobs. No frontend rebuild is required for these email changes.
 
 Validation: 45 Node tests passed for receipts, registration handler, protected delivery, mail authorization and online experiences. Disposable database tests passed with 197 assertions and six concurrency cases, including version-1 payload preservation. Desktop/mobile and dark-mode HTML previews were reviewed; these are browser previews, not a claim of exhaustive email-client testing. Relevant production schema columns were verified read-only. Never resend old registrations or create test mail without a designated recipient and authorization.
+
+## All email categories: shared branding
+
+User explicitly required consistent design for all emails, not only receipts and investor confirmations.
+
+| Sending path | Coverage | Rollout |
+| --- | --- | --- |
+| Shared Node dispatcher | Welcome; ordinary meeting invitations/confirmations/cancellations; registration updates; broadcasts; B2B invitations/matches; event approval/rejection; messages; connection requests/acceptance/decline; meeting check-in | Pull and restart only eventra-api |
+| Registration Edge Function | Registration receipts and saved multi-day agenda; QR/check-in; B2B access; online/hybrid joining instructions; organizer capacity alerts | Deploy create-event-registration |
+| Reviewed-meeting worker | Submitted/forwarded/confirmed/cancelled/rejected/withdrawn/expired/new-slot notices | Pull version-2-capable worker, then apply the branded payload migration |
+| Supabase Auth | Signup confirmation, invitation, magic link, recovery, email-change confirmation, reauthentication, password/email/phone-change notices, MFA enrollment/removal, identity link/unlink | Update only 13 templates and 13 subjects; keep auth settings and provider placeholders |
+| Legacy send-registration-email Edge endpoint | Route named commands through the same authorized branded dispatcher; caller-supplied HTML/recipients are rejected | Preserve gateway JWT verification on deployment |
+| Optional signup-invitation batch | Same shared visual renderer; not present in live function inventory | Source updated only; no batch or schedule activated |
+
+Existing browser-rendered preview/legacy template helpers were already styled and are not an alternate raw-mail transport. No inactive workflow was activated merely for design consistency. Shared mail uses the deployed legacy semantic key for deduplication, while new unfrozen messages receive branded HTML. Previously stored mail remains frozen for retries. Ordinary meeting messages include authorized event/partner, date/time/timezone and venue details. Supabase auth URL/code/identity placeholder sets are tested unchanged.
+
+51 targeted tests pass, including the compatibility sender, escaping, authorization, receipt contents, retries, all 13 auth templates and online-event behavior. Mobile previews have no horizontal overflow; actual rendering across every email client is not claimed. Generate the provider patch with node scripts/render-auth-email-templates.mjs; it writes only .tmp/auth-email-templates.json and never sends mail. Production template snapshots are held locally in .tmp/auth-mail-templates-before.json for comparison/rollback. Never overwrite unrelated auth/provider settings when applying the template patch.

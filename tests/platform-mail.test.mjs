@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {authorizePlatformMail,executePlatformMail,MailError} from '../server/platform-mail.mjs';
@@ -60,4 +61,19 @@ test('check-in alert requires saved partner arrival and event permission',async(
  await assert.rejects(fixture(rows,true)({kind:'meeting_checkin',entityId:entity,recipientId:other}),MailError);
  const result=await fixture({...rows,event_checkins:[{id:stranger,event_id:event,meeting_id:entity,type:'b2b',attendee_id:actor}]},true)({kind:'meeting_checkin',entityId:entity,recipientId:other});
  assert.ok(result.mail);
+});
+
+
+test('branded shared mail preserves the deployed dedup identity',async()=>{
+ const {mail,key}=await fixture()({kind:'welcome',entityId:actor});
+ const title='Welcome to Eventra',body='Your account is ready. Open your profile to complete your details.',url=`https://app.eventra.cloud/profile/${actor}`;
+ const legacy={to:[`${actor}@example.test`],subject:title,text:`${body}\n\n${url}`,html:`<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px;color:#153047"><h1>Eventra</h1><h2>${title}</h2><p style="white-space:pre-line">${body}</p><p><a href="${url}">Open Eventra</a></p></div>`};
+ assert.equal(key,createHash('sha256').update(JSON.stringify(['welcome',actor,actor,'',legacy])).digest('hex'));
+ assert.match(mail.html,/bgcolor="#0b2641"/);assert.match(mail.html,/Complete my profile/);
+});
+
+test('ordinary meeting email restores authorized event, partner, time and venue details',async()=>{
+ const run=fixture({event_b2b_meetings:[{...meeting,end_at:'2027-01-01T10:30:00Z',location:'Room <A>'}],events:[{id:event,name:'Example event',timezone:'Africa/Tunis'}],profiles:[{id:actor,full_name:'Example host'}]});
+ const {mail}=await run({kind:'meeting',entityId:entity,recipientId:other});
+ assert.match(mail.html,/Example event/);assert.match(mail.html,/Example host/);assert.match(mail.html,/11:00/);assert.match(mail.html,/11:30/);assert.match(mail.html,/Room &lt;A&gt;/);assert.match(mail.html,/View my meeting/);
 });

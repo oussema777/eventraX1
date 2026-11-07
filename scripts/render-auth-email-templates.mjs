@@ -1,0 +1,11 @@
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+import {resolve,dirname} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {buildAuthEmailTemplates} from './lib/auth-email-templates.mjs';
+const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
+const original=JSON.parse(readFileSync(resolve(root,'scripts/lib/auth-email-content.json'),'utf8'));
+mkdirSync(resolve(root,'.tmp'),{recursive:true});
+const output=resolve(root,'.tmp/auth-email-templates.json');
+writeFileSync(output,JSON.stringify(buildAuthEmailTemplates(original),null,2));
+console.log(`Generated 13 branded auth templates and subjects: ${output}`);
+console.log('No settings changed and no email sent.');

@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {stripTypeScriptTypes} from 'node:module';
 import vm from 'node:vm';
+const brandSource=readFileSync(new URL('../supabase/functions/_shared/emailBrand.mjs',import.meta.url),'utf8').replace(/^export /gm,'');
 
-const source=['onlineExperience.ts','registrationReceipt.ts'].map(file=>stripTypeScriptTypes(readFileSync(new URL(`../supabase/functions/_shared/${file}`,import.meta.url),'utf8').replace(/^import .*?;\r?\n/gm,''))).join('\n').replace(/^export /gm,'');
+const source=brandSource+'\n'+['onlineExperience.ts','registrationReceipt.ts'].map(file=>stripTypeScriptTypes(readFileSync(new URL(`../supabase/functions/_shared/${file}`,import.meta.url),'utf8').replace(/^import .*?;\r?\n/gm,''))).join('\n').replace(/^export /gm,'');
 const {sendRegistrationReceipt,notifyRegistrationOwner,registrationReceiptHtml}=vm.runInNewContext(source+'\n({sendRegistrationReceipt,notifyRegistrationOwner,registrationReceiptHtml})',{URL,URLSearchParams,TextEncoder,crypto,AbortSignal});
 function setup({access=false,disabled=false,existing=null,identity='saved@example.test',prepare=true,ack=true}={}) {
  const calls=[];let sent;

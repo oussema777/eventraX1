@@ -1,3 +1,4 @@
+import { renderBrandedNotice } from './emailBrand.mjs';
 import { renderOnlineEmail } from './onlineExperience.ts';
 const escape=(value:unknown)=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 function receiptTimeZone(event:any) {
@@ -114,7 +115,7 @@ export async function sendRegistrationCapacityAlert(db:any,event:any,env:(key:st
     const {data:identity,error:ae}=await db.auth.admin.getUserById(owner);if(ae||!identity?.user?.email)return;
     const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(`capacity-v1:${event.id}:${capacity}:${threshold}`));
     const dedup=Array.from(new Uint8Array(hash),n=>n.toString(16).padStart(2,'0')).join('');
-    const mail={from:env('EVENTRA_MAIL_FROM')||'Eventra <contact@eventra.cloud>',to:[identity.user.email],subject:`Registration capacity update: ${event.name}`,html:`<h1>Eventra</h1><p>${escape(event.name)} has reached ${threshold}% of its registration capacity.</p><a href="${escape(base.origin+'/manage-event/'+event.id)}">View registrations</a>`};
+    const mail={from:env('EVENTRA_MAIL_FROM')||'Eventra <contact@eventra.cloud>',to:[identity.user.email],subject:`Registration capacity update: ${event.name}`,html:renderBrandedNotice({title:'Your event is filling up',body:`${event.name} has reached ${threshold}% of its registration capacity.`,url:base.origin+'/manage-event/'+event.id,action:'View registrations',category:'EVENT MANAGEMENT',details:[['Event',event.name],['Registered',String(count)],['Capacity',String(capacity)]]})};
     const {data:lease,error:le}=await db.rpc('claim_platform_mail',{p_key:dedup,p_actor:null,p_mail:mail});if(le||lease?.sent||!lease?.token)return;
     let provider=null;
     try{const response=await fetchImpl('https://api.resend.com/emails',{method:'POST',signal:AbortSignal.timeout(15000),headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json','Idempotency-Key':`eventra-platform/${lease.id}`},body:JSON.stringify(lease.mail)});const data=await response.json();if(response.ok&&typeof data.id==='string')provider=data.id;}catch{/* Stable retry on a later registration. */}

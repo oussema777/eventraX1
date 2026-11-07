@@ -3,12 +3,13 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
 import vm from 'node:vm';
+const brandSource=readFileSync(new URL('../supabase/functions/_shared/emailBrand.mjs',import.meta.url),'utf8').replace(/^export /gm,'');
 
 // Exercise the real edge handler with isolated database/auth doubles. No
 // accounts are created and no messages are sent to production.
 const shared = stripTypeScriptTypes(readFileSync(new URL('../supabase/functions/_shared/onlineExperience.ts', import.meta.url), 'utf8')).replace(/^export /gm, '');
 const receipts = stripTypeScriptTypes(readFileSync(new URL('../supabase/functions/_shared/registrationReceipt.ts', import.meta.url), 'utf8').replace(/^import .*?;\r?\n/gm, '')).replace(/^export /gm, '');
-const source = shared + '\n' + receipts + '\n' + stripTypeScriptTypes(readFileSync(new URL('../supabase/functions/create-event-registration/index.ts', import.meta.url), 'utf8')
+const source = brandSource + '\n' + shared + '\n' + receipts + '\n' + stripTypeScriptTypes(readFileSync(new URL('../supabase/functions/create-event-registration/index.ts', import.meta.url), 'utf8')
   .replace(/^import .*?;\r?\n/gm, ''));
 
 function setup({ duplicate = false, profileId = null, linkError = false, profileError = false, profileUpdateError = false, sendEmail = false, online = false, providerStatus = 200 } = {}) {

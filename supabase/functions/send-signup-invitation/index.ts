@@ -1,3 +1,4 @@
+import { renderBrandedNotice } from '../_shared/emailBrand.mjs'
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -7,60 +8,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 function generateSignupInvitationEmailHtml(name: string, email: string, eventName: string): string {
   const signupUrl = `https://app.eventra.cloud/signup?email=${encodeURIComponent(email)}&ref=event-invite`
-
-  return `
-    <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; color: #1F2937; padding: 40px 20px; background-color: #F9FAFB;">
-      <div style="background-color: #FFFFFF; padding: 40px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); border: 1px solid #E5E7EB;">
-        <div style="text-align: center; margin-bottom: 32px;">
-          <h2 style="color: #0684F5; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.025em;">Eventra</h2>
-        </div>
-
-        <h1 style="color: #111827; font-size: 24px; font-weight: 700; text-align: center; margin-bottom: 16px;">
-          You're registered for ${eventName}!
-        </h1>
-
-        <p style="font-size: 16px; line-height: 1.6; color: #4B5563; text-align: center; margin-bottom: 32px;">
-          Hi ${name || 'there'}, get the most out of your event experience by creating a free Eventra account.
-        </p>
-
-        <div style="background-color: #F3F4F6; padding: 28px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #E5E7EB;">
-          <h3 style="font-size: 16px; font-weight: 600; color: #111827; margin-top: 0; margin-bottom: 16px; text-align: center;">Unlock these features</h3>
-          <ul style="padding: 0; margin: 0; list-style: none; font-size: 14px; color: #4B5563;">
-            <li style="margin-bottom: 12px; display: flex; align-items: flex-start;">
-              <span style="color: #0684F5; margin-right: 10px; font-size: 18px;">&#x1f91d;</span>
-              <div><strong style="color: #111827;">B2B Networking</strong><br/>Connect with other attendees and exhibitors at the event</div>
-            </li>
-            <li style="margin-bottom: 12px; display: flex; align-items: flex-start;">
-              <span style="color: #0684F5; margin-right: 10px; font-size: 18px;">&#x1f4c5;</span>
-              <div><strong style="color: #111827;">Meeting Scheduling</strong><br/>Book 1-on-1 meetings with other participants during the event</div>
-            </li>
-            <li style="margin-bottom: 12px; display: flex; align-items: flex-start;">
-              <span style="color: #0684F5; margin-right: 10px; font-size: 18px;">&#x1f464;</span>
-              <div><strong style="color: #111827;">Professional Profile</strong><br/>Get discovered by fellow attendees and exhibitors</div>
-            </li>
-            <li style="margin-bottom: 0; display: flex; align-items: flex-start;">
-              <span style="color: #0684F5; margin-right: 10px; font-size: 18px;">&#x26a1;</span>
-              <div><strong style="color: #111827;">Smart Check-in</strong><br/>Use your personal QR code for instant event check-in</div>
-            </li>
-          </ul>
-        </div>
-
-        <div style="text-align: center; margin-bottom: 32px;">
-          <a href="${signupUrl}" style="display: inline-block; padding: 14px 32px; background-color: #0684F5; color: #FFFFFF; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">Create Your Free Account</a>
-        </div>
-
-        <p style="font-size: 13px; line-height: 1.5; color: #9CA3AF; text-align: center;">
-          It only takes a minute. Your event registration stays active either way.
-        </p>
-      </div>
-
-      <p style="margin-top: 32px; font-size: 12px; color: #9CA3AF; text-align: center; line-height: 1.5;">
-        &copy; 2026 Eventra.cloud. All rights reserved.<br/>
-        You received this email because you registered for ${eventName}.<br/>
-        <a href="https://eventra.cloud" style="color: #9CA3AF;">eventra.cloud</a>
-      </p>
-    </div>
-  `
+  return renderBrandedNotice({title:`You're registered for ${eventName}!`,body:`Hi ${name || 'there'}, create your Eventra profile to connect with attendees and prepare your meetings. Your event registration stays active either way.`,url:signupUrl,action:'Create my account',category:'YOUR EVENT EXPERIENCE',details:[['B2B networking','Connect with attendees and exhibitors.'],['Meeting scheduling','Arrange one-to-one conversations during the event.'],['Professional profile','Help other participants discover your business.'],['Smart check-in','Keep your personal QR code ready for the entrance.']]})
 }
 
 async function sendEmailViaResend(to: string, subject: string, html: string): Promise<boolean> {
