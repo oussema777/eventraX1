@@ -24,6 +24,9 @@ select prepare_review_delivery(:'job',(:'lease'::jsonb->>'lease_token')::uuid) a
 select test_assert(:'payload'::jsonb->>'audience'='reviewer' and :'payload'::jsonb->>'to'='person2@example.test','reviewer address derived from auth data');
 select test_assert(not (:'payload'::jsonb ? 'message') and not (:'payload'::jsonb ? 'requester_reason'),'email excludes private request details');
 reset role;
+select test_assert(:'payload'::jsonb->>'version'='2','new delivery payload uses branded template version');
+update event_review_outbox set delivery_payload=jsonb_set(delivery_payload,'{version}','1'::jsonb) where id=:'job';
+select test_assert(prepare_review_delivery(:'job',(:'lease'::jsonb->>'lease_token')::uuid)->>'version'='1','frozen legacy delivery retains its template version');
 update event_team_members set status='revoked' where user_id='10000000-0000-4000-8000-000000000002';
 select test_assert(prepare_review_delivery(:'job',(:'lease'::jsonb->>'lease_token')::uuid) is null,'revoked team role blocks queued reviewer mail');
 select test_assert((select state='suppressed' from event_review_outbox where id=:'job'),'unauthorized job marked suppressed');

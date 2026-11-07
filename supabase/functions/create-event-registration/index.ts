@@ -60,7 +60,7 @@ Deno.serve(async (req: Request) => {
     // --- Validate event exists and is active ---
     const { data: event, error: eventError } = await supabaseAdmin
       .from('events')
-      .select('id, name, event_status, start_date, end_date, capacity_limit, owner_id, workshop_selection_limit, event_format, attendee_settings, access_code, location_address, is_public')
+      .select('id, name, event_status, start_date, end_date, timezone, capacity_limit, owner_id, workshop_selection_limit, event_format, attendee_settings, access_code, location_address, is_public')
       .eq('id', event_id)
       .single();
 

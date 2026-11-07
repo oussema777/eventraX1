@@ -39,7 +39,8 @@ try {
     'supabase/migrations/20261106230000_review_scheduling.sql',
     'supabase/migrations/20261106233000_review_operations.sql',
     'tests/review-operations.fixture.sql', 'supabase/migrations/20261106234000_notification_boundary.sql',
-    'supabase/migrations/20261106235000_review_lifecycle.sql', 'tests/investor-review-workflow.sql',
+    'supabase/migrations/20261106235000_review_lifecycle.sql',
+    'supabase/migrations/20261107150000_branded_review_mail.sql', 'tests/investor-review-workflow.sql',
     'tests/investor-review-delivery.sql', 'tests/investor-review-responses.sql',
     'tests/platform-mail.sql','tests/review-operations.sql']) {
     const sql = readFileSync(resolve(root, path), 'utf8');

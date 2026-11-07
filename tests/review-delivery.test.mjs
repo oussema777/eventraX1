@@ -1,9 +1,29 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import {createResendSender,deliverReviewJob,renderReviewDelivery} from '../scripts/lib/review-delivery.mjs';
 const payload={version:1,to:'person@example.test',event_id:'20000000-0000-4000-8000-000000000001',request_id:'30000000-0000-4000-8000-000000000001',kind:'submitted',audience:'requester'};
 const config={origin:'https://app.eventra.cloud',from:'Eventra <contact@eventra.cloud>'};
 const lease={id:'40000000-0000-4000-8000-000000000001',lease_token:'50000000-0000-4000-8000-000000000001'};
+
+test('legacy retries retain the exact previously deployed email content',()=>{
+  const digest=createHash('sha256').update(JSON.stringify(renderReviewDelivery(payload,config))).digest('hex');
+  assert.equal(digest,'6367bcdfe452e6146751596d99f412961517568e8e3e0c05ecba2a28b454f47e');
+});
+
+test('branded email supports authorized states without adding private request content',()=>{
+  const states={confirmed:['participant'],cancelled:['participant'],submitted:['requester','reviewer'],forwarded:['requester','recipient'],rejected:['requester'],needs_new_slot:['requester'],withdrawn:['requester'],expired:['requester']};
+  for(const [kind,audiences] of Object.entries(states)) for(const audience of audiences) {
+    const mail=renderReviewDelivery({...payload,version:2,kind,audience,meeting_id:payload.request_id,message:'PRIVATE TEST CONTENT'},config);
+    assert.match(mail.html,/<!doctype html>/);assert.match(mail.html,/role="presentation"/);
+    assert.match(mail.html,/bgcolor="#0b2641"/);assert.match(mail.html,/dir="rtl"/);
+    assert.match(mail.html,/lang="en"/);assert.match(mail.html,/lang="fr"/);
+    assert.doesNotMatch(mail.html,/PRIVATE TEST CONTENT|<script|<img/);
+    assert.match(mail.text,audience==='reviewer'?/manage-event/:/my-networking/);
+  }
+  assert.throws(()=>renderReviewDelivery({...payload,version:3},config));
+  assert.throws(()=>renderReviewDelivery({...payload,version:2,audience:'recipient'},config));
+});
 test('email content uses authorized states, all three languages and authenticated destination',()=>{
   const mail=renderReviewDelivery(payload,config);
   assert.match(mail.html,/lang="fr"/); assert.match(mail.html,/dir="rtl"/);

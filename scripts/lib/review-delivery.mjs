@@ -1,4 +1,5 @@
 // No environment reads or network side effects on import. All I/O is injected.
+import { brandedReviewEmail } from './review-email-brand.mjs';
 const copy = {
   confirmed: { participant: ['Votre rendez-vous est confirmé. Consultez les détails dans Eventra.', 'Your meeting is confirmed. View the details in Eventra.', 'تم تأكيد اجتماعك. اطّلع على التفاصيل في Eventra.'] },
   cancelled: { participant: ['Votre rendez-vous a été annulé ou l’invitation a été refusée. Consultez Eventra.', 'Your meeting was cancelled or the invitation was declined. View Eventra for details.', 'تم إلغاء الاجتماع أو رفض الدعوة. اطّلع على التفاصيل في Eventra.'] },
@@ -23,10 +24,11 @@ export function renderReviewDelivery(payload, { origin, from }) {
   if (base.protocol !== 'https:' || base.username || base.password || base.pathname !== '/' || base.search || base.hash) throw new Error('INVALID_ORIGIN');
   const messages = copy[payload.kind]?.[payload.audience];
   const entityId = ['confirmed','cancelled'].includes(payload.kind) ? payload.meeting_id : payload.request_id;
-  if (payload.version !== 1 || !messages || !uuid.test(payload.event_id) || !uuid.test(entityId)
+  if (![1, 2].includes(payload.version) || !messages || !uuid.test(payload.event_id) || !uuid.test(entityId)
       || typeof payload.to !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.to)
       || typeof from !== 'string' || /[\r\n]/.test(from) || !from.includes('@')) throw new Error('INVALID_PAYLOAD');
   const url = new URL(payload.audience === 'reviewer' ? `/manage-event/${payload.event_id}?tab=b2b` : '/my-networking', base).href;
+  if (payload.version === 2) return { from, to: [payload.to], text: `${messages.join('\n\n')}\n\nEventra: ${url}`, ...brandedReviewEmail(payload, messages, url) };
   // Trilingual until a verified per-recipient language preference is available.
   // No sensitive details in email: sign-in and live authorization guard the UI.
   return { from, to: [payload.to], subject: 'Eventra — Rendez-vous / Meetings / الاجتماعات',
