@@ -72,7 +72,7 @@
   .booking-readiness .networking-readiness { margin: 12px; }
 }
 
-.networking-match-card { display: flex; flex-direction: column; }
+/* ParticipantCard owns its shared row layout, including on the Matches tab. */
 .networking-match-score { display: flex; align-items: center; gap: 7px; color: #b9abff; margin-bottom: 18px; font-size: 12px; }
 .networking-match-score strong { font-size: 20px; }
 .networking-match-reason { padding: 12px; border-radius: 10px; background: #a78bfa12; color: #c3d2e2; font-size: 13px; line-height: 1.5; margin: 12px 0; }

@@ -41,7 +41,6 @@ const userData = {
   industry: '',
   yearsExperience: 0,
   companySize: '',
-  memberSince: '',
   profilePhoto: '',
   profileCompletion: 0,
   bio: '',
@@ -68,7 +67,7 @@ export default function MyProfile() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { stats: activityStats } = useProfileActivityStats(user?.id);
-  const { t, tList } = useI18n();
+  const { t, tList, locale } = useI18n();
   const { label: localizedLabel } = useLocalizedLabels();
   const {
     profile,
@@ -81,6 +80,11 @@ export default function MyProfile() {
     updateCertification,
     deleteCertification
   } = useProfile();
+  const membershipDate = [profile?.member_since, profile?.created_at, user?.created_at]
+    .find(value => value && Number.isFinite(Date.parse(value)));
+  const memberSince = membershipDate
+    ? new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(membershipDate))
+    : '';
   const fallbackUserName = t('nav.placeholders.userName');
   const initialAvatarName =
     user?.user_metadata?.full_name ||
@@ -148,6 +152,14 @@ export default function MyProfile() {
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [twitterUrl, setTwitterUrl] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
+  const websiteLink = useMemo(() => {
+    try {
+      const value = websiteUrl.trim();
+      if (!value) return null;
+      const url = new URL(/^[a-z][a-z\d+.-]*:/i.test(value) ? value : `https://${value}`);
+      return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url : null;
+    } catch { return null; }
+  }, [websiteUrl]);
   const [avatarUrl, setAvatarUrl] = useState(buildFallbackAvatar(initialAvatarName));
   const [skillsState, setSkillsState] = useState<string[]>(skills);
   const [interestsState, setInterestsState] = useState<string[]>(interests);
@@ -1005,7 +1017,7 @@ export default function MyProfile() {
                   <p style={{ fontSize: '16px', color: '#94A3B8', marginBottom: '12px' }}>
                     {company}
                   </p>
-                  <div
+                  {memberSince && <div
                     style={{
                       display: 'inline-block',
                       padding: '4px 12px',
@@ -1015,8 +1027,8 @@ export default function MyProfile() {
                       color: '#94A3B8'
                     }}
                   >
-                    {t('profile.card.memberSince', { date: userData.memberSince })}
-                  </div>
+                    {t('profile.card.memberSince', { date: memberSince })}
+                  </div>}
                 </div>
 
                 {/* Divider */}
@@ -1104,9 +1116,15 @@ export default function MyProfile() {
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <Globe size={20} style={{ color: '#0684F5' }} />
-                      <span style={{ fontSize: '14px', color: '#FFFFFF' }}>{t('profile.card.social.website')}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                      <Globe size={20} style={{ color: '#0684F5', flexShrink: 0 }} />
+                      <div style={{ minWidth: 0 }}>
+                        <span style={{ fontSize: '14px', color: '#FFFFFF' }}>{t('profile.card.social.website')}</span>
+                        {websiteLink && <a href={websiteLink.href} target="_blank" rel="noopener noreferrer"
+                          style={{ display: 'block', fontSize: '13px', color: '#8bcaff', overflowWrap: 'anywhere', marginTop: 4 }}>
+                          {websiteLink.hostname.replace(/^www\./, '')}{websiteLink.pathname === '/' ? '' : websiteLink.pathname}
+                        </a>}
+                      </div>
                     </div>
                     <button
                       style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#0684F5' }}

@@ -705,10 +705,9 @@ export default function BusinessProfilePage() {
           <div 
             className="relative rounded-2xl p-8 business-profile-card"
             style={{
-              backgroundColor: 'rgba(255,255,255,0.05)',
+              backgroundColor: '#19344c',
               border: '1px solid rgba(255,255,255,0.15)',
-              marginTop: '-80px',
-              backdropFilter: 'blur(10px)'
+              marginTop: '-80px'
             }}
           >
             <div className="flex items-start gap-6 business-profile-header">
@@ -1160,7 +1159,7 @@ export default function BusinessProfilePage() {
                       
                       {/* Price */}
                       <p style={{ fontSize: '16px', fontWeight: 700, color: '#10B981', marginBottom: '8px' }}>
-                        {offering.price ? `${offering.currency || 'USD'} ${offering.price}` : t('businessProfilePage.offerings.free')}
+                        {offering.price == null ? t('businessProductPage.pricing.contact') : Number(offering.price) === 0 ? t('businessProfilePage.offerings.free') : `${offering.currency || 'USD'} ${offering.price}`}
                       </p>
 
                       {/* Tags */}

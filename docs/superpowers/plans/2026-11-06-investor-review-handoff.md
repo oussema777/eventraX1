@@ -1,5 +1,11 @@
 # Investor review implementation handoff
 
+## Follow-up UI fixes — 2026-11-07 evening
+
+User reviewed local changes and explicitly requested pushing them. This frontend patch removes the obsolete Matches flex override, gives business headers an opaque dark surface over any cover, offsets the business page below the fixed navigation, reads personal membership dates from saved account data with fallbacks, displays a safe clickable website link, and distinguishes unspecified offering prices from explicit zero/free prices. No database migration or service restart is required; the user must build/publish the frontend on the VPS after pulling.
+
+Validation already completed: two French/Arabic networking scenarios and three business dashboard scenarios passed; local browser checks verified membership date/fallback, website link and unsafe URL exclusion, equal 360px match-card heights at desktop/mobile widths, image loading and no mobile overflow. Private screenshots/check scripts remain under `.tmp`. Do not stage modified `build/index.html` or unrelated reports/guides. User's separate Fidèle profile/business/registration content and three offerings were updated in the production database at their explicit request; do not replay those writes when deploying this code. Original review release and email scheduler remain operational.
+
 ## Current checkpoint — 2026-11-07, release complete; awaiting client feedback
 
 This section supersedes the historical pre-deployment checkpoints below. User considers the release complete, has informed the client, and will return in another session with feedback. Do not restart the release or repeat migrations/tests without a new reason.

@@ -20,7 +20,7 @@ export default function BusinessProfilePageRoute() {
       {user ? <NavbarLoggedIn /> : <NavbarLoggedOut
         onLoginClick={() => navigate(`/login?next=${returnTo}`)}
         onSignUpClick={() => navigate(`/register?next=${returnTo}`)} /> }
-      <BusinessProfilePage />
+      <div style={{ paddingTop: 72 }}><BusinessProfilePage /></div>
     </>
   );
 }

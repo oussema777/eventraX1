@@ -54,6 +54,7 @@ export interface UserProfile {
   app_preferences?: any;
   role?: 'admin' | 'user' | 'business' | string;
   created_at?: string;
+  member_since?: string | null;
   profile_education?: Education[];
   profile_certifications?: Certification[];
 }
