@@ -1,4 +1,4 @@
-import { renderOnlineEmail } from '../_shared/onlineExperience.ts';
+import { sendRegistrationReceipt, sendRegistrationCapacityAlert, notifyRegistrationOwner } from '../_shared/registrationReceipt.ts';
 // supabase/functions/create-event-registration/index.ts
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -34,66 +34,6 @@ function jsonResponse(body: Record<string, any>, status = 200) {
   });
 }
 
-function escapeHtml(value: string): string {
-  const entities: Record<string, string> = {
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  };
-  return value.replace(/[&<>"']/g, character => entities[character] || character);
-}
-
-async function sendB2BAccessEmail(
-  supabaseAdmin: ReturnType<typeof createClient>,
-  details: { email: string; name: string; eventName: string; eventId: string; attendeeId: string; confirmationCode: string; event: any },
-): Promise<boolean> {
-  const resendKey = Deno.env.get('EVENTRA_REGISTRATION_RESEND_API_KEY') || Deno.env.get('RESEND_API_KEY');
-  const appOrigin = (Deno.env.get('EVENTRA_APP_ORIGIN') || 'https://eventra.cloud').replace(/\/$/, '');
-  if (!resendKey || !/^https:\/\/[^/]+$/.test(appOrigin)) {
-    console.error('registration_email_failed', {stage:'configuration',eventId:details.eventId});
-    return false;
-  }
-  const destination = `${appOrigin}/event/${encodeURIComponent(details.eventId)}/networking`;
-  const redirectTo = `${appOrigin}/auth/callback?next=${encodeURIComponent(destination)}`;
-  const { data, error } = await supabaseAdmin.auth.admin.generateLink({
-    type: 'magiclink',
-    email: details.email,
-    options: { redirectTo },
-  });
-  if (error || !data?.properties?.action_link) {
-    console.error('registration_email_failed', {stage:'generate_link',eventId:details.eventId,status:error?.status});
-    return false;
-  }
-
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(details.attendeeId)}`;
-  const html = renderOnlineEmail(details.event, details.name, `${appOrigin}/event/${details.eventId}/access`, data.properties.action_link, qrUrl) || `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#0B2641">
-    <h1>You're registered for ${escapeHtml(details.eventName)}</h1>
-    <p>Hi ${escapeHtml(details.name)}, your registration is confirmed. Your Eventra account is ready to use.</p>
-    <p><a href="${escapeHtml(data.properties.action_link)}" style="display:inline-block;padding:14px 22px;background:#0684F5;color:#fff;border-radius:8px;text-decoration:none">Open your event and sign in</a></p>
-    <p>This secure link signs you in directly. Your profile already includes the details you entered during registration. You can edit it, create a business profile, message participants, and arrange B2B meetings.</p>
-    <p>If this link expires, open your event networking page and request a fresh sign-in link using this email address.</p>
-    <p><a href="${escapeHtml(destination)}">Open event networking</a></p>
-    <h2>Your check-in code</h2><p>${escapeHtml(details.confirmationCode)}</p>
-    <img src="${escapeHtml(qrUrl)}" width="180" height="180" alt="Event check-in QR code" />
-    <p>Keep this email for event day.</p>
-  </div>`;
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${resendKey}` },
-      body: JSON.stringify({
-        from: 'Eventra <contact@eventra.cloud>',
-        to: [details.email],
-        subject: `Registration confirmed + Eventra access: ${details.eventName}`,
-        html,
-      }),
-    });
-    if (!response.ok) console.error('registration_email_failed', {stage:'provider',eventId:details.eventId,status:response.status});
-    return response.ok;
-  } catch {
-    console.error('registration_email_failed', {stage:'network',eventId:details.eventId});
-    return false;
-  }
-}
-
 Deno.serve(async (req: Request) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -107,6 +47,7 @@ Deno.serve(async (req: Request) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
+    if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405);
     const payload: RegistrationPayload = await req.json();
     const { event_id, full_name, phone, company_name, company_description,
             interests, sector, social_url, b2b_opt_in, custom_fields,
@@ -227,6 +168,7 @@ Deno.serve(async (req: Request) => {
 
     // --- Build meta (all form data for audit + B2B matching) ---
     const meta: Record<string, any> = {
+      ...(custom_fields || {}),
       fullName: full_name,
       email,
       phone,
@@ -237,7 +179,7 @@ Deno.serve(async (req: Request) => {
       socialUrl: social_url,
       b2bOptIn: b2b_opt_in,
       confirmation_code: confirmationCode,
-      ...custom_fields,
+
     };
 
     // --- Insert attendee and sessions atomically ---
@@ -283,12 +225,9 @@ Deno.serve(async (req: Request) => {
       }
 
       const existingConfirmationCode = existing?.meta?.confirmation_code || confirmationCode;
-      const accessEmailSent = b2b_opt_in && userId
-        ? await sendB2BAccessEmail(supabaseAdmin, {
-          email, name: full_name, eventName: event.name || 'Event', eventId: event_id,
-          attendeeId: existing.id, confirmationCode: existingConfirmationCode, event,
-        })
-        : false;
+      await notifyRegistrationOwner(supabaseAdmin,event,existing.id);
+      const receipt = await sendRegistrationReceipt(supabaseAdmin, existing.id, event, key => Deno.env.get(key));
+      const accessEmailSent = b2b_opt_in && !!userId && receipt === 'sent';
 
       return jsonResponse({
         success: true,
@@ -297,6 +236,7 @@ Deno.serve(async (req: Request) => {
         already_registered: true,
         user_id: userId,
         access_email_sent: accessEmailSent,
+        confirmation_email_sent: receipt === 'sent', confirmation_email_skipped: receipt === 'skipped',
       });
     }
 
@@ -305,13 +245,11 @@ Deno.serve(async (req: Request) => {
     }
 
     // Deliver the one-time token server-side. It must never enter a browser response.
-    const accessEmailSent = b2b_opt_in && userId
-      ? await sendB2BAccessEmail(supabaseAdmin, {
-        email, name: full_name, eventName: event.name || 'Event', eventId: event_id,
-        attendeeId: attendee.id, confirmationCode, event,
-      })
-      : false;
+    await notifyRegistrationOwner(supabaseAdmin,event,attendee.id);
+    const receipt = await sendRegistrationReceipt(supabaseAdmin, attendee.id, event, key => Deno.env.get(key));
+    const accessEmailSent = b2b_opt_in && !!userId && receipt === 'sent';
 
+    await sendRegistrationCapacityAlert(supabaseAdmin, event, key => Deno.env.get(key));
     // --- Return success ---
     return jsonResponse({
       success: true,
@@ -321,6 +259,7 @@ Deno.serve(async (req: Request) => {
       is_new_user: isNewUser,
       user_id: userId,
       access_email_sent: accessEmailSent,
+        confirmation_email_sent: receipt === 'sent', confirmation_email_skipped: receipt === 'skipped',
     });
 
   } catch (err) {

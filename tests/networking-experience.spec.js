@@ -71,8 +71,13 @@ for (const [locale, strings] of [['fr', fr], ['ar', ar]]) {
     await expect(dialog).toContainText(strings.meetingBooking.message);
     await dialog.getByRole('button', { name: strings.meetingBooking.close, exact: true }).click();
     await page.getByRole('button', { name: new RegExp(strings.networking.tabs.matches) }).click();
-    await expect(page.locator('.participant-card__reason')).not.toContainText('Shared interests in');
-    await expect(page.locator('.participant-card__reason')).toContainText(strings.networking.matches.categories.industries);
+    const matchCard = page.locator('.participant-card').filter({ has: page.locator('.participant-card__match-details') }).first();
+    const closedHeight = (await matchCard.boundingBox()).height;
+    await matchCard.locator('.participant-card__match-details summary').click();
+    await expect(matchCard.locator('.participant-card__match-explanation')).toBeVisible();
+    expect((await matchCard.boundingBox()).height).toBeCloseTo(closedHeight, 2);
+    await expect(page.locator('.participant-card__match-explanation')).not.toContainText('Shared interests in');
+    await expect(page.locator('.participant-card__match-explanation')).toContainText(strings.networking.matches.categories.industries);
     await page.getByRole('link', { name: strings.eventAccount.myProfile, exact: true }).click();
     await page.getByRole('button', { name: strings.profile.tabs.professional, exact: true }).click();
     await expect(page.getByPlaceholder(strings.profile.placeholders.department)).toBeVisible();

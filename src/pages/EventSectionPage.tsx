@@ -1,7 +1,10 @@
+import { useParticipantBusinesses } from '../hooks/useParticipantBusinesses';
+import EventInvestorShowcase, { InvestorDiscoveryBanner } from '../components/networking/EventInvestorShowcase';
 import EventNetworkingBanner from '../components/networking/EventNetworkingBanner';
 import ParticipantDirectoryFilters from '../components/networking/ParticipantDirectoryFilters';
 import { eventAuthPath, eventMeetingAuthPath } from '../utils/authRedirect';
 import ParticipantCard from '../components/networking/ParticipantCard';
+import { useEventInvestors } from '../hooks/useEventInvestors';
 import { loadEventParticipantDirectory } from '../lib/eventParticipantDirectory';
 import { normalizeNetworkingValue, sectorOptions } from '../utils/eventNetworkingFields';
 import EventMatchSuggestions from '../components/networking/EventMatchSuggestions';
@@ -29,13 +32,14 @@ import { groupAgendaSessions, resolveAgendaTimeZone } from '../utils/agendaDates
 import { replaceWorkshopBooking } from '../lib/sessionBookings';
 import WorkshopReplacementPrompt from '../components/events/WorkshopReplacementPrompt';
 
-type SectionType = 'agenda' | 'speakers' | 'exhibitors' | 'attendees' | 'sponsors' | 'packages' | 'tickets';
+type SectionType = 'investors' | 'agenda' | 'speakers' | 'exhibitors' | 'attendees' | 'sponsors' | 'packages' | 'tickets';
 
 export default function EventSectionPage({ type }: { type: SectionType }) {
   const { eventId } = useEventRouteParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, isLoading: isLoadingAuth, signOut } = useAuth();
+  const investors = useEventInvestors(type === 'attendees' ? eventId : undefined,user?.id);
   const { getOrCreateThread, loading: isMessageLoading } = useMessageThread();
   const { t, locale } = useI18n();
   const recommendations = useEventRecommendations(eventId, user?.id, type === 'attendees');
@@ -484,6 +488,8 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
     (selectedSector === 'All' || (selectedSector === '__none' ? !person.sector : normalizeNetworkingValue(person.sector || '') === normalizeNetworkingValue(selectedSector))) &&
     (!searchTerm || [person.name, person.company, person.meta?.['Job Title'], person.sector].some(value => typeof value === 'string' && normalizeNetworkingValue(value).includes(searchTerm))));
 
+  const participantBusinesses = useParticipantBusinesses(filteredParticipants.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE).map((p: {profile_id?:string})=>p.profile_id));
+
   if (isLoadingData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0B2641]">
@@ -556,6 +562,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
       
       <LandingPageNavbar 
         activeSections={{
+          investors: true,
           agenda: counts.agenda > 0,
           speakers: counts.speakers > 0,
           exhibitors: counts.exhibitors > 0,
@@ -577,9 +584,11 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
           onExplore={() => document.getElementById('attendee-directory')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' })}
         />}
 
-      <div style={{ padding: type === 'attendees' ? '40px 24px 60px' : '60px 24px', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ padding: type === 'attendees' ? '40px 24px 60px' : type === 'investors' ? '24px 24px 60px' : '60px 24px', maxWidth: '1200px', margin: '0 auto' }}>
+        {type === 'investors' && eventId && <EventInvestorShowcase eventId={eventId} onRequestMeeting={handleBookMeeting}/>}
+        {type === 'attendees' && event && <InvestorDiscoveryBanner event={event}/>}
         {type === 'attendees' && <h2 style={{ fontSize: '28px', fontWeight: 700, marginBottom: '24px' }}>{t('attendeeExperience.title')}</h2>}
-        {type !== 'sponsors' && type !== 'attendees' && (
+        {type !== 'sponsors' && type !== 'attendees' && type !== 'investors' && (
           <h1 style={{ fontSize: '32px', fontWeight: 700, color: '#FFFFFF', marginBottom: '40px', textTransform: 'capitalize' }}>
             {t(`wizard.designStudio.navbar.${type}`, { defaultValue: type })}
           </h1>
@@ -1156,7 +1165,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
 
         {type === 'attendees' && (
           <div>
-            {<EventMatchSuggestions
+            {<EventMatchSuggestions investorProfileIds={investors.data?.map(i=>i.profile_id).filter((id): id is string=>!!id)}
               key={`${eventId}:${user?.id || ''}`}
               matches={recommendations.data?.matches || []} state={recommendations.data?.state} signedIn={!!user} loading={recommendations.isLoading}
               failed={recommendations.isError} onRetry={() => { void recommendations.refetch(); }}
@@ -1186,6 +1195,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
               {filteredParticipants.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE)
                 .map((a: any) => (
                 <ParticipantCard key={a.id} name={a.name || t('networking.defaults.user')}
+                  investor={investors.data?.some(row=>row.attendee_id===a.id)} businesses={participantBusinesses.data?.get(a.profile_id)}
                   avatar={a.final_avatar} title={a.meta?.['Job Title'] || a.meta?.Title} company={a.company}
                   tags={a.profile_industries || []}
                   onView={() => navigate(eventPublicPath(event, a.profile_id ? `profile/${a.profile_id}` : `participant/${a.id}`))}

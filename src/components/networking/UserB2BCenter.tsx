@@ -1,3 +1,7 @@
+import { useParticipantBusinesses } from '../../hooks/useParticipantBusinesses';
+import { useEventInvestors } from '../../hooks/useEventInvestors';
+import EventInvestorShowcase from './EventInvestorShowcase';
+import { investorShowcaseCopy } from './investorShowcaseCopy';
 import {onlineConfig} from '../../../supabase/functions/_shared/onlineExperience';
 import {checkedMeetingUrl,meetingIsOnline} from '../../utils/onlineMeeting';
 import OnlineMeetingJoin from './OnlineMeetingJoin';
@@ -8,6 +12,7 @@ import { meetingLink, qrImageUrl } from '../../utils/meetingQr';
 import ParticipantCard from './ParticipantCard';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Landmark,
   Calendar,
   UserPlus,
   Sparkles,
@@ -33,23 +38,25 @@ import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
 import { sanitizeError } from '../../utils/errorHandler';
 import { createNotification } from '../../lib/notifications';
+import { respondToProtectedMeeting } from '../../lib/investorReview';
 import { useI18n } from '../../i18n/I18nContext';
 import { useMessageThread } from '../../hooks/useMessageThread';
 import UserMessagesCenter from '../messaging/UserMessagesCenter';
 import BookMeetingModal from './BookMeetingModal';
+import InvestorReviewRequests from './InvestorReviewRequests';
 import EventNetworkingPeople from './EventNetworkingPeople';
 import MeetingAvailability from './MeetingAvailability';
 import NetworkingProfileCard from './NetworkingProfileCard';
 import { networkingErrorKey } from '../../utils/networkingErrors';
 import { loadEventNetworkingParticipants } from '../../lib/eventNetworkingParticipants';
-import { sendEmail, generateMeetingConfirmationEmailHtml, sendMeetingConfirmationEmails, sendMeetingCancelledEmail, sendConnectionRequestEmail, sendConnectionAcceptedEmail } from '../../lib/email';
+import { sendPlatformEmail, sendEmail, generateMeetingConfirmationEmailHtml, sendMeetingConfirmationEmails, sendMeetingCancelledEmail, sendConnectionRequestEmail, sendConnectionAcceptedEmail } from '../../lib/email';
 
 const MATCHES_TABLE = 'b2b_matches';
 const REQUESTS_TABLE = 'b2b_requests';
 const CONNECTIONS_TABLE = 'b2b_connections';
 const MEETINGS_TABLE = 'event_b2b_meetings';
 
-type TabType = 'availability' | 'people' | 'schedule' | 'matches' | 'requests';
+type TabType = 'investors' | 'availability' | 'people' | 'schedule' | 'matches' | 'requests';
 
 interface Meeting {
   id: string;
@@ -889,6 +896,11 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
     cancellationInFlight.current = true;
     setCancellingMeetingId(meetingId);
     try {
+      if (await respondToProtectedMeeting(meetingId, currentMeeting.status, 'cancelled')) {
+        toast.success(t('networking.toasts.meetingCancelled'));
+        await loadNetworkingData();
+        return;
+      }
       // Check the saved transition before announcing success or sending notifications.
       // Matching the previous status also detects a stale card or concurrent change.
       const { data: cancelled, error } = await supabase
@@ -909,6 +921,7 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
         const other = currentMeeting.isCurrentUserA ? meeting.profile_b : meeting.profile_a;
         if (other?.email) {
           const delivered = await sendMeetingCancelledEmail(other.email, {
+            meetingId, recipientProfileId: profileId,
             recipientName: other.full_name || other.email,
             cancellerName: currentUserName,
             eventId: meeting.event_id, locale, timeZone: (meetings.find(item => item.id === meeting.id)?.timeZone || networkingTimeZone(meeting.event_id, null, meeting.event?.timezone)),
@@ -945,6 +958,13 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
     if (confirmationInFlight.current) return;
     confirmationInFlight.current = true;
     try {
+      if (await respondToProtectedMeeting(meetingId, 'pending', 'confirmed')) {
+        const pass = meetings.find(item => item.id === meetingId);
+        if (pass && !(pass.onlineExperienceEnabled && pass.meetingFormat === 'video')) setQrModalMeeting({ ...pass, status: 'confirmed' });
+        toast.success(t('networking.toasts.meetingConfirmed'));
+        await loadNetworkingData();
+        return;
+      }
       // 1. Update status in database
       const { data: confirmed, error: updateError } = await supabase
         .from(MEETINGS_TABLE)
@@ -1038,6 +1058,11 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
 
   const handleDeclineMeeting = async (meetingId: string, profileId: string) => {
     try {
+    if (await respondToProtectedMeeting(meetingId, 'pending', 'cancelled')) {
+      toast.success(t('networking.toasts.meetingDeclined'));
+      await loadNetworkingData();
+      return;
+    }
     const { data: cancelled, error: updateError } = await supabase.from(MEETINGS_TABLE)
       .update({ status: 'cancelled' }).eq('id', meetingId).eq('status', 'pending').select('id').maybeSingle();
     if (updateError || cancelled?.id !== meetingId) throw updateError || new Error(t('networking.errors.cancelMeeting'));
@@ -1052,6 +1077,7 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
       const other = isA ? meeting.profile_b : meeting.profile_a;
       if (other?.email) {
         const delivered = await sendMeetingCancelledEmail(other.email, {
+            meetingId, recipientProfileId: profileId,
           recipientName: other.full_name || other.email,
           cancellerName: currentUserName,
           eventId: meeting.event_id, locale, timeZone: (meetings.find(item => item.id === meeting.id)?.timeZone || networkingTimeZone(meeting.event_id, null, meeting.event?.timezone)),
@@ -1079,15 +1105,8 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
   };
 
   const handleRemoveConnection = async (connectionId: string, profileId: string) => {
-    await supabase.from(CONNECTIONS_TABLE).delete().eq('id', connectionId);
-    await safeNotify({
-      recipient_id: profileId,
-      type: 'action',
-      title: t('networking.notifications.connectionRemoved.title'),
-      body: t('networking.notifications.connectionRemoved.body', { name: currentUserName }),
-      action_url: '/my-networking',
-      actor_id: user?.id || null
-    });
+    const {error} = await supabase.rpc('remove_networking_connection',{p_connection:connectionId});
+    if (error) { toast.error(t('networking.errors.sendRequest')); return; }
     await loadNetworkingData();
   };
 
@@ -1117,6 +1136,7 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
       const { data: senderProfile } = await supabase
         .from('profiles').select('job_title, organization').eq('id', user.id).single();
       sendConnectionRequestEmail(recipientProfile.email, {
+        recipientProfileId: match.profileId,
         recipientName: recipientProfile.full_name || recipientProfile.email,
         senderName: currentUserName,
         senderJobTitle: senderProfile?.job_title || '',
@@ -1124,14 +1144,6 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
       }).catch(() => {});
     }
 
-    await safeNotify({
-      recipient_id: match.profileId,
-      type: 'action',
-      title: t('networking.notifications.newRequest.title'),
-      body: t('networking.notifications.newRequest.body', { name: currentUserName }),
-      action_url: '/my-networking',
-      actor_id: user.id
-    });
     setMatches((prev) => prev.map((m) => (m.id === matchId ? { ...m, status: 'pending' } : m)));
     toast.success(t('networking.toasts.requestSent'));
   };
@@ -1157,19 +1169,12 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
       .from('profiles').select('email, full_name').eq('id', request.profileId).single();
     if (requesterProfile?.email) {
       sendConnectionAcceptedEmail(requesterProfile.email, {
+        recipientProfileId: request.profileId,
         requesterName: requesterProfile.full_name || requesterProfile.email,
         accepterName: currentUserName
       }).catch(() => {});
     }
 
-    await safeNotify({
-      recipient_id: request.profileId,
-      type: 'action',
-      title: t('networking.notifications.connectionAccepted.title'),
-      body: t('networking.notifications.connectionAccepted.body', { name: currentUserName }),
-      action_url: '/my-networking',
-      actor_id: user.id
-    });
     await loadNetworkingData();
   };
 
@@ -1177,14 +1182,8 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
     const request = receivedRequests.find((item) => item.id === requestId);
     await supabase.from(REQUESTS_TABLE).update({ status: 'declined' }).eq('id', requestId);
     if (request?.profileId) {
-      await safeNotify({
-        recipient_id: request.profileId,
-        type: 'action',
-        title: t('networking.notifications.connectionDeclined.title'),
-        body: t('networking.notifications.connectionDeclined.body', { name: currentUserName }),
-        action_url: '/my-networking',
-        actor_id: user?.id || null
-      });
+      const delivered = await sendPlatformEmail({kind:'connection_declined',entityId:request.profileId,channel:'bell'});
+      if (!delivered) toast.warning(t('networking.notifications.platformFailed'));
     }
     await loadNetworkingData();
   };
@@ -1308,7 +1307,7 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
       setTimeout(() => setHighlightedMeetingId(null), 5000);
     } else {
       const tab = (searchParams.get('tab') === 'connections' ? 'matches' : searchParams.get('tab')) as TabType;
-      if (['people', 'schedule', 'matches', 'availability', 'requests'].includes(tab)) updateActiveTab(tab);
+      if (['people', 'investors', 'schedule', 'matches', 'availability', 'requests'].includes(tab)) updateActiveTab(tab);
     }
   }, [searchParams, meetings]);
 
@@ -1333,6 +1332,9 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
     return () => { supabase.removeChannel(channel); };
   }, [user?.id]);
 
+  const participantBusinesses = useParticipantBusinesses(matches.map(m=>m.profileId));
+  const eventInvestors = useEventInvestors(scopedEventId || undefined, user?.id);
+
   const filteredMeetings = useMemo(() => {
     const now = new Date();
     return meetings.filter((meeting) => {
@@ -1343,6 +1345,11 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
       return true;
     });
   }, [meetings, selectedEvent, showPastMeetings]);
+
+  const pendingMeetingsCount = useMemo(
+    () => filteredMeetings.filter(meeting => meeting.status === 'pending').length,
+    [filteredMeetings]
+  );
 
   const meetingsTodayCount = useMemo(() => {
     const today = new Date();
@@ -1425,6 +1432,7 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
           </div>
 
           {/* Quick Stats Cards */}
+          <InvestorReviewRequests key={eventId || 'global'} eventId={eventId} />
           <div className="networking-hub__stats grid grid-cols-3 gap-6">
             {/* Meetings Today */}
             <div
@@ -1524,17 +1532,18 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
         {user && <NetworkingProfileCard profileId={user.id} />}
         <div className="networking-hub__tabs networking-tabs" aria-label={t('networking.title')}>
           {([
-            ...(scopedEventId ? [{ id: 'people', label: t('networking.people.tab'), icon: Users, count: 0 }] : []),
-            { id: 'schedule', label: t('networking.tabs.schedule'), icon: Calendar, count: 0 },
+            ...(scopedEventId ? [{ id: 'investors', label: investorShowcaseCopy[locale].nav, icon: Landmark, count: 0 }, { id: 'people', label: t('networking.people.tab'), icon: Users, count: 0 }] : []),
+            { id: 'schedule', label: t('networking.tabs.schedule'), icon: Calendar, count: pendingMeetingsCount },
             { id: 'matches', label: t('networking.tabs.matches'), icon: Sparkles, count: newMatchesCount },
             { id: 'availability', label: t('networkingScheduling.myAvailability'), icon: Clock, count: 0 },
             { id: 'requests', label: t('networking.tabs.requests'), icon: UserPlus, count: pendingRequestsCount }
-          ]).map(tab => <button key={tab.id} onClick={() => setActiveTab(tab.id as TabType)} aria-pressed={activeTab === tab.id} aria-label={tab.label}>
-            <tab.icon size={18} /><span>{tab.label}</span>{tab.count > 0 && <span className="networking-tab-count" aria-hidden="true">{tab.count}</span>}
+          ]).map(tab => <button key={tab.id} onClick={() => setActiveTab(tab.id as TabType)} aria-pressed={activeTab === tab.id} aria-label={tab.label} aria-describedby={tab.id === 'schedule' && tab.count > 0 ? 'schedule-pending-count' : undefined}>
+            <tab.icon size={18} /><span>{tab.label}</span>{tab.count > 0 && <span className={`networking-tab-count${tab.id === 'schedule' ? ' networking-tab-count--pending' : ''}`} id={tab.id === 'schedule' ? 'schedule-pending-count' : undefined} aria-hidden={tab.id === 'schedule' ? undefined : true} aria-label={tab.id === 'schedule' ? `${tab.count}: ${t('networking.status.pending')}` : undefined} title={tab.id === 'schedule' ? t('networking.status.pending') : undefined}>{tab.count}</span>}
           </button>)}
         </div>
 
         {/* Tab Content */}
+        {activeTab === 'investors' && scopedEventId && user && <EventInvestorShowcase eventId={scopedEventId} onRequestMeeting={person => handleScheduleMeeting(person.id, scopedEventId, null, person.name, person.avatar)} />}
         {activeTab === 'people' && scopedEventId && user && (
           <EventNetworkingPeople eventId={scopedEventId} userId={user.id}
             onRequestMeeting={person => handleScheduleMeeting(person.id, scopedEventId, null, person.name, person.avatar)} />
@@ -1846,6 +1855,7 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
                 const meeting = meetingByProfileId.get(match.profileId);
                 const scheduled = meeting?.startAt;
                 return <ParticipantCard key={match.id || match.profileId} className="networking-match-card"
+                  businesses={participantBusinesses.data?.get(match.profileId)} investor={eventInvestors.data?.some(i=>i.profile_id===match.profileId)}
                   name={match.name} avatar={match.avatar} title={match.title} company={match.company} tags={match.tags} score={match.score} reason={match.reason}
                   onView={() => navigate(match.eventId ? `/event/${match.eventId}/profile/${match.profileId}?from=my-networking` : `/profile/${match.profileId}`)}
                   bookLabel={scheduled ? t('networkingExperience.viewMeeting') : t('networking.people.requestMeeting')}

@@ -50,3 +50,38 @@
 .participant-card__identity { min-width: 0; }
 .participant-card__details { display: flex; flex-direction: column; gap: 13px; margin-top: 18px; }
 .participant-card__profile svg { flex-shrink: 0; }
+
+/* Shared slots keep all participant types and every row consistent. */
+.participant-card { height: 360px; box-sizing: border-box; display: grid; grid-template-rows: 52px 94px 68px minmax(0, 1fr) 62px; align-self: stretch; }
+.participant-card__cover { min-height: 0; flex-wrap: nowrap; padding-block: 9px; overflow: visible; }
+.participant-card__top { margin-top: 0; }
+.participant-card__identity h3 button, .participant-card__identity p, .participant-card__company span, .participant-card__reason p { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.participant-card__identity h3 button { line-height: 1.25; }
+.participant-card__affiliation { min-width: 0; display: flex; align-items: flex-start; }
+.participant-card__affiliation .participant-businesses { margin: 0; width: 100%; }
+.participant-card__affiliation .participant-card__company { min-height: 64px; }
+.participant-card__details { margin: 0; gap: 8px; min-height: 0; }
+.participant-card__tags { max-height: 58px; overflow: hidden; align-content: flex-start; }
+.participant-card__tags span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.participant-card__reason { padding: 8px; }
+.participant-card__footer { margin: 0; padding-top: 12px; }
+.participant-card__book { height: 48px; padding: 8px 12px; }
+.participant-card__book > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.participant-card[data-identity=investor] .participant-card__score span { display: none; }
+
+/* Compact header; optional match context opens without changing card geometry. */
+.participant-card__cover .participant-card__refraction, .participant-card__cover::after { display: none; }
+.participant-card__identity h3 { font-size: 19px; }
+.participant-card__identity p { margin-top: 4px; line-height: 1.4; }
+.participant-card__portrait, .participant-card__avatar { width: 62px; }
+.participant-card__avatar { height: 62px; font-size: 21px; }
+.participant-card__top { grid-template-columns: 62px minmax(0, 1fr); gap: 12px; }
+.participant-card__affiliation .participant-business { height: 56px; min-height: 56px !important; padding-block: 7px !important; }
+.participant-card__affiliation .participant-card__company { min-height: 56px; }
+.participant-card__tags { gap: 5px; }
+.participant-card__tags span { padding: 4px 9px; }
+.participant-card__match { position: relative; }
+.participant-card__match-details summary { list-style: none; cursor: pointer; }
+.participant-card__match-details summary::-webkit-details-marker { display: none; }
+.participant-card__match-details summary:focus-visible { outline: 2px solid #a1d2ff; outline-offset: 3px; }
+.participant-card__match-explanation { position: absolute; top: 100%; inset-inline-start: 0; width: 230px; max-width: 65vw; z-index: 8; margin: 8px 0 0; padding: 12px; border: 1px solid #7898b0; border-radius: 10px; background: #153550; box-shadow: 0 10px 24px #020e2466; color: #d5e4ef; font-size: 12px; line-height: 1.5; }

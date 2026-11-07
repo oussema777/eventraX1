@@ -1774,6 +1774,7 @@ export default {
         agenda: { label: 'Agenda', desc: 'Gerer sessions' },
         speakers: { label: 'Intervenants', desc: 'Gerer profils' },
         attendees: { label: 'Participants', desc: 'Gerer inscriptions' },
+        forms: { label: 'Formulaires', desc: 'Gérer les formulaires de l’événement' },
         exhibitors: { label: 'Exposants', desc: 'Gerer stands' },
         ticketing: { label: 'Billetterie', desc: 'Gerer tarifs' },
         b2b: { label: 'Jumelage B2B', desc: 'Connexions' },

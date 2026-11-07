@@ -7,7 +7,8 @@ import vm from 'node:vm';
 // Exercise the real edge handler with isolated database/auth doubles. No
 // accounts are created and no messages are sent to production.
 const shared = stripTypeScriptTypes(readFileSync(new URL('../supabase/functions/_shared/onlineExperience.ts', import.meta.url), 'utf8')).replace(/^export /gm, '');
-const source = shared + '\n' + stripTypeScriptTypes(readFileSync(new URL('../supabase/functions/create-event-registration/index.ts', import.meta.url), 'utf8')
+const receipts = stripTypeScriptTypes(readFileSync(new URL('../supabase/functions/_shared/registrationReceipt.ts', import.meta.url), 'utf8').replace(/^import .*?;\r?\n/gm, '')).replace(/^export /gm, '');
+const source = shared + '\n' + receipts + '\n' + stripTypeScriptTypes(readFileSync(new URL('../supabase/functions/create-event-registration/index.ts', import.meta.url), 'utf8')
   .replace(/^import .*?;\r?\n/gm, ''));
 
 function setup({ duplicate = false, profileId = null, linkError = false, profileError = false, profileUpdateError = false, sendEmail = false, online = false, providerStatus = 200 } = {}) {
@@ -18,6 +19,7 @@ function setup({ duplicate = false, profileId = null, linkError = false, profile
   let emailPayload;
   const admin = {
     auth: { admin: {
+      getUserById: async () => ({data:{user:{email:'guest@example.test'}}}),
       createUser: async () => { throw new Error('Unexpected account creation'); },
       generateLink: async payload => {
         generatedLink = payload;
@@ -27,15 +29,16 @@ function setup({ duplicate = false, profileId = null, linkError = false, profile
     from(table) {
       let updating = false;
       const chain = {
-        select() { return chain; }, eq() { return chain; }, or() { return chain; },
+        select() { return chain; }, eq() { return chain; }, or() { return chain; }, in() { return chain; },
         update(data) { updating = true; writes.push({ table, data }); return chain; },
-        then(resolve) { return Promise.resolve({ error: updating && table === 'profiles' && profileUpdateError ? { message: 'Write failed' } : null }).then(resolve); },
+        then(resolve) { return Promise.resolve({ data:[], error: updating && table === 'profiles' && profileUpdateError ? { message: 'Write failed' } : null }).then(resolve); },
         async single() {
           if (table === 'events') return { data: { id: 'event-id', name: 'Test Event', start_date: '2026-10-20', workshop_selection_limit: null, ...(online ? {event_format:'virtual', attendee_settings:{onlineExperience:{version:1,enabled:true,linkVisibility:'public',provider:'Meet',meetingUrl:'https://example.test/room',instructions:'Welcome',supportEmail:'help@example.test',startsAt:'2026-11-18T15:00:00Z',endsAt:'2026-11-18T16:00:00Z',timeZone:'Africa/Tunis',joinMinutes:10,recording:true}}} : {}) } };
           if (updating) return linkError ? { error: { message: 'Write failed' } } : { data: { id: 'attendee-id' } };
-          return { data: { id: 'attendee-id', profile_id: profileId, meta: { confirmation_code: 'ORIGINAL', note: 'keep' } } };
+          return { data: { id: 'attendee-id', profile_id: sendEmail ? (profileId || 'user-id') : profileId, email:'guest@example.test', name:'Guest', status:'registered', meta: { b2bOptIn:true, confirmation_code: 'ORIGINAL', note: 'keep' } } };
         },
         async maybeSingle() {
+          if (table !== 'profiles') return {data:null,error:null};
           return profileError ? { error: { message: 'Database unavailable' } } : {
             data: { id: 'user-id', full_name: profileUpdateError ? null : 'Guest', industry: 'IT', phone_number: '123', company: 'Company', company_description: 'About', sector: 'IT', social_url: 'https://example.test' }
           };
@@ -44,14 +47,17 @@ function setup({ duplicate = false, profileId = null, linkError = false, profile
       return chain;
     },
     async rpc(_name, payload) {
+      if (_name === 'claim_registration_preparation') return {data:true};
+      if (_name === 'claim_platform_mail') return {data:{id:'delivery',token:'lease',mail:payload.p_mail}};
+      if (_name === 'finish_platform_mail') return {data:true};
       rpcPayload = payload;
       return duplicate ? { error: { code: '23505' } } : { data: { id: 'attendee-id' } };
     }
   };
   vm.runInNewContext(source, {
-    createClient: () => admin, Response, Request, URL, URLSearchParams, TextEncoder, console, setTimeout,
-    fetch: async (_url, options) => { emailPayload = JSON.parse(options.body); return new Response('{}',{status:providerStatus}); },
-    Deno: { env: { get: key => sendEmail && key === 'EVENTRA_APP_ORIGIN' ? undefined : 'test' }, serve: fn => { handler = fn; } }
+    createClient: () => admin, Response, Request, URL, URLSearchParams, TextEncoder, crypto, AbortSignal, console, setTimeout,
+    fetch: async (_url, options) => { emailPayload = JSON.parse(options.body); return new Response('{"id":"provider-receipt"}',{status:providerStatus}); },
+    Deno: { env: { get: key => key === 'EVENTRA_APP_ORIGIN' ? (sendEmail ? 'https://eventra.cloud' : undefined) : 'test' }, serve: fn => { handler = fn; } }
   });
   return {
     writes, get rpcPayload() { return rpcPayload; },
@@ -72,7 +78,7 @@ test('B2B registration normalizes email and returns a linked account without exp
   assert.equal(app.rpcPayload.p_attendee.email, 'guest@example.test');
 });
 
-test('B2B access email defaults to the approved production callback and does not expose its token', async () => {
+test('B2B access email uses the configured callback and does not expose its token', async () => {
   const app = setup({ sendEmail: true });
   const response = await app.request({ full_name: 'Guest' });
   const result = await response.json();

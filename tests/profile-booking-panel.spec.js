@@ -32,6 +32,30 @@ async function setup(page, { multiple = false, unavailable = false, eligible = t
   return writes;
 }
 const url = '/tests/fixtures/networking-schedule.html?mode=profile';
+
+test('investor booking stays inline and never sends a direct invitation before approval', async ({ page }) => {
+  const writes = await setup(page); const requests = []; const mail = [];
+  await page.route('**/rest/v1/rpc/get_investor_booking_policy', r => r.fulfill({ json: { investor:true,requires_review:true,use_workflow:true,available:true,awaiting_acceptance:false } }));
+  await page.route('**/rest/v1/rpc/submit_investor_booking', r => { requests.push(r.request().postDataJSON()); return r.fulfill({ json: {id:'review-request',state:'awaiting_review'} }); });
+  await page.route('**/api/send-email', r => { mail.push(r.request().postDataJSON()); return r.fulfill({json:{}}); });
+  await page.goto(url); await page.getByRole('button',{name:'14:00',exact:true}).click();
+  await expect(page.getByText('The organizing team reviews your request', { exact:false })).toBeVisible();
+  await page.getByRole('textbox').fill('Discuss our solar project');
+  await page.getByRole('button',{name:'Submit for review',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Sent to the organizing team'})).toBeVisible();
+  expect(writes).toHaveLength(0); expect(mail).toHaveLength(0); expect(requests).toHaveLength(1);
+  expect(requests[0]).toMatchObject({p_event:eventId,p_recipient:partner,p_message:'Discuss our solar project'});
+});
+
+test('policy service failure never falls back to direct booking', async ({ page }) => {
+  const writes = await setup(page);
+  await page.route('**/rest/v1/rpc/get_investor_booking_policy',r=>r.fulfill({status:503,json:{message:'Unavailable'}}));
+  await page.goto(url);await page.getByRole('button',{name:'14:00',exact:true}).click();
+  await page.getByRole('button',{name:'Send invitation',exact:true}).click();
+  await expect(page.locator('[data-sonner-toast]').first()).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Your invitation is on its way'})).toHaveCount(0);
+  expect(writes).toHaveLength(0);
+});
 test('inline booking sends the chosen slot through the shared booking flow', async ({ page }, testInfo) => {
   const writes = await setup(page);
   await page.goto(url);

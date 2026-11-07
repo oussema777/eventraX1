@@ -1,3 +1,5 @@
+import { investorReviewCopy } from '../networking/investorReviewCopy';
+import { submitEventMeetingBatch } from '../../lib/investorReview';
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import { supabase } from '../../lib/supabase';
@@ -32,12 +34,15 @@ import {
   Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
+import { investorDirectoryCopy } from './investorDirectoryCopy';
+import '../networking/InvestorReview.css';
 import { sendEmail, generateB2BInvitationEmailHtml, generateMatchNotificationEmailHtml } from '../../lib/email';
 
 type TabType = 'ai-matchmaker' | 'all-meetings' | 'analytics' | 'suggestions' | 'logistics';
 
 export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [activeTab, setActiveTab] = useState<TabType>('ai-matchmaker');
   const [showAIProcessing, setShowAIProcessing] = useState(false);
   const [processingState, setProcessingState] = useState<'analyzing' | 'generating' | 'complete'>('analyzing');
@@ -415,7 +420,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
       } else if (eventData) {
         const start = new Date(eventData.start_date);
         const end = new Date(eventData.end_date || eventData.start_date);
-        const dates = [];
+        const dates: string[] = [];
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
           dates.push(new Date(d).toISOString().split('T')[0]);
         }
@@ -477,25 +482,13 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
     audience: Record<string, any>;
   }) => {
     if (!eventId) return false;
-    const { title, message, channel, audience } = payload;
-    if (!title.trim() || !message.trim()) {
-      toast.error('Title and message are required');
-      return false;
-    }
-    const { error } = await supabase.from('event_notifications').insert({
-      event_id: eventId,
-      created_by: user?.id || null,
-      title: title.trim(),
-      message: message.trim(),
-      channel,
-      status: 'sent',
-      audience
-    } as any);
-    if (error) {
-      toast.error('Failed to send notification');
-      return false;
-    }
-    return true;
+    const attendeeIds = [...new Set<string>(payload.audience.attendee_ids || [])];
+    if (!attendeeIds.length || !['email','in_app'].includes(payload.channel)) return false;
+    const results = await Promise.all(attendeeIds.map(entityId => sendEmail({
+      command:{kind:'b2b_matches',entityId,channel:payload.channel==='email'?'email':'bell'},
+      to:'',subject:'',html:''
+    })));
+    return results.every(Boolean);
   };
 
   const fetchAttendees = async () => {
@@ -859,17 +852,12 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
         match_score: selectedPair?.score || null,
         meta: selectedPair?.breakdown ? { breakdown: selectedPair.breakdown, insights: selectedPair.insights, topics: selectedPair.topics, tags: selectedPair.tags || [] } : undefined
       };
-      if (selectedPair?.meetingId) {
-        const { error } = await supabase
-          .from('event_b2b_meetings')
-          .update(payload)
-          .eq('id', selectedPair.meetingId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('event_b2b_meetings')
-          .insert(payload);
-        if (error) throw error;
+      const [created] = await submitEventMeetingBatch(eventId!, [{...payload, meeting_id:selectedPair?.meetingId || undefined}]);
+      if (created.state !== 'pending') {
+        toast.success(created.state === 'needs_schedule' ? investorReviewCopy[locale].needsSchedule : investorReviewCopy[locale].heldRequest);
+        setShowCreateMeeting(false);
+        await fetchMeetings();
+        return;
       }
 
       if (selectedPair?.suggestionId) {
@@ -1157,7 +1145,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
       return;
     }
 
-    if (!confirm(`Are you sure you want to create meetings for ${selectedSuggestionIds.size ? (selectedSuggestionIds as any).size : selectedSuggestionIds.length} matches?`)) return;
+    if (!confirm(`Are you sure you want to create meetings for ${selectedSuggestionIds.length} matches?`)) return;
 
     setSavingMeeting(true);
     try {
@@ -1184,20 +1172,19 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
         }
       }));
 
-      const { error: meetingError } = await supabase
-        .from('event_b2b_meetings')
-        .insert(meetingPayloads);
-
-      if (meetingError) throw meetingError;
+      const outcomes = await submitEventMeetingBatch(eventId!, meetingPayloads);
+      const createdSuggestions = selectedSuggestions.filter((_, index) => outcomes[index]?.state === 'pending');
+      const held = selectedSuggestions.length - createdSuggestions.length;
+      if (held) toast.info(`${held}: ${investorReviewCopy[locale].needsSchedule}`);
 
       // Update suggestion statuses
-      await supabase
+      if (createdSuggestions.length) await supabase
         .from('event_b2b_suggestions')
         .update({ status: 'accepted' })
-        .in('id', selectedSuggestions.map(s => s.id));
+        .in('id', createdSuggestions.map(s => s.id));
 
       // Batch notifications
-      for (const s of selectedSuggestions) {
+      for (const s of createdSuggestions) {
         await createNotification({
           title: 'Eventra AI Matchmaker: New Match Found!',
           message: `Great news! Our AI Matchmaker found a high-potential connection for you. We have scheduled a meeting for you. Log in to view details and start networking!`,
@@ -1206,7 +1193,8 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
         });
       }
 
-      toast.success(`${selectedSuggestions.length} meetings created and participants notified!`);
+      toast.success(`${createdSuggestions.length} meetings created.`);
+      if (createdSuggestions.length < selectedSuggestions.length) toast.info(investorReviewCopy[locale].needsSchedule);
       setSelectedSuggestionIds([]);
       fetchMeetings();
       fetchSuggestions();
@@ -1352,7 +1340,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
     if (matchingAll) return;
 
     setMatchingAll(true);
-
+    let toastId: string | number | undefined;
     try {
       // Always fetch fresh from DB to avoid stale state issues
       const { data: freshAttendees, error: attError } = await supabase
@@ -1370,7 +1358,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
         return;
       }
 
-    const toastId = toast.loading(`Matching ${pool.length} participants...`);
+    toastId = toast.loading(`Matching ${pool.length} participants...`);
 
       // Fetch existing meetings to skip duplicate pairs
       const { data: existingMeetings } = await supabase
@@ -1455,6 +1443,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
       }
 
       // Insert pairings only — attendees choose time/format themselves
+      const createdPairs: typeof meetings = [];
       const batchSize = 50;
       for (let i = 0; i < meetings.length; i += batchSize) {
         const batch = meetings.slice(i, i + batchSize).map(m => ({
@@ -1468,19 +1457,14 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
           match_score: 0,
           meta: { is_bulk_match_all: true }
         }));
-        const { error, data: insertedData } = await supabase.from('event_b2b_meetings').insert(batch).select('id');
-        if (error) {
-          console.error('Batch insert error:', error);
-          toast.dismiss(toastId);
-          toast.error(`Failed to insert meetings: ${error.message}`, { duration: 8000 });
-          setMatchingAll(false);
-          return;
-        }
-        console.log(`Batch inserted ${insertedData?.length || 0} meetings`);
+        const outcomes = await submitEventMeetingBatch(eventId!, batch);
+        outcomes.forEach((outcome,index) => { if(outcome.state === 'pending') createdPairs.push(meetings[i+index]); });
+
       }
 
       toast.dismiss(toastId);
-      toast.success(`Created ${meetings.length} meetings for ${Object.keys(matchCounts).length} participants!`, { duration: 5000 });
+      toast.success(`Created ${createdPairs.length} meetings.`, { duration: 5000 });
+      if (createdPairs.length < meetings.length) toast.info(investorReviewCopy[locale].needsSchedule);
       await fetchMeetings();
 
       // Send match notification emails
@@ -1490,7 +1474,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
 
       // Group matches by attendee
       const attendeeMatches: Record<string, { name: string; email: string; matches: { name: string; company: string }[] }> = {};
-      for (const m of meetings) {
+      for (const m of createdPairs) {
         const attA = pool.find((a: any) => a.id === m.aId);
         const attB = pool.find((a: any) => a.id === m.bId);
         if (attA?.email) {
@@ -1505,7 +1489,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
 
       // Send emails (fire and forget, don't block)
       let emailsSent = 0;
-      for (const [, info] of Object.entries(attendeeMatches)) {
+      for (const [attendeeId, info] of Object.entries(attendeeMatches)) {
         const html = generateMatchNotificationEmailHtml({
           attendeeName: info.name,
           eventName,
@@ -1513,6 +1497,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
           networkingUrl
         });
         const sent = await sendEmail({
+          command: {kind:'b2b_matches',entityId:attendeeId},
           to: info.email,
           subject: `Your B2B Matches for ${eventName} are ready!`,
           html
@@ -1572,6 +1557,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
           networkingUrl
         });
         const ok = await sendEmail({
+          command: {kind:'b2b_invite',entityId:attendee.id},
           to: attendee.email,
           subject: `B2B Networking is live for ${eventName}!`,
           html
@@ -1652,7 +1638,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
       }
 
       let sent = 0;
-      for (const [, info] of Object.entries(perAttendee)) {
+      for (const [attendeeId, info] of Object.entries(perAttendee)) {
         const html = generateMatchNotificationEmailHtml({
           attendeeName: info.name,
           eventName,
@@ -1660,6 +1646,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
           networkingUrl
         });
         const ok = await sendEmail({
+          command: {kind:'b2b_matches',entityId:attendeeId},
           to: info.email,
           subject: `Your B2B Matches for ${eventName}`,
           html
@@ -1743,6 +1730,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
 
   return (
     <div className="event-b2b" style={{ padding: '32px 40px 80px', backgroundColor: '#0B2641', minHeight: '100vh' }}>
+      {eventId && <div style={{marginBottom:20}}><Link to={`/event/${eventId}?tab=investors&investorView=requests`} className="investor-review__link"><Users size={16}/>{investorDirectoryCopy[locale].title} &middot; {investorDirectoryCopy[locale].requests}</Link></div>}
       <style>{`
         @media (max-width: 600px) {
           .event-b2b {

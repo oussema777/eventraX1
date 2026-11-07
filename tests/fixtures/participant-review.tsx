@@ -6,10 +6,10 @@ import '../../src/index.css';
 import '../../src/components/networking/EventNetworkingPeople.css';
 
 const people = [
-  { name: 'Amira Mansour', title: 'Founder & CEO', company: 'Solar Works', tags: ['Energy', 'Investment', 'Technology'] },
-  { name: 'Youssef Ben Ali', title: 'Director of International Partnerships', company: 'Atlas Ventures & Investment Group', tags: ['Finance', 'Investment'] },
+  { businesses: [{id:'solar',company_name:'Solar Works',logo_url:null},{id:'other',company_name:'Second Business',logo_url:null}], name: 'Amira Mansour', title: 'Founder & CEO', company: 'Solar Works', tags: ['Energy', 'Investment', 'Technology'] },
+  { investor: true, name: 'Youssef Ben Ali', title: 'Director of International Partnerships', company: 'Atlas Ventures & Investment Group', tags: ['Finance', 'Investment'] },
   { name: 'Leila Trabelsi', title: 'Product Designer', company: 'Studio North', tags: ['Technology'] },
-  { name: 'Nour Ben Youssef', title: 'Regional Director of Business Development & Strategic Partnerships', company: 'Mediterranean Innovation and Sustainable Investment Network', tags: ['Renewable Energy', 'Sustainable Development', 'International Trade'], score: 92, reason: 'Shared interests in Energy, Investment' },
+  { investor: true, businesses: [{id:'network',company_name:'Mediterranean Innovation and Sustainable Investment Network',logo_url:null}], name: 'Nour Ben Youssef', title: 'Regional Director of Business Development & Strategic Partnerships', company: 'Mediterranean Innovation and Sustainable Investment Network', tags: ['Renewable Energy', 'Sustainable Development', 'International Trade'], score: 92, reason: 'Shared interests in Energy, Investment' },
   { name: 'Sami', tags: [], score: 85 },
   { name: 'ريم بن صالح', title: 'مديرة الشراكات وتطوير الأعمال', company: 'مجموعة آفاق للاستثمار والتنمية', tags: ['Technology', 'Investment'], score: 88, reason: 'Shared interests in Technology' },
 ];

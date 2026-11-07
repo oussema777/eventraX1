@@ -1,3 +1,4 @@
+import { useParticipantBusinesses } from '../../hooks/useParticipantBusinesses';
 import ParticipantCard from './ParticipantCard';
 import EventNetworkingAccess from './EventNetworkingAccess';
 import { useI18n } from '../../i18n/I18nContext';
@@ -6,7 +7,8 @@ import { nextMatchBatch } from '../../utils/eventRecommendations';
 import type { rankEventParticipants } from '../../utils/eventRecommendations';
 import type { RecommendationState } from '../../hooks/useEventRecommendations';
 
-export default function EventMatchSuggestions({ matches, state, signedIn, loading, failed, onRetry, onGenerate, onRegister, onAccess, onView, onBook, onMessage, messagePending, brandColor }: {
+export default function EventMatchSuggestions({ matches, state, signedIn, loading, failed, onRetry, onGenerate, onRegister, onAccess, onView, onBook, onMessage, messagePending, brandColor, investorProfileIds = [] }: {
+  investorProfileIds?: string[];
   state?: RecommendationState;
   matches: ReturnType<typeof rankEventParticipants>;
   signedIn: boolean; loading: boolean; failed: boolean; messagePending: boolean;
@@ -26,6 +28,7 @@ export default function EventMatchSuggestions({ matches, state, signedIn, loadin
   const lock = useRef(false);
   const selected = matches.filter(person => selectedIds.includes(person.id));
   const displayed = selected.length ? selected : matches.slice(0, 3);
+  const businesses = useParticipantBusinesses(signedIn ? displayed.map(p=>p.id) : []);
   const generate = async () => {
     if (lock.current) return;
     lock.current = true; setGenerating(true); setGenerationError(false); setRestarted(false);
@@ -54,7 +57,7 @@ export default function EventMatchSuggestions({ matches, state, signedIn, loadin
       : !matches.length ? <p style={{ color: '#94A3B8' }}>{t('eventImprovements.noMatches')}</p>
       : <>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 24 }}>
-          {displayed.map(person => <ParticipantCard key={person.id} name={person.full_name || ''}
+          {displayed.map(person => <ParticipantCard key={person.id} name={person.full_name || ''} businesses={businesses.data?.get(person.id)} investor={investorProfileIds.includes(person.id)}
             avatar={person.avatar_url} title={person.job_title} company={person.company} score={person.score}
             tags={[person.sector, ...person.sharedInterests].filter(Boolean) as string[]}
             reason={[person.sameSector ? t('eventImprovements.sharedSector', { sector: person.sector || '' }) : '', person.sharedInterests.length ? t('eventImprovements.sharedInterests', { interests: person.sharedInterests.join(', ') }) : ''].filter(Boolean).join(' · ')}

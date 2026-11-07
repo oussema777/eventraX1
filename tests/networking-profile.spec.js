@@ -13,7 +13,7 @@ async function openSchedule(page, { accountType = 'event_guest', unlinked = fals
   await page.route('**/rest/v1/**', route => {
     const url = new URL(route.request().url());
     const table = url.pathname.split('/').pop();
-    requests.push({ table, query: Object.fromEntries(url.searchParams), method: route.request().method() });
+    requests.push({ table, rpc: url.pathname.includes('/rpc/'), query: Object.fromEntries(url.searchParams), method: route.request().method() });
     let data = [];
     if (table === 'profiles') {
       const id = url.searchParams.get('id');
@@ -60,7 +60,9 @@ test('guest meeting profiles open within their event and return to My Networking
   await expect(page.getByText('Participant biography', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(page).toHaveURL('http://127.0.0.1:3000/my-networking');
-  expect(requests.filter(r => !['GET', 'HEAD'].includes(r.method) && r.table !== 'get_profile_activity_stats')).toEqual([]);
+  // Supabase read-only RPCs use POST; all other mutations remain forbidden.
+  const readOnlyRpcs = new Set(['get_profile_activity_stats', 'list_review_notifications', 'list_event_investors', 'b2b_event_eligible', 'event_access_role']);
+  expect(requests.filter(r => !['GET', 'HEAD'].includes(r.method) && !(r.method === 'POST' && r.rpc && readOnlyRpcs.has(r.table)))).toEqual([]);
   expect(requests.some(r => r.table === 'record_profile_view')).toBe(false);
   await page.goto(`/profile/${participantId}`);
   await expect(page.getByRole('heading', { name: 'Profile Not Found' })).toBeVisible();

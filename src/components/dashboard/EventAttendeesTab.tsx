@@ -323,6 +323,7 @@ export default function EventAttendeesTab({ eventId }: { eventId: string }) {
     // Send registration cancelled email
     if (attendee?.email) {
       sendRegistrationCancelledEmail(attendee.email, {
+        registrationId: attendee.id,
         attendeeName: attendee.name || attendee.email,
         eventName: eventName || 'Event',
         eventDate: '',

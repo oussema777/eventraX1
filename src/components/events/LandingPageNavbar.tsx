@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Users, Calendar, Mic, Store, ArrowRight, Check, Heart, Sparkles, Ticket, Globe } from 'lucide-react';
 import { useI18n, type Locale } from '../../i18n/I18nContext';
+import { Landmark } from 'lucide-react';
+import { investorShowcaseCopy } from '../networking/investorShowcaseCopy';
 
 interface LandingPageNavbarProps {
   activeSections: {
     attendees?: boolean;
+    investors?: boolean;
     exhibitors?: boolean;
     speakers?: boolean;
     agenda?: boolean;
@@ -64,6 +67,9 @@ export default function LandingPageNavbar({ activeSections, brandColor = '#635BF
         {/* Navigation Links - Scrollable Container */}
         <div className="landing-navbar-scroll-area" style={{ flex: 1, minWidth: 0, overflowX: 'auto', display: 'flex', alignItems: 'center', height: '100%', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           <div className="landing-navbar-links" style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '0 12px' }}>
+            {activeSections.investors && <button onClick={() => onNavigate('investors')} className="nav-item nav-item--investors" aria-label={investorShowcaseCopy[locale].nav}>
+              <Landmark size={17}/><span>{investorShowcaseCopy[locale].nav}</span>
+            </button>}
             {activeSections.agenda && (
               <button onClick={() => onNavigate('agenda')} className="nav-item">
                 <Calendar size={18} className="nav-icon" />
@@ -202,6 +208,8 @@ export default function LandingPageNavbar({ activeSections, brandColor = '#635BF
           background-color: rgba(0, 0, 0, 0.04);
           color: #111827;
         }
+
+        .nav-item.nav-item--investors { background:#eaf3ef; color:#20534b; font-weight:700; gap:8px !important; }
 
         .nav-item:active {
           transform: scale(0.96);

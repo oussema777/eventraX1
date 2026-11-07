@@ -156,6 +156,11 @@ Deno.serve(async (req: Request) => {
       const destroyAt = latestEnd + DESTROY_DAYS * DAY_MS;
 
       if (now > destroyAt) {
+        // Review history has explicit retention requirements. Never redact a
+        // protected registration before its retention policy is resolved.
+        const {data: retained,error: retentionError} = await supabaseAdmin.rpc('review_guest_retained',{p_user:guestId});
+        if (retentionError || retained !== false) { skipped++; continue; }
+
         // --- DESTROY: redact retained attendee rows, then delete auth user. ---
         console.log(
           `[cleanup] guest=${guestId} action=destroy${dryRun ? '(dry-run)' : ''} rows=${attendeeRows.length}`

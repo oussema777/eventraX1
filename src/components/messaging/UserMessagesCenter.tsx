@@ -288,26 +288,14 @@ export default function UserMessagesCenter({ initialThreadId }: UserMessagesCent
       console.warn('Message sent, but thread timestamp was not updated:', threadUpdateError);
     }
 
-    // Send notification to recipient
+    // The authorized server action saves the bell notification and sends email.
     if (activeConversation?.userId) {
-      try {
-        await createNotification({
-            recipient_id: activeConversation.userId,
-            actor_id: user.id,
-            title: t('messages.notifications.new.title', { defaultValue: 'New Message' }),
-            body: t('messages.notifications.new.body', { name: currentUserName, message: content.substring(0, 50) + (content.length > 50 ? '...' : '') }),
-            type: 'action',
-            action_url: `/messages`
-          });
-      } catch (notifyError) {
-        console.error('Failed to send message notification:', notifyError);
-        toast.warning(t('messages.errors.notificationFailed'));
-      }
       try {
         const { data: recipient, error: recipientError } = await supabase
           .from('profiles').select('email').eq('id', activeConversation.userId).maybeSingle();
         if (recipientError || !recipient?.email) throw recipientError || new Error('Recipient email unavailable');
         const delivered = await sendEmail({
+          command: {kind:'message',entityId:data.id,recipientId:activeConversation.userId,channel:'both'},
           to: recipient.email,
           subject: t('messages.notifications.new.title', { defaultValue: 'New Message' }),
           html: `<p>${escapeHTML(t('messages.notifications.new.emailIntro', { name: currentUserName }))}</p><p><a href="${window.location.origin}/messages">${escapeHTML(t('messages.notifications.new.openMessages'))}</a></p>`

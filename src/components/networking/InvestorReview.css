@@ -1,0 +1,22 @@
+.investor-review{--ir-line:rgba(148,163,184,.22);background:#112e48;color:#e8f0f7;border:1px solid var(--ir-line);border-radius:18px;padding:24px;margin-block:20px;text-align:start}
+.investor-review h2,.investor-review h3{margin:0 0 10px;font-weight:700}.investor-review h2{font-size:21px}.investor-review h3{font-size:16px}.investor-review p{color:#bdcddd;line-height:1.6;margin:8px 0 16px}
+.investor-review__grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:20px}.investor-review__card{padding:20px;border:1px solid var(--ir-line);border-radius:14px;background:rgba(255,255,255,.025)}
+.investor-review label{display:block;font-size:14px;font-weight:600;margin-bottom:14px}.investor-review input:not([type=radio]),.investor-review select,.investor-review textarea{display:block;width:100%;box-sizing:border-box;background:#0b253c;color:#f1f5f9;border:1px solid #658096;border-radius:8px;padding:10px 12px;margin-top:7px;font:inherit}.investor-review textarea{min-height:80px;resize:vertical}.investor-review input[type=radio]{margin-inline-end:8px}
+.investor-review button,.investor-review__link{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:10px 15px;border-radius:10px;border:1px solid #688299;background:#193d59;color:#f1f5f9;font-weight:600;cursor:pointer;text-decoration:none}.investor-review button:disabled{opacity:.5;cursor:not-allowed}.investor-review .investor-review__primary{background:#0874ce;border-color:#2093f1}.investor-review :is(button,a,input,select,textarea):focus-visible{outline:3px solid #7dc7ff;outline-offset:3px}.investor-review__actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.investor-review__notice{padding:14px;border-radius:10px;border:1px solid #4883af;background:#123f61}.investor-review__error{border-color:#ed9696;color:#ffe0e0!important;background:#452d3a}.investor-review__badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid #bca66b;border-radius:20px;color:#f1d894;background:#423d2b;font-size:12px;font-weight:700}.investor-review__meta{display:flex;flex-wrap:wrap;gap:12px;color:#c4d2df;font-size:14px}.investor-review__purpose{white-space:pre-wrap;overflow-wrap:anywhere}.investor-review__list{display:grid;gap:14px;margin-top:18px}.investor-review__row{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center;padding:14px 0;border-top:1px solid var(--ir-line)}
+.investor-invitation{min-height:100vh;background:#0b253c;display:grid;place-items:center;padding:24px}.investor-invitation .investor-review{width:min(100%,600px)}
+.investor-review--settings form{margin-top:24px;padding-top:20px;border-top:1px solid var(--ir-line)}
+.investor-review--settings label:has(input[type=checkbox]){display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--ir-line);border-radius:10px;background:rgba(255,255,255,.025)}
+.investor-review input[type=checkbox]{display:inline-block;width:18px;height:18px;margin:0;flex:0 0 18px;accent-color:#168df1}
+@media(max-width:600px){.investor-review{padding:16px}.investor-review__card{padding:15px}.investor-review__actions>*{flex:1}.investor-invitation{padding:12px}}
+
+.investor-review__toolbar{gap:12px;margin-block:18px 24px}
+.investor-review__member-picker{border:1px solid var(--ir-line);border-radius:12px;padding:16px;max-height:300px;overflow:auto;margin:18px 0}
+.investor-review__member-picker legend{padding:0 8px;color:#bdcddd;font-size:13px}
+.investor-review--settings .investor-review__member-picker label{margin-bottom:8px;padding:11px 14px}
+.investor-review__permission-options{display:flex;flex-wrap:wrap;gap:12px;margin:16px 0}
+.investor-review--settings .investor-review__permission-options label{margin:0;flex:1;min-width:200px}
+.investor-review__access-list{margin-top:32px;padding-top:24px;border-top:1px solid var(--ir-line)}
+.investor-review__access-person{border:1px solid var(--ir-line);padding:20px;border-radius:12px;margin-top:14px;background:#ffffff03}
+.investor-review__access-person>button{color:#efc2c2;border-color:#b07c7c66;background:transparent}
+@media(max-width:600px){.investor-review__permission-options{display:grid;grid-template-columns:1fr}.investor-review--settings .investor-review__permission-options label{min-width:0}.investor-review__access-person{padding:16px}}

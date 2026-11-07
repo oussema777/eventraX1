@@ -4,10 +4,10 @@ export type EventRole = 'owner' | 'platform_admin' | 'administrator' | 'coordina
 export type StaffRole = 'administrator' | 'coordinator' | 'checkin';
 export const staffRoles: StaffRole[] = ['administrator', 'coordinator', 'checkin'];
 export const roleTabs: Record<EventRole, string[]> = {
-  owner: ['overview', 'agenda', 'speakers', 'attendees', 'forms', 'exhibitors', 'ticketing', 'b2b', 'dayof', 'notifications', 'team'],
-  platform_admin: ['overview', 'agenda', 'speakers', 'attendees', 'forms', 'exhibitors', 'ticketing', 'b2b', 'dayof', 'notifications', 'team'],
-  administrator: ['overview', 'agenda', 'speakers', 'attendees', 'forms', 'exhibitors', 'ticketing', 'b2b', 'dayof', 'notifications'],
-  coordinator: ['attendees', 'b2b', 'dayof'],
+  owner: ['overview', 'agenda', 'speakers', 'attendees', 'investors', 'forms', 'exhibitors', 'ticketing', 'b2b', 'dayof', 'notifications', 'team'],
+  platform_admin: ['overview', 'agenda', 'speakers', 'attendees', 'investors', 'forms', 'exhibitors', 'ticketing', 'b2b', 'dayof', 'notifications', 'team'],
+  administrator: ['overview', 'agenda', 'speakers', 'attendees', 'investors', 'forms', 'exhibitors', 'ticketing', 'b2b', 'dayof', 'notifications'],
+  coordinator: ['attendees', 'investors', 'b2b', 'dayof'],
   checkin: ['dayof'],
 };
 export const canManageDetails = (role: EventRole | null) => !!role && ['owner', 'platform_admin', 'administrator'].includes(role);

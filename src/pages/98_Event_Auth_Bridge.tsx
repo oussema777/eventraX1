@@ -37,7 +37,7 @@ export default function EventAuthBridge() {
   const expired = callbackError === 'otp_expired';
   const callbackFailed = new URLSearchParams(location.hash.slice(1)).has('error') || params.has('error');
   const returnUrl = redirectUrl ? eventAuthReturnUrl(redirectUrl, window.location.origin) : '';
-  const eventId = redirectUrl?.match(/^\/event\/([^/]+)\/(?:networking|attendees)(?:[/?#]|$)/)?.[1];
+  const eventId = redirectUrl?.match(/^\/event\/([^/]+)\/(?:networking|attendees|investors)(?:[/?#]|$)/)?.[1];
   const bookingAccess = !!eventId && !!redirectUrl && new URL(redirectUrl, window.location.origin).searchParams.has('bookMeeting');
 
   useEffect(() => {

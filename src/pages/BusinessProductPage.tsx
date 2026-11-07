@@ -32,7 +32,6 @@ import { supabase } from '../lib/supabase';
 import { useI18n } from '../i18n/I18nContext';
 import { useMessageThread } from '../hooks/useMessageThread';
 import { useAuth } from '../contexts/AuthContext';
-import { createNotification } from '../lib/notifications';
 import { sendEmail } from '../lib/email';
 
 type BusinessProfile = {
@@ -384,10 +383,10 @@ export default function BusinessProductPage() {
 
     // Send an opening message so the conversation isn't blank
     try {
-      await supabase.from('messages').insert({
+      await supabase.from('message_messages').insert({
         thread_id: threadId,
         sender_id: user.id,
-        content: `Hi! I'm interested in "${productName}". Could we discuss further?`,
+        body: `Hi! I'm interested in "${productName}". Could we discuss further?`,
       });
     } catch { /* non-fatal — thread is created, just no opener */ }
 
@@ -411,65 +410,22 @@ export default function BusinessProductPage() {
 
     setIsSubmittingQuote(true);
     try {
-      // 1. Bell notification to business owner
-      await createNotification({
-        recipient_id: business.owner_profile_id,
-        actor_id: user.id,
-        title: `New quote request: ${productName}`,
-        body: `${profile?.full_name || user.email} requested a quote for "${productName}". Qty: ${quoteQuantity}. "${quoteMessage.slice(0, 80)}${quoteMessage.length > 80 ? '…' : ''}"`,
-        type: 'action',
-        action_url: `/business/${business.id}/offerings/${product.id}`,
-      });
-
-      // 2. Email to business owner
-      const { data: ownerProfile } = await supabase
-        .from('profiles')
-        .select('email, full_name')
-        .eq('id', business.owner_profile_id)
-        .single();
-
-      if (ownerProfile?.email) {
-        const senderName = profile?.full_name || user.email || 'A potential buyer';
-        const html = `
-          <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;border:1px solid #e5e7eb;border-radius:12px;">
-            <h2 style="color:#0B2641;margin-bottom:4px;">New Quote Request</h2>
-            <p style="color:#6B7280;font-size:13px;margin-top:0;">via Eventra B2B Marketplace</p>
-            <hr style="border:none;border-top:1px solid #f3f4f6;margin:16px 0;"/>
-            <table style="width:100%;border-collapse:collapse;font-size:14px;">
-              <tr><td style="padding:8px 0;color:#6B7280;width:120px;">Product</td><td style="padding:8px 0;font-weight:600;color:#111827;">${escapeHtml(productName)}</td></tr>
-              <tr><td style="padding:8px 0;color:#6B7280;">From</td><td style="padding:8px 0;color:#111827;">${escapeHtml(senderName)}</td></tr>
-              <tr><td style="padding:8px 0;color:#6B7280;">Email</td><td style="padding:8px 0;color:#111827;">${escapeHtml(user.email || '')}</td></tr>
-              <tr><td style="padding:8px 0;color:#6B7280;">Quantity</td><td style="padding:8px 0;color:#111827;">${quoteQuantity}</td></tr>
-            </table>
-            <div style="background:#f9fafb;border-radius:8px;padding:16px;margin:16px 0;">
-              <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:0.05em;">Requirements</p>
-              <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">${escapeHtml(quoteMessage).replace(/\n/g, '<br/>')}</p>
-            </div>
-            <a href="${window.location.origin}/business/${business.id}/offerings/${product.id}" style="display:inline-block;padding:12px 24px;background:#0684F5;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">View Offering</a>
-            <p style="font-size:11px;color:#9ca3af;margin-top:24px;">Reply directly to this email or use the Eventra messaging system.</p>
-          </div>`;
-
-        await sendEmail({
-          to: ownerProfile.email,
-          subject: `Quote Request: ${productName} from ${senderName}`,
-          html,
-        });
-      }
-
       // 3. Create/get message thread and post quote as first message
       const threadId = await getOrCreateThread(business.owner_profile_id);
       if (threadId) {
-        await supabase.from('messages').insert({
+        const {data: savedMessage, error: messageError} = await supabase.from('message_messages').insert({
           thread_id: threadId,
           sender_id: user.id,
-          content: `📋 **Quote Request for "${productName}"**\n\nQuantity: ${quoteQuantity}\n\n${quoteMessage}`,
-        });
+          body: `📋 **Quote Request for "${productName}"**\n\nQuantity: ${quoteQuantity}\n\n${quoteMessage}`,
+        }).select('id').single();
+        if (messageError || !savedMessage) throw messageError || new Error('Unable to save quote');
+        const delivered = await sendEmail({command:{kind:'message',entityId:savedMessage.id,recipientId:business.owner_profile_id,channel:'both'},to:'',subject:'',html:''});
+        if (!delivered) toast.warning('Your quote is saved in messages, but its email notification could not be delivered.');
         setShowQuoteModal(false);
         toast.success('Quote sent! Redirecting to messages…');
         setTimeout(() => navigate('/messages', { state: { threadId } }), 1200);
       } else {
-        setShowQuoteModal(false);
-        toast.success(t('businessProductPage.toasts.quoteSent'));
+        throw new Error(t('businessProductPage.toasts.quoteFailed'));
       }
     } catch (err: any) {
       toast.error(err?.message || t('businessProductPage.toasts.quoteFailed'));

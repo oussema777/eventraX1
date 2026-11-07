@@ -1,0 +1,26 @@
+/* Identity is conveyed through material, portrait detail and a real company link. */
+.participant-card[data-identity=business]{border-color:#73d6cf49;box-shadow:inset 0 1px 1px #b7f9eb33,0 12px 36px #020e2426,0 0 24px #46d3bc09}
+.participant-card[data-identity=business] .participant-card__cover{background:radial-gradient(ellipse at 12% 0,#58e5bd35,transparent 70%),linear-gradient(120deg,#164746,#17415a)}
+.participant-card[data-identity=business] .participant-card__avatar{border-color:#7bd8cd82;box-shadow:0 0 0 4px #50cab00a,0 0 22px #6ed9c619}
+.participant-card[data-identity=investor]{border-color:#d7b56c70;box-shadow:inset 0 1px 1px #ffe5b64d,0 16px 42px #020e2426,0 0 24px #d9ae5d12}
+.participant-card[data-identity=investor] .participant-card__cover{background:radial-gradient(ellipse at 10% 0,#e4bf6652,transparent 70%),linear-gradient(120deg,#424b43,#203c51 85%)}
+.participant-card[data-identity=investor] .participant-card__avatar{border-color:#e4c786a8;box-shadow:0 0 0 4px #e5bf6a0d,0 0 24px #edc36b24}
+.participant-card[data-identity=investor]:hover{box-shadow:inset 0 1px 1px #ffe5b64d,0 20px 44px #020e2438,0 0 32px #d9ae5d1c}
+.participant-card[data-identity=business]:hover{box-shadow:inset 0 1px 1px #b7f9eb33,0 20px 44px #020e2438,0 0 30px #46d3bc14}
+.participant-card__portrait{position:relative;width:72px;align-self:center}.participant-card__identity-seal{position:absolute;inset-inline-end:-3px;bottom:-2px;display:grid;place-items:center;width:25px;height:25px;border-radius:9px;background:#1b5553;color:#b0ece0;border:2px solid #15364f;box-shadow:0 3px 9px #06172944}.participant-card[data-identity=investor] .participant-card__identity-seal{background:#dfc487;color:#38392c}
+.participant-card__investor-signature{display:inline-flex;position:relative;z-index:1;align-items:center;gap:7px;color:#f5ddb0;font-size:11px;letter-spacing:.045em;font-weight:650}.participant-card__investor-signature:before{content:'';width:15px;height:1px;background:#ecd49b;box-shadow:0 0 6px #efd29566}
+.participant-businesses{margin-top:18px;min-width:0}.participant-business{display:flex!important;align-items:center;gap:11px!important;min-width:0;min-height:64px!important;padding:11px 12px!important;border:1px solid #8edacd36!important;border-radius:12px!important;background:linear-gradient(110deg,#77d8bc12,#96b7d607)!important;color:#dff4ed!important;text-decoration:none!important;text-align:start!important;font-weight:400!important}.participant-business:hover{background:#6ed3b61a!important;border-color:#9fddc870!important}.participant-business:focus-visible,.participant-businesses summary:focus-visible{outline:3px solid #a7e8d4;outline-offset:3px}.participant-business__logo{display:grid;place-items:center;width:38px;height:38px;flex:0 0 38px;border-radius:9px;background:#e7f2eb;color:#295b55;overflow:hidden}.participant-business__logo img{width:100%;height:100%;object-fit:contain;padding:4px;box-sizing:border-box}.participant-business__text{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}.participant-business__text small{font-size:10px;letter-spacing:.025em;color:#99bfbb;line-height:1.4}.participant-business__text strong{font-size:13px;font-weight:600;line-height:1.35;overflow-wrap:anywhere}.participant-business>svg{flex-shrink:0;color:#99c7bb}.participant-businesses__more{margin-top:8px}.participant-businesses__more summary{font-size:11px;color:#a5c8c2;cursor:pointer;padding:5px 2px}.participant-businesses__more>div{display:grid;gap:8px;margin-top:8px}
+.investor-showcase__card{border-color:#d2b37155;box-shadow:inset 0 1px 0 #f3dca327,0 0 24px #d2b37109;background:radial-gradient(ellipse at 0 0,#cfb57015,transparent 65%),#12324c}.investor-showcase__identity img,.investor-showcase__initials{outline:1px solid #dfc48775;outline-offset:3px}.investor-showcase__card .participant-businesses{margin:18px 0 0}
+@media(max-width:600px){.participant-card__portrait{width:68px}}
+@media(forced-colors:active){.participant-card__identity-seal,.participant-business,.participant-card__avatar{border:1px solid CanvasText!important}.participant-card__investor-signature{color:CanvasText}}
+
+/* Company names and secondary businesses never expand the card. */
+.participant-businesses { position: relative; }
+.participant-business { height: 64px; box-sizing: border-box; }
+.participant-business__text strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.participant-businesses__more { position: absolute; inset-inline-end: 8px; top: 0; margin: 0; }
+.participant-businesses:has(details) > .participant-business { padding-inline-end: 54px !important; }
+.participant-businesses__more summary { padding: 6px; font-size: 11px; list-style: none; border-radius: 6px; background: #214e50; }
+.participant-businesses__more summary::-webkit-details-marker { display: none; }
+.participant-businesses__more > div { position: absolute; inset-inline-end: 0; top: 25px; width: 250px; max-width: 70vw; max-height: 240px; overflow: auto; padding: 8px; background: #143550; border: 1px solid #7bd8cd82; border-radius: 12px; box-shadow: 0 12px 30px #020e2480; z-index: 5; }
+.participant-card:has(details[open]) { z-index: 6; }

@@ -1,32 +1,43 @@
 import { renderMeetingEmail, type MeetingEmailLocale } from './meetingEmail';
+import { supabase } from './supabase';
 import { meetingLink, qrImageUrl } from '../utils/meetingQr';
 import { escapeHTML } from '../utils/security';
 import { groupAgendaSessions, resolveAgendaTimeZone } from '../utils/agendaDates';
 
 interface SendEmailParams {
+  command?: { kind: string; entityId: string; recipientId?: string; subject?: string; message?: string; channel?: 'email'|'bell'|'both' };
   to: string;
   subject: string;
   html: string;
 }
 
-export async function sendEmail({ to, subject, html }: SendEmailParams): Promise<boolean> {
+export async function sendEmail({ command }: SendEmailParams): Promise<boolean> {
+  // Legacy rendering helpers may remain for previews, but arbitrary content is
+  // never sent. Only named server-authorized actions cross the network.
+  if (!command) return false;
+  return sendPlatformEmail(command);
+}
+
+export async function sendPlatformEmail(command: NonNullable<SendEmailParams['command']>): Promise<boolean> {
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return false;
     const endpoint = '/api/send-email';
 
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`
       },
-      body: JSON.stringify({ to, subject, html })
+      body: JSON.stringify(command)
     });
 
     if (!res.ok) {
       return false;
     }
 
-    await res.json();
-    return true;
+    const result = await res.json();
+    return result.success === true && result.managed !== true;
   } catch {
     return false;
   }
@@ -187,7 +198,7 @@ export async function sendWelcomeEmail(to: string, userName: string, userId: str
     qrCodeUrl
   });
 
-  return sendEmail({
+  return sendEmail({ command: {kind:'welcome',entityId:userId},
     to,
     subject: `Welcome to Eventra, ${escapeHTML(userName)}!`,
     html
@@ -207,7 +218,7 @@ export async function sendMeetingConfirmationEmails(params: {
   return Promise.all((['organizer', 'recipient'] as const).map(role => {
     const profileId = role === 'organizer' ? params.organizerProfileId : params.recipientProfileId;
     const qrCodeUrl = qrImageUrl(meetingLink(window.location.origin, params.meetingId, params.eventId, profileId));
-    return sendEmail({ to: role === 'organizer' ? params.organizerEmail : params.recipientEmail,
+    return sendEmail({ command: {kind:'meeting',entityId:params.meetingId,recipientId:profileId}, to: role === 'organizer' ? params.organizerEmail : params.recipientEmail,
       subject: label + ': ' + params.eventName,
       html: generateMeetingConfirmationEmailHtml({ ...params, role, networkingUrl, qrCodeUrl }) });
   }));
@@ -293,7 +304,7 @@ export async function sendEventApprovedEmail(to: string, params: {
   eventId: string;
 }) {
   const eventUrl = `${window.location.origin}/event/${params.eventId}`;
-  return sendEmail({
+  return sendEmail({ command: {kind:'event_approved',entityId:params.eventId},
     to,
     subject: `Your event is live: ${escapeHTML(params.eventName)}`,
     html: generateEventApprovedEmailHtml({ ...params, eventUrl })
@@ -333,7 +344,7 @@ export async function sendEventRejectedEmail(to: string, params: {
   eventId: string;
 }) {
   const editUrl = `${window.location.origin}/create/details/${params.eventId}`;
-  return sendEmail({
+  return sendEmail({ command: {kind:'event_rejected',entityId:params.eventId},
     to,
     subject: `Action required: ${escapeHTML(params.eventName)} was not approved`,
     html: generateEventRejectedEmailHtml({ ...params, editUrl })
@@ -363,13 +374,14 @@ export function generateRegistrationCancelledEmailHtml(params: {
 }
 
 export async function sendRegistrationCancelledEmail(to: string, params: {
+  registrationId: string;
   attendeeName: string;
   eventName: string;
   eventDate: string;
   eventId: string;
 }) {
   const eventUrl = `${window.location.origin}/event/${params.eventId}`;
-  return sendEmail({
+  return sendEmail({ command: {kind:'registration_cancelled',entityId:params.registrationId},
     to,
     subject: `Registration Cancelled: ${escapeHTML(params.eventName)}`,
     html: generateRegistrationCancelledEmailHtml({ ...params, eventUrl })
@@ -483,12 +495,13 @@ export function generateMeetingCancelledEmailHtml(params: {
 }
 
 export async function sendMeetingCancelledEmail(to: string, params: {
+  meetingId: string; recipientProfileId: string;
   recipientName: string; cancellerName: string; eventName: string; meetingDate: string; meetingTime: string;
   eventId?: string; locale?: MeetingEmailLocale; timeZone?: string;
 }) {
   const networkingUrl = new URL(params.eventId ? '/event/' + params.eventId + '/networking' : '/my-networking', window.location.origin).href;
   const label = { en: 'Meeting cancelled', fr: 'Rendez-vous annulé', ar: 'تم إلغاء الاجتماع' }[params.locale || 'en'];
-  return sendEmail({ to, subject: label + ': ' + params.eventName,
+  return sendEmail({ command: {kind:'meeting',entityId:params.meetingId,recipientId:params.recipientProfileId}, to, subject: label + ': ' + params.eventName,
     html: generateMeetingCancelledEmailHtml({ ...params, networkingUrl }) });
 }
 
@@ -520,6 +533,7 @@ export function generateMeetingRescheduledEmailHtml(params: {
 }
 
 export async function sendMeetingRescheduledEmail(to: string, params: {
+  recipientProfileId: string;
   eventId?: string; meetingId?: string;
   recipientName: string;
   reschedulerName: string;
@@ -533,7 +547,7 @@ export async function sendMeetingRescheduledEmail(to: string, params: {
   const networkingUrl = params.eventId && params.meetingId
     ? meetingLink(window.location.origin,params.meetingId,params.eventId)
     : `${window.location.origin}/my-networking`;
-  return sendEmail({
+  return sendEmail({ command: {kind:'meeting',entityId:params.meetingId!,recipientId:params.recipientProfileId},
     to,
     subject: `Meeting Rescheduled: ${escapeHTML(params.reschedulerName)} at ${escapeHTML(params.eventName)}`,
     html: generateMeetingRescheduledEmailHtml({ ...params, networkingUrl })
@@ -590,6 +604,7 @@ export function generateMeetingCheckinAlertEmailHtml(params: {
 }
 
 export async function sendMeetingCheckinAlertEmail(to: string, params: {
+  recipientProfileId: string;
   recipientName: string;
   partnerName: string;
   meetingTime: string;
@@ -600,7 +615,7 @@ export async function sendMeetingCheckinAlertEmail(to: string, params: {
 }) {
   const meetingUrl = `${window.location.origin}/my-networking?meetingId=${params.meetingId}`;
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(meetingUrl)}&size=250x250&bgcolor=ffffff&color=0684F5&margin=10`;
-  return sendEmail({
+  return sendEmail({ command: {kind:'meeting_checkin',entityId:params.meetingId,recipientId:params.recipientProfileId},
     to,
     subject: `${escapeHTML(params.partnerName)} is waiting for you — ${escapeHTML(params.eventName)}`,
     html: generateMeetingCheckinAlertEmailHtml({ ...params, qrCodeUrl })
@@ -632,13 +647,14 @@ export function generateConnectionRequestEmailHtml(params: {
 }
 
 export async function sendConnectionRequestEmail(to: string, params: {
+  recipientProfileId: string;
   recipientName: string;
   senderName: string;
   senderJobTitle: string;
   senderOrganization: string;
 }) {
   const networkingUrl = `${window.location.origin}/my-networking`;
-  return sendEmail({
+  return sendEmail({ command: {kind:'connection_request',entityId:params.recipientProfileId,channel:'both'},
     to,
     subject: `${escapeHTML(params.senderName)} wants to connect with you on Eventra`,
     html: generateConnectionRequestEmailHtml({ ...params, networkingUrl })
@@ -661,11 +677,12 @@ export function generateConnectionAcceptedEmailHtml(params: {
 }
 
 export async function sendConnectionAcceptedEmail(to: string, params: {
+  recipientProfileId: string;
   requesterName: string;
   accepterName: string;
 }) {
   const networkingUrl = `${window.location.origin}/my-networking`;
-  return sendEmail({
+  return sendEmail({ command: {kind:'connection_accepted',entityId:params.recipientProfileId,channel:'both'},
     to,
     subject: `${escapeHTML(params.accepterName)} accepted your connection request`,
     html: generateConnectionAcceptedEmailHtml({ ...params, networkingUrl })

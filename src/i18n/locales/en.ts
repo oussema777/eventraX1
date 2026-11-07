@@ -1290,6 +1290,7 @@ export default {
         agenda: { label: 'Agenda', desc: 'Manage sessions' },
         speakers: { label: 'Speakers', desc: 'Manage profiles' },
         attendees: { label: 'Attendees', desc: 'Manage registrations' },
+        forms: { label: 'Forms', desc: 'Manage event forms' },
         exhibitors: { label: 'Exhibitors', desc: 'Manage booths' },
         ticketing: { label: 'Ticketing', desc: 'Manage pricing' },
         b2b: { label: 'B2B Matchmaking', desc: 'Connections' },

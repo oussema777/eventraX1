@@ -955,6 +955,7 @@ export default {
         agenda: { label: 'الأجندة', desc: 'إدارة الجلسات' },
         speakers: { label: 'المتحدثون', desc: 'إدارة الملفات الشخصية' },
         attendees: { label: 'الحضور', desc: 'إدارة التسجيلات' },
+        forms: { label: 'النماذج', desc: 'إدارة نماذج الحدث' },
         exhibitors: { label: 'العارضون', desc: 'إدارة الأجنحة' },
         ticketing: { label: 'التذاكر', desc: 'إدارة الأسعار' },
         b2b: { label: 'B2B', desc: 'التواصل' },

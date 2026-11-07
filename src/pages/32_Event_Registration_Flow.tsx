@@ -633,79 +633,11 @@ export default function EventRegistrationFlow() {
         }
       }
 
-      // Capacity alert email to organizer
-      try {
-        if (event?.owner_id && freeTicketId) {
-          const { data: ticketInfo } = await supabase
-            .from('event_tickets')
-            .select('quantitySold, quantityTotal')
-            .eq('id', freeTicketId)
-            .maybeSingle();
-          if (ticketInfo && ticketInfo.quantityTotal > 0) {
-            const pct = Math.round(((ticketInfo.quantitySold || 0) / ticketInfo.quantityTotal) * 100);
-            if (pct >= 80) {
-              const { data: ownerProfile } = await supabase
-                .from('profiles')
-                .select('full_name, email')
-                .eq('id', event.owner_id)
-                .maybeSingle();
-              if (ownerProfile?.email) {
-                sendCapacityAlertEmail(ownerProfile.email, {
-                  organizerName: ownerProfile.full_name || 'Organizer',
-                  eventName: event.name || 'Event',
-                  currentRegistrations: ticketInfo.quantitySold || 0,
-                  maxCapacity: ticketInfo.quantityTotal,
-                  eventId: eventId || ''
-                }).catch(() => {});
-              }
-            }
-          }
-        }
-      } catch { /* non-blocking */ }
-
-      // Send confirmation email (client-side)
       const directAccessSent = systemFields.b2bOptIn && edgeFnData?.access_email_sent === true;
       if (systemFields.b2bOptIn && !directAccessSent) setAccessEmailFailed(true);
-      if (regNotifSettings.is_email_enabled && !directAccessSent) {
-        const mySessions = sessions.filter(s => selectedSessions.has(s.id));
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${attendeeId}`;
-        const magicLink = edgeFnData?.magic_link || null;
-        const networkingUrl = systemFields.b2bOptIn && eventId
-          ? eventAuthReturnUrl(`/event/${eventId}/networking`, window.location.origin) : null;
-        const emailHtml = renderOnlineEmail(event, systemFields.fullName || 'Attendee', new URL(`/event/${eventId}/access`,window.location.origin).href, networkingUrl, qrUrl) || generateRegistrationEmailHtml(
-          event?.name || 'Event',
-          systemFields.fullName || 'Attendee',
-          qrUrl,
-          mySessions,
-          !user,
-          magicLink,
-          event?.timezone,
-          networkingUrl,
-          new URL(`/event/${eventId}/register`, window.location.origin).href
-        );
-        const emailSent = await sendEmail({
-          to: systemFields.email,
-          subject: networkingUrl || magicLink
-            ? `Registration Confirmed + B2B Access: ${event?.name}`
-            : `Registration Confirmed: ${event?.name}`,
-          html: emailHtml,
-        });
-        if (!emailSent) setConfirmationEmailFailed(true);
+      if (regNotifSettings.is_email_enabled && !edgeFnData?.confirmation_email_sent && !edgeFnData?.confirmation_email_skipped) {
+        setConfirmationEmailFailed(true);
       }
-
-      // Create notification for organizer
-      try {
-        if (event?.owner_id && regNotifSettings.is_bell_enabled) {
-          await createNotification({
-            recipient_id: event.owner_id,
-            actor_id: user?.id || null,
-            title: 'New event registration',
-            body: `${systemFields.email || 'An attendee'} registered for ${event.name || 'your event'}.`,
-            type: 'action',
-            action_url: `/event/${eventId}`
-          });
-        }
-      } catch (err) { console.error(err); }
 
       setCurrentStep(3);
     } catch (error: any) {
@@ -1346,16 +1278,16 @@ export default function EventRegistrationFlow() {
                               textAlign: 'left'
                             }}
                           >
-                            {field.value ? (
-                              <span className="flex items-center gap-2">
-                                <span style={{ fontSize: '20px' }}>
+                            {/* Keep text in a stable element: browser translators may replace
+                                its text node, which must never be removed from the button. */}
+                            <span className="flex items-center gap-2">
+                              {field.value && (
+                                <span style={{ fontSize: '20px' }} translate="no" aria-hidden="true">
                                   {toFlagEmoji(field.value)}
                                 </span>
-                                {localizedCountry(field.value)}
-                              </span>
-                            ) : (
-                              t('registrationFlow.selectCountry')
-                            )}
+                              )}
+                              <span>{field.value ? localizedCountry(field.value) : t('registrationFlow.selectCountry')}</span>
+                            </span>
                             <ChevronDown size={20} style={{ color: '#6B7280' }} />
                           </button>
 

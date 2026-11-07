@@ -692,7 +692,7 @@ export default function EventDayOfTab({ eventId, canManageSettings = true, scann
       supabase.from('events').select('name').eq('id', eventId).maybeSingle()
     ]);
     if (!other?.email) return;
-    const delivered = await sendMeetingCheckinAlertEmail(other.email, { recipientName: other.full_name || t('networking.defaults.user'),
+    const delivered = await sendMeetingCheckinAlertEmail(other.email, { recipientProfileId: otherId, recipientName: other.full_name || t('networking.defaults.user'),
       partnerName: attendee.name || t('networking.defaults.user'),
       eventName: event?.name || t('networking.defaults.event'), meetingTime: formatTime(meeting.start_at),
       location: meeting.location || t('networking.common.tbd'), checkinTime: formatTime(new Date().toISOString()), meetingId: meeting.id });

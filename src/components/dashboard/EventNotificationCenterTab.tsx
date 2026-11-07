@@ -272,27 +272,26 @@ export default function EventNotificationCenterTab({ eventId }: Props) {
     setIsSending(true);
     setSendProgress({ sent: 0, total: attendees.length });
     let sent = 0;
+    let processed = 0;
     for (const attendee of attendees) {
-      if (broadcastBell && attendee.user_id) {
-        try {
-          await createNotification({ recipient_id: attendee.user_id, title: broadcastSubject, body: broadcastMessage, type: 'system' });
-          await supabase.from('notification_logs').insert({ event_id: eventId, recipient_id: attendee.user_id, trigger_type: 'broadcast', channel: 'bell', status: 'sent' });
-        } catch { /* continue */ }
-      }
-      if (broadcastEmail && attendee.email) {
+      if ((broadcastEmail && attendee.email) || (broadcastBell && attendee.user_id)) {
         try {
           const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><h2 style="color:#0B2641;">${broadcastSubject}</h2><p style="color:#333;line-height:1.6;">${broadcastMessage.replace(/\n/g, '<br/>')}</p><p style="font-size:12px;color:#9CA3AF;margin-top:30px;">Sent via Eventra Event Manager</p></div>`;
-          await sendEmail({ to: attendee.email, subject: broadcastSubject, html });
-          await supabase.from('notification_logs').insert({ event_id: eventId, recipient_id: attendee.user_id || null, trigger_type: 'broadcast', channel: 'email', status: 'sent' });
+          const delivered = await sendEmail({ command: {kind:'broadcast',entityId:attendee.id,subject:broadcastSubject,message:broadcastMessage,channel:broadcastEmail?(broadcastBell?'both':'email'):'bell'}, to: attendee.email, subject: broadcastSubject, html });
+          if (!delivered) throw new Error('Email was not delivered');
+          sent++;
+          await supabase.from('notification_logs').insert({ event_id: eventId, recipient_id: attendee.user_id || null, trigger_type: 'broadcast', channel: broadcastEmail ? 'email' : 'bell', status: 'sent' });
         } catch { /* continue */ }
       }
-      sent++;
-      setSendProgress({ sent, total: attendees.length });
+      processed++;
+      setSendProgress({ sent: processed, total: attendees.length });
     }
     setIsSending(false);
     setSendProgress(null);
-    setBroadcastSubject('');
-    setBroadcastMessage('');
+    if (sent === attendees.length) {
+      setBroadcastSubject('');
+      setBroadcastMessage('');
+    }
     toast.success(t('manageEvent.notifications.toasts.broadcastSent', { count: sent }));
   };
 
@@ -582,7 +581,7 @@ export default function EventNotificationCenterTab({ eventId }: Props) {
               backgroundColor: isSending ? '#1E3A5F' : '#0684F5', color: '#fff', fontWeight: 600, fontSize: '14px',
             }}>
               {isSending
-                ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> {t('manageEvent.notifications.broadcast.sending', { sent: sendProgress?.sent, total: sendProgress?.total })}</>
+                ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> {t('manageEvent.notifications.broadcast.sending', { sent: sendProgress?.sent ?? 0, total: sendProgress?.total ?? 0 })}</>
                 : <><Send size={16} /> {t('manageEvent.notifications.broadcast.sendBroadcast')}</>}
             </button>
           </div>

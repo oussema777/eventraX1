@@ -1,3 +1,4 @@
+import { InvestorDiscoveryBanner } from '../networking/EventInvestorShowcase';
 import { compareAgendaSessions } from '../../utils/agendaDates';
 import { eventPublicPath } from '../../utils/eventLinks';
 import { useEventRouteParams } from '../navigation/EventPublicRoute';
@@ -674,6 +675,7 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
       )}
       <LandingPageNavbar 
         activeSections={{
+          investors: true,
           agenda: sessions.length > 0,
           speakers: speakers.length > 0,
           exhibitors: exhibitors.length > 0,
@@ -688,11 +690,12 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
         onNavigate={handleNavigate}
         onRegister={handleRegister}
       />
-      {orderedBlocks.map((block) => {
+      {orderedBlocks.map((block, index) => {
         const blockType = block.blockId || block.type;
         return (
           <div id={blockType} key={block.id}>
             {renderBlock(block)}
+            {index === 0 && event && <div className="investor-discovery-placement"><InvestorDiscoveryBanner event={event}/></div>}
           </div>
         );
       })}

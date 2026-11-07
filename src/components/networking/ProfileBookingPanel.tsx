@@ -8,6 +8,7 @@ import { useI18n } from '../../i18n/I18nContext';
 import BookMeetingModal from './BookMeetingModal';
 import MeetingAvailability from './MeetingAvailability';
 import './ProfileBookingPanel.css';
+import { investorReviewCopy } from './investorReviewCopy';
 
 type Props = {
   currentUser: { id: string; email?: string; full_name?: string } | null;
@@ -24,6 +25,8 @@ export default function ProfileBookingPanel(props: Props) {
   const { t, locale } = useI18n();
   const [eventChoice, setEventChoice] = useState('');
   const [sent, setSent] = useState(false);
+  const [sentForReview, setSentForReview] = useState(false);
+  const reviewCopy = investorReviewCopy[locale] || investorReviewCopy.en;
   const [sending, setSending] = useState(false);
   const own = currentUser?.id === recipient.id;
   const shared = useQuery({
@@ -73,10 +76,10 @@ export default function ProfileBookingPanel(props: Props) {
       {!eventId && events.length > 1 && <div className="profile-booking__event-picker"><label htmlFor="profile-booking-event">{t('networkingScheduling.chooseEvent')}</label><p>{t('profileBooking.eventHint')}</p><select id="profile-booking-event" value={selectedEvent} disabled={sending} onChange={e => { setEventChoice(e.target.value); setSent(false); }}><option value="" disabled>{t('networkingScheduling.chooseEvent')}</option>{events.map(event => <option key={event.id} value={event.id}>{event.name}</option>)}</select></div>}
       {loading ? <div className="profile-booking__welcome" role="status"><Loader2 size={24} className="animate-spin" />{introduction}<p>{t('meetingBooking.loading')}</p></div>
       : failed ? <div className="profile-booking__welcome" role="alert">{introduction}<p>{t('networkingScheduling.loadError')}</p><button className="profile-booking__action" onClick={retry}>{t('networking.people.retry')}</button></div>
-      : sent ? <div className="profile-booking__welcome profile-booking__success" role="status"><span className="profile-booking__check"><Check size={30} /></span><h2>{t('profileBooking.sent')}</h2><p>{t('profileBooking.sentHint', { name: recipient.name })}</p><Link className="profile-booking__action" to={`/my-networking?tab=schedule&event=${selectedEvent}`}>{t('eventAccount.myMeetings')}<ArrowRight size={18} /></Link></div>
+      : sent ? <div className="profile-booking__welcome profile-booking__success" role="status"><span className="profile-booking__check"><Check size={30} /></span><h2>{sentForReview ? reviewCopy.submitted : t('profileBooking.sent')}</h2><p>{sentForReview ? reviewCopy.submittedHint : t('profileBooking.sentHint', { name: recipient.name })}</p><Link className="profile-booking__action" to={`/my-networking?tab=schedule&event=${selectedEvent}`}>{t('eventAccount.myMeetings')}<ArrowRight size={18} /></Link></div>
       : selectedEvent && (eligible || preview) ? <>
         {instructions && <p className="profile-booking__instructions">{instructions}</p>}
-        <BookMeetingModal key={`${selectedEvent}:${recipient.id}:${currentUser.id}:${preview}`} embedded previewOnly={preview} isOpen onSubmittingChange={setSending} onClose={() => { setSending(false); setSent(true); }} currentUser={currentUser} recipient={recipient} eventId={selectedEvent} />
+        <BookMeetingModal key={`${selectedEvent}:${recipient.id}:${currentUser.id}:${preview}`} embedded previewOnly={preview} isOpen onSubmittingChange={setSending} onClose={outcome => { setSending(false); setSentForReview(outcome === 'review'); setSent(true); }} currentUser={currentUser} recipient={recipient} eventId={selectedEvent} />
       </> : !selectedEvent && events.length > 1 ? null : <div className="profile-booking__welcome"><CalendarDays size={28} />{introduction}<p>{t(selectedEvent ? eligibility.data?.viewerEligible ? 'profileBooking.recipientNotEligible' : 'profileBooking.viewerNotEligible' : 'flowRecovery.noSharedEvent')}</p>{selectedEvent ? <button className="profile-booking__action" onClick={() => void eligibility.refetch()}>{t('profileBooking.recheck')}</button> : <Link className="profile-booking__action" to="/browse-events">{t('flowRecovery.browseEvents')}<ArrowRight size={18} /></Link>}</div>}
     </>}
   </section>;

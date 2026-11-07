@@ -2,6 +2,9 @@ import { useLocalizedLabels } from '../i18n/useLocalizedLabels';
 import { useEventRouteParams } from '../components/navigation/EventPublicRoute';
 import { useEventParticipantProfile } from '../hooks/useEventParticipantProfile';
 import ProfileBookingPanel from '../components/networking/ProfileBookingPanel';
+import { useEventInvestors } from '../hooks/useEventInvestors';
+import { investorReviewCopy } from '../components/networking/investorReviewCopy';
+import '../components/networking/InvestorReview.css';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useState, useMemo, useEffect } from 'react';
 import {
@@ -57,6 +60,7 @@ export default function PublicProfilePage() {
   const fromNetworking = !!eventId && searchParams.get('from') === 'my-networking';
   const returnPath = fromNetworking ? '/my-networking' : eventId ? `/event/${eventId}/attendees` : '/';
   const { user: currentUser, signOut } = useAuth();
+  const investors = useEventInvestors(eventId,currentUser?.id);
   const { t, locale } = useI18n();
   const { label: localizedLabel } = useLocalizedLabels();
   const memberProfile = useProfile(routeUserId, !eventId);
@@ -428,6 +432,7 @@ export default function PublicProfilePage() {
               <h1 className="profile-header-title" style={{ fontSize: '32px', fontWeight: 700, color: '#FFFFFF', marginBottom: '8px' }}>
                 {fullName}
               </h1>
+              {investors.data?.some(row=>row.profile_id===userId) && <span className="investor-review__badge">{(investorReviewCopy[locale] || investorReviewCopy.en).investor}</span>}
               {(profile.job_title || profile.company) && <p style={{ fontSize: '18px', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '12px', fontWeight: 500 }}>
                 {[profile.job_title, profile.company].filter(Boolean).join(' @ ')}
               </p>}

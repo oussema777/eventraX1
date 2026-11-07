@@ -1,3 +1,4 @@
+import { useParticipantBusinesses } from '../../hooks/useParticipantBusinesses';
 import ParticipantCard from './ParticipantCard';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
@@ -7,6 +8,8 @@ import { compareParticipantImages } from '../../utils/participantOrder';
 import { useI18n } from '../../i18n/I18nContext';
 import { useLocalizedLabels } from '../../i18n/useLocalizedLabels';
 import './EventNetworkingPeople.css';
+import { useEventInvestors } from '../../hooks/useEventInvestors';
+import { InvestorDiscoveryBanner } from './EventInvestorShowcase';
 
 interface Participant {
   id: string;
@@ -26,6 +29,8 @@ interface Props {
 
 export default function EventNetworkingPeople({ eventId, userId, onRequestMeeting }: Props) {
   const { t } = useI18n();
+  const investors = useEventInvestors(eventId,userId);
+  const investorIds = useMemo(() => new Set(investors.data?.map(row=>row.profile_id) || []),[investors.data]);
   const { label: localizedLabel } = useLocalizedLabels();
   const navigate = useNavigate();
   const [people, setPeople] = useState<Participant[]>([]);
@@ -57,13 +62,16 @@ export default function EventNetworkingPeople({ eventId, userId, onRequestMeetin
 
   const visiblePeople = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
-    if (!query) return people;
-    return people.filter(person => [person.full_name, person.job_title, person.company, person.sector, ...(person.interests || [])]
+    const candidates = people;
+    if (!query) return candidates;
+    return candidates.filter(person => [person.full_name, person.job_title, person.company, person.sector, ...(person.interests || [])]
       .some(value => value?.toLocaleLowerCase().includes(query) || localizedLabel(value).toLocaleLowerCase().includes(query)));
   }, [people, search, localizedLabel]);
 
+  const businesses = useParticipantBusinesses(visiblePeople.map(p=>p.id));
   return (
     <section className="networking-people" aria-label={t('networking.people.title')}>
+      <InvestorDiscoveryBanner event={{id:eventId}}/>
       <div className="networking-people-header">
         <div>
           <h2>{t('networking.people.title')}</h2>
@@ -98,6 +106,7 @@ export default function EventNetworkingPeople({ eventId, userId, onRequestMeetin
               const name = person.full_name || t('networking.defaults.user');
               return (
                 <ParticipantCard key={person.id} name={name} avatar={person.avatar_url} title={person.job_title} company={person.company}
+                  investor={investorIds.has(person.id)} businesses={businesses.data?.get(person.id)}
                   tags={[person.sector, ...(person.interests || [])].filter(Boolean) as string[]}
                   onView={() => navigate(`/event/${eventId}/profile/${person.id}?from=my-networking`)}
                   onBook={() => onRequestMeeting({ id: person.id, name, avatar: person.avatar_url })} />

@@ -6,19 +6,21 @@ import { X, Calendar, Clock, MapPin, ArrowRight, Check, Globe, Loader2 } from 'l
 import './BookMeetingModal.css';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
-import { createNotification } from '../../lib/notifications';
 import { useI18n } from '../../i18n/I18nContext';
-import { sendMeetingConfirmationEmails, sendMeetingRescheduledEmail } from '../../lib/email';
+import { sendPlatformEmail } from '../../lib/email';
 import NetworkingProfileCard from './NetworkingProfileCard';
 import { missingBookingFields } from '../../utils/networkingProfile';
 import { networkingErrorKey } from '../../utils/networkingErrors';
+import { investorBookingPolicy, investorFailure, investorRpc, protectedMeetingContext, type InvestorPolicy } from '../../lib/investorReview';
+import { investorReviewCopy } from './investorReviewCopy';
 
 interface BookMeetingModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose: (outcome?: 'review') => void;
   currentUser: any;
   recipient: { id: string; name: string; avatar?: string | null };
   existingMeeting?: any;
+  reviewRequest?: {id:string;revision:number};
   eventId?: string;
   embedded?: boolean;
   previewOnly?: boolean;
@@ -27,8 +29,13 @@ interface BookMeetingModalProps {
 
 const MEETINGS_TABLE = 'event_b2b_meetings';
 
-export default function BookMeetingModal({ isOpen, onClose, currentUser, recipient, existingMeeting, eventId, embedded = false, previewOnly = false, onSubmittingChange }: BookMeetingModalProps) {
+export default function BookMeetingModal({ isOpen, onClose, currentUser, recipient, existingMeeting, reviewRequest, eventId, embedded = false, previewOnly = false, onSubmittingChange }: BookMeetingModalProps) {
   const { t, locale } = useI18n();
+  const reviewCopy = investorReviewCopy[locale] || investorReviewCopy.en;
+  const [protectedEdit,setProtectedEdit]=useState(false);
+  useEffect(()=>{let active=true;setProtectedEdit(false);if(isOpen&&existingMeeting?.id)void protectedMeetingContext(existingMeeting.id).then(value=>{if(active)setProtectedEdit(value);}).catch(()=>{/* Submission rechecks and fails closed. */});return()=>{active=false;};},[isOpen,existingMeeting?.id,currentUser?.id]);
+  const [investorPolicy, setInvestorPolicy] = useState<InvestorPolicy | null>(null);
+  const submission = useRef<{ payload: string; key: string } | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const [failedAvatar, setFailedAvatar] = useState<string | null>(null);
   const [recipientProfile, setRecipientProfile] = useState<{ id: string; bio: string } | null>(null);
@@ -41,6 +48,12 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
   const [meetingSessionId, setMeetingSessionId] = useState<string | null>(null);
   const [meetingEditId, setMeetingEditId] = useState<string | null>(null);
   const [meetingMessage, setMeetingMessage] = useState('');
+  useEffect(() => {
+    let active = true; setInvestorPolicy(null);
+    if (!isOpen || !meetingEventId || !currentUser?.id || previewOnly) return;
+    void investorBookingPolicy(meetingEventId,recipient.id).then(value => { if (active) setInvestorPolicy(value); }).catch(() => { /* Submission rechecks and fails closed. */ });
+    return () => { active = false; };
+  }, [isOpen,meetingEventId,currentUser?.id,recipient.id,previewOnly]);
   const [videoUrl, setVideoUrl] = useState('');
   
   // Logistics State
@@ -291,7 +304,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
             setGeneratedSlots(freshSlots);
             throw new Error(t('networkingScheduling.slotChanged'));
           }
-          location = fresh.nextTable || t('networking.defaults.networkingArea');
+          location = ('nextTable' in fresh ? fresh.nextTable : undefined) || t('networking.defaults.networkingArea');
         }
 
         const { data: conflicts, error: conflictError } = await supabase
@@ -377,6 +390,24 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
         };
 
         let savedMeetingId = meetingEditId;
+        const reviewPolicy = await investorBookingPolicy(targetEventId,recipient.id);
+        const managedEdit=meetingEditId?await protectedMeetingContext(meetingEditId):false;
+        if (reviewPolicy?.use_workflow || reviewRequest || managedEdit) {
+          if (reviewPolicy && !reviewPolicy.available) throw new Error('INVESTOR_REVIEW_NOT_RELEASED');
+          if (reviewPolicy?.awaiting_acceptance) throw new Error('INVESTOR_ACCEPTANCE_PENDING');
+          const signature = JSON.stringify(payload);
+          if (submission.current?.payload !== signature) submission.current = { payload: signature, key: crypto.randomUUID() };
+          const details = {p_start:payload.start_at,p_end:payload.end_at,p_format:meetingType,p_message:meetingMessage};
+          const result = await investorRpc<{id:string;state:string}>(reviewRequest ? 'revise_investor_request' : meetingEditId ? 'propose_investor_reschedule' : 'submit_investor_booking',
+            reviewRequest ? {...details,p_request:reviewRequest.id,p_revision:reviewRequest.revision}
+            : meetingEditId ? {...details,p_meeting:meetingEditId,p_key:submission.current.key,p_video_url:payload.meta.video_url||null}
+            : {...details,p_event:targetEventId,p_recipient:recipient.id,p_key:submission.current.key,p_video_url:payload.meta.video_url||null});
+          if (!['awaiting_review','forwarded'].includes(result.state)) throw new Error('REVIEW_STALE_DECISION');
+          // The transaction owns notifications. Never send browser email while held.
+          toast.success(result.state === 'awaiting_review' ? reviewCopy.submitted : t('profileBooking.sent'));
+          onClose(result.state === 'awaiting_review' ? 'review' : undefined);
+          return;
+        }
         if (meetingEditId) {
             const { data: saved, error } = await supabase.from(MEETINGS_TABLE).update(payload).eq('id', meetingEditId).select('id').maybeSingle();
             if (error || !saved?.id) throw error || new Error(t('networking.errors.saveMeeting'));
@@ -387,107 +418,17 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
             savedMeetingId = saved.id;
         }
 
-        // Fetch notification settings for meeting_booked
-        let meetingNotifSettings = { is_bell_enabled: true, is_email_enabled: true };
-        if (targetEventId) {
-          try {
-            const { data: notifSetting } = await supabase
-              .from('event_notification_settings')
-              .select('is_bell_enabled, is_email_enabled')
-              .eq('event_id', targetEventId)
-              .eq('trigger_type', 'meeting_booked')
-              .maybeSingle();
-            if (notifSetting) meetingNotifSettings = notifSetting;
-          } catch { /* default ON */ }
-        }
-
-        if (meetingNotifSettings.is_bell_enabled) {
-          try {
-              await createNotification({
-              recipient_id: recipient.id,
-              type: 'action',
-              title: meetingEditId
-                ? t('networking.notifications.meetingRescheduled.title', { defaultValue: t('networking.toasts.meetingRescheduled') })
-                : t('networking.notifications.meetingRequested.title', { defaultValue: t('networking.toasts.meetingRequested') }),
-              body: meetingEditId
-                ? t('networking.notifications.meetingRescheduled.body', { name: currentUser.full_name || currentUser.email })
-                : t('networking.notifications.meetingRequested.body', { name: currentUser.full_name || currentUser.email }),
-              action_url: '/my-networking',
-              actor_id: currentUser.id
-              });
-          } catch (notifyError) {
-              console.warn('Failed to send notification (likely RLS):', notifyError);
-              toast.warning(t('networking.notifications.platformFailed'));
-          }
-        }
-
         toast.success(meetingEditId ? t('networking.toasts.meetingRescheduled') : t('networking.toasts.meetingRequested'));
-
-        // --- SEND EMAILS ---
-        if (meetingNotifSettings.is_email_enabled) {
-        try {
-          // 1. Fetch Recipient Email (currentUser already has email in auth)
-          const { data: recipientProfile } = await supabase
-            .from('profiles')
-            .select('email')
-            .eq('id', recipient.id)
-            .single();
-
-          // 2. Fetch Event Name
-          const currentEvent = eventCatalog.find(e => e.id === targetEventId);
-          const eventName = currentEvent ? currentEvent.name : 'Event';
-
-          if (currentUser.email && recipientProfile?.email) {
-            if (meetingEditId) {
-              // Rescheduled — send rescheduled email to recipient
-              const delivered = await sendMeetingRescheduledEmail(recipientProfile.email, {
-                recipientName: recipient.name,
-                reschedulerName: currentUser.full_name || currentUser.email,
-                eventName: eventName,
-                oldDate: existingMeeting?.startAt ? new Date(existingMeeting.startAt).toLocaleDateString(locale) : 'N/A',
-                oldTime: existingMeeting?.startAt ? new Date(existingMeeting.startAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : 'N/A',
-                newDate: startAt.toLocaleDateString(locale),
-                newTime: startAt.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }),
-                location: location,
-                ...(currentEvent?.onlineExperienceEnabled ? {eventId: targetEventId, meetingId: savedMeetingId!,
-                  oldDate: existingMeeting?.startAt ? new Date(existingMeeting.startAt).toLocaleDateString(locale,{timeZone}) : 'N/A',
-                  oldTime: existingMeeting?.startAt ? new Date(existingMeeting.startAt).toLocaleTimeString(locale,{timeZone,hour:'2-digit',minute:'2-digit'}) : 'N/A',
-                  newDate: startAt.toLocaleDateString(locale,{timeZone}),
-                  newTime: startAt.toLocaleTimeString(locale,{timeZone,hour:'2-digit',minute:'2-digit'}) + ` (${timeZone})`
-                } : {})
-              });
-              if (!delivered) toast.warning(t('networking.notifications.emailFailed'));
-            } else {
-              // New meeting — send confirmation emails
-              const deliveries = await sendMeetingConfirmationEmails({
-                organizerEmail: currentUser.email,
-                organizerName: currentUser.full_name || currentUser.email,
-                recipientEmail: recipientProfile.email,
-                recipientName: recipient.name,
-                meetingDate: startAt.toLocaleDateString(locale, { timeZone }),
-                meetingTime: startAt.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', timeZone }),
-                location: location,
-                eventName: eventName,
-                meetingId: savedMeetingId!,
-                status: 'pending',
-                organizerProfileId: currentUser.id, recipientProfileId: recipient.id,
-                eventId: targetEventId, locale, timeZone,
-                onlineExperience: !!currentEvent?.onlineExperienceEnabled, meetingFormat: meetingType as any
-              });
-              if (deliveries.some((delivered) => !delivered)) toast.warning(t('networking.notifications.emailFailed'));
-            }
-          }
-        } catch (emailErr) {
-          console.error('Error preparing meeting emails:', emailErr);
-          toast.warning(t('networking.notifications.emailFailed'));
-        }
-        } // end is_email_enabled gate
-        // -------------------
+        // The server derives destinations and enforces saved event channel settings.
+        const deliveries = await Promise.all([recipient.id, currentUser.id].map(recipientId =>
+          sendPlatformEmail({kind:'meeting', entityId:savedMeetingId!, recipientId, channel:'both'})));
+        if (deliveries.some(delivered => !delivered)) toast.warning(t('networking.notifications.emailFailed'));
 
         onClose();
 
     } catch (err: any) {
-        toast.error(t(networkingErrorKey(err) || 'networkingScheduling.loadError'));
+        const reviewError = investorFailure(err);
+        toast.error(reviewError !== 'failed' ? reviewCopy[reviewError as keyof typeof reviewCopy] : t(networkingErrorKey(err) || 'networkingScheduling.loadError'));
     } finally {
         setIsSubmitting(false);
     }
@@ -495,7 +436,8 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
 
   const isVirtual = (type: string) => type === 'video';
 
-  const submitDisabled = previewOnly || !profileReady || isSubmitting || isLoadingEvents || configFailed || slotsFailed || (meetingType !== 'video' && !selectedSlot);
+  const submitDisabled = previewOnly || !profileReady || isSubmitting || isLoadingEvents || configFailed || slotsFailed || (meetingType !== 'video' && !selectedSlot)
+    || !!(investorPolicy?.use_workflow && (!investorPolicy.available || investorPolicy.awaiting_acceptance));
 
 
   useEffect(() => {
@@ -532,6 +474,9 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
           {embedded && <p className="profile-booking__lead">{t('profileBooking.intro', { name: recipient.name })}</p>}</div>
         {!embedded && <button className="meeting-booking__close" disabled={isSubmitting} aria-label={t('meetingBooking.close')} onClick={close}><X size={21} /></button>}
       </header>
+      {investorPolicy?.requires_review && <div className="profile-booking__preview" role="note"><strong>{reviewCopy.investor}</strong><p>{reviewCopy.reviewHint}</p></div>}
+      {protectedEdit && <p className="profile-booking__preview" role="note">{reviewCopy.replacementHint}</p>}
+      {investorPolicy?.use_workflow && (!investorPolicy.available || investorPolicy.awaiting_acceptance) && <p role="status" className="profile-booking__preview">{investorPolicy.awaiting_acceptance ? reviewCopy.awaitingAcceptance : reviewCopy.paused}</p>}
       {previewOnly && <div className="profile-booking__preview" role="note"><strong>{t('profileBooking.previewTitle')}</strong><p>{t('profileBooking.previewHint')}</p></div>}
       <div className="meeting-booking__scroll">
         <div className="meeting-booking__layout">
@@ -598,7 +543,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
       <footer className="meeting-booking__footer">
         {embedded ? <div className="profile-booking__receipt" aria-live="polite"><span>{t('profileBooking.invitation')}</span><strong>{selectionReady ? `${formatDate(meetingDate, { day: 'numeric', month: 'short' })} · ${selectedTime}` : t('meetingBooking.selectHint')}</strong><small>{t('meetingBooking.pending')}</small></div> : <button className="meeting-booking__cancel" disabled={isSubmitting} onClick={close}>{t('meetingBooking.cancel')}</button>}
         <button className="meeting-booking__submit" disabled={submitDisabled || (meetingType === 'video' && (!meetingDate || !meetingTime))} onClick={handleSubmit}>
-          {isSubmitting ? <Loader2 size={17} className="animate-spin" /> : <Calendar size={17} />}{t(isSubmitting ? 'meetingBooking.sending' : embedded ? 'profileBooking.send' : meetingEditId ? 'meetingBooking.reschedule' : 'meetingBooking.title')}<ArrowRight size={17} />
+          {isSubmitting ? <Loader2 size={17} className="animate-spin" /> : <Calendar size={17} />}{investorPolicy?.requires_review && !isSubmitting ? reviewCopy.submitReview : t(isSubmitting ? 'meetingBooking.sending' : embedded ? 'profileBooking.send' : meetingEditId ? 'meetingBooking.reschedule' : 'meetingBooking.title')}<ArrowRight size={17} />
         </button>
       </footer>
     </div>

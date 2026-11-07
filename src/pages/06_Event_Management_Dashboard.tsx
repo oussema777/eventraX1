@@ -22,7 +22,8 @@ import {
   X,
   FileText,
   Bell,
-  ShieldCheck
+  ShieldCheck,
+  Landmark
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useEventAccess } from '../hooks/useEventAccess';
@@ -31,6 +32,8 @@ import { eventTeamCopy } from '../components/dashboard/eventTeamCopy';
 import '../components/dashboard/EventTeam.css';
 import { useI18n } from '../i18n/I18nContext';
 const EventOverviewTab = lazy(() => import('../components/dashboard/EventOverviewTab'));
+import { investorDirectoryCopy } from '../components/dashboard/investorDirectoryCopy';
+const EventInvestorsTab = lazy(() => import('../components/dashboard/EventInvestorsTab'));
 const EventAttendeesTab = lazy(() => import('../components/dashboard/EventAttendeesTab'));
 const EventScheduleTab = lazy(() => import('../components/dashboard/EventScheduleTab'));
 const EventSpeakersTab = lazy(() => import('../components/dashboard/EventSpeakersTab'));
@@ -49,6 +52,7 @@ type NavigationTab =
   | 'overview'
   | 'agenda'
   | 'speakers'
+  | 'investors'
   | 'attendees'
   | 'forms'
   | 'exhibitors'
@@ -108,6 +112,7 @@ export default function EventManagementDashboard() {
     { id: 'agenda', label: t('manageEvent.nav.agenda.label'), icon: Calendar, description: t('manageEvent.nav.agenda.desc') },
     { id: 'speakers', label: t('manageEvent.nav.speakers.label'), icon: Mic, description: t('manageEvent.nav.speakers.desc') },
     { id: 'attendees', label: t('manageEvent.nav.attendees.label'), icon: Users, description: t('manageEvent.nav.attendees.desc') },
+    { id: 'investors', label: investorDirectoryCopy[locale].title, icon: Landmark, description: investorDirectoryCopy[locale].subtitle },
     { id: 'forms', label: t('manageEvent.nav.forms.label'), icon: FileText, description: t('manageEvent.nav.forms.desc') },
     { id: 'exhibitors', label: t('manageEvent.nav.exhibitors.label'), icon: Building, description: t('manageEvent.nav.exhibitors.desc') },
     { id: 'ticketing', label: t('manageEvent.nav.ticketing.label'), icon: Ticket, description: t('manageEvent.nav.ticketing.desc') },
@@ -174,6 +179,12 @@ export default function EventManagementDashboard() {
           display: none;
         }
 
+        @media (min-width: 1100px) {
+          .event-dashboard__sidebar { width: 210px; flex-shrink: 0; }
+          .event-dashboard__nav button { justify-content: flex-start; gap: 12px; }
+          .event-dashboard__nav-label { display: inline; font-size: 13px; font-weight: 600; }
+          .event-dashboard__nav button > div { display: none; }
+        }
         @media (max-width: 600px) {
           .event-dashboard__header {
             flex-direction: column;
@@ -389,6 +400,7 @@ export default function EventManagementDashboard() {
             {visibleTab === 'agenda' && <EventScheduleTab eventId={eventId} />}
             {visibleTab === 'speakers' && <EventSpeakersTab eventId={eventId} />}
             {visibleTab === 'attendees' && <EventAttendeesTab eventId={eventId} />}
+            {visibleTab === 'investors' && eventId && <EventInvestorsTab key={eventId} eventId={eventId} />}
             {visibleTab === 'forms' && <EventFormsTab eventId={eventId} />}
             {visibleTab === 'exhibitors' && <EventExhibitorsTab eventId={eventId} />}
             {visibleTab === 'ticketing' && <EventTicketingTab eventId={eventId} />}

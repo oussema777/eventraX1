@@ -34,6 +34,7 @@ const AuthCallback = lazy(() => import('./pages/99_Auth_Callback'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const EventAuthBridge = lazy(() => import('./pages/98_Event_Auth_Bridge'));
 const EventTeamInvitation = lazy(() => import('./pages/EventTeamInvitation'));
+const InvestorInvitation = lazy(() => import('./pages/InvestorInvitation'));
 const FormResponsePage = lazy(() => import('./pages/FormResponsePage'));
 const BrowseEventsDiscoveryPage = lazy(() => import('./pages/24_Browse_Events_Discovery'));
 const B2BMarketplaceDiscoveryPage = lazy(() => import('./pages/27_B2B_Marketplace_Discovery'));
@@ -146,6 +147,7 @@ export default function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LandingPage />} />
             <Route path="/event-team/invite/:invitationId" element={<EventTeamInvitation />} />
+            <Route path="/investor-invitation" element={<InvestorInvitation />} />
             <Route path="/register" element={<LandingPage />} />
             <Route path="/auth-flow-demo" element={<AuthFlowDemo />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
@@ -175,6 +177,7 @@ export default function App() {
               <Route path="/event/:eventId/tickets" element={<EventSectionPage type="tickets" />} />
               <Route path="/event/:eventId/sponsor-inquiry/:packageId" element={<SponsorshipInquiryPage />} />
               <Route path="/event/:eventId/exhibitors" element={<EventSectionPage type="exhibitors" />} />
+              <Route path="/event/:eventId/investors" element={<EventSectionPage type="investors" />} />
               <Route path="/event/:eventId/attendees" element={<EventSectionPage type="attendees" />} />
               <Route path="/event/:eventId/profile/:userId" element={<PublicProfilePage />} />
               <Route path="/event/:eventId/participant/:attendeeId" element={<PublicProfilePage />} />
