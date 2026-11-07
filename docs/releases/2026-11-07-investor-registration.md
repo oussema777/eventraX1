@@ -72,6 +72,16 @@ New review-email payload version 2 uses the Eventra navy/blue branded layout wit
 
 Validation: 45 Node tests passed for receipts, registration handler, protected delivery, mail authorization and online experiences. Disposable database tests passed with 197 assertions and six concurrency cases, including version-1 payload preservation. Desktop/mobile and dark-mode HTML previews were reviewed; these are browser previews, not a claim of exhaustive email-client testing. Relevant production schema columns were verified read-only. Never resend old registrations or create test mail without a designated recipient and authorization.
 
+## Final production verification — 2026-11-07
+
+Release complete; user has informed the client and is awaiting feedback. VPS source pulled through `3d0907f`; user restarted only `eventra-api`, which reported online. Frontend changes were already published. No additional frontend build is needed for the email changes.
+
+Registration Edge Function version 16 and compatibility email endpoint version 9 are deployed, preserving JWT verification false/true respectively. All 13 Supabase Auth templates and 13 subjects were applied and verified without changing other auth settings. Applied `20261107150000_branded_review_mail.sql` after VPS worker update; verified both new payload defaults and frozen retry preservation. Existing function bodies matched the intended version-only change before applying; queue had zero sending/queued jobs. The remote CLI migration-history table is absent; this migration was applied via Management API, so future audits must check actual definitions rather than assume a populated migration ledger.
+
+Live checks: unauthenticated email POST returned 401; malformed registration POST returned 400 without sending email. User installed the dedicated Eventra delivery timer and confirmed enabled/active. Journal on Nov 07 at 13:33:27–28 showed a successful worker run returning `idle`, followed by normal successful service deactivation. Timer remains responsible for subsequent runs, approximately every minute, and starts after reboot. No other application services were restarted or modified.
+
+Two earlier real notifications were sent and inbox arrival confirmed by the user. Remaining non-blocking follow-up: inspect a freshly generated branded booking email in an actual inbox. Do not represent browser previews or an idle worker as proof of final branded inbox rendering. Existing emails/retry payloads are not reset or resent. Preserve Lee, Aramex, and Whish isolation. Resume with client feedback; no further deployment action is pending at this checkpoint.
+
 ## All email categories: shared branding
 
 User explicitly required consistent design for all emails, not only receipts and investor confirmations.
