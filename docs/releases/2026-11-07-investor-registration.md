@@ -55,3 +55,11 @@ Keep existing frontend `VITE_SUPABASE_*` values. Do not prefix server/provider s
 7. Check ordinary bookings, investor confirmations, both calendars, cancellation, registration receipts, and mobile country selection. Record the deployed commit, services, schedule, queue outcome and mailbox checks.
 
 Exact restart/scheduler commands depend on the VPS inventory. Do not guess process names or install a second competing mail service. The existing frontend-only deploy scripts are insufficient for this coordinated release.
+
+## Deployment progress
+
+The user built the release on the VPS and published it successfully. Live homepage and investor route serve the new index-CypKQumP.js bundle; unauthenticated POST to /api/send-email returns 401. Only eventra-api was restarted. Existing Nginx routes and Lee/Aramex/Whish services were not changed.
+
+The create-event-registration Edge Function was backed up under .tmp/edge-before-release locally, then deployed with its existing verify_jwt=false setting. An invalid empty request returns 400 without creating a registration. cleanup-event-guests was absent from the live function inventory; no new cleanup function or destructive lifecycle scheduler was activated.
+
+The manual worker batch sent both confirmed-meeting notifications, with provider acceptance recorded and no delivery error. Five earlier submitted/forwarded jobs were suppressed as stale or unauthorized; no failed jobs remain from this batch. Inbox receipt is still for the user to confirm. Install scripts/install-review-delivery-timer.sh on the VPS to enable future automatic delivery. It creates only eventra-review-delivery.service/timer, runs a bounded batch about every minute without overlap, survives reboot, and does not restart any web or payment service. Configuration stays in the private .env. Logs show job IDs/states, not recipient addresses or keys. Pause the timer with systemctl stop eventra-review-delivery.timer; inspect an already-running batch separately before stopping it because provider acknowledgement can be in flight.
