@@ -13,6 +13,7 @@ export default {
       dismiss: 'Dismiss', editProfile: 'Edit my profile'
     },
     networkingScheduling: {
+      requestRateLimit: 'Too many new invitations in the last hour. Please wait before sending more; existing bookings are unchanged.',
       formats: { video: 'Online', 'in-person': 'In-person', hybrid: 'Hybrid' },
       myAvailability: 'My availability', chooseEvent: 'Choose an event',
       availabilityHint: 'Choose when people can request a meeting with you. Existing confirmed meetings stay unchanged. Pending requests do not reserve a time or a table.',
@@ -645,6 +646,7 @@ export default {
       },
       status: {
         confirmed: 'Confirmed',
+        completed: 'Completed',
         pending: 'Pending',
         cancelled: 'Cancelled',
         connected: 'Connected',
@@ -2992,11 +2994,16 @@ export default {
             upcoming: 'Upcoming'
         },
         table: {
+            timestampNote: 'Times shown in your local timezone',
+            loadError: 'Could not load meetings. Please try again.',
+            selectPage: 'Select meetings on this page',
+            invitationHelp: 'When this meeting record was created. Email delivery is tracked separately.',
+            unavailable: 'Date unavailable',
             headers: {
                 id: 'ID',
                 participants: 'Participants',
                 score: 'Score',
-                dateTime: 'Date & Time',
+                dateTime: 'Meeting time', invitationSent: 'Created',
                 status: 'Status',
                 actions: 'Actions'
             },

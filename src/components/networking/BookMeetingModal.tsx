@@ -274,7 +274,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
        startAt = new Date(selectedSlot.iso);
        const duration = venueConfig?.slotDuration || 30;
        endAt = new Date(startAt.getTime() + duration * 60000);
-       location = selectedSlot.nextTable || `Networking Area`;
+       location = t('networking.defaults.networkingArea');
     }
 
     if (embedded && startAt.getTime() <= Date.now()) {
@@ -304,7 +304,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
             setGeneratedSlots(freshSlots);
             throw new Error(t('networkingScheduling.slotChanged'));
           }
-          location = ('nextTable' in fresh ? fresh.nextTable : undefined) || t('networking.defaults.networkingArea');
+          location = t('networking.defaults.networkingArea');
         }
 
         const { data: conflicts, error: conflictError } = await supabase
@@ -390,6 +390,7 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
         };
 
         let savedMeetingId = meetingEditId;
+        let notificationsQueued = false;
         const reviewPolicy = await investorBookingPolicy(targetEventId,recipient.id);
         const managedEdit=meetingEditId?await protectedMeetingContext(meetingEditId):false;
         if (reviewPolicy?.use_workflow || reviewRequest || managedEdit) {
@@ -409,16 +410,19 @@ export default function BookMeetingModal({ isOpen, onClose, currentUser, recipie
           return;
         }
         if (meetingEditId) {
-            const { data: saved, error } = await supabase.from(MEETINGS_TABLE).update(payload).eq('id', meetingEditId).select('id').maybeSingle();
+            const { data: saved, error } = await supabase.from(MEETINGS_TABLE).update(payload).eq('id', meetingEditId).select('*').maybeSingle();
             if (error || !saved?.id) throw error || new Error(t('networking.errors.saveMeeting'));
             savedMeetingId = saved.id;
+            notificationsQueued = Number(saved.notification_revision || 0) > 0;
         } else {
-            const { data: saved, error } = await supabase.from(MEETINGS_TABLE).insert([payload]).select('id').single();
+            const { data: saved, error } = await supabase.from(MEETINGS_TABLE).insert([payload]).select('*').single();
             if (error || !saved?.id) throw error || new Error(t('networking.errors.saveMeeting'));
             savedMeetingId = saved.id;
+            notificationsQueued = Number(saved.notification_revision || 0) > 0;
         }
 
         toast.success(meetingEditId ? t('networking.toasts.meetingRescheduled') : t('networking.toasts.meetingRequested'));
+        if (notificationsQueued) { onClose(); return; }
         // The server derives destinations and enforces saved event channel settings.
         const deliveries = await Promise.all([recipient.id, currentUser.id].map(recipientId =>
           sendPlatformEmail({kind:'meeting', entityId:savedMeetingId!, recipientId, channel:'both'})));

@@ -63,7 +63,7 @@ interface Meeting {
   time: string;
   name: string;
   avatar?: string;
-  status: 'confirmed' | 'pending' | 'cancelled';
+  status: 'confirmed' | 'pending' | 'cancelled' | 'completed';
   location: string;
   type: 'video' | 'in-person';
   event: string;
@@ -154,6 +154,7 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
   const [activeTab, updateActiveTab] = useState<TabType>(eventId ? 'people' : 'schedule');
   const setActiveTab = (tab: TabType) => {
     updateActiveTab(tab);
+    if (tab === 'schedule') void loadNetworkingData(true);
     setSearchParams(previous => { const next = new URLSearchParams(previous); next.set('tab', tab); next.delete('meetingId'); return next; }, { replace: true });
   };
   const [highlightedMeetingId, setHighlightedMeetingId] = useState<string | null>(null);
@@ -161,6 +162,8 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
   const [showPastMeetings, setShowPastMeetings] = useState(true);
   const [showSentRequests, setShowSentRequests] = useState(false);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const networkingLoadVersion = useRef(0);
+  const [counterNow, setCounterNow] = useState(() => Date.now());
   const [matches, setMatches] = useState<Match[]>([]);
   const [receivedRequests, setReceivedRequests] = useState<Request[]>([]);
   const [sentRequests, setSentRequests] = useState<Request[]>([]);
@@ -221,12 +224,14 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
     const s = String(status || '').toLowerCase();
     if (s === 'cancelled') return 'cancelled';
     if (s === 'confirmed') return 'confirmed';
+    if (s === 'completed') return 'completed';
     return 'pending';
   };
 
   const getMeetingStatusLabel = (status: Meeting['status']) => {
     if (status === 'confirmed') return t('networking.status.confirmed');
     if (status === 'pending') return t('networking.status.pending');
+    if (status === 'completed') return t('networking.status.completed');
     return t('networking.status.cancelled');
   };
 
@@ -236,8 +241,9 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
     return '#F59E0B'; // Orange
   };
 
-  const loadNetworkingData = async () => {
+  const loadNetworkingData = async (background = false) => {
     if (!user?.id) return;
+    const version = ++networkingLoadVersion.current;
     try {
       // 1. Get user's attendee IDs
       let myAttendeeIds: string[] = [];
@@ -301,8 +307,11 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
           : supabase.from('b2b_meetings').select('*').then(r => r, () => ({ data: [] }))
       ]);
 
-      if (matchesResult.error) throw matchesResult.error;
-      if (scopedEventId) {
+      if (version !== networkingLoadVersion.current) return;
+      for (const result of [matchesResult, meetingsResult, receivedResult, sentResult, connectionsResult]) {
+        if (result.error) throw result.error;
+      }
+      if (scopedEventId && !background) {
         try {
           matchesResult.data = await maybeGenerateMatches(matchesResult.data || []);
         } catch (error) {
@@ -324,9 +333,6 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
         return isA || isB || isOrg;
       }).filter((m, i, self) => self.findIndex(x => x.id === m.id) === i);
 
-      if (profileResult.data?.full_name) {
-        setCurrentUserName(profileResult.data.full_name);
-      }
 
       // 4. Collect all related IDs
       const profileIds = new Set<string>();
@@ -413,6 +419,9 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
         const venue = (Array.isArray(venueData.data) ? venueData.data : []).find(v => v.event_id === e.id)?.venue_config;
         eventTimeZones[e.id] = networkingTimeZone(e.id, venue, e.timezone);
       });
+      if (version !== networkingLoadVersion.current) return;
+      if (profileResult.data?.full_name) setCurrentUserName(profileResult.data.full_name);
+      setCounterNow(Date.now());
       setEventOptions((eventsData.data || []).map(e => ({ id: e.id, name: e.name || t('networking.defaults.event') })));
 
       // 6. Map State
@@ -476,7 +485,7 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
         };
       }));
 
-      setMeetings(meetingsData.map(row => {
+      const refreshedMeetings: Meeting[] = meetingsData.map(row => {
         const isCurrentUserA = row.profile_a_id === user.id ||
                                (row.attendee_a_id && myAttendeeIds.includes(row.attendee_a_id));
 
@@ -517,11 +526,14 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
           attendeeBId: row.attendee_b_id || null,
           isCurrentUserA
         };
-      }));
+      });
+      setMeetings(refreshedMeetings);
+      return refreshedMeetings;
 
     } catch (error: any) {
+      if (version !== networkingLoadVersion.current) return;
       console.error('[Networking] CRITICAL ERROR:', error);
-      toast.error(sanitizeError(error, t('networking.errors.loadData')));
+      if (!background) toast.error(sanitizeError(error, t('networking.errors.loadData')));
     }
   };
 
@@ -908,10 +920,15 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
         .update({ status: 'cancelled' })
         .eq('id', meetingId)
         .eq('status', currentMeeting.status)
-        .select('id')
+        .select('*')
         .maybeSingle();
       if (error) throw error;
       if (cancelled?.id !== meetingId) throw new Error(t('networking.errors.cancelMeeting'));
+      if (Number(cancelled.notification_revision || 0) > 0) {
+        toast.success(t('networking.toasts.meetingCancelled'));
+        await loadNetworkingData();
+        return;
+      }
 
       const { data: meeting } = await supabase
         .from(MEETINGS_TABLE)
@@ -959,10 +976,10 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
     confirmationInFlight.current = true;
     try {
       if (await respondToProtectedMeeting(meetingId, 'pending', 'confirmed')) {
-        const pass = meetings.find(item => item.id === meetingId);
-        if (pass && !(pass.onlineExperienceEnabled && pass.meetingFormat === 'video')) setQrModalMeeting({ ...pass, status: 'confirmed' });
+        const fresh = await loadNetworkingData();
+        const pass = fresh?.find(item => item.id === meetingId && item.status === 'confirmed');
+        if (pass && !(pass.onlineExperienceEnabled && pass.meetingFormat === 'video')) setQrModalMeeting(pass);
         toast.success(t('networking.toasts.meetingConfirmed'));
-        await loadNetworkingData();
         return;
       }
       // 1. Update status in database
@@ -971,13 +988,12 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
         .update({ status: 'confirmed' })
         .eq('id', meetingId)
         .eq('status', 'pending')
-        .select('id')
+        .select('*')
         .maybeSingle();
 
       if (updateError) throw updateError;
       if (confirmed?.id !== meetingId) throw new Error(t('networkingScheduling.slotChanged'));
-      const confirmedPass = meetings.find(item => item.id === meetingId);
-      if (confirmedPass && !(confirmedPass.onlineExperienceEnabled && confirmedPass.meetingFormat === 'video')) setQrModalMeeting({ ...confirmedPass, status: 'confirmed' });
+
 
       // 2. Fetch full meeting details for email
       const { data: meeting, error: fetchError } = await supabase
@@ -1015,7 +1031,7 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
         const organizer = meeting.organizer || meeting.profile_a;
         const recipient = organizer?.id === meeting.profile_b?.id ? meeting.profile_a : meeting.profile_b;
 
-        if (organizer?.email && recipient?.email) {
+        if (!meeting.notification_revision && organizer?.email && recipient?.email) {
           const deliveries = await sendMeetingConfirmationEmails({
             organizerEmail: organizer.email,
             organizerName: organizer.full_name || organizer.email,
@@ -1037,8 +1053,8 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
         }
       }
 
-      // 6. Send DB Notification
-      await safeNotify({
+      // Queued transitions already include both in-app notifications.
+      if (!confirmed.notification_revision) await safeNotify({
         recipient_id: otherProfileId,
         type: 'action',
         title: t('networking.notifications.meetingConfirmed.title'),
@@ -1047,8 +1063,10 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
         actor_id: user?.id || null
       });
 
+      const fresh = await loadNetworkingData();
+      const pass = fresh?.find(item => item.id === meetingId && item.status === 'confirmed');
+      if (pass && !(pass.onlineExperienceEnabled && pass.meetingFormat === 'video')) setQrModalMeeting(pass);
       toast.success(t('networking.toasts.meetingConfirmed'));
-      await loadNetworkingData();
     } catch (error: any) {
       console.error('Error confirming meeting:', error);
       const key = networkingErrorKey(error);
@@ -1064,8 +1082,14 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
       return;
     }
     const { data: cancelled, error: updateError } = await supabase.from(MEETINGS_TABLE)
-      .update({ status: 'cancelled' }).eq('id', meetingId).eq('status', 'pending').select('id').maybeSingle();
+      .update({ status: 'cancelled' }).eq('id', meetingId).eq('status', 'pending').select('*').maybeSingle();
     if (updateError || cancelled?.id !== meetingId) throw updateError || new Error(t('networking.errors.cancelMeeting'));
+
+    if (Number(cancelled?.notification_revision || 0) > 0) {
+      toast.success(t('networking.toasts.meetingDeclined'));
+      await loadNetworkingData();
+      return;
+    }
 
     // Send decline email to the meeting organizer
     const { data: meeting } = await supabase
@@ -1290,6 +1314,7 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
 
   useEffect(() => {
     loadNetworkingData();
+    return () => { networkingLoadVersion.current += 1; };
   }, [user?.id, t, scopedEventId]);
 
   // Handle ?meetingId= from email links — switch to schedule tab and highlight meeting
@@ -1313,30 +1338,55 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
 
   useEffect(() => {
     if (!user?.id) return;
-
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let refreshing = false;
+    const refresh = () => {
+      if (document.visibilityState === 'hidden') return;
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        if (refreshing) return;
+        refreshing = true;
+        try { await loadNetworkingData(true); } finally { refreshing = false; }
+      }, 250);
+    };
     const channel = supabase
-      .channel(`b2b:${user.id}`)
+      .channel(`b2b:${user.id}:${scopedEventId || 'all'}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: MATCHES_TABLE,
         filter: `profile_id=eq.${user.id}`
-      }, () => loadNetworkingData())
+      }, refresh)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: REQUESTS_TABLE,
         filter: `recipient_id=eq.${user.id}`
-      }, () => loadNetworkingData())
+      }, refresh)
       .on('postgres_changes', {
-        event: '*', schema: 'public', table: MEETINGS_TABLE
-      }, () => loadNetworkingData())
+        event: '*', schema: 'public', table: REQUESTS_TABLE,
+        filter: `sender_id=eq.${user.id}`
+      }, refresh)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: MEETINGS_TABLE,
+        ...(scopedEventId ? { filter: `event_id=eq.${scopedEventId}` } : {})
+      }, refresh)
       .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [user?.id]);
+    const interval = setInterval(() => { setCounterNow(Date.now()); refresh(); }, 60000);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('online', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('online', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, scopedEventId, t]);
 
   const participantBusinesses = useParticipantBusinesses(matches.map(m=>m.profileId));
   const eventInvestors = useEventInvestors(scopedEventId || undefined, user?.id);
 
   const filteredMeetings = useMemo(() => {
-    const now = new Date();
+    const now = new Date(counterNow);
     return meetings.filter((meeting) => {
       if (selectedEvent !== 'all' && meeting.eventId !== selectedEvent) return false;
       if (!showPastMeetings && meeting.startAt) {
@@ -1344,7 +1394,7 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
       }
       return true;
     });
-  }, [meetings, selectedEvent, showPastMeetings]);
+  }, [meetings, selectedEvent, showPastMeetings, counterNow]);
 
   const pendingMeetingsCount = useMemo(
     () => filteredMeetings.filter(meeting => meeting.status === 'pending').length,
@@ -1352,18 +1402,19 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
   );
 
   const meetingsTodayCount = useMemo(() => {
-    const today = new Date();
+    const today = new Date(counterNow);
     return meetings.filter((meeting) => {
       if (!meeting.startAt) return false;
+      if (selectedEvent !== 'all' && meeting.eventId !== selectedEvent) return false;
       const date = new Date(meeting.startAt);
+      if (Number.isNaN(date.getTime())) return false;
+      const day = new Intl.DateTimeFormat('en-CA', { timeZone: meeting.timeZone || 'UTC', year: 'numeric', month: '2-digit', day: '2-digit' });
       return (
-        date.getFullYear() === today.getFullYear() &&
-        date.getMonth() === today.getMonth() &&
-        date.getDate() === today.getDate() &&
+        day.format(date) === day.format(today) &&
         meeting.status !== 'cancelled'
       );
     }).length;
-  }, [meetings]);
+  }, [meetings, selectedEvent, counterNow]);
 
   const meetingByProfileId = useMemo(() => {
     const map = new Map<string, Meeting>();
@@ -1746,7 +1797,7 @@ export default function UserB2BCenter({ eventId, guest = false, embedded = false
                             </>
                           )}
 
-                          {meeting.status !== 'cancelled' && (meeting.organizerId === user?.id || (!meeting.startAt && meeting.status === 'pending')) && (
+                          {(meeting.status === 'pending' || meeting.status === 'confirmed') && (meeting.organizerId === user?.id || !meeting.startAt) && (
                             <button
                               onClick={() => handleScheduleMeeting(meeting.profileId, meeting.eventId, meeting)}
                               className="px-4 py-2 rounded-lg transition-colors flex items-center gap-2"

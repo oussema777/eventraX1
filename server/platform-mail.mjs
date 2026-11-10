@@ -37,6 +37,8 @@ export async function authorizePlatformMail({command,actor,db,userDb,origin}) {
     const permit=await row(db.from('event_review_meeting_permits').select('meeting_id').eq('meeting_id',entityId).maybeSingle());
     if(permit) return {managed:true}; // Only transactional outbox can deliver protected invitations.
     for(const side of ['a','b'])if(await row(db.rpc('platform_mail_investor_protected',{p_event:m.event_id,p_attendee:m[`attendee_${side}_id`],p_profile:m[`profile_${side}_id`]})))return {managed:true};
+    // New meetings are queued in the booking transaction; never send a second copy.
+    if (Number(m.notification_revision || 0) > 0) return { queued: true };
     requireValue(['pending','confirmed','cancelled'].includes(m.status) && m.start_at);
     target=recipientId;title=m.status==='pending'?'Meeting invitation':m.status==='confirmed'?'Meeting confirmed':'Meeting cancelled';
     body='Open Eventra to see the current meeting details and available actions.';path=`/event/${m.event_id}/networking`;
@@ -120,6 +122,7 @@ export async function executePlatformMail({authorization,command,env=process.env
   if(error||!data?.user)throw new MailError(401,'Sign in required');
   const authorized=await authorizePlatformMail({command,actor:data.user,db,userDb,origin:env.EVENTRA_APP_ORIGIN});
   if(authorized.managed)return {success:true,managed:true};
+  if(authorized.queued)return {success:true,queued:true};
   if(['bell','both'].includes(command.channel)&&authorized.bellEnabled&&authorized.notification.recipient_id){
     const {error:noticeError}=await db.from('notifications').upsert(authorized.notification,{onConflict:'source_key'});
     if(noticeError)throw new MailError(503,'Notification could not be saved');

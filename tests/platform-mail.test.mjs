@@ -20,6 +20,11 @@ test('welcome is restricted to own verified auth destination',async()=>{
  const {mail}=await run({kind:'welcome',entityId:actor});assert.deepEqual(mail.to,[`${actor}@example.test`]);
 });
 const meeting={id:entity,event_id:event,profile_a_id:actor,profile_b_id:other,attendee_a_id:actor,attendee_b_id:other,status:'pending',start_at:'2027-01-01T10:00:00Z'};
+test('queued meeting commands never build a duplicate direct email',async()=>{
+ const run=fixture({event_b2b_meetings:[{...meeting,notification_revision:1}]});
+ assert.deepEqual(await run({kind:'meeting',entityId:entity,recipientId:other}),{queued:true});
+ await assert.rejects(run({kind:'meeting',entityId:entity,recipientId:stranger}),MailError);
+});
 test('meeting notices require actual participant and authorized recipient',async()=>{
  const run=fixture({event_b2b_meetings:[meeting]});
  await assert.rejects(run({kind:'meeting',entityId:entity,recipientId:stranger}),MailError);

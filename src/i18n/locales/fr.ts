@@ -13,6 +13,7 @@ export default {
       dismiss: 'Fermer', editProfile: 'Modifier mon profil'
     },
     networkingScheduling: {
+      requestRateLimit: 'Trop de nouvelles invitations cette heure. Patientez avant d’en envoyer davantage. Les réservations existantes restent inchangées.',
       formats: { video: 'En ligne', 'in-person': 'En présentiel', hybrid: 'Hybride' },
       myAvailability: 'Mes disponibilités', chooseEvent: 'Choisir un événement',
       availabilityHint: 'Choisissez quand vous pouvez recevoir des demandes de rendez-vous. Les rendez-vous confirmés restent inchangés. Une demande en attente ne réserve ni créneau ni table.',
@@ -630,6 +631,7 @@ export default {
       },
       status: {
         confirmed: 'Confirme',
+        completed: 'Terminé',
         pending: 'En attente',
         cancelled: 'Annule',
         connected: 'Connecte',
@@ -3462,7 +3464,12 @@ export default {
             upcoming: 'À venir'
         },
         table: {
-            headers: { id: 'ID', participants: 'Participants', score: 'Score', dateTime: 'Date et heure', status: 'Statut', actions: 'Actions' },
+            timestampNote: 'Horaires dans votre fuseau horaire',
+            loadError: 'Impossible de charger les rencontres. Veuillez réessayer.',
+            selectPage: 'Sélectionner les rencontres de cette page',
+            invitationHelp: 'Date de création de la rencontre. Les envois sont suivis séparément.',
+            unavailable: 'Date indisponible',
+            headers: { id: 'ID', participants: 'Participants', score: 'Score', dateTime: 'Rendez-vous', invitationSent: 'Création', status: 'Statut', actions: 'Actions' },
             manual: 'Créée manuellement',
             view: 'Voir',
             empty: 'Aucune réunion ne correspond à vos filtres'

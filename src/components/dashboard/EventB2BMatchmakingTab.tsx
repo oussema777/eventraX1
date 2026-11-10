@@ -1,6 +1,8 @@
+import MeetingPagination from './MeetingPagination';
+import MeetingDeliveryMonitor from './MeetingDeliveryMonitor';
 import { investorReviewCopy } from '../networking/investorReviewCopy';
 import { submitEventMeetingBatch } from '../../lib/investorReview';
-﻿import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -79,12 +81,17 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
   const [attendeesData, setAttendeesData] = useState<any[]>([]);
   const [meetingFilter, setMeetingFilter] = useState('all');
   const [meetingSearch, setMeetingSearch] = useState('');
+  const [meetingPage, setMeetingPage] = useState(1);
+  const [meetingPageSize, setMeetingPageSize] = useState(10);
+  const [meetingDetails, setMeetingDetails] = useState<Record<string, any>>({});
+  const [meetingDetailsLoading, setMeetingDetailsLoading] = useState(false);
+  const meetingFetchVersion = useRef(0);
   const [meetingDateFilter, setMeetingDateFilter] = useState('all');
   const [meetingSort, setMeetingSort] = useState('recent');
   const [selectedMeetingIds, setSelectedMeetingIds] = useState<string[]>([]);
   const [selectedSuggestionIds, setSelectedSuggestionIds] = useState<string[]>([]);
   const [suggestionPage, setSuggestionPage] = useState(1);
-  const suggestionPageSize = 10;
+  const [suggestionPageSize, setSuggestionPageSize] = useState(10);
   const [lastRunMeta, setLastRunMeta] = useState<any>(null);
   const [suggestionStats, setSuggestionStats] = useState({ total: 0, pending: 0, accepted: 0, dismissed: 0 });
   const [aiRunStats, setAiRunStats] = useState({ matchesCreated: 0, avgScore: 0, attendeesMatched: 0 });
@@ -100,6 +107,25 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
     const date = d.toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' });
     const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
     return `${date} at ${time}`;
+  };
+
+  const meetingColumns = '24px 112px minmax(220px, 1fr) 120px 150px 150px 110px 72px';
+  const renderMeetingTimestamp = (iso?: string | null) => {
+    const date = iso ? new Date(iso) : null;
+    if (!date || Number.isNaN(date.getTime())) {
+      return <span style={{ color: '#94A3B8' }} aria-label={t('manageEvent.b2b.allMeetings.table.unavailable')}>—</span>;
+    }
+    return (
+      <time dateTime={date.toISOString()} title={date.toLocaleString(locale, { timeZoneName: 'long' })}
+        style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: '13px', fontWeight: 500, color: '#E2E8F0' }}>
+          {date.toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' })}
+        </span>
+        <span style={{ fontSize: '12px', color: '#94A3B8' }}>
+          {date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false })}
+        </span>
+      </time>
+    );
   };
 
   const statusToColor = (s?: string | null) => {
@@ -554,42 +580,29 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
   const fetchMeetings = async () => {
     if (!eventId) return;
     try {
-      const { data, error } = await supabase
-        .from('event_b2b_meetings')
-        .select('*')
-        .eq('event_id', eventId)
-        .order('created_at', { ascending: false })
-        .limit(200);
-      if (error) return;
-      const rows: any[] = data || [];
+      const version = ++meetingFetchVersion.current;
+      // Keep a compact index for global search, counts and CSV export. Fetch the
+      // expensive meeting metadata and participant profiles only for visible rows.
+      const rows: any[] = [];
+      for (let offset = 0; ; offset += 500) {
+        const { data, error } = await supabase.from('event_b2b_meetings')
+          .select('id,attendee_a_id,attendee_b_id,is_ai,match_score,tag,start_at,status,location,created_at')
+          .eq('event_id', eventId).order('created_at', { ascending: false }).order('id')
+          .range(offset, offset + 499);
+        if (version !== meetingFetchVersion.current) return;
+        if (error) throw error;
+        rows.push(...(data || []));
+        if (!data || data.length < 500) break;
+      }
       const ids = Array.from(new Set(rows.flatMap(r => [r.attendee_a_id, r.attendee_b_id]).filter(Boolean)));
-      let attendeeMap: Record<string, any> = {};
-      
-      if (ids.length) {
-        // 1. Fetch Attendees
-        const { data: attData } = await supabase
-          .from('event_attendees')
-          .select('id,name,company,photo_url,avatar_url,ticket_type,meta,profile_id')
-          .in('id', ids);
-        
-        const profileIds = (attData || []).map(a => a.profile_id).filter(Boolean);
-        let profileMap: Record<string, string> = {};
-
-        // 2. Fetch Profiles for real avatars
-        if (profileIds.length > 0) {
-          const { data: profData } = await supabase
-            .from('profiles')
-            .select('id, avatar_url')
-            .in('id', profileIds);
-          (profData || []).forEach(p => profileMap[p.id] = p.avatar_url);
-        }
-
-        (attData || []).forEach((x: any) => { 
-          attendeeMap[x.id] = {
-            ...x,
-            final_avatar: profileMap[x.profile_id] || x.avatar_url || x.photo_url || x.meta?.photo
-          }; 
-        });
+      const attendeeMap: Record<string, any> = {};
+      for (let offset = 0; offset < ids.length; offset += 100) {
+        const { data, error } = await supabase.from('event_attendees')
+          .select('id,name,company,jobTitle:meta->>jobTitle,job_title:meta->>job_title,title:meta->>title,role:meta->>role')
+          .eq('event_id', eventId).in('id', ids.slice(offset, offset + 100));
+        if (version !== meetingFetchVersion.current) return;
+        if (error) throw error;
+        (data || []).forEach((a: any) => { attendeeMap[a.id] = { ...a, meta: a }; });
       }
 
       const mapped = rows.map((r) => {
@@ -619,6 +632,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
           tag: r.tag || '',
           date: r.start_at ? formatDateTime(r.start_at) : 'TBD',
           dateRaw: r.start_at || r.created_at || null,
+          scheduledAt: r.start_at,
           status,
           statusKey: String(r.status || 'pending').toLowerCase(),
           statusColor: statusToColor(r.status),
@@ -627,8 +641,9 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
           matchMeta: r.meta || {}
         };
       });
+      setMeetingDetails({});
       setMeetingsData(mapped);
-    } catch {}
+    } catch { toast.error(t('manageEvent.b2b.allMeetings.table.loadError')); }
   };
 
   const fetchSuggestions = async () => {
@@ -867,7 +882,14 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
           .eq('id', selectedPair.suggestionId);
       }
 
-      const notifyOk = await createNotification({
+      // New scheduled meetings enqueue their own notifications atomically.
+      // If this read fails, avoid sending a potentially duplicate legacy email.
+      const { data: savedMeeting, error: savedMeetingError } = await supabase
+        .from('event_b2b_meetings')
+        .select('*')
+        .eq('id', created.meeting_id)
+        .maybeSingle();
+      const notifyOk = !savedMeetingError && savedMeeting && !savedMeeting.notification_revision && await createNotification({
         title: 'Eventra AI Matchmaker: New Match Found!',
         message: `Great news! Our AI Matchmaker found a high-potential connection for you. We have scheduled a meeting${startIso ? ` for ${formatDateTime(startIso)}` : ''}. Log in to view details and start networking!`,
         channel: 'email',
@@ -1089,6 +1111,72 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
     }
     return rows;
   }, [meetingsData, meetingSearch, meetingFilter, meetingDateFilter, meetingSort]);
+
+  const meetingPageCount = Math.max(1, Math.ceil(filteredMeetings.length / meetingPageSize));
+  const currentMeetingPage = Math.min(meetingPage, meetingPageCount);
+  const pageMeetings = useMemo(() => filteredMeetings.slice(
+    (currentMeetingPage - 1) * meetingPageSize, currentMeetingPage * meetingPageSize
+  ), [filteredMeetings, currentMeetingPage, meetingPageSize]);
+  const currentSuggestionPage = Math.min(suggestionPage, Math.max(1, Math.ceil(suggestionsData.length / suggestionPageSize)));
+  const pageSuggestions = suggestionsData.slice((currentSuggestionPage - 1) * suggestionPageSize, currentSuggestionPage * suggestionPageSize);
+
+  useEffect(() => {
+    setMeetingPage(1);
+    setSelectedMeetingIds([]);
+  }, [eventId, meetingSearch, meetingFilter, meetingDateFilter, meetingSort, meetingPageSize]);
+
+  useEffect(() => {
+    setMeetingPage(currentMeetingPage);
+    setSelectedMeetingIds([]);
+  }, [currentMeetingPage]);
+
+  useEffect(() => {
+    setSuggestionPage(currentSuggestionPage);
+    setSelectedSuggestionIds([]);
+  }, [currentSuggestionPage, suggestionPageSize, eventId]);
+
+  useEffect(() => {
+    if (activeTab !== 'all-meetings' || !eventId || !pageMeetings.length) return;
+    let cancelled = false;
+    setMeetingDetailsLoading(true);
+    const load = async () => {
+      const ids = pageMeetings.map(m => m.rawId);
+      const attendeeIds = [...new Set(pageMeetings.flatMap(m => [m.aId, m.bId]).filter(Boolean))];
+      const [meetings, attendees] = await Promise.all([
+        supabase.from('event_b2b_meetings').select('id,meta').eq('event_id', eventId).in('id', ids),
+        supabase.from('event_attendees').select('id,photo_url,avatar_url,ticket_type,meta,profile_id').eq('event_id', eventId).in('id', attendeeIds)
+      ]);
+      if (cancelled) return;
+      if (meetings.error) throw meetings.error;
+      if (attendees.error) throw attendees.error;
+      const profileIds = [...new Set((attendees.data || []).map(a => a.profile_id).filter(Boolean))];
+      const profiles = profileIds.length
+        ? await supabase.from('profiles').select('id,avatar_url').in('id', profileIds)
+        : { data: [], error: null };
+      if (cancelled) return;
+      if (profiles.error) throw profiles.error;
+      const photos = new Map((profiles.data || []).map(p => [p.id, p.avatar_url]));
+      const people = new Map((attendees.data || []).map(a => [a.id, a]));
+      const meta = new Map((meetings.data || []).map(m => [m.id, m.meta || {}]));
+      const details: Record<string, any> = {};
+      pageMeetings.forEach(m => {
+        const a = people.get(m.aId);
+        const b = people.get(m.bId);
+        details[m.rawId] = {
+          matchMeta: meta.get(m.rawId) || {},
+          aPhoto: photos.get(a?.profile_id) || a?.avatar_url || a?.photo_url || a?.meta?.photo,
+          bPhoto: photos.get(b?.profile_id) || b?.avatar_url || b?.photo_url || b?.meta?.photo,
+          aTicketType: a?.ticket_type || '', bTicketType: b?.ticket_type || '',
+          aMeta: a?.meta || {}, bMeta: b?.meta || {}
+        };
+      });
+      setMeetingDetails(details);
+    };
+    load().catch(() => {
+      if (!cancelled) toast.error(t('manageEvent.b2b.allMeetings.table.loadError'));
+    }).finally(() => { if (!cancelled) setMeetingDetailsLoading(false); });
+    return () => { cancelled = true; };
+  }, [eventId, activeTab, pageMeetings]);
 
   const handleGenerateMatches = async () => {
     if (!isLoadingData && attendeeInsights.total < 2) {
@@ -1678,7 +1766,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
       setSelectedMeetingIds([]);
       return;
     }
-    const allIds = filteredMeetings.map((m: any) => m.rawId).filter(Boolean);
+    const allIds = pageMeetings.map((m: any) => m.rawId).filter(Boolean);
     setSelectedMeetingIds(allIds);
   };
 
@@ -2688,12 +2776,15 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
             </div>
 
             {/* Meetings Table */}
+            <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '12px' }}>
+              {t('manageEvent.b2b.allMeetings.table.timestampNote')} ({Intl.DateTimeFormat().resolvedOptions().timeZone})
+            </p>
             <div
               style={{
                 backgroundColor: 'rgba(255,255,255,0.05)',
                 borderRadius: '12px',
                 border: '1px solid rgba(255,255,255,0.1)',
-                overflow: 'hidden'
+                overflowX: 'auto'
               }}
             >
               {/* Table Header */}
@@ -2702,14 +2793,16 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                   backgroundColor: 'rgba(255,255,255,0.08)',
                   padding: '16px 24px',
                   display: 'grid',
-                  gridTemplateColumns: '40px 150px 1fr 120px 180px 140px 100px',
+                  gridTemplateColumns: meetingColumns,
+                  minWidth: '1218px',
                   gap: '16px',
                   alignItems: 'center'
                 }}
               >
                 <input
                   type="checkbox"
-                  checked={filteredMeetings.length > 0 && selectedMeetingIds.length === filteredMeetings.length}
+                  aria-label={t('manageEvent.b2b.allMeetings.table.selectPage')}
+                  checked={pageMeetings.length > 0 && pageMeetings.every(m => selectedMeetingIds.includes(m.rawId))}
                   onChange={(e) => toggleSelectAllMeetings(e.target.checked)}
                   style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                 />
@@ -2717,20 +2810,24 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                 <p style={{ fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>{t('manageEvent.b2b.allMeetings.table.headers.participants')}</p>
                 <p style={{ fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>{t('manageEvent.b2b.allMeetings.table.headers.score')}</p>
                 <p style={{ fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>{t('manageEvent.b2b.allMeetings.table.headers.dateTime')}</p>
+                <p title={t('manageEvent.b2b.allMeetings.table.invitationHelp')} style={{ fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>{t('manageEvent.b2b.allMeetings.table.headers.invitationSent')}</p>
                 <p style={{ fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>{t('manageEvent.b2b.allMeetings.table.headers.status')}</p>
                 <p style={{ fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>{t('manageEvent.b2b.allMeetings.table.headers.actions')}</p>
               </div>
 
-              {filteredMeetings.length ? filteredMeetings.map((meeting: any, idx: number) => (
+              {pageMeetings.length ? pageMeetings.map((row: any, idx: number) => {
+                const meeting = { ...row, ...meetingDetails[row.rawId] };
+                return (
                 <div
                   key={meeting.rawId || idx}
                   style={{
                     padding: '20px 24px',
                     display: 'grid',
-                    gridTemplateColumns: '40px 150px 1fr 120px 180px 140px 100px',
+                    gridTemplateColumns: meetingColumns,
+                    minWidth: '1218px',
                     gap: '16px',
                     alignItems: 'center',
-                    borderBottom: idx < filteredMeetings.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                    borderBottom: idx < pageMeetings.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
                     transition: 'background-color 0.2s'
                   }}
                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'}
@@ -2813,6 +2910,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                     {meeting.score > 0 ? (
                       <div
                         onClick={() => {
+                          if (meetingDetailsLoading || !meetingDetails[meeting.rawId]) return;
                           const computedMeta = meeting.matchMeta?.breakdown?.length
                             ? meeting.matchMeta
                             : buildMatchMeta(
@@ -2837,7 +2935,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                           });
                           setShowMatchDetails(true);
                         }}
-                        style={{ cursor: 'pointer', display: 'inline-block' }}
+                        style={{ cursor: meetingDetailsLoading ? 'wait' : 'pointer', display: 'inline-block' }}
                       >
                         <p
                           style={{
@@ -2860,11 +2958,12 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                         </div>
                       </div>
                     ) : (
-                      <p style={{ fontSize: '12px', color: '#6B7280' }}>{t('manageEvent.b2b.allMeetings.table.manual')}</p>
+                      <p style={{ fontSize: '12px', color: '#94A3B8' }}>{t('manageEvent.b2b.allMeetings.table.manual')}</p>
                     )}
                   </div>
 
-                  <p style={{ fontSize: '13px', color: '#94A3B8' }}>{meeting.date}</p>
+                  {renderMeetingTimestamp(meeting.scheduledAt)}
+                  {renderMeetingTimestamp(meeting.createdAt)}
 
                   <span
                     style={{
@@ -2873,7 +2972,8 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                       backgroundColor: `${meeting.statusColor}20`,
                       color: meeting.statusColor,
                       fontSize: '12px',
-                      fontWeight: 600
+                      fontWeight: 600,
+                      justifySelf: 'start'
                     }}
                   >
                     {meeting.status}
@@ -2907,6 +3007,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                           });
                           setShowMatchDetails(true);
                       }}
+                      disabled={meetingDetailsLoading || !meetingDetails[meeting.rawId]}
                       title="View Details"
                       style={{
                         padding: '6px',
@@ -2923,7 +3024,11 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                       onClick={async () => {
                         if (!confirm('Are you sure you want to cancel this meeting?')) return;
                         try {
-                          await supabase.from('event_b2b_meetings').update({ status: 'cancelled' }).eq('id', meeting.rawId);
+                          const { data, error } = await supabase.from('event_b2b_meetings')
+                            .update({ status: 'cancelled' }).eq('id', meeting.rawId)
+                            .eq('status', meeting.statusKey).select('id').maybeSingle();
+                          if (error) throw error;
+                          if (!data?.id) throw new Error('Meeting changed; refresh and try again');
                           toast.success('Meeting cancelled');
                           fetchMeetings();
                         } catch {
@@ -2944,12 +3049,15 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                     </button>
                   </div>
                 </div>
-              )) : (
+              ); }) : (
                 <div style={{ padding: '24px', textAlign: 'center', color: '#94A3B8' }}>
                   {t('manageEvent.b2b.allMeetings.table.empty')}
                 </div>
               )}
             </div>
+            <MeetingPagination total={filteredMeetings.length} page={currentMeetingPage} pageSize={meetingPageSize}
+              onPageChange={setMeetingPage} onPageSizeChange={setMeetingPageSize} />
+            {eventId && <MeetingDeliveryMonitor eventId={eventId} />}
           </div>
         )}
 
@@ -3297,10 +3405,11 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
               >
                 <input
                   type="checkbox"
-                  checked={suggestionsData.length > 0 && selectedSuggestionIds.length === suggestionsData.filter(s => s.status === 'pending').length}
+                  aria-label={t('manageEvent.b2b.allMeetings.table.selectPage')}
+                  checked={pageSuggestions.some(s => s.status === 'pending') && pageSuggestions.filter(s => s.status === 'pending').every(s => selectedSuggestionIds.includes(s.id))}
                   onChange={(e) => {
                     if (e.target.checked) {
-                      setSelectedSuggestionIds(suggestionsData.filter(s => s.status === 'pending').map(s => s.id));
+                      setSelectedSuggestionIds(pageSuggestions.filter(s => s.status === 'pending').map(s => s.id));
                     } else {
                       setSelectedSuggestionIds([]);
                     }
@@ -3315,7 +3424,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                 <p style={{ fontSize: '12px', fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase' }}>Actions</p>
               </div>
 
-              {suggestionsData.length ? suggestionsData.slice((suggestionPage - 1) * suggestionPageSize, suggestionPage * suggestionPageSize).map((suggestion: any, idx: number) => {
+              {suggestionsData.length ? pageSuggestions.map((suggestion: any, idx: number) => {
                 const isSelected = selectedSuggestionIds.includes(suggestion.id);
                 const isAccepted = suggestion.status === 'accepted';
 
@@ -3478,28 +3587,8 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
               )}
             </div>
 
-            {/* Pagination */}
-            {suggestionsData.length > suggestionPageSize && (
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '24px' }}>
-                <button
-                  disabled={suggestionPage === 1}
-                  onClick={() => setSuggestionPage(p => p - 1)}
-                  style={{ padding: '8px 16px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#FFFFFF', cursor: suggestionPage === 1 ? 'not-allowed' : 'pointer', opacity: suggestionPage === 1 ? 0.5 : 1 }}
-                >
-                  Previous
-                </button>
-                <span style={{ color: '#94A3B8', fontSize: '14px' }}>
-                  Page {suggestionPage} of {Math.ceil(suggestionsData.length / suggestionPageSize)}
-                </span>
-                <button
-                  disabled={suggestionPage >= Math.ceil(suggestionsData.length / suggestionPageSize)}
-                  onClick={() => setSuggestionPage(p => p + 1)}
-                  style={{ padding: '8px 16px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#FFFFFF', cursor: suggestionPage >= Math.ceil(suggestionsData.length / suggestionPageSize) ? 'not-allowed' : 'pointer', opacity: suggestionPage >= Math.ceil(suggestionsData.length / suggestionPageSize) ? 0.5 : 1 }}
-                >
-                  Next
-                </button>
-              </div>
-            )}
+            <MeetingPagination total={suggestionsData.length} page={currentSuggestionPage} pageSize={suggestionPageSize}
+              onPageChange={setSuggestionPage} onPageSizeChange={size => { setSuggestionPageSize(size); setSuggestionPage(1); }} />
           </div>
         )}
       </div>

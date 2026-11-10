@@ -13,6 +13,7 @@ export default {
       dismiss: 'إغلاق', editProfile: 'تعديل ملفي الشخصي'
     },
     networkingScheduling: {
+      requestRateLimit: 'تم إرسال عدد كبير من الدعوات خلال الساعة الماضية. يرجى الانتظار قبل إرسال المزيد. الحجوزات الحالية لم تتغير.',
       formats: { video: 'عبر الإنترنت', 'in-person': 'حضوري', hybrid: 'هجين' },
       myAvailability: 'أوقات توفري', chooseEvent: 'اختر فعالية',
       availabilityHint: 'اختر الأوقات التي يمكنك فيها استقبال طلبات الاجتماعات. لا تتغير الاجتماعات المؤكدة. الطلبات المعلقة لا تحجز وقتاً أو طاولة.',
@@ -479,6 +480,7 @@ export default {
       },
       status: {
         confirmed: 'مؤكد',
+        completed: 'مكتمل',
         pending: 'قيد الانتظار',
         cancelled: 'ملغي',
         connected: 'متصل',
@@ -2212,7 +2214,12 @@ export default {
             upcoming: 'القادمة'
         },
         table: {
-            headers: { id: 'رقم', participants: 'المشاركون', score: 'الدرجة', dateTime: 'التاريخ والوقت', status: 'الحالة', actions: 'إجراءات' },
+            timestampNote: 'الأوقات حسب منطقتك الزمنية',
+            loadError: 'تعذر تحميل الاجتماعات. يرجى المحاولة مرة أخرى.',
+            selectPage: 'تحديد اجتماعات هذه الصفحة',
+            invitationHelp: 'وقت إنشاء سجل الاجتماع. يتم تتبع إرسال البريد بشكل منفصل.',
+            unavailable: 'التاريخ غير متاح',
+            headers: { id: 'رقم', participants: 'المشاركون', score: 'الدرجة', dateTime: 'موعد الاجتماع', invitationSent: 'تاريخ الإنشاء', status: 'الحالة', actions: 'إجراءات' },
             manual: 'أُنشئ يدوياً',
             view: 'عرض',
             empty: 'لا توجد اجتماعات تطابق الفلاتر'

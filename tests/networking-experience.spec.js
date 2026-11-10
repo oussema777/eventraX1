@@ -61,6 +61,62 @@ async function setup(page, { ready = false, availabilityError = false, savedPair
   return { writes };
 }
 
+test('meeting counters refresh on return, preserve completed status and survive failed reads', async ({ page }) => {
+  const { writes } = await setup(page, { ready: true });
+  let status = 'pending';
+  let fail = false;
+  await page.route('**/rest/v1/event_b2b_meetings?**', route => fail
+    ? route.fulfill({ status: 503, json: { message: 'Temporarily unavailable' } })
+    : route.fulfill({ json: [{ id: '55555555-5555-4555-8555-555555555555', event_id: eventId,
+      profile_a_id: user.id, profile_b_id: partner.id, organizer_id: partner.id,
+      start_at: new Date().toISOString(), end_at: new Date(Date.now() + 1800000).toISOString(),
+      status, location: 'Table-01', meta: {} }] }));
+  await page.getByRole('button', { name: 'My Schedule', exact: true }).click();
+  const todayCount = page.locator('.networking-hub__stats > div').first().locator('p').first();
+  const writeCount = writes.length;
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(todayCount).toHaveText('1');
+  await expect(page.locator('#schedule-pending-count')).toHaveText('1');
+  fail = true;
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.waitForTimeout(700);
+  await expect(todayCount).toHaveText('1');
+  fail = false;
+  status = 'completed';
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(page.locator('#schedule-pending-count')).toHaveCount(0);
+  await expect(page.getByText('Completed', { exact: true })).toBeVisible();
+  status = 'cancelled';
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(todayCount).toHaveText('0');
+  expect(writes.length).toBe(writeCount);
+});
+
+test('confirmation pass uses the allocated table and queued notification bypasses browser email', async ({ page }) => {
+  await setup(page, { ready: true });
+  let status = 'pending';
+  let sends = 0;
+  const id = '55555555-5555-4555-8555-555555555555';
+  await page.route('**/api/send-email', route => { sends++; return route.fulfill({ json: { success: true } }); });
+  await page.route('**/rest/v1/rpc/respond_protected_meeting', route => route.fulfill({ json: false }));
+  await page.route('**/rest/v1/event_b2b_meetings?**', route => {
+    const url = new URL(route.request().url());
+    if (route.request().method() === 'PATCH') status = 'confirmed';
+    const record = { id, event_id: eventId, profile_a_id: partner.id, profile_b_id: user.id, organizer_id: partner.id,
+      status, start_at: '2027-11-20T13:00:00Z', end_at: '2027-11-20T13:30:00Z', notification_revision: status === 'confirmed' ? 2 : 1,
+      location: status === 'confirmed' ? 'Table-02' : 'Table-01', meta: {}, event,
+      profile_a: partner, profile_b: user, organizer: partner };
+    return route.fulfill({ json: url.searchParams.has('id') ? record : [record] });
+  });
+  await page.getByRole('button', { name: 'My Schedule', exact: true }).click();
+  await expect(page.getByText('Table-01', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Confirm', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('dialog')).toContainText('Table-02');
+  await expect(page.getByRole('dialog')).not.toContainText('Table-01');
+  expect(sends).toBe(0);
+});
+
 for (const [locale, strings] of [['fr', fr], ['ar', ar]]) {
   test(`${locale}: networking cards, match reasons and booking use the chosen language`, async ({ page }) => {
     await setup(page, { ready: true, locale });
