@@ -40,6 +40,7 @@ import { truncateDescription, canonicalUrl } from '../utils/seo';
 import { getRegistrationFieldOrder, isRegistrationSystemField, isRegistrationSystemFieldRequired, isVisibleRegistrationCustomField } from '../utils/registrationFieldOrder';
 import RegistrationAgenda from '../components/events/RegistrationAgenda';
 import { getWorkshopLimit, isSessionOpen, validateSessionSelection } from '../utils/sessionBooking';
+import { registrationErrorCopy } from './registrationErrorCopy';
 
 const toFlagEmoji = (code: string) => {
   if (!code || code.length !== 2) return '';
@@ -109,6 +110,17 @@ export default function EventRegistrationFlow() {
   const [confirmationCode, setConfirmationCode] = useState<string | null>(null);
   const [confirmationEmailFailed, setConfirmationEmailFailed] = useState(false);
   const [accessEmailFailed, setAccessEmailFailed] = useState(false);
+  const [registrationAccessError, setRegistrationAccessError] = useState<'registration' | null>(null);
+  const [networkingAccess, setNetworkingAccess] = useState<'ready' | 'pending' | 'review' | 'not_requested'>('not_requested');
+  const networkingPending = networkingAccess === 'pending' || networkingAccess === 'review';
+  const accessErrorRef = useRef<HTMLDivElement>(null);
+  const accessErrorCopy = registrationErrorCopy[locale] || registrationErrorCopy.en;
+  useEffect(() => {
+    if (registrationAccessError && currentStep === 2) {
+      accessErrorRef.current?.focus();
+      accessErrorRef.current?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [registrationAccessError, currentStep]);
   const [isPaidEvent, setIsPaidEvent] = useState(false);
   
   const [isLoading, setIsLoading] = useState(true);
@@ -467,6 +479,7 @@ export default function EventRegistrationFlow() {
     setConfirmationEmailFailed(false);
     setAccessEmailFailed(false);
     if (isSubmitting) return;
+    setRegistrationAccessError(null);
     setIsSubmitting(true);
 
     try {
@@ -527,6 +540,7 @@ export default function EventRegistrationFlow() {
         sector: systemFields.sector,
         socialUrl: systemFields.socialUrl,
         b2bOptIn: systemFields.b2bOptIn,
+        b2bAccessStatus: systemFields.b2bOptIn ? 'pending' : 'not_requested',
         confirmation_code: confirmCode,
         ...customFields,
       };
@@ -546,6 +560,7 @@ export default function EventRegistrationFlow() {
             sector: systemFields.sector,
             social_url: systemFields.socialUrl,
             b2b_opt_in: systemFields.b2bOptIn,
+            allow_pending_networking: true,
             custom_fields: customFields,
             ticket_type: 'General Admission',
             ticket_color: '#0684F5',
@@ -563,15 +578,8 @@ export default function EventRegistrationFlow() {
         console.warn('Registration service unavailable:', efErr);
       }
 
-      // A database-only fallback cannot provision B2B sign-in access. Never
-      // confirm networking access unless the server linked the attendee account.
-      if (systemFields.b2bOptIn && !edgeFnData?.user_id) {
-        toast.error(t('registrationFlow.toasts.b2bAccessUnavailable', {
-          defaultValue: 'We could not finish setting up your B2B access. Please try again. Your form entries are still here.'
-        }));
-        return;
-      }
-
+      // The database trigger durably queues networking setup for an unlinked
+      // B2B registration, including when the Edge Function is unavailable.
       let attendeeId: string;
       let finalConfirmCode: string;
       let alreadyRegistered = false;
@@ -586,7 +594,7 @@ export default function EventRegistrationFlow() {
         const { data: attendee, error: regError } = await supabase
           .rpc('create_event_attendee_with_sessions', { p_attendee: {
             event_id: eventId,
-            profile_id: user?.email?.toLowerCase() === systemFields.email.trim().toLowerCase() ? user.id : null,
+            profile_id: !systemFields.b2bOptIn && user?.email?.toLowerCase() === systemFields.email.trim().toLowerCase() ? user.id : null,
             email: systemFields.email,
             name: systemFields.fullName,
             ticket_type: 'General Admission',
@@ -600,13 +608,20 @@ export default function EventRegistrationFlow() {
           // Already registered
           const { data: existing } = await supabase
             .from('event_attendees')
-            .select('id, meta')
+            .select('id, meta, profile_id')
             .eq('event_id', eventId)
             .eq('email', systemFields.email)
             .single();
           attendeeId = existing?.id;
+          if (!attendeeId) throw new Error('Unable to verify saved registration');
           finalConfirmCode = existing?.meta?.confirmation_code || confirmCode;
           alreadyRegistered = true;
+          edgeFnData = {
+            user_id: existing.profile_id,
+            b2b_access_status: existing.meta?.b2bOptIn
+              ? existing.meta?.b2bAccessStatus || (existing.profile_id ? 'ready' : 'review')
+              : 'review',
+          };
         } else if (regError) {
           throw regError;
         } else {
@@ -634,7 +649,9 @@ export default function EventRegistrationFlow() {
       }
 
       const directAccessSent = systemFields.b2bOptIn && edgeFnData?.access_email_sent === true;
-      if (systemFields.b2bOptIn && !directAccessSent) setAccessEmailFailed(true);
+      const finalAccess = !systemFields.b2bOptIn ? 'not_requested' : edgeFnData?.b2b_access_status || (edgeFnData?.user_id ? 'ready' : 'pending');
+      setNetworkingAccess(finalAccess);
+      if (finalAccess === 'ready' && !directAccessSent) setAccessEmailFailed(true);
       if (regNotifSettings.is_email_enabled && !edgeFnData?.confirmation_email_sent && !edgeFnData?.confirmation_email_skipped) {
         setConfirmationEmailFailed(true);
       }
@@ -646,7 +663,7 @@ export default function EventRegistrationFlow() {
         toast.error(t('agendaBooking.bookingRejected'));
         return;
       }
-      toast.error(sanitizeError(error, t('registrationFlow.toasts.registrationFailed', { defaultValue: 'Registration failed. Please try again.' })));
+      setRegistrationAccessError('registration');
     } finally {
       setIsSubmitting(false);
     }
@@ -1650,7 +1667,14 @@ export default function EventRegistrationFlow() {
           )}
 
           {/* Step 3: Confirmation */}
-          {currentStep === 3 && onlineConfig(event) && <OnlineEventExperience event={event} registered name={systemFields.fullName} emailFailed={confirmationEmailFailed} accessEmailFailed={accessEmailFailed} b2b={systemFields.b2bOptIn}/>}
+          {currentStep === 3 && networkingPending && (
+            <div role="status" className="registration-networking-pending">
+              <h2>{accessErrorCopy.savedTitle}</h2>
+              <p>{networkingAccess === 'review' ? accessErrorCopy.savedReview : accessErrorCopy.savedPending}</p>
+              <p>{accessErrorCopy.noRepeat}</p>
+            </div>
+          )}
+          {currentStep === 3 && onlineConfig(event) && <OnlineEventExperience event={event} registered name={systemFields.fullName} emailFailed={confirmationEmailFailed} accessEmailFailed={accessEmailFailed} b2b={systemFields.b2bOptIn && !networkingPending}/>}
           {currentStep === 3 && (!onlineConfig(event) || event?.event_format === 'hybrid') && (
             <div className="text-center py-6">
               {!onlineConfig(event) && <>
@@ -1666,7 +1690,9 @@ export default function EventRegistrationFlow() {
               </h1>
 
               <p className="mb-10 max-w-md mx-auto no-print" style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '16px' }}>
-                {accessEmailFailed
+                {networkingPending
+                  ? isPaidEvent ? t('registrationFlow.paidConfirmationDesc').replace('{eventName}', event?.name || '') : accessErrorCopy.savedShort
+                  : accessEmailFailed
                   ? t('registrationFlow.accessEmailFailed', { defaultValue: 'Your registration is saved, but we could not send the direct sign-in link. Use the button below to request a fresh link with your registration email.' })
                   : confirmationEmailFailed
                   ? t('registrationFlow.confirmationEmailFailed', { defaultValue: 'Your registration was saved, but we could not send the confirmation email. You can save the confirmation code below and request a sign-in link from the event networking page.' })
@@ -1678,13 +1704,13 @@ export default function EventRegistrationFlow() {
                 }
               </p>
 
-              {isPaidEvent && systemFields.b2bOptIn && !accessEmailFailed && (
+              {isPaidEvent && systemFields.b2bOptIn && !networkingPending && !accessEmailFailed && (
                 <p className="mb-6 max-w-md mx-auto no-print" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
                   {t('registrationFlow.b2bAccountReady', { defaultValue: 'Your Eventra account is ready. Check your email for a direct sign-in link to this event. Your registration details are already in your profile.' })}
                 </p>
               )}
 
-              {(confirmationEmailFailed || accessEmailFailed) && systemFields.b2bOptIn && eventId && (
+              {(confirmationEmailFailed || accessEmailFailed) && systemFields.b2bOptIn && !networkingPending && eventId && (
                 <a href={eventAuthReturnUrl(`/event/${eventId}/networking`, window.location.origin)} className="inline-block mb-8 rounded-lg border border-blue-400 px-5 py-3 text-white no-print">
                   {t('registrationFlow.openNetworking', { defaultValue: 'Open event networking' })}
                 </a>
@@ -1920,6 +1946,13 @@ export default function EventRegistrationFlow() {
       {/* Form actions stay attached to the current step. */}
       {currentStep < 3 && (
         <footer className="registration-actions no-print">
+          {currentStep === 2 && registrationAccessError && (
+            <div className="registration-access-error" role="alert" tabIndex={-1} ref={accessErrorRef}>
+              <h2>{accessErrorCopy.title}</h2>
+              <p>{accessErrorCopy[registrationAccessError]}</p>
+              <button type="button" onClick={() => setCurrentStep(1)}>{accessErrorCopy.edit}</button>
+            </div>
+          )}
           <div className="registration-action-buttons">
             <button
               onClick={handleBack}
@@ -1972,7 +2005,7 @@ export default function EventRegistrationFlow() {
               }}
             >
               {isSubmitting && <Loader2 size={16} className="animate-spin" />}
-              {currentStep === 2 ? t('registrationFlow.completeRegistration') : t('registrationFlow.continue')}
+              {currentStep === 2 ? registrationAccessError ? accessErrorCopy.retry : t('registrationFlow.completeRegistration') : t('registrationFlow.continue')}
             </button>
           </div>
         </footer>

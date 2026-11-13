@@ -57,7 +57,7 @@ export async function sendRegistrationReceipt(db:any,attendeeId:string,event:any
     const {data:settings,error:se}=await db.from('event_notification_settings').select('is_email_enabled').eq('event_id',event.id).eq('trigger_type','event_registration').maybeSingle();
     if(se)return 'failed';
     // B2B sign-in access is operational, independent of optional receipt settings.
-    const access=!!a.profile_id && a.meta?.b2bOptIn===true;
+    const access=!!a.profile_id && a.meta?.b2bOptIn===true && !['pending','review'].includes(a.meta?.b2bAccessStatus);
     if(settings?.is_email_enabled===false&&!access)return 'skipped';
     if(access){
       const {data:identity,error:ie}=await db.auth.admin.getUserById(a.profile_id);

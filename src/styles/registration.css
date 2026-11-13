@@ -121,3 +121,11 @@
   .registration-shell input, .registration-shell select, .registration-shell textarea { font-size: 16px !important; }
 }
 @media print { .registration-progress, .registration-header, .registration-actions { display: none !important; } }
+.registration-access-error { margin-bottom: 20px; padding: 18px 20px; border: 1px solid #b88c58; border-radius: 10px; background: #30291f; color: #fff3df; }
+.registration-access-error h2 { margin: 0 0 8px; font-size: 17px; font-weight: 600; }
+.registration-access-error p { margin: 0; font-size: 14px; line-height: 1.65; }
+.registration-access-error button { margin-top: 12px; padding: 8px 0; border: 0; background: transparent; color: #fff3df; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.registration-access-error:focus-visible { outline: 2px solid #58aaff; outline-offset: 3px; }
+.registration-networking-pending { margin-bottom: 24px; padding: 20px; border: 1px solid #438c7a; border-radius: 10px; background: #142f32; color: #e8fff7; }
+.registration-networking-pending h2 { margin: 0 0 10px; font-size: 20px; font-weight: 600; }
+.registration-networking-pending p { margin: 8px 0 0; font-size: 15px; line-height: 1.65; }

@@ -1,3 +1,4 @@
+import { resolveRegistrationAccess } from '../_shared/registrationAccess.ts';
 import { sendRegistrationReceipt, sendRegistrationCapacityAlert, notifyRegistrationOwner } from '../_shared/registrationReceipt.ts';
 // supabase/functions/create-event-registration/index.ts
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -25,6 +26,7 @@ interface RegistrationPayload {
   price?: number;
   selected_sessions?: string[];
   redirect_base?: string;
+  allow_pending_networking?: boolean;
 }
 
 function jsonResponse(body: Record<string, any>, status = 200) {
@@ -86,75 +88,16 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // --- Resolve identity ---
-    // Always look up an existing profile so registered members get linked
-    // regardless of b2b_opt_in. New account creation is gated on b2b_opt_in.
-    let userId: string | null = null;
-    let isNewUser = false;
-
-    const { data: existingProfile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('id, full_name, phone_number, company, company_description, industry, sector, social_url')
-      .eq('email', email.toLowerCase())
-      .maybeSingle();
-
-    if (profileError) return jsonResponse({ error: 'Unable to check registration account' }, 503);
-
-    if (existingProfile) {
-      // Case 1 & 2: existing member — always link
-      userId = existingProfile.id;
-
-      if (b2b_opt_in) {
-        // Enrich profile — fill empty fields only
-        const updates: Record<string, any> = {};
-        if (!existingProfile.full_name) updates.full_name = full_name;
-        if (!existingProfile.phone_number) updates.phone_number = phone;
-        if (!existingProfile.company) updates.company = company_name;
-        if (!existingProfile.company_description) updates.company_description = company_description;
-        if (!existingProfile.industry) updates.industry = sector;
-        if (!existingProfile.sector) updates.sector = sector;
-        if (!existingProfile.social_url) updates.social_url = social_url;
-        // Note: interests is intentionally not written to profiles — there is no
-        // profiles.interests column. Interests are persisted in event_attendees.meta
-        // (below), which is where B2B matching reads them.
-
-        if (Object.keys(updates).length > 0) {
-          const { error: updateError } = await supabaseAdmin.from('profiles').update(updates).eq('id', userId);
-          if (updateError) return jsonResponse({ error: 'Unable to prepare registration profile' }, 503);
-        }
-      }
-    } else if (b2b_opt_in) {
-      // Case 3: no existing profile + opted in → create a new guest account
-      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        email_confirm: true,
-        user_metadata: { full_name, phone, company: company_name, created_via: 'event_b2b' },
-        app_metadata: { account_type: 'event_guest' },
-      });
-
-      if (createError || !newUser?.user) {
-        return jsonResponse({ error: 'Failed to create user', details: createError?.message }, 500);
-      }
-
-      userId = newUser.user.id;
-      isNewUser = true;
-
-      // Upsert so profile prefill works even if the auth trigger is still pending.
-      const { error: seedError } = await supabaseAdmin.from('profiles').upsert({
-        id: userId,
-        email,
-        full_name,
-        phone_number: phone,
-        company: company_name,
-        company_description,
-        industry: sector,
-        sector,
-        social_url,
-        account_type: 'event_guest',
-      }, { onConflict: 'id' });
-      if (seedError) return jsonResponse({ error: 'Unable to prepare registration profile' }, 503);
+    // Admission is independent of networking setup. Failed account setup is
+    // persisted with the registration and retried by the access job worker.
+    const access = await resolveRegistrationAccess(supabaseAdmin, { ...payload, email });
+    const { userId, isNewUser } = access;
+    const accessState = b2b_opt_in ? access.state : 'not_requested';
+    // Older browser bundles cannot display saved-but-pending networking. Keep
+    // their existing failure contract until the new frontend is deployed.
+    if (b2b_opt_in && access.state !== 'ready' && payload.allow_pending_networking !== true) {
+      return jsonResponse({ error: 'Unable to prepare registration account' }, 503);
     }
-    // Case 4: no existing profile + not opted in → userId stays null, no account created
 
     // --- Compute guest expiry (new guests only: event end + 7 days) ---
     // Members (linked existing profiles) must never receive an expiry.
@@ -178,6 +121,7 @@ Deno.serve(async (req: Request) => {
       sector,
       socialUrl: social_url,
       b2bOptIn: b2b_opt_in,
+      b2bAccessStatus: accessState,
       confirmation_code: confirmationCode,
 
     };
@@ -209,16 +153,17 @@ Deno.serve(async (req: Request) => {
       if (existingError || !existing) return jsonResponse({ error: 'Unable to check existing registration' }, 503);
       // Repair registrations saved by the old database-only fallback. Only
       // attach an unlinked row; never replace a different participant identity.
-      if (b2b_opt_in && userId) {
-        if (existing.profile_id && existing.profile_id !== userId) {
-          return jsonResponse({ error: 'Registration account mismatch' }, 409);
+      if (b2b_opt_in) {
+        if (userId && existing.profile_id && existing.profile_id !== userId) {
+          if (payload.allow_pending_networking !== true) return jsonResponse({ error: 'Registration account mismatch' }, 409);
+          access.state = 'review';
         }
         const { data: linked, error: linkError } = await supabaseAdmin
           .from('event_attendees')
-          .update({ profile_id: userId, meta: { ...existing.meta, b2bOptIn: true },
+          .update({ ...(userId && (!existing.profile_id || existing.profile_id === userId) ? { profile_id: userId } : {}), meta: { ...existing.meta, b2bOptIn: true, b2bAccessStatus: access.state },
             ...(guestExpiresAt ? { guest_expires_at: guestExpiresAt } : {}) })
           .eq('id', existing.id)
-          .or(`profile_id.is.null,profile_id.eq.${userId}`)
+          .or(`profile_id.is.null,profile_id.eq.${existing.profile_id || userId || '00000000-0000-0000-0000-000000000000'}`)
           .select('id')
           .single();
         if (linkError || !linked) return jsonResponse({ error: 'Unable to finish B2B access' }, 503);
@@ -227,14 +172,15 @@ Deno.serve(async (req: Request) => {
       const existingConfirmationCode = existing?.meta?.confirmation_code || confirmationCode;
       await notifyRegistrationOwner(supabaseAdmin,event,existing.id);
       const receipt = await sendRegistrationReceipt(supabaseAdmin, existing.id, event, key => Deno.env.get(key));
-      const accessEmailSent = b2b_opt_in && !!userId && receipt === 'sent';
+      const accessEmailSent = b2b_opt_in && access.state === 'ready' && !!userId && receipt === 'sent';
 
       return jsonResponse({
         success: true,
         attendee_id: existing?.id,
         confirmation_code: existingConfirmationCode,
         already_registered: true,
-        user_id: userId,
+        user_id: access.state === 'ready' ? userId : null,
+        b2b_access_status: b2b_opt_in ? access.state : 'not_requested',
         access_email_sent: accessEmailSent,
         confirmation_email_sent: receipt === 'sent', confirmation_email_skipped: receipt === 'skipped',
       });
@@ -258,6 +204,7 @@ Deno.serve(async (req: Request) => {
       already_registered: false,
       is_new_user: isNewUser,
       user_id: userId,
+      b2b_access_status: accessState,
       access_email_sent: accessEmailSent,
         confirmation_email_sent: receipt === 'sent', confirmation_email_skipped: receipt === 'skipped',
     });
