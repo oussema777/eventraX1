@@ -478,7 +478,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
   const agendaZone = resolveAgendaTimeZone(event?.timezone);
 
   return (
-    <div style={{ backgroundColor: '#0B2641', minHeight: '100vh', color: '#FFFFFF' }}>
+    <div className={type === 'exhibitors' ? 'expo-page' : undefined} style={{ backgroundColor: '#0B2641', minHeight: '100vh', color: '#FFFFFF' }}>
       {event && (
         <SEOHead
           title={`${type.charAt(0).toUpperCase() + type.slice(1)} — ${event.name || 'Event'}`}
@@ -532,7 +532,8 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
         }
       `}</style>
       
-      <LandingPageNavbar 
+      <LandingPageNavbar
+        currentSection={type}
         activeSections={{
           investors: true,
           agenda: counts.agenda > 0,
@@ -556,7 +557,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
           onExplore={() => document.getElementById('attendee-directory')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' })}
         />}
 
-      <div style={{ padding: type === 'attendees' ? '40px 24px 60px' : type === 'investors' ? '24px 24px 60px' : '60px 24px', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ padding: type === 'exhibitors' ? 'clamp(20px, 4vw, 60px) clamp(16px, 3vw, 24px) 60px' : type === 'attendees' ? '40px 24px 60px' : type === 'investors' ? '24px 24px 60px' : '60px 24px', maxWidth: '1200px', margin: '0 auto' }}>
         {type === 'investors' && eventId && <EventInvestorShowcase eventId={eventId} onRequestMeeting={handleBookMeeting}/>}
         {type === 'attendees' && event && <InvestorDiscoveryBanner event={event}/>}
         {type === 'attendees' && <h2 style={{ fontSize: '28px', fontWeight: 700, marginBottom: '24px' }}>{t('attendeeExperience.title')}</h2>}
@@ -1114,7 +1115,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
           </div>
         )}
 
-        {type === 'exhibitors' && eventId && <ExhibitorDirectory key={eventId} eventId={eventId} eventName={event?.name} />}
+        {type === 'exhibitors' && eventId && <ExhibitorDirectory key={eventId} eventId={eventId} eventName={event?.name} eventPath={eventPublicPath(event || { id: eventId })} startDate={event?.start_date} endDate={event?.end_date} timeZone={agendaZone} />}
 
         {type === 'attendees' && (
           <div>

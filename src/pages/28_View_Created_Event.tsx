@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Pencil, Share2, Lock, Check } from 'lucide-react';
+import { toast } from 'sonner';
+import { eventPublicPath } from '../utils/eventLinks';
 import NavbarLoggedIn from '../components/navigation/NavbarLoggedIn';
 import SingleEventLanding from '../components/events/SingleEventLanding';
 import UpgradeModal from '../components/wizard/modals/UpgradeModal';
@@ -22,10 +24,14 @@ export default function ViewCreatedEvent() {
     navigate('/create-event');
   };
 
-  const handleShare = () => {
-    // Copy event URL to clipboard
-    const eventUrl = window.location.origin + '/event/saas-summit-2024/landing';
-    navigator.clipboard.writeText(eventUrl);
+  const handleShare = async () => {
+    if (!eventId) return;
+    try {
+      await navigator.clipboard.writeText(new URL(eventPublicPath({ id: eventId }), window.location.origin).href);
+    } catch {
+      toast.error('Could not copy the event link.');
+      return;
+    }
     setShowShareToast(true);
     setTimeout(() => setShowShareToast(false), 3000);
   };
@@ -141,7 +147,7 @@ export default function ViewCreatedEvent() {
 
       {/* Main Event Content with additional top padding for control bar */}
       <div style={{ paddingTop: '50px' }}>
-        <SingleEventLanding />
+        <SingleEventLanding navigationTop={122} />
         
         {/* Pro Feature Placeholder Section (only shown for Free users) */}
         {subscriptionTier === 'free' && (

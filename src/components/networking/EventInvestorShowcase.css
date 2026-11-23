@@ -127,6 +127,11 @@
   border-radius: 16px;
   object-fit: cover;
 }
+.investor-showcase__identity img.investor-showcase__company-logo {
+  object-fit: contain;
+  background: white;
+  padding: 5px;
+}
 .investor-showcase__initials {
   display: grid;
   place-items: center;

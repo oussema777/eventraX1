@@ -26,7 +26,7 @@ async function setup(page,{locale='en',enabled=true}={}) {
         if(state.registrationNeeded) return r.fulfill({status:400,json:{code:'23514',message:'INVESTOR_REGISTRATION_REQUIRED'}});
         data={event_id:event,event_name:'Investment Forum',status:'accepted'};
       }
-    } else if(name==='profiles') data=url.searchParams.get('id')?.startsWith('in.') ? [{id:'requester',full_name:'Youssef Ben Ali',company:'Solar Lab'},{id:'recipient',full_name:'Amel Ben Salah',company:'Atlas Ventures'}] : {...user,full_name:'Amel Ben Salah',role:'user'};
+    } else if(name==='profiles') data=url.searchParams.get('id')?.startsWith('in.') ? [{id:user.id,full_name:'Event owner',role:'user'},{id:'requester',full_name:'Youssef Ben Ali',company:'Solar Lab'},{id:'recipient',full_name:'Amel Ben Salah',company:'Atlas Ventures'}].filter(p=>url.searchParams.get('id').includes(p.id)) : {...user,full_name:'Amel Ben Salah',role:'user'};
     else if(name==='event_team_members') data=[{user_id:'requester',role:'coordinator'},{user_id:'recipient',role:'administrator'}];
     else if(name==='event_review_permissions') data=url.searchParams.has('user_id')?state.permissions.find(p=>'eq.'+p.user_id===url.searchParams.get('user_id'))||null:state.permissions;
     else if(name==='event_booking_requests') data=state.requests;
@@ -47,7 +47,7 @@ test('review permissions require explicit selection and save separately from inv
   await page.goto('/tests/fixtures/investor-review.html?mode=settings');await signIn(page);
   await expect(page.getByRole('button',{name:'Save permissions'})).toBeDisabled();
   await page.getByRole('checkbox',{name:'Youssef Ben Ali',exact:true}).check();
-  await page.getByLabel('Review meeting requests',{exact:true}).check();
+  await page.locator('form').getByLabel('Review meeting requests',{exact:true}).check();
   await page.getByRole('button',{name:'Save permissions'}).click();
   await expect.poll(()=>actions.find(a=>a.name==='set_event_review_permissions')?.args).toEqual({p_event:event,p_user:'requester',p_designate:false,p_review:true});
   await page.screenshot({path:testInfo.outputPath('review-settings.png'),fullPage:true});
@@ -162,6 +162,8 @@ test('add investor focuses on one path and only shows eligible unassigned attend
   await page.getByRole('button',{name:/Choose a registered attendee/}).click();
   await expect(page.getByRole('button',{name:'Create invitation link'})).toHaveCount(0);
   await expect(page.getByLabel('Choose an attendee').locator('option')).toHaveCount(2);
+  await page.getByRole('searchbox').fill('ali   YOUSSEF');
+  await expect(page.getByRole('option',{name:'Youssef Ben Ali'})).toHaveCount(1);
   await page.getByLabel('Choose an attendee').selectOption('founder-1');
   await page.getByRole('button',{name:'Review assignment'}).click();
   await expect(page.getByRole('button',{name:'Assign Investor',exact:true})).toBeDisabled();
@@ -225,8 +227,8 @@ test('granting multiple members preserves existing rights and lists individual a
   await page.getByRole('checkbox',{name:'Amel Ben Salah',exact:true}).check();
   await page.locator('form').getByLabel('Review meeting requests',{exact:true}).check();
   await page.getByRole('button',{name:'Save permissions'}).click();
-  await expect(page.getByRole('heading',{name:'People with access (2)'})).toBeVisible();
-  expect(actions.filter(a=>a.name==='set_event_review_permissions').map(a=>a.args)).toEqual([
+  await expect(page.getByRole('heading',{name:'People with access (3)'})).toBeVisible();
+  await expect.poll(()=>actions.filter(a=>a.name==='set_event_review_permissions').map(a=>a.args)).toEqual([
     {p_event:event,p_user:'requester',p_designate:true,p_review:true},
     {p_event:event,p_user:'recipient',p_designate:false,p_review:true}
   ]);
@@ -235,7 +237,7 @@ test('granting multiple members preserves existing rights and lists individual a
   await expect(member.getByLabel('Manage investor access',{exact:true})).not.toBeChecked();
   await expect(member.getByLabel('Review meeting requests',{exact:true})).toBeChecked();
   await member.getByRole('button',{name:'Remove access'}).click();
-  await expect(page.getByRole('heading',{name:'People with access (1)'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'People with access (2)'})).toBeVisible();
   await expect(page.getByRole('article',{name:'Amel Ben Salah'})).toBeVisible();
 });
 
@@ -247,12 +249,13 @@ test('partial bulk permission failure keeps successful grants and retries only r
   await page.locator('form').getByLabel('Review meeting requests',{exact:true}).check();
   await page.getByRole('button',{name:'Save permissions'}).click();
   await expect(page.getByRole('alert')).toContainText('Some changes could not be saved');
-  await expect(page.getByRole('heading',{name:'People with access (1)'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'People with access (3)'})).toBeVisible();
   await expect(page.getByRole('checkbox',{name:'Youssef Ben Ali',exact:true})).not.toBeChecked();
   await expect(page.getByRole('checkbox',{name:'Amel Ben Salah',exact:true})).toBeChecked();
   state.failPermission=null;
   await page.getByRole('button',{name:'Save permissions'}).click();
-  await expect(page.getByRole('heading',{name:'People with access (2)'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'People with access (3)'})).toBeVisible();
+  await expect(page.getByRole('article',{name:'Amel Ben Salah'}).getByLabel('Review meeting requests',{exact:true})).toBeChecked();
   expect(actions.filter(a=>a.name==='set_event_review_permissions'&&a.args.p_user==='requester')).toHaveLength(1);
 });
 
@@ -260,7 +263,7 @@ test('French access list fits mobile and review toolbar buttons have spacing',as
   const {state}=await setup(page,{locale:'fr'});state.permissions=[{user_id:'requester',can_designate:true,can_review:true},{user_id:'recipient',can_designate:false,can_review:true}];
   await page.setViewportSize({width:390,height:844});
   await page.goto('/tests/fixtures/investor-review.html?mode=settings');await signIn(page);
-  await expect(page.locator('.investor-review__access-person')).toHaveCount(2);
+  await expect(page.locator('.investor-review__access-person')).toHaveCount(3);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:testInfo.outputPath('permissions-fr-mobile.png'),fullPage:true});
   await page.goto('/tests/fixtures/investor-review.html?mode=queue');await signIn(page);
@@ -268,4 +271,27 @@ test('French access list fits mobile and review toolbar buttons have spacing',as
   const boxes=await toolbar.locator('button').evaluateAll(buttons=>buttons.map(b=>{const r=b.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom};}));
   expect(boxes[1].left-boxes[0].right>=10||boxes[1].top-boxes[0].bottom>=10).toBe(true);
   await page.screenshot({path:testInfo.outputPath('review-toolbar-fr-mobile.png'),fullPage:true});
+});
+
+
+test('owner and administrator retain automatic investor access when extra permissions are removed',async({page})=>{
+  const {state,actions}=await setup(page);
+  state.permissions=[{user_id:user.id,can_designate:false,can_review:true}];
+  await page.goto('/tests/fixtures/investor-review.html?mode=settings');await signIn(page);
+  const owner=page.getByRole('article',{name:'Event owner'});
+  const administrator=page.getByRole('article',{name:'Amel Ben Salah'});
+  for(const row of [owner,administrator]){
+    await expect(row.getByLabel('Manage investor access',{exact:true})).toBeChecked();
+    await expect(row.getByLabel('Manage investor access',{exact:true})).toBeDisabled();
+    await expect(row.getByText('Investor management included with this role')).toBeVisible();
+  }
+  await expect(administrator.getByLabel('Review meeting requests',{exact:true})).not.toBeChecked();
+  await expect(administrator.getByRole('button',{name:'Remove additional permissions'})).toBeDisabled();
+  await owner.getByRole('button',{name:'Remove additional permissions'}).click();
+  await expect(owner.getByLabel('Review meeting requests',{exact:true})).not.toBeChecked();
+  await expect(owner.getByLabel('Manage investor access',{exact:true})).toBeChecked();
+  await expect(page.getByRole('heading',{name:'People with access (2)'})).toBeVisible();
+  await expect.poll(()=>actions.filter(a=>a.name==='set_event_review_permissions').map(a=>a.args)).toEqual([
+    {p_event:event,p_user:user.id,p_designate:false,p_review:false}
+  ]);
 });

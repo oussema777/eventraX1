@@ -1,0 +1,63 @@
+Next push follow-up — 2026-11-19
+
+OPEN: Make the personal-profile “Delete account” button functional.
+
+Requested by the owner following Rahaf’s test-account feedback.
+Verified in both source and deployed frontend: the button in
+src/pages/09_My_Profile.tsx (near line 2855) has no click handler.
+The visible button currently performs no deletion.
+
+Scope for a future implementation:
+- Add a clear confirmation flow and require recent authentication.
+- Perform account deletion through an authorized server-side operation.
+  Never expose administrative credentials or trust a client-supplied user ID.
+- Inspect related registrations, meetings, owned businesses/events, and
+  delivery records before deleting. Define what to retain, transfer, cancel,
+  or remove; show blocking dependencies instead of silently losing data.
+- Handle existing database foreign keys and notification jobs explicitly.
+  Auth deletion alone is not a complete account-removal workflow.
+- Revoke access, clear the local session, and show completion only after
+  server-side verification. Report failures without claiming success.
+- Keep French, English, Arabic, mobile, and keyboard behavior consistent.
+
+Validation required before the next push:
+- Another user cannot delete this account.
+- Cancellation of the confirmation dialog makes no changes.
+- Failed deletion does not show success or leave partial cleanup.
+- Account removal handles dependencies without deleting another person’s
+  bookings/content or replaying previously sent notifications.
+- Successful deletion removes access and clears the signed-in UI.
+
+Status: documented only; not implemented, committed, pushed, or deployed.
+The separate one-account cleanup is an operational task and must not be
+replayed as part of deploying this future button fix.
+
+READY FOR FRONTEND PUSH: Investor permissions display — 2026-11-19
+
+The owner authorized automatic investor-management access for event owners
+and admins. The database migration
+supabase/migrations/20261119180000_investor_management_by_role.sql
+is ALREADY APPLIED to the live project. Owners, active event administrators,
+and platform admins can manage investors by role. Existing explicit staff
+grants still work. Meeting-request review remains a separate explicit grant;
+self-review protections and release/event feature gates remain in place.
+
+Live event-owner verification: can_designate=true, can_configure=true,
+can_review=false, enabled=true. No test investor invitations or emails sent.
+Function read-back matched the tested migration; existing function execution
+grants, SECURITY DEFINER setting, and search_path were preserved.
+
+Local frontend changes are ready but NOT pushed/deployed: the permissions
+screen lists inherited access, explains it in EN/FR/AR, and distinguishes
+removing extra permissions from access included with an owner/admin role.
+Existing deployed frontend already consumes the corrected capability, so
+investor management is available after refresh without a VPS restart.
+
+Validation: 70 existing foundation assertions plus 27 new permission
+assertions passed in an isolated local database; all 21 investor browser
+tests passed; targeted ESLint and production build passed. Test command:
+node scripts/test-investor-role-access.mjs
+(Requires disposable local PostgreSQL on 127.0.0.1:55440.)
+
+Do not stage unrelated build/index.html changes, private .tmp operational
+snapshots, or unrelated existing reports/migrations during the next push.

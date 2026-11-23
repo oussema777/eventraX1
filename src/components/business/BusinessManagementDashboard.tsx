@@ -574,8 +574,9 @@ export default function BusinessManagementDashboard() {
   };
 
   const handleShareAnalytics = async () => {
+    if (!business?.id) return;
     setIsSharingAnalytics(true);
-    const shareUrl = `${window.location.origin}/business-profile/${business?.id || ''}`;
+    const shareUrl = `${window.location.origin}/business/${business.id}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
       toast.success(t('businessFlows.shareCopied'));
@@ -624,7 +625,7 @@ export default function BusinessManagementDashboard() {
           title: 'Team role updated',
           body: `Your role on ${business.company_name} is now ${role}.`,
           type: 'action',
-          action_url: `/business-profile/${business.id}`
+          action_url: `/business/${business.id}`
         });
       } catch {
         // Ignore notification errors

@@ -1,12 +1,15 @@
 
-  import { defineConfig, loadEnv, type ViteDevServer } from 'vite';
+  import { defineConfig, type ViteDevServer } from 'vite';
   import react from '@vitejs/plugin-react-swc';
   import path from 'path';
 
-  const resendApiKey = process.env.RESEND_API_KEY || loadEnv('development', process.cwd(), 'RESEND_').RESEND_API_KEY;
-
   const registerLocalApis = (server: ViteDevServer) => {
     server.middlewares.use((req, res, next) => {
+      if (req.url?.split('?')[0] === '/api/send-email') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, localPreview: true, error: 'Email delivery is disabled on the local dev server.' }));
+        return;
+      }
       if (req.url?.startsWith('/api/ports')) {
         const url = new URL(req.url, 'http://localhost');
         const q = url.searchParams.get('q')?.toLowerCase() || '';
@@ -110,50 +113,6 @@
         return;
       }
 
-      if (req.url === '/api/send-email' || req.url?.startsWith('/api/send-email')) {
-        if (req.method !== 'POST') { next(); return; }
-        if (!resendApiKey) {
-          res.statusCode = 503;
-          res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({ error: 'Email service is not configured' }));
-          return;
-        }
-        let body = '';
-        req.on('data', chunk => { body += chunk; });
-        req.on('end', async () => {
-          try {
-            const { to, subject, html } = JSON.parse(body);
-            const response = await fetch('https://api.resend.com/emails', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${resendApiKey}`
-              },
-              body: JSON.stringify({
-                from: 'Eventra <contact@eventra.cloud>',
-                to: [to],
-                subject: subject,
-                html: html
-              })
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-              res.statusCode = 200;
-              res.setHeader('Content-Type', 'application/json');
-              res.end(JSON.stringify(data));
-            } else {
-              res.statusCode = response.status;
-              res.end(JSON.stringify(data));
-            }
-          } catch (e) {
-            res.statusCode = 500;
-            res.end(JSON.stringify({ error: e.message }));
-          }
-        });
-        return;
-      }
       next();
     });
   };

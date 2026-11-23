@@ -18,7 +18,7 @@ export async function authorizePlatformMail({command,actor,db,userDb,origin}) {
   const {kind,entityId,recipientId}=command;
   if(command.channel!==undefined&&!['email','bell','both'].includes(command.channel))throw new MailError(400,'Invalid delivery channel');
   if(recipientId!==undefined && !idPattern.test(recipientId))throw new MailError(400,'Invalid recipient reference');
-  if(kind!=='broadcast' && (command.subject!==undefined || command.message!==undefined))throw new MailError(400,'Content is server generated');
+  if(!['broadcast','session_reminder','workshops_reminder'].includes(kind) && (command.subject!==undefined || command.message!==undefined))throw new MailError(400,'Content is server generated');
   const base=new URL(origin);
   if(base.protocol!=='https:' || base.username || base.password || base.pathname!=='/' || base.search || base.hash)throw new MailError(503,'Email origin not configured');
   let target, notificationRecipient, email, title, body, settingEvent, settingTrigger, path='/my-networking', revision='';
@@ -54,6 +54,36 @@ export async function authorizePlatformMail({command,actor,db,userDb,origin}) {
       details.push(['Date',new Intl.DateTimeFormat('en',{timeZone:zone,weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date(m.start_at))],['Time',format.format(new Date(m.start_at))+(m.end_at&&Number.isFinite(Date.parse(m.end_at))?` – ${format.format(new Date(m.end_at))}`:'')],['Time zone',zone]);
     }
     if(m.location)details.push(['Location',m.location]);
+  } else if (kind === 'session_reminder' || kind === 'workshops_reminder') {
+    if (!recipientId || (command.channel && command.channel !== 'email')) throw new MailError(400, 'Invalid reminder recipient or channel');
+    if (typeof command.subject !== 'string' || typeof command.message !== 'string' ||
+        !command.subject.trim() || !command.message.trim() || command.subject.length > 180 || command.message.length > 5000) {
+      throw new MailError(400, 'Invalid reminder content');
+    }
+    const single = kind === 'session_reminder';
+    const session = single ? requireValue(await row(db.from('event_sessions').select('id,event_id,status')
+      .eq('id', entityId).maybeSingle())) : null;
+    const eventId = single ? session.event_id : entityId;
+    await can(eventId, 'manage');
+    if (session?.status === 'cancelled') throw new MailError(409, 'Session cancelled');
+    const bookings = db.from('event_attendee_sessions');
+    const query = single
+      ? bookings.select('event_attendees!inner(event_id,status,email,meta)').eq('session_id', entityId)
+      : bookings.select('event_attendees!inner(event_id,status,email,meta), event_sessions!inner(id)')
+        .eq('event_sessions.event_id', eventId).eq('event_sessions.type', 'workshop')
+        .or('status.is.null,status.neq.cancelled', { referencedTable: 'event_sessions' });
+    const booking = await row(query.eq('attendee_id', recipientId)
+      .eq('event_attendees.event_id', eventId).limit(1).maybeSingle());
+    const attendee = booking?.event_attendees;
+    if (!attendee || !['registered','approved','checked_in'].includes(attendee.status)) return { ineligible: true };
+    email = (attendee.email?.trim() || attendee.meta?.email?.trim?.() || '').toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ineligible: true };
+    // Deduplicate identical reminders per workshop and mailbox, including shared registrations.
+    target = email;
+    notificationRecipient = null;
+    title = command.subject.trim();
+    body = command.message.trim();
+    path = `/event/${eventId}/agenda`;
   } else if(['broadcast','b2b_invite','b2b_matches','registration_cancelled'].includes(kind)) {
     const a=requireValue(await row(db.from('event_attendees').select('*').eq('id',entityId).maybeSingle()));
     await can(a.event_id,kind==='broadcast'?'manage':kind==='registration_cancelled'?'attendees':'b2b');
@@ -105,7 +135,7 @@ export async function authorizePlatformMail({command,actor,db,userDb,origin}) {
   // return their frozen mail, so a theme change cannot duplicate or alter a retry.
   const legacyMail={to:[email],subject:title,text:`${body}\n\n${url}`,html:`<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px;color:#153047"><h1>Eventra</h1><h2>${escape(title)}</h2><p style="white-space:pre-line">${escape(body)}</p><p><a href="${escape(url)}">Open Eventra</a></p></div>`};
   const key=createHash('sha256').update(JSON.stringify([kind,entityId,target,revision,legacyMail])).digest('hex');
-  const actions={welcome:'Complete my profile',meeting:'View my meeting',message:'Read my message',broadcast:'View event',registration_cancelled:'View registration',b2b_invite:'Explore networking',b2b_matches:'View my matches',event_approved:'Manage my event',event_rejected:'Review my event',connection_request:'View connection request',connection_accepted:'View my connections',connection_declined:'View my connections',meeting_checkin:'View my meeting'};
+  const actions={session_reminder:'Agenda',workshops_reminder:'Agenda',welcome:'Complete my profile',meeting:'View my meeting',message:'Read my message',broadcast:'View event',registration_cancelled:'View registration',b2b_invite:'Explore networking',b2b_matches:'View my matches',event_approved:'Manage my event',event_rejected:'Review my event',connection_request:'View connection request',connection_accepted:'View my connections',connection_declined:'View my connections',meeting_checkin:'View my meeting'};
   const mail={...legacyMail,text:`${body}\n\n${details.map(([label,value])=>`${label}: ${value}`).join('\n')}\n\n${url}`,html:renderBrandedNotice({title,body,url,action:actions[kind],details})};
   const settings=settingEvent ? await row(db.from('event_notification_settings').select('is_email_enabled,is_bell_enabled').eq('event_id',settingEvent).eq('trigger_type',settingTrigger).maybeSingle()) : null;
   return {mail,key,emailEnabled:settings?.is_email_enabled!==false,bellEnabled:settings?.is_bell_enabled!==false,notification:{recipient_id:notificationRecipient===undefined?target:notificationRecipient,actor_id:actor.id,type:'action',title,body,action_url:path,source_key:`platform:${key}`}};
@@ -121,6 +151,7 @@ export async function executePlatformMail({authorization,command,env=process.env
   const {data,error}=await db.auth.getUser(authorization.slice(7));
   if(error||!data?.user)throw new MailError(401,'Sign in required');
   const authorized=await authorizePlatformMail({command,actor:data.user,db,userDb,origin:env.EVENTRA_APP_ORIGIN});
+  if(authorized.ineligible)return {success:true,skipped:true};
   if(authorized.managed)return {success:true,managed:true};
   if(authorized.queued)return {success:true,queued:true};
   if(['bell','both'].includes(command.channel)&&authorized.bellEnabled&&authorized.notification.recipient_id){

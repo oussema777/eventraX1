@@ -5,6 +5,7 @@ import { Landmark } from 'lucide-react';
 import { investorShowcaseCopy } from '../networking/investorShowcaseCopy';
 
 interface LandingPageNavbarProps {
+  currentSection?: string;
   activeSections: {
     attendees?: boolean;
     investors?: boolean;
@@ -22,7 +23,7 @@ interface LandingPageNavbarProps {
   onRegister: () => void;
 }
 
-export default function LandingPageNavbar({ activeSections, brandColor = '#635BFF', logoUrl, isRegistered = false, onNavigate, onRegister }: LandingPageNavbarProps) {
+export default function LandingPageNavbar({ currentSection, activeSections, brandColor = '#635BFF', logoUrl, isRegistered = false, onNavigate, onRegister }: LandingPageNavbarProps) {
   const [isSticky, setIsSticky] = useState(false);
   const { t, locale, setLocale } = useI18n();
 
@@ -67,47 +68,47 @@ export default function LandingPageNavbar({ activeSections, brandColor = '#635BF
         {/* Navigation Links - Scrollable Container */}
         <div className="landing-navbar-scroll-area" style={{ flex: 1, minWidth: 0, overflowX: 'auto', display: 'flex', alignItems: 'center', height: '100%', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           <div className="landing-navbar-links" style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '0 12px' }}>
-            {activeSections.investors && <button onClick={() => onNavigate('investors')} className="nav-item nav-item--investors" aria-label={investorShowcaseCopy[locale].nav}>
+            {activeSections.investors && <button aria-current={currentSection === 'investors' ? 'page' : undefined} onClick={() => onNavigate('investors')} className="nav-item nav-item--investors" aria-label={investorShowcaseCopy[locale].nav}>
               <Landmark size={17}/><span>{investorShowcaseCopy[locale].nav}</span>
             </button>}
             {activeSections.agenda && (
-              <button onClick={() => onNavigate('agenda')} className="nav-item">
+              <button aria-current={currentSection === 'agenda' ? 'page' : undefined} onClick={() => onNavigate('agenda')} className="nav-item">
                 <Calendar size={18} className="nav-icon" />
                 <span className="nav-label">{t('wizard.designStudio.navbar.agenda')}</span>
               </button>
             )}
             {activeSections.speakers && (
-              <button onClick={() => onNavigate('speakers')} className="nav-item">
+              <button aria-current={currentSection === 'speakers' ? 'page' : undefined} onClick={() => onNavigate('speakers')} className="nav-item">
                 <Mic size={18} className="nav-icon" />
                 <span className="nav-label">{t('wizard.designStudio.navbar.speakers')}</span>
               </button>
             )}
             {activeSections.exhibitors && (
-              <button onClick={() => onNavigate('exhibitors')} className="nav-item">
+              <button aria-current={currentSection === 'exhibitors' ? 'page' : undefined} onClick={() => onNavigate('exhibitors')} className="nav-item">
                 <Store size={18} className="nav-icon" />
                 <span className="nav-label">{t('wizard.designStudio.navbar.exhibitors')}</span>
               </button>
             )}
             {activeSections.sponsors && (
-              <button onClick={() => onNavigate('sponsors')} className="nav-item">
+              <button aria-current={currentSection === 'sponsors' ? 'page' : undefined} onClick={() => onNavigate('sponsors')} className="nav-item">
                 <Heart size={18} className="nav-icon" />
                 <span className="nav-label">{t('wizard.designStudio.navbar.sponsors')}</span>
               </button>
             )}
             {activeSections.packages && (
-              <button onClick={() => onNavigate('packages')} className="nav-item">
+              <button aria-current={currentSection === 'packages' ? 'page' : undefined} onClick={() => onNavigate('packages')} className="nav-item">
                 <Sparkles size={18} className="nav-icon" />
                 <span className="nav-label">{t('wizard.designStudio.navbar.packages')}</span>
               </button>
             )}
             {activeSections.tickets && (
-              <button onClick={() => onNavigate('tickets')} className="nav-item">
+              <button aria-current={currentSection === 'tickets' ? 'page' : undefined} onClick={() => onNavigate('tickets')} className="nav-item">
                 <Ticket size={18} className="nav-icon" />
                 <span className="nav-label">{t('wizard.designStudio.navbar.tickets')}</span>
               </button>
             )}
             {activeSections.attendees && (
-              <button onClick={() => onNavigate('attendees')} className="nav-item">
+              <button aria-current={currentSection === 'attendees' ? 'page' : undefined} onClick={() => onNavigate('attendees')} className="nav-item">
                 <Sparkles size={18} className="nav-icon" />
                 <span className="nav-label">{t('wizard.designStudio.navbar.networking')}</span>
               </button>
@@ -153,7 +154,7 @@ export default function LandingPageNavbar({ activeSections, brandColor = '#635BF
           ) : (
             <button
               onClick={onRegister}
-              className="register-btn action-btn"
+              className="register-btn action-btn" aria-label={t('wizard.designStudio.navbar.register')}
               style={{
                 height: isSticky ? '36px' : '40px',
                 padding: '0 20px',

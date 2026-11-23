@@ -19,9 +19,16 @@ export async function sendEmail({ command }: SendEmailParams): Promise<boolean> 
 }
 
 export async function sendPlatformEmail(command: NonNullable<SendEmailParams['command']>): Promise<boolean> {
+  const result = await requestPlatformMail(command);
+  return result?.success === true && result.managed !== true;
+}
+
+export async function requestPlatformMail(command: NonNullable<SendEmailParams['command']>): Promise<{
+  success: boolean; managed?: boolean; skipped?: boolean; localPreview?: boolean;
+} | null> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return false;
+    if (!session) return null;
     const endpoint = '/api/send-email';
 
     const res = await fetch(endpoint, {
@@ -32,14 +39,10 @@ export async function sendPlatformEmail(command: NonNullable<SendEmailParams['co
       body: JSON.stringify(command)
     });
 
-    if (!res.ok) {
-      return false;
-    }
-
-    const result = await res.json();
-    return result.success === true && result.managed !== true;
+    if (!res.ok) return null;
+    return await res.json();
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -448,7 +451,7 @@ export async function sendWaitlistPromotedEmail(to: string, params: {
   registrationId: string;
 }) {
   const eventUrl = `${window.location.origin}/event/${params.eventId}`;
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(`${window.location.origin}/checkin/${params.registrationId}`)}&size=250x250&bgcolor=ffffff&color=0684F5&margin=10`;
+  const qrCodeUrl = qrImageUrl(params.registrationId, 250);
   return sendEmail({
     to,
     subject: `A spot opened up! You're in: ${escapeHTML(params.eventName)}`,

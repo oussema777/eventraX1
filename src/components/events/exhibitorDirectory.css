@@ -1,50 +1,98 @@
-.expo-directory { color: #f7f8f1; font-family: inherit; }
-.expo-heading { padding: 2px 0 28px; border-bottom: 1px solid #4b6072; }
-.expo-heading p { color: #c5d6dd; font-size: 15px; margin: 0 0 12px; }
-.expo-heading h1 { margin: 0; font-size: clamp(40px, 6.5vw, 82px); font-weight: 650; line-height: 1.1; letter-spacing: -.05em; }
-.expo-directory[dir="rtl"] h1 { letter-spacing: normal; }
-.expo-toolbar { margin: 24px 0; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
-.expo-modes { display: flex; gap: 4px; padding: 4px; border: 1px solid #516779; border-radius: 12px; }
-.expo-modes button, .expo-search button, .expo-bookmark, .expo-more, .expo-state button { cursor: pointer; }
-.expo-modes button { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 0 12px; border-radius: 8px; color: #e2eaf0; background: transparent; border: 0; font-weight: 600; font-size: 14px; }
-.expo-modes button[aria-pressed="true"] { background: #e4efbc; color: #172d32; }
-.expo-modes span { font-variant-numeric: tabular-nums; font-size: 12px; opacity: .85; }
-.expo-search { display: flex; align-items: center; gap: 10px; padding-inline: 14px 4px; height: 48px; width: min(100%, 360px); background: #15334d; border: 1px solid #516779; border-radius: 10px; color: #ccdae4; }
-.expo-search input { min-width: 0; flex: 1; background: transparent; color: white; border: 0; outline: 0; font: inherit; font-size: 14px; }
-.expo-search input::placeholder { color: #c3d0da; }
-.expo-search button { background: transparent; border: 0; color: white; width: 40px; height: 40px; display: grid; place-items: center; }
-.expo-directory :is(button,a):focus-visible, .expo-search:focus-within { outline: 3px solid #78bcee; outline-offset: 3px; }
-.expo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 255px), 1fr)); gap: 18px; align-items: start; }
-.expo-card { overflow: hidden; background: #fff; color: #183042; border-radius: 14px; border: 1px solid #dce3df; }
-.expo-logo-stage { position: relative; height: 150px; display: grid; place-items: center; padding: 26px 52px; background-color: #f7f8f4; background-image: radial-gradient(#d9dfd5 .75px, transparent .75px); background-size: 7px 7px; border-bottom: 1px solid #e4e9e3; }
-.expo-logo-stage img { display: block; width: 100%; height: 94px; object-fit: contain; }
-.expo-monogram { display: grid; place-content: center; border: 1px solid #d7dfce; height: 74px; min-width: 74px; padding: 4px; border-radius: 16px; font-size: 31px; font-weight: 650; color: #38554a; background: #edf2dd; }
-.expo-bookmark { display: grid; place-items: center; position: absolute; top: 10px; inset-inline-end: 10px; height: 40px; width: 40px; border-radius: 50%; background: #fff; border: 1px solid #d0d9d1; color: #354d4c; }
-.expo-bookmark:hover, .expo-bookmark[aria-pressed="true"] { background: #e4efbc; border-color: #aebf85; color: #243e31; }
-.expo-card-body { padding: 18px 20px 20px; overflow-wrap: anywhere; }
-.expo-card h2 { margin: 0; font-size: 19px; letter-spacing: -.025em; line-height: 1.3; font-weight: 700; }
-.expo-sector, .expo-description { color: #50636b; font-size: 14px; margin: 6px 0 0; line-height: 1.55; }
-.expo-booth, .expo-links, .expo-device { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; font-size: 13px; }
-.expo-booth { margin: 10px 0 0; color: #365848; font-weight: 600; }
-.expo-links { margin-top: 15px; border-top: 1px solid #e3e8e3; padding-top: 8px; gap: 16px; }
-.expo-links a { display: inline-flex; align-items: center; gap: 4px; min-height: 34px; color: #285d57; font-weight: 650; }
-.expo-links a:hover { text-decoration: underline; }
-.expo-device { margin: -6px 0 16px; color: #cee0dd; }
-.expo-state { padding: 36px 0; color: #d5e2e7; }
-.expo-state button, .expo-more { padding: 10px 16px; border: 1px solid #859ba6; border-radius: 8px; background: #16374c; color: white; }
-.expo-more { display: block; margin: 28px auto 0; }
-@media (max-width: 620px) {
-  .expo-toolbar { align-items: stretch; flex-direction: column; }
-  .expo-search { width: 100%; }
-  .expo-modes { align-self: start; }
-  .expo-logo-stage { height: 140px; }
+.expo-directory {
+  --expo-text: var(--navy-foreground, #fff);
+  --expo-muted: #bdcede;
+  --expo-panel: #172f47;
+  --expo-line: #34516b;
+  --expo-control-line: #68839b;
+  --expo-highlight: #9ecfff;
+  color: var(--expo-text);
+  min-width: 0;
 }
-@media (min-width: 360px) and (max-width: 620px) {
-  .expo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .expo-logo-stage { height: 122px; padding: 28px 14px 10px; }
-  .expo-logo-stage img { height: 78px; }
-  .expo-bookmark { top: 3px; inset-inline-end: 3px; width: 36px; height: 36px; }
-  .expo-card-body { padding: 12px; }
-  .expo-card h2 { font-size: 15px; }
-  .expo-sector { font-size: 12px; }
+
+.expo-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding-bottom: 22px; border-bottom: 1px solid var(--expo-line); }
+.expo-heading-copy { min-width: 0; }
+.expo-heading h1 { margin: 6px 0 0; font-size: 32px; line-height: 1.18; font-weight: 700; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.expo-event-link, .expo-dates { display: inline-flex; align-items: center; gap: 8px; }
+.expo-event-link { min-height: 32px; color: var(--expo-muted); text-decoration: none; font-size: 13px; font-weight: 550; }
+.expo-event-link:hover { color: white; text-decoration: underline; text-underline-offset: 3px; }
+.expo-dates { margin: 0 0 3px; font-size: 14px; color: var(--expo-muted); }
+.expo-heading svg, .expo-bookmark svg, .expo-search svg { flex-shrink: 0; }
+.expo-directory[dir="rtl"] .expo-event-link svg { transform: scaleX(-1); }
+.expo-directory[dir="rtl"] :is(h1,h2) { letter-spacing: normal; }
+
+.expo-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-block: 22px; }
+.expo-modes { display: inline-flex; align-items: center; gap: 3px; padding: 3px; background: #102d49; border: 1px solid var(--expo-line); border-radius: 11px; }
+.expo-modes button, .expo-bookmark, .expo-more, .expo-search button, .expo-state button { cursor: pointer; }
+.expo-modes button { min-height: 44px; padding-inline: 13px; border-radius: 8px; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 8px; background: transparent; color: var(--expo-muted); font: inherit; font-size: 14px; font-weight: 600; }
+.expo-modes button:hover { color: white; background: var(--navy-light); }
+.expo-modes button[aria-pressed="true"] { color: white; background: #164977; border-color: #589cde; }
+.expo-modes span { font-size: 12px; font-variant-numeric: tabular-nums; }
+.expo-modes button[aria-pressed="true"] span { color: #cde6ff; }
+.expo-search { display: flex; align-items: center; gap: 10px; width: min(100%, 340px); min-height: 46px; padding-inline: 14px 3px; border: 1px solid var(--expo-control-line); border-radius: 9px; background: var(--expo-panel); color: var(--expo-muted); }
+.expo-search input { width: 100%; min-width: 0; flex: 1; color: white; border: 0; background: transparent; outline: 0; font: inherit; font-size: 15px; }
+.expo-search input::placeholder { color: var(--expo-muted); opacity: 1; }
+.expo-search button, .expo-bookmark { display: grid; place-items: center; min-width: 44px; min-height: 44px; border-radius: 8px; color: #d5e6f5; }
+.expo-search button { background: transparent; border: 0; }
+.expo-directory :is(button,a):focus-visible, .expo-search:focus-within { outline: 3px solid var(--expo-highlight); outline-offset: 3px; }
+
+.expo-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.expo-card { min-width: 0; display: flex; flex-direction: column; border: 1px solid var(--expo-line); background: var(--expo-panel); border-radius: 14px; }
+.expo-logo-stage { display: grid; place-items: center; min-width: 0; height: 166px; padding: 16px; margin: 10px 10px 0; border-radius: 8px; background: white; }
+.expo-logo-stage img { display: block; width: 100%; height: 128px; object-fit: contain; }
+.expo-monogram { display: grid; place-items: center; width: 82px; height: 82px; border-radius: 16px; color: var(--navy); background: #e9f2fc; font-size: 34px; font-weight: 650; }
+.expo-card-body { padding: 10px 10px 12px 16px; overflow-wrap: anywhere; }
+.expo-directory[dir="rtl"] .expo-card-body { padding-inline: 16px 10px; }
+.expo-card-title { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.expo-card h2 { color: var(--expo-text); margin: 0; text-align: start; font-size: 18px; line-height: 1.3; letter-spacing: -.015em; font-weight: 650; }
+.expo-bookmark { flex: none; border: 1px solid transparent; background: transparent; }
+.expo-bookmark:hover { background: var(--navy-light); border-color: var(--expo-control-line); }
+.expo-bookmark[aria-pressed="true"] { background: #164977; color: #e3f1ff; border-color: #589cde; }
+.expo-card:focus-within { border-color: var(--expo-highlight); }
+.expo-sector, .expo-description { margin: 4px 0 0; color: var(--expo-muted); font-size: 14px; line-height: 1.55; }
+.expo-booth, .expo-links, .expo-device { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; font-size: 14px; }
+.expo-booth { margin: 8px 0 0; color: var(--expo-highlight); font-weight: 600; }
+.expo-links { margin-top: 12px; border-top: 1px solid var(--expo-line); gap: 12px; }
+.expo-links a { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; color: var(--expo-highlight); font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
+.expo-device { margin: -2px 0 18px; color: var(--expo-muted); }
+.expo-state { margin: 22px 0; padding: 26px 20px; border: 1px solid var(--expo-line); background: var(--expo-panel); border-radius: 12px; color: var(--expo-muted); }
+.expo-more, .expo-state button { min-height: 44px; border-radius: 8px; padding: 0 18px; border: 1px solid var(--expo-control-line); color: white; background: var(--navy-light); }
+.expo-more { display: block; margin: 24px auto 0; }
+.expo-state button { margin-inline-start: 10px; }
+.expo-page .landing-navbar-links .nav-item--investors:not([aria-current]) { background: transparent; color: #4b5563; font-weight: 500; }
+.expo-page .landing-navbar-links .nav-item[aria-current="page"] { color: #094d88; background: #e7f2fe; font-weight: 700; }
+
+@media (max-width: 1023px) {
+  .expo-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 768px) {
+  .expo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .expo-page .landing-navbar-inner { flex-wrap: wrap; height: auto !important; padding-top: 5px !important; }
+  .expo-page .register-btn.action-btn { width: auto !important; border-radius: 24px !important; padding-inline: 12px !important; gap: 5px !important; }
+  .expo-page .register-btn .btn-text-mobile { display: inline !important; }
+  .expo-page .logo-container { margin-inline-end: auto; }
+  .expo-page .landing-navbar-scroll-area { order: 4; flex: 0 0 100% !important; margin-top: 5px; border-top: 1px solid #e2e8f0; }
+  .expo-page .landing-navbar-links { padding: 2px 12px !important; }
+  .expo-page .landing-navbar-links .nav-label { display: inline !important; }
+  .expo-page .landing-navbar-links svg { display: none !important; }
+  .expo-page .landing-navbar-links button { height: 42px; }
+}
+@media (max-width: 600px) {
+  .expo-heading { align-items: start; flex-direction: column; gap: 10px; padding-bottom: 16px; }
+  .expo-dates { font-size: 13px; }
+  .expo-toolbar { align-items: stretch; flex-direction: column; gap: 10px; margin-block: 16px; }
+  .expo-modes { align-self: flex-start; }
+  .expo-modes button { padding-inline: 11px; }
+  .expo-search { width: 100%; }
+  .expo-search input { font-size: 16px; }
+  .expo-grid { gap: 10px; }
+  .expo-logo-stage { height: 128px; margin: 6px 6px 0; padding: 9px 5px; }
+  .expo-logo-stage img { height: 108px; }
+  .expo-card { border-radius: 12px; }
+  .expo-card-body, .expo-directory[dir="rtl"] .expo-card-body { padding: 6px 4px 8px; }
+  .expo-card-title { gap: 1px; }
+  .expo-card h2 { font-size: 14px; padding-inline-start: 4px; }
+  .expo-sector, .expo-description { font-size: 13px; padding-inline: 4px; }
+}
+@media (max-width: 359px) {
+  .expo-grid { grid-template-columns: 1fr; }
 }

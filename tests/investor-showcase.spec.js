@@ -7,7 +7,7 @@ const user={id:viewer,email:'attendee@example.test',aud:'authenticated',role:'au
 const profiles=[{id:viewer,full_name:'Youssef Ben Ali',company:'Solar Lab',job_title:'Founder',sector:'Energy',industry:'Energy'},
 {id:investor,full_name:'Amel Ben Salah',company:'Atlas Ventures',job_title:'Investment Director',sector:'Energy',industry:'Energy',avatar_url:null},
 {id:ordinary,full_name:'Ordinary Participant',company:'Other Company',job_title:'Founder',sector:'Technology',industry:'Technology'}];
-async function setup(page,{locale='en',registered=true,fail=false,signedIn=true}={}){
+async function setup(page,{locale='en',registered=true,fail=false,signedIn=true,registrationPhoto=null,exhibitors=[]}={}){
  const writes=[];const requests=[];const mail=[];const reads=[];
  await page.addInitScript(locale=>localStorage.setItem('eventra_locale',locale),locale);
  await page.route('**/auth/v1/**',r=>r.fulfill({json:user}));
@@ -18,6 +18,7 @@ async function setup(page,{locale='en',registered=true,fail=false,signedIn=true}
   reads.push({name,select:url.searchParams.get('select')});
   if(name==='events')data=url.searchParams.get('id')?.startsWith('in.')?[{id:event,name:'Investment Forum',timezone:'Africa/Tunis'}]:{id:event,name:'Investment Forum',status:'published',timezone:'Africa/Tunis',start_date:'2027-11-20',end_date:'2027-11-21',branding_settings:{}};
   if(name==='event_can')data=false;
+  if(name==='list_public_event_exhibitors')data=exhibitors;
   if(name==='list_event_investors'){
     if(fail)return r.fulfill({status:503,json:{message:'Temporary failure'}});
     data=[{attendee_id:'investor-attendee',profile_id:investor}];
@@ -27,7 +28,7 @@ async function setup(page,{locale='en',registered=true,fail=false,signedIn=true}
     if(id?.startsWith('in.'))expect(url.searchParams.get('select')).not.toMatch(/email|phone|\*/);
   }
   if(name==='event_attendees'){
-    if(url.searchParams.has('meta->>b2bOptIn'))data=profiles.map(p=>({profile_id:p.id,interests:['Investment'],sector:p.sector}));
+    if(url.searchParams.has('meta->>b2bOptIn'))data=profiles.map(p=>({profile_id:p.id,interests:['Investment'],sector:p.sector,photo_url:p.id===investor?registrationPhoto:null}));
     else if(url.searchParams.get('select')==='id')data=registered?(url.searchParams.has('limit')?[{id:'my-registration'}]:{id:'my-registration'}):null;
     else data=profiles.map(p=>({id:p.id===investor?'investor-attendee':'other-attendee',event_id:event,profile_id:p.id,name:p.full_name}));
   }
@@ -45,6 +46,16 @@ async function setup(page,{locale='en',registered=true,fail=false,signedIn=true}
  },user);}
  return {requests,writes,mail,reads};
 }
+test('investor image uses the registration photo, then an exact event company logo, then initials',async({page})=>{
+  const image='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50"></svg>';
+  await setup(page,{registrationPhoto:image,exhibitors:[{id:'expo',company_name:'ATLAS VENTURES',logo_url:image+'#logo'}]});
+  const identity=page.locator('.investor-showcase__identity');
+  await expect(identity.locator('img')).toHaveAttribute('src',image);
+  await identity.locator('img').dispatchEvent('error');
+  await expect(identity.getByRole('img',{name:'Atlas Ventures'})).toHaveAttribute('src',image+'#logo');
+  await identity.locator('img').dispatchEvent('error');
+  await expect(identity.locator('.investor-showcase__initials')).toHaveText('AB');
+});
 test('dedicated investor page discovers investors and submits through organizer review',async({page},testInfo)=>{
  const {requests,writes,mail}=await setup(page);
  await expect(page.getByRole('heading',{name:'Meet the investors',exact:true})).toBeVisible();

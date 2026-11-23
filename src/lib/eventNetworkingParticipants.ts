@@ -4,10 +4,10 @@ import { resolveEventSector } from '../utils/eventNetworkingFields';
 // Registration interests belong to the event registration, not profiles.
 // Select only networking fields; meta also contains private contact details.
 export async function loadEventNetworkingParticipants(eventId: string) {
-  const registrations = new Map<string, { interests: string[]; sector: string | null }>();
+  const registrations = new Map<string, { interests: string[]; sector: string | null; photo: string | null; company: string | null }>();
   for (let offset = 0; ; offset += 500) {
     const { data, error } = await supabase.from('event_attendees')
-      .select('profile_id, interests:meta->interests, sector:meta->>sector')
+      .select('profile_id, avatar_url, photo_url, company, interests:meta->interests, sector:meta->>sector')
       .eq('event_id', eventId)
       .in('status', ['registered', 'approved'])
       .eq('meta->>b2bOptIn', 'true')
@@ -19,7 +19,7 @@ export async function loadEventNetworkingParticipants(eventId: string) {
       const interests = Array.isArray(row.interests)
         ? row.interests.filter((value): value is string => typeof value === 'string')
         : typeof row.interests === 'string' ? row.interests.split(',').map(value => value.trim()).filter(Boolean) : [];
-      registrations.set(row.profile_id, { interests, sector: row.sector });
+      registrations.set(row.profile_id, { interests, sector: row.sector, photo: row.avatar_url?.trim() || row.photo_url?.trim() || null, company: row.company?.trim() || null });
     }
     if (!data || data.length < 500) break;
   }
@@ -34,7 +34,8 @@ export async function loadEventNetworkingParticipants(eventId: string) {
       if (profile.b2b_enabled === false) continue;
       const registration = registrations.get(profile.id)!;
       participants.push({ id: profile.id, full_name: profile.full_name, job_title: profile.job_title,
-        company: profile.company, avatar_url: profile.avatar_url,
+        company: profile.company?.trim() || registration.company, avatar_url: profile.avatar_url?.trim() || registration.photo,
+        registrationPhoto: registration.photo,
         sector: resolveEventSector({ sector: registration.sector }, profile), interests: registration.interests });
     }
   }

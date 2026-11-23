@@ -6,7 +6,7 @@ const actor='10000000-0000-4000-8000-000000000001',other='10000000-0000-4000-800
 const entity='20000000-0000-4000-8000-000000000001',event='30000000-0000-4000-8000-000000000001';
 function fixture(tables={},permissions=false,protectedRecipient=false){
  const db={auth:{admin:{getUserById:async id=>({data:{user:{id,email:`${id}@example.test`}},error:null})}},rpc:async()=>({data:protectedRecipient,error:null}),from:table=>{
-   let records=tables[table]||[]; const q={select:()=>q,eq:(key,value)=>{records=records.filter(r=>r[key]===value);return q;},order:()=>q,limit:n=>{records=records.slice(0,n);return q;},maybeSingle:async()=>({data:records[0]||null,error:null}),then:resolve=>Promise.resolve({data:records,error:null}).then(resolve)};return q;
+   let records=tables[table]||[]; const q={select:()=>q,eq:(key,value)=>{records=records.filter(r=>key.split('.').reduce((current, part) => current?.[part], r) === value);return q;},or:(filter,{referencedTable})=>{assert.equal(filter,'status.is.null,status.neq.cancelled');records=records.filter(r=>r[referencedTable]?.status!=='cancelled');return q;},order:()=>q,limit:n=>{records=records.slice(0,n);return q;},maybeSingle:async()=>({data:records[0]||null,error:null}),then:resolve=>Promise.resolve({data:records,error:null}).then(resolve)};return q;
  }};
  return command=>authorizePlatformMail({command,actor:{id:actor},db,userDb:{rpc:async()=>({data:permissions,error:null})},origin:'https://app.eventra.cloud'});
 }
@@ -81,4 +81,41 @@ test('ordinary meeting email restores authorized event, partner, time and venue 
  const run=fixture({event_b2b_meetings:[{...meeting,end_at:'2027-01-01T10:30:00Z',location:'Room <A>'}],events:[{id:event,name:'Example event',timezone:'Africa/Tunis'}],profiles:[{id:actor,full_name:'Example host'}]});
  const {mail}=await run({kind:'meeting',entityId:entity,recipientId:other});
  assert.match(mail.html,/Example event/);assert.match(mail.html,/Example host/);assert.match(mail.html,/11:00/);assert.match(mail.html,/11:30/);assert.match(mail.html,/Room &lt;A&gt;/);assert.match(mail.html,/View my meeting/);
+});
+
+test('session reminders recheck organizer permission, workshop membership and registration on send', async () => {
+  const cmd = { kind: 'session_reminder', entityId: entity, recipientId: other, channel: 'email', subject: 'Rappel', message: 'Salle <A>' };
+  const session = { id: entity, event_id: event, status: 'confirmed' };
+  const attendee = { event_id: event, status: 'registered', meta: { email: ' Guest@Example.test ' } };
+  const tables = (person = attendee, sessionId = entity) => ({
+    event_sessions: [session],
+    event_attendee_sessions: [{ session_id: sessionId, attendee_id: other, event_attendees: person }]
+  });
+  await assert.rejects(fixture(tables())(cmd), error => error.status === 403);
+  await assert.rejects(fixture(tables(), true)({ ...cmd, message: ' ' }), error => error.status === 400);
+  const run = fixture(tables(), true);
+  const first = await run(cmd);
+  assert.deepEqual(first.mail.to, ['guest@example.test']);
+  assert.match(first.mail.html, /Salle &lt;A&gt;/);
+  assert.equal(first.key, (await run(cmd)).key);
+  assert.notEqual(first.key, (await run({ ...cmd, message: 'Salle B' })).key);
+  for (const rows of [tables(attendee, stranger), tables({ ...attendee, event_id: stranger }),
+    tables({ ...attendee, status: 'declined' }), tables({ ...attendee, meta: {} })]) {
+    assert.deepEqual(await fixture(rows, true)(cmd), { ineligible: true });
+  }
+  await assert.rejects(fixture({ ...tables(), event_sessions: [{ ...session, status: 'cancelled' }] }, true)(cmd), error => error.status === 409);
+});
+
+test('all-workshop reminder requires a current booking in an active workshop at the same event', async () => {
+  const command = { kind: 'workshops_reminder', entityId: event, recipientId: other, subject: 'Rappel', message: 'Programme' };
+  const session = { event_id: event, type: 'workshop', status: 'full' };
+  const registration = { event_id: event, status: 'approved', email: 'workshop@example.test' };
+  const tables = (sessionRows) => ({ event_attendee_sessions: sessionRows.map(s => ({
+    attendee_id: other, event_sessions: s, event_attendees: registration
+  })) });
+  const permitted = tables([session, session]);
+  await assert.rejects(fixture(permitted)(command), error => error.status === 403);
+  assert.deepEqual((await fixture(permitted, true)(command)).mail.to, ['workshop@example.test']);
+  const unrelated = tables([{ ...session, type: 'keynote' }, { ...session, event_id: stranger }, { ...session, status: 'cancelled' }]);
+  assert.deepEqual(await fixture(unrelated, true)(command), { ineligible: true });
 });

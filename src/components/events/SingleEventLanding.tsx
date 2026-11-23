@@ -33,7 +33,7 @@ interface ScheduleItem {
   speaker?: string;
 }
 
-export default function SingleEventLanding() {
+export default function SingleEventLanding({ navigationTop = 72 }: { navigationTop?: number } = {}) {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('overview');
@@ -208,7 +208,7 @@ export default function SingleEventLanding() {
       <nav
         className="fixed left-0 right-0 z-40 transition-all"
         style={{
-          top: '72px',
+          top: navigationTop,
           height: '60px',
           backgroundColor: 'rgba(11, 38, 65, 0.95)',
           backdropFilter: 'blur(10px)',
@@ -268,7 +268,7 @@ export default function SingleEventLanding() {
           {/* Register Button (Appears on Scroll) */}
           {showRegisterButton && (
             <button
-              onClick={() => navigate('/event/saas-summit-2024/register')}
+              onClick={() => navigate(`/event/${eventId}/register`)}
               className="px-6 py-2 rounded-lg flex items-center gap-2 transition-all"
               style={{
                 backgroundColor: '#0684F5',

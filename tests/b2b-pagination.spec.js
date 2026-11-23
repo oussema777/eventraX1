@@ -68,6 +68,13 @@ test('meeting pages load only visible details and retain global search and count
   await expect(page.getByRole('button', { name: 'Retry safely' })).toHaveCount(0);
   expect(retried).toBe(true);
   await expect(pager).toContainText('Page 1 of 1');
+  const confirmed = page.getByRole('button', { name: 'Confirmed', exact: true });
+  await confirmed.click();
+  await expect(confirmed).toHaveAttribute('aria-pressed', 'true');
+  await expect(pager).toContainText('1–11 / 11');
+  await expect(page.getByText('Person 0', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Person 1', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'All', exact: true }).click();
   // A failed server mutation must not announce success or remove the meeting.
   await page.route('**/rest/v1/event_b2b_meetings?**', route => route.request().method() === 'PATCH'
     ? route.fulfill({ status: 403, json: { message: 'Not authorized' } }) : route.fallback());

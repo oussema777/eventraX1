@@ -24,20 +24,61 @@ export function resolveRosterPerson(a: Record<string, unknown>, profile: Record<
   };
 }
 
-export async function loadDashboardSessionRoster(eventId: string, sessionId: string) {
-  const attendees = new Map<string, Record<string, unknown>>();
-  for (let offset = 0; ; offset += 500) {
-    const { data, error } = await supabase.from('event_attendee_sessions')
-      .select('attendee_id, event_attendees!inner(*)').eq('session_id', sessionId)
-      .eq('event_attendees.event_id', eventId).in('event_attendees.status', ['registered', 'approved'])
-      .order('attendee_id').range(offset, offset + 499);
+const activeRegistrationStatuses = ['registered', 'approved', 'checked_in'];
+const bookingPageSize = 500;
+
+async function eachBookingPage<Row>(
+  getPage: (offset: number, end: number, count?: 'exact') => PromiseLike<{
+    data: Row[] | null; error: unknown; count: number | null;
+  }>,
+  consume: (row: Row) => void,
+) {
+  let offset = 0;
+  let total: number | null = null;
+  for (;;) {
+    const { data, error, count } = await getPage(offset, offset + bookingPageSize - 1, offset === 0 ? 'exact' : undefined);
     if (error) throw error;
-    for (const row of data || []) {
-      const a = row.event_attendees as unknown as Record<string, unknown>;
-      if (typeof a?.id === 'string') attendees.set(a.id, a);
-    }
-    if (!data || data.length < 500) break;
+    if (!data?.length) break;
+    if (count !== null) total = count;
+    data.forEach(consume);
+    offset += data.length;
+    if (total !== null ? offset >= total : data.length < bookingPageSize) break;
   }
+}
+
+export async function loadAgendaSessionCounts(eventId: string) {
+  const counts = new Map<string, number>();
+  await eachBookingPage<{ session_id: string }>((offset, end, count) =>
+    supabase.from('event_attendee_sessions')
+      .select('session_id,event_attendees!inner(),event_sessions!inner()', { count })
+      .eq('event_sessions.event_id', eventId).eq('event_attendees.event_id', eventId)
+      .in('event_attendees.status', activeRegistrationStatuses)
+      .order('session_id').order('attendee_id').range(offset, end),
+    // The database enforces one booking per (session_id, attendee_id).
+    row => counts.set(row.session_id, (counts.get(row.session_id) || 0) + 1));
+  return counts;
+}
+
+export async function loadSessionRegistrations(eventId: string, sessionId: string | null) {
+  const attendees = new Map<string, Record<string, unknown>>();
+  await eachBookingPage<{ event_attendees: unknown }>((offset, end, count) => {
+    const bookings = supabase.from('event_attendee_sessions');
+    const query = sessionId
+      ? bookings.select('attendee_id, event_attendees!inner(*)', { count }).eq('session_id', sessionId)
+      : bookings.select('attendee_id, event_attendees!inner(*), event_sessions!inner(id)', { count })
+        .eq('event_sessions.event_id', eventId).eq('event_sessions.type', 'workshop')
+        .or('status.is.null,status.neq.cancelled', { referencedTable: 'event_sessions' });
+    return query.eq('event_attendees.event_id', eventId).in('event_attendees.status', activeRegistrationStatuses)
+      .order('attendee_id').order('session_id').range(offset, end);
+  }, row => {
+    const person = row.event_attendees as Record<string, unknown> | null;
+    if (typeof person?.id === 'string') attendees.set(person.id, person);
+  });
+  return attendees;
+}
+
+export async function loadDashboardSessionRoster(eventId: string, sessionId: string) {
+  const attendees = await loadSessionRegistrations(eventId, sessionId);
   const ids = [...new Set([...attendees.values()].map(a => a.profile_id).filter((id): id is string => typeof id === 'string' && !!id))];
   const profiles = new Map<string, Record<string, unknown>>();
   for (let offset = 0; offset < ids.length; offset += 100) {

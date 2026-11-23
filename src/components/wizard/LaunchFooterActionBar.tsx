@@ -21,7 +21,7 @@ export default function LaunchFooterActionBar({ onPublish, onSaveDraft, onBack, 
       onPublish();
       return;
     }
-    navigate(ROUTES.SUCCESS);
+    navigate(eventId ? `${ROUTES.SUCCESS_LIVE}?eventId=${encodeURIComponent(eventId)}` : ROUTES.DASHBOARD);
   };
 
   const handleBack = () => {

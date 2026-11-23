@@ -81,6 +81,11 @@ export default function EventInvestorManager({
     },
   });
   if (!permitted) return null;
+  const terms = search.toLocaleLowerCase(locale).trim().split(/\s+/).filter(Boolean);
+  const matches = attendees.filter((a) => {
+    const text = `${a.name} ${a.email}`.toLocaleLowerCase(locale);
+    return terms.every((term) => text.includes(term));
+  });
   const act = async (work: () => Promise<void>) => {
     if (busy) return;
     setBusy(true);
@@ -224,7 +229,13 @@ export default function EventInvestorManager({
                 <input
                   type="search"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  disabled={busy}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setAttendeeId('');
+                    setInventory(null);
+                    setChoice('');
+                  }}
                 />
               </label>
             )}
@@ -240,15 +251,7 @@ export default function EventInvestorManager({
                 }}
               >
                 <option value="">{c.selectPrompt}</option>
-                {attendees
-                  .filter(
-                    (a) =>
-                      a.id === attendeeId ||
-                      `${a.name} ${a.email}`
-                        .toLocaleLowerCase(locale)
-                        .includes(search.trim().toLocaleLowerCase(locale))
-                  )
-                  .map((a) => (
+                {matches.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.name || a.email}
                     </option>

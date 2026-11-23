@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useNavigate, useParams } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/navigation/ProtectedRoute';
@@ -67,7 +67,6 @@ const DesignStudioPreview = lazy(() => import('./pages/DesignStudioPreview'));
 const WizardStep3Registration = lazy(() => import('./pages/05_Wizard_Step3_Registration'));
 const WizardStep4Launch = lazy(() => import('./pages/06_Wizard_Step4_Launch'));
 const CreateEventWizardStep4 = lazy(() => import('./pages/30_Create_Event_Wizard_Step4'));
-const SuccessPublished = lazy(() => import('./pages/07_Success_Published'));
 const EventLiveSuccess = lazy(() => import('./pages/31_Event_Live_Success'));
 const DraftSaved = lazy(() => import('./pages/08_Draft_Saved'));
 
@@ -125,6 +124,31 @@ function RedirectLegacyWizard() {
   return null;
 }
 
+function LegacyLinkRedirect({ destination }: { destination: 'business' | 'register' | 'success' }) {
+  const { businessId } = useParams();
+  const { search, hash } = useLocation();
+  if (destination === 'success' && !EVENT_ID_PATTERN.test(new URLSearchParams(search).get('eventId') || '')) {
+    return <Navigate replace to="/dashboard" />;
+  }
+  const pathname = destination === 'business' ? `/business/${encodeURIComponent(businessId!)}`
+    : destination === 'success' ? '/success-live' : '/register';
+  return <Navigate replace to={{ pathname, search, hash }} />;
+}
+
+function ManagementNotificationRedirect() {
+  const { eventId = '' } = useParams();
+  const { search, hash } = useLocation();
+  if (!EVENT_ID_PATTERN.test(eventId)) return <NotFound />;
+
+  // Reviewer notifications and previously emailed links use the old B2B destination.
+  const params = new URLSearchParams(search);
+  if (params.get('tab') === 'b2b') {
+    params.set('tab', 'investors');
+    params.set('investorView', 'requests');
+  }
+  return <Navigate replace to={{ pathname: `/event/${eventId}`, search: params.toString(), hash }} />;
+}
+
 function EventRootEntry() {
   const { eventId = '' } = useParams();
   // UUID roots remain authenticated organizer dashboards; names are public pages.
@@ -149,6 +173,7 @@ export default function App() {
             <Route path="/event-team/invite/:invitationId" element={<EventTeamInvitation />} />
             <Route path="/investor-invitation" element={<InvestorInvitation />} />
             <Route path="/register" element={<LandingPage />} />
+            <Route path="/signup" element={<LegacyLinkRedirect destination="register" />} />
             <Route path="/auth-flow-demo" element={<AuthFlowDemo />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -161,8 +186,11 @@ export default function App() {
             <Route path="/logistics/load-calculator" element={<LoadCalculatorPage />} />
             <Route path="/logistics/container-shipping" element={<ContainerShippingCostsPage />} />
             <Route path="/business/:businessId/offerings/:productId" element={<BusinessProductPage />} />
+            <Route path="/marketplace/product/:productId" element={<BusinessProductPage />} />
+            <Route path="/business-profile/:businessId" element={<LegacyLinkRedirect destination="business" />} />
 
             <Route path="/business/:businessId" element={<BusinessProfilePageRoute />} />
+            <Route path="/manage-event/:eventId" element={<ManagementNotificationRedirect />} />
             <Route path="/event/:eventId" element={<EventRootEntry />}>
               <Route element={<ProtectedRoute />}>
                 <Route index element={<GuestLockout><EventManagementDashboard /></GuestLockout>} />
@@ -222,7 +250,7 @@ export default function App() {
               <Route path="/create-event/:eventId" element={<RedirectLegacyWizard />} />
 
               {/* Redirect old route to correct route */}
-              <Route path="/event-management-dashboard" element={<Navigate to="/event/saas-summit-2024" replace />} />
+              <Route path="/event-management-dashboard" element={<Navigate to="/dashboard" replace />} />
 
               <Route element={<EventEditorRoute />}>
               <Route path="/create/details/:eventId" element={<WizardStep1Details />} />
@@ -232,7 +260,7 @@ export default function App() {
               <Route path="/create/launch/:eventId" element={<WizardStep4Launch />} />
               </Route>
               <Route path="/create/launch-new" element={<CreateEventWizardStep4 />} />
-              <Route path="/success" element={<SuccessPublished />} />
+              <Route path="/success" element={<LegacyLinkRedirect destination="success" />} />
               <Route path="/success-live" element={<EventLiveSuccess />} />
               <Route path="/draft-saved" element={<DraftSaved />} />
               <Route path="/my-profile" element={<MyProfile />} />

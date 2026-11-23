@@ -1027,27 +1027,16 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
   }, [attendeesData, suggestionsData]);
 
   const meetingFilters = useMemo(() => {
-    const today = new Date();
-    const isToday = (value?: string | null) => {
-      if (!value) return false;
-      const d = new Date(value);
-      return d.toDateString() === today.toDateString();
-    };
-    const counts = {
-      all: meetingsData.length,
-      today: meetingsData.filter((m: any) => isToday(m.dateRaw)).length,
-      ai: meetingsData.filter((m: any) => m.ai).length,
-      manual: meetingsData.filter((m: any) => !m.ai).length,
-      pending: meetingsData.filter((m: any) => String(m.statusKey || '').toLowerCase() === 'pending').length,
-      completed: meetingsData.filter((m: any) => String(m.statusKey || '').toLowerCase() === 'completed').length
-    };
+    const today = new Date().toDateString();
+    const countStatus = (status: string) => meetingsData.filter(m => m.statusKey === status).length;
     return [
-      { key: 'all', label: 'All', count: counts.all, icon: false },
-      { key: 'today', label: 'Today', count: counts.today, icon: false },
-      { key: 'ai', label: 'AI Generated', count: counts.ai, icon: true },
-      { key: 'manual', label: 'Manual', count: counts.manual, icon: false },
-      { key: 'pending', label: 'Pending', count: counts.pending, icon: false },
-      { key: 'completed', label: 'Completed', count: counts.completed, icon: false }
+      { key: 'all', icon: LayoutGrid, count: meetingsData.length },
+      { key: 'confirmed', icon: CheckCircle, count: countStatus('confirmed') },
+      { key: 'pending', icon: Clock, count: countStatus('pending') },
+      { key: 'completed', icon: CheckCircle, count: countStatus('completed') },
+      { key: 'today', icon: Calendar, count: meetingsData.filter(m => m.dateRaw && new Date(m.dateRaw).toDateString() === today).length },
+      { key: 'ai', icon: Sparkles, count: meetingsData.filter(m => m.ai).length },
+      { key: 'manual', icon: User, count: meetingsData.filter(m => !m.ai).length }
     ];
   }, [meetingsData]);
 
@@ -1081,8 +1070,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
     }
     if (meetingFilter === 'ai') rows = rows.filter((m: any) => m.ai);
     if (meetingFilter === 'manual') rows = rows.filter((m: any) => !m.ai);
-    if (meetingFilter === 'pending') rows = rows.filter((m: any) => String(m.statusKey || '').toLowerCase() === 'pending');
-    if (meetingFilter === 'completed') rows = rows.filter((m: any) => String(m.statusKey || '').toLowerCase() === 'completed');
+    if (['pending', 'confirmed', 'completed'].includes(meetingFilter)) rows = rows.filter(m => m.statusKey === meetingFilter);
 
     if (meetingDateFilter === 'today') {
       const today = new Date().toDateString();
@@ -1345,7 +1333,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
 
     const rows = selectedMeetingIds.length
       ? meetingsData.filter((m: any) => selectedMeetingIds.includes(m.rawId))
-      : meetingsData;
+      : activeTab === 'all-meetings' ? filteredMeetings : meetingsData;
     if (!rows.length) {
       toast.error(t('manageEvent.b2b.toasts.noMeetingsExport'));
       return;
@@ -2648,26 +2636,23 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                 alignItems: 'center'
               }}
             >
-              <div className="event-b2b__filter-tabs" style={{ display: 'flex', gap: '8px' }}>
-                {[
-                  { key: 'all', label: t('manageEvent.b2b.allMeetings.filters.all'), icon: LayoutGrid, count: meetingFilters.find(f => f.key === 'all')?.count || 0 },
-                  { key: 'today', label: t('manageEvent.b2b.allMeetings.filters.today'), icon: Calendar, count: meetingFilters.find(f => f.key === 'today')?.count || 0 },
-                  { key: 'ai', label: t('manageEvent.b2b.allMeetings.filters.ai'), icon: Sparkles, count: meetingFilters.find(f => f.key === 'ai')?.count || 0 },
-                  { key: 'manual', label: t('manageEvent.b2b.allMeetings.filters.manual'), icon: User, count: meetingFilters.find(f => f.key === 'manual')?.count || 0 },
-                  { key: 'pending', label: t('manageEvent.b2b.allMeetings.filters.pending'), icon: Clock, count: meetingFilters.find(f => f.key === 'pending')?.count || 0 },
-                  { key: 'completed', label: t('manageEvent.b2b.allMeetings.filters.completed'), icon: CheckCircle, count: meetingFilters.find(f => f.key === 'completed')?.count || 0 }
-                ].map((filter) => {
+              <div className="event-b2b__filter-tabs" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {meetingFilters.map((filter) => {
+                  const label = t(`manageEvent.b2b.allMeetings.filters.${filter.key}`);
                   const isActive = meetingFilter === filter.key;
                   const Icon = filter.icon;
                   return (
                   <button
                     key={filter.key}
                     onClick={() => setMeetingFilter(filter.key)}
-                    title={filter.label}
+                    title={label}
+                    aria-label={label}
+                    aria-pressed={isActive}
                     style={{
-                      width: '40px',
+                      width: filter.key === 'confirmed' ? 'auto' : '40px',
                       height: '40px',
-                      padding: 0,
+                      padding: filter.key === 'confirmed' ? '0 12px' : 0,
+                      gap: 6,
                       backgroundColor: isActive ? '#0684F5' : 'rgba(255,255,255,0.05)',
                       border: '1px solid rgba(255,255,255,0.1)',
                       borderRadius: '8px',
@@ -2693,6 +2678,7 @@ export default function EventB2BMatchmakingTab({ eventId }: { eventId?: string }
                     }}
                   >
                     <Icon size={18} />
+                    {filter.key === 'confirmed' && label}
                     {filter.count > 0 && (
                       <span
                         style={{

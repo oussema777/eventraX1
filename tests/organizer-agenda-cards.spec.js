@@ -1,5 +1,35 @@
 import { test, expect } from '@playwright/test';
 
+test('agenda counts include later booking pages and never present a failed page as zero', async ({ page }) => {
+  let failSecondPage = true;
+  const sessions = ['a', 'b'].map(id => ({ id, title: 'Training ' + id, day: 1,
+    starts_at: '2026-11-25T09:00:00Z', ends_at: '2026-11-25T10:00:00Z', status: 'confirmed' }));
+  const bookings = Array.from({ length: 1101 }, (_, i) => ({ session_id: i < 1100 ? 'a' : 'b' }));
+  await page.route('**/rest/v1/**', route => {
+    const url = new URL(route.request().url());
+    const table = url.pathname.split('/').pop();
+    if (table === 'event_attendee_sessions') {
+      expect(url.searchParams.get('event_sessions.event_id')).toBe('eq.event-one');
+      expect(url.searchParams.get('event_attendees.event_id')).toBe('eq.event-one');
+      expect(url.searchParams.get('event_attendees.status')).toBe('in.(registered,approved,checked_in)');
+      const offset = Number(url.searchParams.get('offset'));
+      if (offset && failSecondPage) return route.fulfill({ status: 503, json: { message: 'Unavailable' } });
+      const rows = bookings.slice(offset, offset + 300);
+      return route.fulfill({ headers: { 'access-control-expose-headers': 'Content-Range', 'content-range': offset + '-' + (offset + rows.length - 1) + '/1101' }, json: rows });
+    }
+    return route.fulfill({ json: table === 'event_sessions' ? sessions : table === 'events' ? { id: 'event-one' } : [] });
+  });
+  await page.goto('/tests/fixtures/organizer-agenda.html');
+  const alert = page.getByRole('alert').filter({ hasText: 'Session registrations could not be loaded.' });
+  await expect(alert).toBeVisible();
+  await expect(page.locator('[data-agenda-card]')).toHaveCount(0);
+  failSecondPage = false;
+  await alert.getByRole('button', { name: 'Try again' }).click();
+  const cards = page.locator('[data-agenda-card]');
+  await expect(cards.filter({ hasText: 'Training a' }).locator('strong')).toHaveText('1100');
+  await expect(cards.filter({ hasText: 'Training b' }).locator('strong')).toHaveText('1');
+});
+
 test('organizer agenda uses real photos, honest capacity and aligned participant actions', async ({ page }) => {
   const writes = [];
   let failRoster = false;
@@ -120,7 +150,7 @@ test('roster loads every registration and fills blank fields from the linked pro
     if (table === 'event_attendee_sessions') {
       if (url.searchParams.get('session_id') !== 'eq.session-one') return r.fulfill({ json: [] });
       expect(url.searchParams.get('event_attendees.event_id')).toBe('eq.event-one');
-      expect(url.searchParams.get('event_attendees.status')).toBe('in.(registered,approved)');
+      expect(url.searchParams.get('event_attendees.status')).toBe('in.(registered,approved,checked_in)');
       const offset = Number(url.searchParams.get('offset') || 0); offsets.push(offset);
       return r.fulfill({ json: Array.from({ length: offset ? 1 : 500 }, (_, i) => ({ attendee_id: String(offset + i), event_attendees: {
         id: String(offset + i), name: 'Person ' + (offset + i), company: ' ', profile_id: offset + i === 500 ? 'profile-one' : null,

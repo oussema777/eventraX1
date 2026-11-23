@@ -9,7 +9,7 @@ import {
   Users,
   Filter,
   MoreVertical,
-  Bell,
+  Mail,
   Eye,
   Edit,
   Grid3x3,
@@ -24,9 +24,11 @@ import {
   Plus,
   Trash2
 } from 'lucide-react';
+import { loadAgendaSessionCounts } from '../../lib/dashboardSessionRoster';
 import DashboardSessionRoster from './DashboardSessionRoster';
 import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
+import SessionReminderDialog from './SessionReminderDialog';
+import './sessionReminder.css';
 import { toast } from 'sonner';
 import { useI18n } from '../../i18n/I18nContext';
 import AgendaBookingSettings, { SessionBookingToggle } from '../events/AgendaBookingSettings';
@@ -109,7 +111,6 @@ function AgendaAvatar({ src, name, size = 28 }: { src?: string | null; name: str
 
 export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { t } = useI18n();
   const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
   const [selectedDay, setSelectedDay] = useState(1);
@@ -117,6 +118,8 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reload, setReload] = useState(0);
   const [eventStartISO, setEventStartISO] = useState<string | null>(null);
   const [eventEndISO, setEventEndISO] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -133,11 +136,8 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
   const [attendeesOpen, setAttendeesOpen] = useState(false);
   const [activeSession, setActiveSession] = useState<Session | null>(null);
 
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [notifTitle, setNotifTitle] = useState('');
-  const [notifMessage, setNotifMessage] = useState('');
-  const [notifChannel, setNotifChannel] = useState<'in_app' | 'email' | 'sms' | 'push'>('in_app');
-  const [notifSending, setNotifSending] = useState(false);
+  const [reminderSession, setReminderSession] = useState<Session | 'workshops' | null>(null);
+  const [eventZone, setEventZone] = useState<string>();
 
   const [editOpen, setEditOpen] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
@@ -201,23 +201,25 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
 
   useEffect(() => {
     if (!eventId) return;
+    let current = true;
     const run = async () => {
       try {
         setIsLoading(true);
+        setLoadFailed(false);
 
-        const [{ data: ev }, { data: spk }, { data: sess }, { data: regs }] = await Promise.all([
+        const [{ data: ev }, { data: spk }, sessionResult, counts] = await Promise.all([
           supabase.from('events').select('*').eq('id', eventId).maybeSingle(),
           supabase.from('event_speakers').select('*').eq('event_id', eventId),
           supabase.from('event_sessions').select('*').eq('event_id', eventId).order('starts_at', { ascending: true }),
-          supabase
-            .from('event_attendee_sessions')
-            .select('*, event_attendees!inner(status)')
-            .in('event_attendees.status', ['registered', 'approved'])
-            .in('session_id', (await supabase.from('event_sessions').select('id').eq('event_id', eventId)).data?.map(s => s.id) || [])
+          loadAgendaSessionCounts(eventId),
         ]);
+        if (!current) return;
+        if (sessionResult.error) throw sessionResult.error;
+        const sess = sessionResult.data;
 
         const startISO = (ev as any)?.start_date ? new Date((ev as any).start_date).toISOString() : null;
         const endISO = (ev as any)?.end_date ? new Date((ev as any).end_date).toISOString() : null;
+        setEventZone(ev?.timezone);
         setEventStartISO(startISO);
         setEventEndISO(endISO);
 
@@ -229,16 +231,6 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
           });
         });
 
-        const registrationSets = new Map<string, Set<string>>();
-        (regs || []).forEach((r: any) => {
-          const sid = r.session_id as string | null;
-          const aid = r.attendee_id as string | null;
-          if (!sid || !aid) return;
-          const s = registrationSets.get(sid) || new Set<string>();
-          s.add(aid);
-          registrationSets.set(sid, s);
-        });
-
         const mapped: Session[] = [...(sess || [])].sort(compareAgendaSessions).map((row: any) => {
           const speakerIds: string[] = Array.isArray(row.speaker_ids) ? row.speaker_ids : [];
           const primarySpeaker = speakerIds.length ? speakerById.get(speakerIds[0]) : null;
@@ -248,7 +240,7 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
 
           const day = Number.isFinite(row.day) ? Number(row.day) : 1;
 
-          const registeredCount = registrationSets.get(row.id)?.size || 0;
+          const registeredCount = counts.get(row.id) || 0;
           const attendees = registeredCount;
           const capacity = Number.isFinite(row.capacity) ? Number(row.capacity) : 0;
 
@@ -291,13 +283,15 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
         if (!Number.isFinite(maxDay) || maxDay < 1) maxDay = 1;
         setSelectedDay(prev => Math.min(Math.max(1, prev), maxDay));
       } catch (e) {
+        if (current) { setSessions([]); setLoadFailed(true); }
         console.error(e);
       } finally {
-        setIsLoading(false);
+        if (current) setIsLoading(false);
       }
     };
-    run();
-  }, [eventId]);
+    void run();
+    return () => { current = false; };
+  }, [eventId, reload]);
 
   const dayButtons = useMemo(() => {
     let maxDay = 1;
@@ -362,45 +356,6 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
     setAttendeesOpen(true);
   };
 
-  const openNotification = (s: Session) => {
-    setActiveSession(s);
-    setNotifTitle(`Update: ${s.title}`);
-    setNotifMessage('');
-    setNotifChannel('in_app');
-    setNotifOpen(true);
-  };
-
-  const sendNotification = async () => {
-    if (!eventId || !activeSession) return;
-    if (!notifTitle.trim() || !notifMessage.trim()) {
-      toast.error(t('manageEvent.agenda.toasts.notifRequired'));
-      return;
-    }
-    try {
-      setNotifSending(true);
-      const payload = {
-        event_id: eventId,
-        session_id: activeSession.id,
-        created_by: user?.id || null,
-        title: notifTitle.trim(),
-        message: notifMessage.trim(),
-        channel: notifChannel,
-        status: 'sent',
-        audience: { type: 'session', session_id: activeSession.id }
-      };
-      const { data, error } = await supabase.from('event_notifications').insert(payload as any).select('*');
-      if (error) throw error;
-      if (!data || !data.length) throw new Error('No rows inserted');
-      toast.success(t('manageEvent.agenda.toasts.notifSuccess'));
-      setNotifOpen(false);
-    } catch (e: any) {
-      console.error(e);
-      toast.error(t('manageEvent.agenda.toasts.notifError'));
-    } finally {
-      setNotifSending(false);
-    }
-  };
-
   const openEdit = (s: Session) => {
     setActiveSession(s);
     setEditForm({
@@ -457,13 +412,16 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
       toast.success(t('manageEvent.agenda.toasts.updateSuccess'));
       setEditOpen(false);
       setIsLoading(true);
-      const { data: sess, error: sessErr } = await supabase.from('event_sessions').select('*').eq('event_id', eventId).order('starts_at', { ascending: true });
+      const [{ data: sess, error: sessErr }, counts] = await Promise.all([
+        supabase.from('event_sessions').select('*').eq('event_id', eventId).order('starts_at', { ascending: true }),
+        loadAgendaSessionCounts(eventId)
+      ]);
       if (sessErr) throw sessErr;
       const refreshed: Session[] = (sess || []).map((row: any) => {
         const day = Number.isFinite(row.day) ? Number(row.day) : 1;
         const capacity = Number.isFinite(row.capacity) ? Number(row.capacity) : 0;
         const old = sessions.find(x => x.id === row.id);
-        const attendees = old?.attendees || (Number.isFinite(row.attendees) ? Number(row.attendees) : 0);
+        const attendees = counts.get(row.id) || 0;
         let status: SessionStatus = (row.status || 'confirmed') as SessionStatus;
         if (status !== 'cancelled' && capacity && attendees >= capacity) status = 'full';
         if (!['confirmed', 'pending', 'cancelled', 'full'].includes(status)) status = 'confirmed';
@@ -535,6 +493,11 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
     );
   }
 
+  if (loadFailed) return <div role="alert" className="p-6 text-white">
+    <p>{t('sessionReminder.countError')}</p>
+    <button className="reminder-secondary" onClick={() => setReload(value => value + 1)}>{t('eventImprovements.retry')}</button>
+  </div>;
+
   return (
     <div className="event-agenda">
       <style>{`
@@ -593,7 +556,12 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
             </p>
           </div>
 
-          <div className="event-agenda__actions flex items-center gap-3">
+          <div className="event-agenda__actions flex flex-wrap items-center gap-3">
+            {sessions.some(s => s.type === 'workshop' && s.status !== 'cancelled') && (
+              <button type="button" className="agenda-reminder-action" onClick={() => setReminderSession('workshops')}>
+                <Mail size={16} />{t('sessionReminder.allAction')}
+              </button>
+            )}
             <div
               className="event-agenda__view-toggle flex rounded-lg border overflow-hidden"
               style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', borderColor: 'rgba(255, 255, 255, 0.1)' }}
@@ -901,6 +869,9 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
                               <button onClick={() => openAttendees(session)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flex: 1, minHeight: 40, padding: '8px 12px', borderRadius: 8, background: '#204B70', border: '1px solid #32658E', color: '#D4EAFF', fontSize: 13, fontWeight: 600 }}>
                                 <Users size={16} />{t('manageEvent.agenda.list.rowActions.viewAttendees')}
                               </button>
+                              {session.status !== 'cancelled' && <button type="button" className="agenda-reminder-action" onClick={() => setReminderSession(session)}>
+                                <Mail size={16} />{t('sessionReminder.action')}
+                              </button>}
                               <button aria-label={`${t('manageEvent.speakers.bulk.delete')}: ${session.title}`} title={t('manageEvent.speakers.bulk.delete')} onClick={() => handleDeleteSession(session.id)} style={{ display: 'grid', placeItems: 'center', flexShrink: 0, width: 40, height: 40, borderRadius: 8, border: '1px solid #475569', color: '#FCA5A5', background: 'transparent' }}><Trash2 size={16} /></button>
                             </div>
                           </div>
@@ -1026,6 +997,9 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
                             >
                               <Eye size={14} /> {t('manageEvent.agenda.list.rowActions.viewAttendees')}
                             </button>
+                            {session.status !== 'cancelled' && <button className="agenda-reminder-menu" onClick={() => { setOpenRowMenuId(null); setReminderSession(session); }}>
+                              <Mail size={16} />{t('sessionReminder.action')}
+                            </button>}
                           </div>
                         )}
                       </div>
@@ -1046,76 +1020,8 @@ export default function EventScheduleTab({ eventId }: EventScheduleTabProps) {
         {/* MODALS */}
         {attendeesOpen && activeSession && eventId && <DashboardSessionRoster key={`${eventId}:${activeSession.id}`} eventId={eventId} session={activeSession} onClose={() => setAttendeesOpen(false)} />}
 
-        {notifOpen && activeSession && (
-          <div className="fixed inset-0 z-[210] flex items-center justify-center p-6" style={{ backgroundColor: 'rgba(11, 38, 65, 0.85)' }}>
-            <div className="w-full max-w-[720px] rounded-2xl border" style={{ backgroundColor: '#0D3052', borderColor: 'rgba(255, 255, 255, 0.12)' }}>
-              <div className="flex items-center justify-between px-6 py-5 border-b" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
-                <div>
-                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#FFFFFF' }}>{t('manageEvent.agenda.modals.notification.title')}</div>
-                  <div style={{ fontSize: '13px', color: '#94A3B8', marginTop: '4px' }}>{activeSession.title}</div>
-                </div>
-                <button
-                  onClick={() => setNotifOpen(false)}
-                  className="w-10 h-10 rounded-lg flex items-center justify-center"
-                  style={{ backgroundColor: 'rgba(255, 255, 255, 0.06)', border: '1px solid rgba(255, 255, 255, 0.12)', color: '#FFFFFF' }}
-                >
-                  <X size={18} />
-                </button>
-              </div>
-              <div className="p-6 space-y-4">
-                <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', display: 'block' }}>{t('manageEvent.agenda.modals.notification.fields.title')}</label>
-                  <input
-                    value={notifTitle}
-                    onChange={(e) => setNotifTitle(e.target.value)}
-                    className="w-full rounded-lg px-4"
-                    style={{ height: '44px', backgroundColor: 'rgba(255, 255, 255, 0.06)', border: '1px solid rgba(255, 255, 255, 0.12)', color: '#FFFFFF', fontSize: '14px', outline: 'none' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', display: 'block' }}>{t('manageEvent.agenda.modals.notification.fields.channel')}</label>
-                  <select
-                    value={notifChannel}
-                    onChange={(e) => setNotifChannel(e.target.value as any)}
-                    className="w-full rounded-lg px-4"
-                    style={{ height: '44px', backgroundColor: 'rgba(255, 255, 255, 0.06)', border: '1px solid rgba(255, 255, 255, 0.12)', color: '#FFFFFF', fontSize: '14px', outline: 'none' }}
-                  >
-                    <option value="in_app">{t('manageEvent.agenda.modals.notification.channels.inApp')}</option>
-                    <option value="email">{t('manageEvent.agenda.modals.notification.channels.email')}</option>
-                    <option value="sms">{t('manageEvent.agenda.modals.notification.channels.sms')}</option>
-                    <option value="push">{t('manageEvent.agenda.modals.notification.channels.push')}</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '6px', display: 'block' }}>{t('manageEvent.agenda.modals.notification.fields.message')}</label>
-                  <textarea
-                    value={notifMessage}
-                    onChange={(e) => setNotifMessage(e.target.value)}
-                    className="w-full rounded-lg px-4 py-3"
-                    style={{ minHeight: '140px', backgroundColor: 'rgba(255, 255, 255, 0.06)', border: '1px solid rgba(255, 255, 255, 0.12)', color: '#FFFFFF', fontSize: '14px', outline: 'none', resize: 'none' }}
-                  />
-                </div>
-              </div>
-              <div className="px-6 py-5 border-t flex items-center justify-end gap-3" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
-                <button
-                  onClick={() => setNotifOpen(false)}
-                  className="px-5 rounded-lg border"
-                  style={{ height: '44px', backgroundColor: 'transparent', borderColor: 'rgba(255, 255, 255, 0.2)', color: '#FFFFFF', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}
-                >
-                  {t('manageEvent.agenda.modals.notification.actions.cancel')}
-                </button>
-                <button
-                  onClick={sendNotification}
-                  disabled={notifSending}
-                  className="px-5 rounded-lg"
-                  style={{ height: '44px', backgroundColor: '#8B5CF6', color: '#FFFFFF', fontSize: '14px', fontWeight: 800, cursor: notifSending ? 'not-allowed' : 'pointer', opacity: notifSending ? 0.7 : 1 }}
-                >
-                  {notifSending ? t('manageEvent.agenda.modals.notification.actions.sending') : t('manageEvent.agenda.modals.notification.actions.send')}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {reminderSession && eventId && <SessionReminderDialog key={eventId + (reminderSession === 'workshops' ? 'workshops' : reminderSession.id)}
+          eventId={eventId} session={reminderSession === 'workshops' ? null : reminderSession} timeZone={eventZone} onClose={() => setReminderSession(null)} />}
 
         {editOpen && activeSession && (
           <div className="fixed inset-0 z-[220] flex items-center justify-center p-6" style={{ backgroundColor: 'rgba(11, 38, 65, 0.85)' }}>

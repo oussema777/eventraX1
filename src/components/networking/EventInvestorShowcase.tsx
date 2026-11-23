@@ -1,6 +1,7 @@
 import { useParticipantBusinesses } from '../../hooks/useParticipantBusinesses';
+import { loadPublicExhibitors } from '../../lib/publicExhibitors';
 import ParticipantBusinessIdentity from './ParticipantBusinessIdentity';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -20,6 +21,23 @@ import { eventAuthPath } from '../../utils/authRedirect';
 import { eventPublicPath } from '../../utils/eventLinks';
 import { investorShowcaseCopy } from './investorShowcaseCopy';
 import './EventInvestorShowcase.css';
+
+const companyKey = (name: string) => name.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+
+function InvestorImage({ name, photos, companyLogo, company }: {
+  name: string; photos: Array<string | null>; companyLogo?: string | null; company?: string | null;
+}) {
+  const [failed, setFailed] = useState<string[]>([]);
+  const photo = photos.find(url => url && !failed.includes(url));
+  const logo = companyLogo && !failed.includes(companyLogo) ? companyLogo : undefined;
+  const src = photo || logo;
+  if (src) return <img src={src} loading="lazy" alt={photo ? '' : company || ''}
+    className={photo ? undefined : 'investor-showcase__company-logo'}
+    onError={() => setFailed(previous => [...previous, src])} />;
+  return <span className="investor-showcase__initials" aria-hidden="true">
+    {name.trim().split(/\s+/).slice(0, 2).map(word => Array.from(word)[0]).join('')}
+  </span>;
+}
 
 type EventRef = { id: string; seo_slug?: string | null };
 export function InvestorDiscoveryBanner({ event }: { event: EventRef }) {
@@ -133,6 +151,19 @@ function InvestorShowcase({
     )
   );
   const businesses = useParticipantBusinesses(filtered.slice(page*12,page*12+12).map(p=>p.id));
+  const exhibitors = useQuery({
+    queryKey: ['public-exhibitors', eventId], queryFn: () => loadPublicExhibitors(eventId),
+    enabled: !!directory.data?.allowed && people.length > 0, staleTime: 60000,
+  });
+  const exhibitorLogos = useMemo(() => {
+    const logos = new Map<string, string | null>();
+    for (const row of exhibitors.data || []) {
+      const key = companyKey(row.company_name);
+      // Multiple exhibitors with the same name cannot establish which logo belongs to this investor.
+      logos.set(key, logos.has(key) ? null : row.logo_url);
+    }
+    return logos;
+  }, [exhibitors.data]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / 12));
   const currentPage = Math.min(page, totalPages - 1);
   const entry = (
@@ -230,20 +261,8 @@ function InvestorShowcase({
                 .map((p) => (
                   <article className="investor-showcase__card" key={p.id}>
                     <div className="investor-showcase__identity">
-                      {p.avatar_url ? (
-                        <img src={p.avatar_url} alt="" loading="lazy" />
-                      ) : (
-                        <span
-                          className="investor-showcase__initials"
-                          aria-hidden="true"
-                        >
-                          {(p.full_name || p.company || 'I')
-                            .split(/\s+/)
-                            .map((s) => s[0])
-                            .slice(0, 2)
-                            .join('')}
-                        </span>
-                      )}
+                      <InvestorImage name={p.full_name || p.company || c.investor} photos={[p.avatar_url, p.registrationPhoto]}
+                        company={p.company} companyLogo={exhibitorLogos.get(companyKey(p.company || ''))} />
                       <span className="investor-showcase__badge">
                         <Landmark size={13} />
                         {c.investor}

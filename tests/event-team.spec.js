@@ -56,6 +56,84 @@ async function setup(page, role = 'owner', locale = 'en', signedIn = true) {
   return state;
 }
 
+for (const surface of ['bell', 'notification history']) {
+  test(`investor review link from the ${surface} opens the event's review queue`, async ({ page }) => {
+    await setup(page, 'coordinator', 'fr');
+    await page.route('**/rest/v1/rpc/list_review_notifications', route => route.fulfill({ json: [{
+      id: 'review:' + invitationId, action_url: `/manage-event/${eventId}?tab=b2b`,
+      kind: 'submitted', requester: false, created_at: new Date().toISOString(), read_at: null,
+    }] }));
+    await page.route('**/rest/v1/rpc/get_event_review_capabilities', route => route.fulfill({
+      json: { released: true, enabled: true, can_review: true, can_designate: false, can_configure: false }
+    }));
+    await page.goto(surface === 'bell' ? `/event/${eventId}?tab=attendees` : '/notifications');
+    if (surface === 'bell') await page.locator('button:has(svg.lucide-bell)').first().click();
+    await page.getByRole('button', { name: /Accès investisseurs.*Demandes de rendez-vous à valider/ }).click();
+    await expect(page).toHaveURL(`/event/${eventId}?tab=investors&investorView=requests`);
+    await expect(page.getByRole('heading', { name: 'Demandes de rendez-vous à valider' })).toBeVisible();
+    await expect(page.getByText('Aucune demande en attente', { exact: true })).toBeVisible();
+  });
+}
+
+test('organizer links keep their event and destination through sign-in', async ({ page }) => {
+  await setup(page, 'owner', 'en', false);
+  for (const [from, to] of [
+    ['?tab=b2b', '?tab=investors&investorView=requests'],
+    ['?tab=attendees#recent', '?tab=attendees#recent'],
+    ['', ''],
+  ]) {
+    await page.goto(`/manage-event/${eventId}${from}`);
+    await expect(page).toHaveURL(/\/login\?next=/);
+    expect(new URL(page.url()).searchParams.get('next')).toBe(`/event/${eventId}${to}`);
+  }
+});
+
+test('legacy invitations and shared business links reach their current pages', async ({ page }) => {
+  await setup(page, 'owner', 'en', false);
+  await page.goto('/signup?email=invitee%40example.test&ref=event-invite');
+  await expect(page).toHaveURL('/register?email=invitee%40example.test&ref=event-invite');
+  await page.goto(`/business-profile/${eventId}?ref=team#about`);
+  await expect(page).toHaveURL(`/business/${eventId}?ref=team#about`);
+  await page.route('**/rest/v1/business_offerings?**', route => route.fulfill({ json: { id: invitationId, business_id: eventId, name: 'Workshop supplies' } }));
+  await page.route('**/rest/v1/business_profiles?**', route => route.fulfill({ json: { id: eventId, company_name: 'Test Business' } }));
+  await page.goto(`/marketplace/product/${invitationId}`);
+  await expect(page.getByRole('heading', { name: 'Workshop supplies' })).toBeVisible();
+});
+
+test('review deep links respect revoked review access', async ({ page }) => {
+  await setup(page, 'coordinator', 'fr');
+  await page.route('**/rest/v1/rpc/get_event_review_capabilities', route => route.fulfill({
+    json: { released: true, enabled: true, can_review: false, can_configure: false, can_designate: false }
+  }));
+  await page.goto(`/manage-event/${eventId}?tab=b2b`);
+  await expect(page.getByText('Un accès à la validation est nécessaire', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Demandes de rendez-vous à valider' })).toHaveCount(0);
+});
+
+test('old management and publication links open the dashboard or the actual event', async ({ page }) => {
+  await setup(page);
+  await page.goto('/event-management-dashboard');
+  await expect(page).toHaveURL('/dashboard');
+  await page.goto('/success');
+  await expect(page).toHaveURL('/dashboard');
+  await page.goto(`/success?eventId=${eventId}`);
+  await expect(page).toHaveURL(`/success-live?eventId=${eventId}`);
+  await expect(page.getByText(`http://127.0.0.1:3000/event/${eventId}/landing`, { exact: true })).toBeVisible();
+});
+
+test('preview share and registration links use the event being previewed', async ({ page, context }) => {
+  await setup(page);
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.route('https://images.unsplash.com/**', route => route.abort());
+  await page.goto(`/event/${eventId}/preview`);
+  await page.getByRole('button', { name: 'Share', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
+    .toBe(`http://127.0.0.1:3000/event/${eventId}/landing`);
+  await page.evaluate(() => window.scrollTo(0, 650));
+  await page.locator('nav').getByRole('button', { name: 'Register Now' }).click();
+  await expect(page).toHaveURL(`/event/${eventId}/register`);
+});
+
 test('owner can retry after the team database becomes available', async ({ page }) => {
   const state = await setup(page);
   state.teamLoadError = true;
@@ -87,8 +165,8 @@ test('owner creates email-bound invitations and can cancel them', async ({ page 
 });
 
 for (const [role, tabs] of [
-  ['administrator', ['Overview', 'Agenda', 'Speakers', 'Attendees', 'Forms', 'Exhibitors', 'Ticketing', 'B2B', 'Day-of', 'Notifications']],
-  ['coordinator', ['Attendees', 'B2B', 'Day-of']],
+  ['administrator', ['Overview', 'Agenda', 'Speakers', 'Attendees', 'Investors', 'Forms', 'Exhibitors', 'Ticketing', 'B2B', 'Day-of', 'Notifications']],
+  ['coordinator', ['Attendees', 'Investors', 'B2B', 'Day-of']],
   ['checkin', ['Day-of']],
 ]) {
   test(`${role} only sees permitted event sections even with a team deep link`, async ({ page }) => {
@@ -96,6 +174,7 @@ for (const [role, tabs] of [
     await page.goto(`/event/${eventId}?tab=team`);
     const nav = page.locator('.event-dashboard__nav');
     await expect(nav.getByRole('button')).toHaveCount(tabs.length);
+    for (const name of tabs) await expect(nav.getByRole('button', { name })).toBeVisible();
     await expect(nav.getByRole('button', { name: 'Team & access', exact: true })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Team & access' })).toHaveCount(0);
     if (role !== 'administrator') {
@@ -258,7 +337,7 @@ test('verified invitee explicitly accepts and lands in their permitted event sec
   expect(state.actions.filter(action => action.rpc === 'accept_event_invitation')).toHaveLength(0);
   await page.getByRole('button', { name: 'Accept invitation', exact: true }).click();
   await expect(page).toHaveURL(`http://127.0.0.1:3000/event/${eventId}`);
-  await expect(page.locator('.event-dashboard__nav').getByRole('button')).toHaveCount(3);
+  await expect(page.locator('.event-dashboard__nav').getByRole('button')).toHaveCount(4);
 });
 
 test('wrong-account or expired invitation offers recovery and cannot be accepted', async ({ page }) => {

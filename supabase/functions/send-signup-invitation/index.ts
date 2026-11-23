@@ -7,7 +7,9 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 function generateSignupInvitationEmailHtml(name: string, email: string, eventName: string): string {
-  const signupUrl = `https://app.eventra.cloud/signup?email=${encodeURIComponent(email)}&ref=event-invite`
+  const signupUrl = new URL('/register', Deno.env.get('EVENTRA_APP_ORIGIN') || 'https://eventra.cloud')
+  signupUrl.searchParams.set('email', email)
+  signupUrl.searchParams.set('ref', 'event-invite')
   return renderBrandedNotice({title:`You're registered for ${eventName}!`,body:`Hi ${name || 'there'}, create your Eventra profile to connect with attendees and prepare your meetings. Your event registration stays active either way.`,url:signupUrl,action:'Create my account',category:'YOUR EVENT EXPERIENCE',details:[['B2B networking','Connect with attendees and exhibitors.'],['Meeting scheduling','Arrange one-to-one conversations during the event.'],['Professional profile','Help other participants discover your business.'],['Smart check-in','Keep your personal QR code ready for the entrance.']]})
 }
 

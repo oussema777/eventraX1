@@ -1,0 +1,59 @@
+.agenda-reminder-action, .agenda-reminder-menu, .reminder-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.agenda-reminder-action { flex: 1; color: #e0f2fe; background: #195478; border: 1px solid #3d779a; }
+.agenda-reminder-menu { justify-content: start; width: 100%; color: white; }
+.agenda-reminder-action:hover, .agenda-reminder-menu:hover { background: #286085; }
+.agenda-reminder-action svg, .agenda-reminder-menu svg { flex-shrink: 0; }
+.session-reminder[data-slot="dialog-content"] {
+  background: #0d3052;
+  color: #fff;
+  border-color: #365670;
+  width: min(560px, calc(100% - 24px));
+  max-width: 560px;
+  max-height: 90dvh;
+  overflow-y: auto;
+  gap: 16px;
+  text-align: start;
+}
+.session-reminder header { padding-inline: 0 22px; overflow-wrap: anywhere; }
+.session-reminder p, .session-reminder [data-slot="dialog-description"] { color: #c1d2df; font-size: 13px; line-height: 1.5; }
+.session-reminder [data-slot="dialog-description"] { margin-top: 5px; }
+.session-reminder label { display: grid; gap: 6px; font-size: 14px; font-weight: 600; }
+.session-reminder input, .session-reminder textarea {
+  width: 100%; min-width: 0; padding: 10px 12px; font: inherit; font-weight: 400; color: #fff;
+  background: #132b40; border: 1px solid #527189; border-radius: 8px;
+}
+.session-reminder textarea { resize: vertical; }
+.reminder-confirm[data-slot="alert-dialog-content"] {
+  position: fixed; top: 50%; left: 50%; translate: none; transform: translate(-50%, -50%);
+  display: grid; gap: 14px; padding: 20px; border-radius: 12px;
+  z-index: 70; width: min(460px, calc(100% - 32px)); max-height: 90dvh; overflow: auto;
+  background: #102f49; color: #fff; border: 1px solid #526e84; text-align: start;
+}
+.reminder-confirm [data-slot="alert-dialog-description"] { color: #e0ebf2; line-height: 1.55; }
+.reminder-confirm p { overflow-wrap: anywhere; }
+.reminder-confirm [data-slot="alert-dialog-cancel"] { background: #163950; color: white; border: 1px solid #8ba4b5; }
+.reminder-confirm [data-slot="alert-dialog-action"] { background: #1266a0; color: white; }
+.reminder-confirm button { min-height: 44px; }
+.reminder-recipients, .reminder-result { background: #173c59; border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+.reminder-recipients summary { cursor: pointer; }
+.reminder-recipients svg, .reminder-result svg { display: inline; vertical-align: middle; margin-inline-end: 8px; }
+.reminder-recipients ul { overflow-y: auto; max-height: 120px; margin-top: 8px; overflow-wrap: anywhere; }
+.reminder-recipients li { padding: 4px 0; }
+.reminder-recipients bdi { color: #bfd7e8; }
+.session-reminder footer { display: flex; flex-wrap: wrap; justify-content: end; gap: 8px; }
+.reminder-secondary { padding: 8px 14px; border: 1px solid #54758d; border-radius: 8px; color: #e2edf6; cursor: pointer; }
+.reminder-primary { background: #0865a8; color: white; border: 1px solid #4993c8; }
+.reminder-primary:hover:enabled { background: #0c76bf; }
+.session-reminder button:disabled { opacity: .55; cursor: default; }
+.session-reminder[aria-busy="true"] [data-slot="dialog-close"], .session-reminder[aria-busy="true"] > button:last-child { visibility: hidden; }

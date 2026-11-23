@@ -83,6 +83,8 @@ export default function EventReviewSettings({ eventId }: { eventId: string }) {
         profiles: (profiles || []).map((p) => ({
           ...p,
           eligible: staff.has(p.id) || p.role === 'admin',
+          automaticDesignation: p.id === owner || p.role === 'admin' ||
+            (members.data || []).some((m) => m.user_id === p.id && m.role === 'administrator'),
         })),
         permissions: permissions.data || [],
       };
@@ -160,8 +162,14 @@ export default function EventReviewSettings({ eventId }: { eventId: string }) {
           .toLocaleLowerCase(locale)
           .includes(search.toLocaleLowerCase(locale))
     ) || [];
-  const assigned =
-    team.data?.permissions.filter((p) => p.can_review || p.can_designate) || [];
+  const assignedIds = new Set([
+    ...(team.data?.permissions.filter((p) => p.can_review || p.can_designate).map((p) => p.user_id) || []),
+    ...(team.data?.profiles.filter((p) => p.automaticDesignation).map((p) => p.id) || []),
+  ]);
+  const assigned = [...assignedIds].map((user_id) =>
+    team.data?.permissions.find((p) => p.user_id === user_id) ||
+    { user_id, can_designate: false, can_review: false }
+  );
   return (
     <section
       className="investor-review investor-review--settings"
@@ -172,6 +180,7 @@ export default function EventReviewSettings({ eventId }: { eventId: string }) {
       <p>
         {c.settingsHint} {c.selfReview}
       </p>
+      <p>{copy.automaticHint}</p>
       {error && (
         <p
           role="alert"
@@ -294,14 +303,15 @@ export default function EventReviewSettings({ eventId }: { eventId: string }) {
                   >
                     <div>
                       <strong>{name}</strong>
+                      {profile?.automaticDesignation && <p>{copy.automaticAccess}</p>}
                       {!profile?.eligible && <p>{copy.inactive}</p>}
                     </div>
                     <div className="investor-review__permission-options">
                       <label>
                         <input
                           type="checkbox"
-                          checked={permission.can_designate}
-                          disabled={busy || !profile?.eligible}
+                          checked={!!profile?.automaticDesignation || permission.can_designate}
+                          disabled={busy || !profile?.eligible || profile.automaticDesignation}
                           onChange={(e) =>
                             void act(() =>
                               save(
@@ -333,12 +343,12 @@ export default function EventReviewSettings({ eventId }: { eventId: string }) {
                       </label>
                     </div>
                     <button
-                      disabled={busy}
+                      disabled={busy || (!permission.can_review && !permission.can_designate)}
                       onClick={() =>
                         void act(() => save(permission.user_id, false, false))
                       }
                     >
-                      {copy.remove}
+                      {profile?.automaticDesignation ? copy.removeAdditional : copy.remove}
                     </button>
                   </article>
                 );
