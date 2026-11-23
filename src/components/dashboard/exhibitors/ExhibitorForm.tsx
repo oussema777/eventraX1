@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { exhibitorDirectoryCopy } from '../../events/exhibitorDirectoryCopy';
 import { useI18n } from '../../../i18n/I18nContext';
 import { toast } from 'sonner';
 import {
@@ -17,7 +18,8 @@ export function AddExhibitorSponsorModal({ type, eventId, onClose, onAdded, init
   initialData?: Exhibitor | Sponsor | null;
   startAssignBooth?: boolean;
 }) {
-  const { t, tList } = useI18n();
+  const { t, tList, locale } = useI18n();
+  const [directoryListed, setDirectoryListed] = useState(false);
   const [assignBooth, setAssignBooth] = useState(startAssignBooth);
   const [selectedTier, setSelectedTier] = useState<SponsorTier>('gold');
   const [companyName, setCompanyName] = useState('');
@@ -39,6 +41,7 @@ export function AddExhibitorSponsorModal({ type, eventId, onClose, onAdded, init
 
   useEffect(() => {
     if (!initialData) {
+      setDirectoryListed(false);
       setCompanyName('');
       setWebsite('');
       setDescription('');
@@ -66,6 +69,7 @@ export function AddExhibitorSponsorModal({ type, eventId, onClose, onAdded, init
 
     if (type === 'exhibitor') {
       const exhibitor = initialData as Exhibitor;
+      setDirectoryListed(exhibitor.directoryListed);
       setCategory(exhibitor.category || '');
       setBoothNumber(exhibitor.booth?.number || '');
       setBoothHall(exhibitor.booth?.hall || '');
@@ -120,6 +124,7 @@ export function AddExhibitorSponsorModal({ type, eventId, onClose, onAdded, init
       const isEdit = !!initialData;
       if (type === 'exhibitor') {
         const payload: any = {
+          directory_listed: !draft && directoryListed,
           company_name: companyName.trim(),
           website_url: website.trim(),
           description: description.trim(),
@@ -142,6 +147,7 @@ export function AddExhibitorSponsorModal({ type, eventId, onClose, onAdded, init
         }
         if (isEdit && initialData) {
           if (draft) payload.profile_status = 'pending';
+          else if (initialData.profileStatus === 'pending') payload.profile_status = 'incomplete';
           const { error } = await supabase
             .from('event_exhibitors')
             .update(payload)
@@ -456,6 +462,13 @@ export function AddExhibitorSponsorModal({ type, eventId, onClose, onAdded, init
               </div>
             </div>
           </div>
+
+          {type === 'exhibitor' && !['confirmed', 'declined'].includes(initialData?.status || '') && (
+            <label style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 24, color: '#263e48' }}>
+              <input type="checkbox" checked={directoryListed} onChange={e => setDirectoryListed(e.target.checked)} />
+              {exhibitorDirectoryCopy[locale].listEarly}
+            </label>
+          )}
 
           {/* Section 2: Contact Information */}
           <div style={{ borderTop: '1px solid #E9EAEB', paddingTop: '32px', marginBottom: '32px' }}>

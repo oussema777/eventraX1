@@ -20,6 +20,8 @@ export interface SponsorshipInquiry {
 export interface Exhibitor {
   id: string;
   companyName: string;
+  directoryListed: boolean;
+  status: string;
   logo: string;
   website: string;
   description: string;

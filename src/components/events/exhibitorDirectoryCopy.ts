@@ -1,0 +1,32 @@
+export const exhibitorDirectoryCopy = {
+  fr: {
+    placeholder: 'Nom, secteur ou stand',
+    title: 'Exposants', all: 'Tous', saved: 'Ma sélection', search: 'Rechercher un exposant, un secteur ou un stand',
+    save: 'Ajouter à ma sélection', remove: 'Retirer de ma sélection', booth: 'Stand', website: 'Site web',
+    email: 'E-mail', phone: 'Téléphone', empty: 'La liste des exposants sera disponible ici.',
+    noSaved: 'Ajoutez des exposants à votre sélection avec le marque-page sur chaque fiche.',
+    noResults: 'Aucun exposant ne correspond à votre recherche.', reset: 'Effacer la recherche',
+    error: 'Impossible de charger les exposants.', retry: 'Réessayer', more: 'Afficher la suite',
+    listEarly: 'Afficher dans l’annuaire public avant confirmation', device: 'Votre sélection est enregistrée sur cet appareil.',
+  },
+  en: {
+    placeholder: 'Name, sector or booth',
+    title: 'Exhibitors', all: 'All', saved: 'My shortlist', search: 'Search exhibitors, sectors or booths',
+    save: 'Add to my shortlist', remove: 'Remove from my shortlist', booth: 'Booth', website: 'Website',
+    email: 'Email', phone: 'Phone', empty: 'The exhibitor directory will appear here.',
+    noSaved: 'Use the bookmark on an exhibitor card to add it to your shortlist.',
+    noResults: 'No exhibitors match your search.', reset: 'Clear search',
+    error: 'The exhibitor directory could not be loaded.', retry: 'Try again', more: 'Show more',
+    listEarly: 'List in the public directory before confirmation', device: 'Your shortlist is saved on this device.',
+  },
+  ar: {
+    placeholder: 'الاسم أو القطاع أو الجناح',
+    title: 'العارضون', all: 'الكل', saved: 'قائمتي', search: 'ابحث عن عارض أو قطاع أو جناح',
+    save: 'أضف إلى قائمتي', remove: 'احذف من قائمتي', booth: 'الجناح', website: 'الموقع الإلكتروني',
+    email: 'البريد الإلكتروني', phone: 'الهاتف', empty: 'ستظهر قائمة العارضين هنا.',
+    noSaved: 'اضغط على علامة الحفظ في بطاقة العارض لإضافته إلى قائمتك.',
+    noResults: 'لا يوجد عارضون يطابقون بحثك.', reset: 'مسح البحث',
+    error: 'تعذّر تحميل قائمة العارضين.', retry: 'إعادة المحاولة', more: 'عرض المزيد',
+    listEarly: 'إظهار العارض في الدليل العام قبل التأكيد', device: 'تُحفظ قائمتك على هذا الجهاز.',
+  },
+};

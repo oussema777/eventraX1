@@ -106,9 +106,7 @@ export default function SingleEventLanding() {
 
       // 5. Fetch Exhibitors
       const { data: exhibitorData } = await supabase
-        .from('event_exhibitors')
-        .select('*')
-        .eq('event_id', eventId);
+        .rpc('list_public_event_exhibitors', { p_event_id: eventId });
       
       setExhibitors(exhibitorData || []);
 
@@ -823,7 +821,7 @@ export default function SingleEventLanding() {
                     }}
                   >
                     <span style={{ fontSize: '12px', fontWeight: 600, color: '#94A3B8', textAlign: 'center' }}>
-                      {exhibitor.company}
+                      {exhibitor.company_name}
                     </span>
                   </div>
                 ))}

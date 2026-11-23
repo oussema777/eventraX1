@@ -326,18 +326,18 @@ export default function DesignStudioLanding({ onRegisterRequest }: { onRegisterR
           supabase.from('event_sessions').select('*').eq('event_id', eventId).order('starts_at', { ascending: true }),
           supabase.from('event_tickets').select('*').eq('event_id', eventId),
           supabase.from('event_sponsors').select('*').eq('event_id', eventId).order('sort_order', { ascending: true }),
-          supabase.from('event_exhibitors').select('*').eq('event_id', eventId),
+          supabase.rpc('list_public_event_exhibitors', { p_event_id: eventId }),
           supabase.from('event_attendees').select('*').eq('event_id', eventId)
         ]);
 
         if (exhibitorRes.data) {
           setExhibitors(exhibitorRes.data.map((e: any) => ({
             id: e.id,
-            name: e.company,
+            name: e.company_name,
             logo: e.logo_url,
-            boothNumber: e.booth_location,
-            category: e.industry,
-            website: e.website
+            boothNumber: e.booth_number || e.booth_location,
+            category: e.sector,
+            website: e.website_url
           })));
         }
 

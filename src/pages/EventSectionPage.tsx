@@ -1,3 +1,4 @@
+import ExhibitorDirectory from '../components/events/ExhibitorDirectory';
 import { useParticipantBusinesses } from '../hooks/useParticipantBusinesses';
 import EventInvestorShowcase, { InvestorDiscoveryBanner } from '../components/networking/EventInvestorShowcase';
 import EventNetworkingBanner from '../components/networking/EventNetworkingBanner';
@@ -113,7 +114,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
         const [spk, sess, exh, att, spon, tix] = await Promise.all([
           supabase.from('event_speakers').select('id', { count: 'exact', head: true }).eq('event_id', eventId),
           supabase.from('event_sessions').select('id', { count: 'exact', head: true }).eq('event_id', eventId),
-          supabase.from('event_exhibitors').select('id', { count: 'exact', head: true }).eq('event_id', eventId),
+          supabase.rpc('list_public_event_exhibitors', { p_event_id: eventId }, { head: true, count: 'exact' }),
           supabase.from('event_attendees').select('id', { count: 'exact', head: true }).eq('event_id', eventId),
           supabase.from('event_sponsors').select('id', { count: 'exact', head: true }).eq('event_id', eventId),
           supabase.from('event_tickets').select('id', { count: 'exact', head: true }).eq('event_id', eventId)
@@ -158,8 +159,6 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
           setData(sponsorRows);
         } else if (type === 'speakers') {
           await fetchSpeakerBatch(1, true);
-        } else if (type === 'exhibitors') {
-          await fetchExhibitorBatch(1, true);
         } else if (type === 'attendees') {
           await fetchAttendeeBatch(1, true);
         }
@@ -197,31 +196,6 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
     if (!isInitial) window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const fetchExhibitorBatch = async (pageNumber: number, isInitial: boolean = false) => {
-    if (!eventId) return;
-    if (!isInitial) setIsLoadingMore(true);
-    const start = (pageNumber - 1) * ITEMS_PER_PAGE;
-    const end = start + ITEMS_PER_PAGE - 1;
-
-    const { data: exhibitors, error } = await supabase
-      .from('event_exhibitors')
-      .select('*')
-      .eq('event_id', eventId)
-      .order('company_name', { ascending: true })
-      .range(start, end);
-    
-    if (error) {
-      console.error('Error fetching exhibitors:', error);
-      if (isInitial) setData([]);
-      setIsLoadingMore(false);
-      return;
-    }
-
-    setData(exhibitors);
-    setIsLoadingMore(false);
-    if (!isInitial) window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   const fetchAttendeeBatch = async (_pageNumber: number, _isInitial = false) => {
     if (!eventId) return;
     setIsLoadingMore(true);
@@ -244,8 +218,6 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
       document.getElementById('attendee-directory')?.scrollIntoView({ block: 'start' });
     } else if (type === 'speakers') {
       await fetchSpeakerBatch(newPage);
-    } else if (type === 'exhibitors') {
-      await fetchExhibitorBatch(newPage);
     }
   };
 
@@ -588,7 +560,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
         {type === 'investors' && eventId && <EventInvestorShowcase eventId={eventId} onRequestMeeting={handleBookMeeting}/>}
         {type === 'attendees' && event && <InvestorDiscoveryBanner event={event}/>}
         {type === 'attendees' && <h2 style={{ fontSize: '28px', fontWeight: 700, marginBottom: '24px' }}>{t('attendeeExperience.title')}</h2>}
-        {type !== 'sponsors' && type !== 'attendees' && type !== 'investors' && (
+        {type !== 'sponsors' && type !== 'exhibitors' && type !== 'attendees' && type !== 'investors' && (
           <h1 style={{ fontSize: '32px', fontWeight: 700, color: '#FFFFFF', marginBottom: '40px', textTransform: 'capitalize' }}>
             {t(`wizard.designStudio.navbar.${type}`, { defaultValue: type })}
           </h1>
@@ -1142,26 +1114,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
           </div>
         )}
 
-        {type === 'exhibitors' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px', opacity: isLoadingMore ? 0.5 : 1, transition: 'opacity 0.2s' }}>
-            {(data || []).map((e: any) => (
-              <div key={e.id} style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column' }} onMouseEnter={(evt) => { evt.currentTarget.style.transform = 'translateY(-4px)'; evt.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.2)'; evt.currentTarget.style.borderColor = brandColor; evt.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'; }} onMouseLeave={(evt) => { evt.currentTarget.style.transform = 'translateY(0)'; evt.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)'; evt.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; evt.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.03)'; }}>
-                <div style={{ height: '120px', background: `linear-gradient(135deg, ${brandColor} 0%, #0B2641 100%)`, position: 'relative' }}>
-                  {e.sponsorship_level && <div style={{ position: 'absolute', top: '12px', right: '12px', padding: '4px 10px', borderRadius: '20px', backgroundColor: 'rgba(255,255,255,0.9)', color: e.sponsorship_level === 'Gold' ? '#B45309' : e.sponsorship_level === 'Silver' ? '#4B5563' : '#4338CA', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', border: '1px solid rgba(0,0,0,0.05)', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>{e.sponsorship_level}</div>}
-                  <div style={{ position: 'absolute', bottom: '-30px', left: '24px', width: '80px', height: '80px', borderRadius: '50%', backgroundColor: '#FFFFFF', border: '4px solid #0B2641', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
-                    <img src={e.logo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(e.company_name)}&background=random`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  </div>
-                </div>
-                <div style={{ padding: '40px 24px 24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                  <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF', lineHeight: '1.3', marginBottom: '8px' }}>{e.company_name}</h3>
-                  <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>{e.industry && <span style={{ fontSize: '11px', fontWeight: 600, color: '#94A3B8', padding: '2px 8px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '4px' }}>{e.industry.toUpperCase()}</span>}{e.booth_location && <span style={{ fontSize: '11px', fontWeight: 600, color: brandColor, padding: '2px 8px', backgroundColor: `${brandColor}20`, borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3h18v18H3zM9 3v18M15 3v18M3 9h18M3 15h18"/></svg>BOOTH {e.booth_location}</span>}</div>
-                  {e.description && <p style={{ fontSize: '14px', color: '#94A3B8', lineHeight: '1.6', marginBottom: '24px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', flex: 1 }}>{e.description}</p>}
-                  <div style={{ display: 'flex', gap: '8px', marginTop: 'auto' }}>{e.website_url && <a href={e.website_url} target="_blank" rel="noreferrer" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', backgroundColor: 'transparent', color: '#FFFFFF', fontWeight: 600, fontSize: '13px', textDecoration: 'none', transition: 'all 0.2s' }} onMouseEnter={(evt) => { evt.currentTarget.style.borderColor = brandColor; evt.currentTarget.style.color = brandColor; }} onMouseLeave={(evt) => { evt.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; evt.currentTarget.style.color = '#FFFFFF'; }}>Visit Website</a>}{(e.contact_email || e.contact_phone) && <div style={{ display: 'flex', gap: '8px' }}>{e.contact_email && <a href={`mailto:${e.contact_email}`} title="Email" style={{ width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.1)', color: '#94A3B8' }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg></a>}{e.contact_phone && <a href={`tel:${e.contact_phone}`} title="Call" style={{ width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.1)', color: '#94A3B8' }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg></a>}</div>}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {type === 'exhibitors' && eventId && <ExhibitorDirectory key={eventId} eventId={eventId} eventName={event?.name} />}
 
         {type === 'attendees' && (
           <div>
@@ -1212,7 +1165,7 @@ export default function EventSectionPage({ type }: { type: SectionType }) {
         {type === 'attendees' && filteredParticipants.length > 0 && <p style={{ textAlign: 'center', color: '#a2b6c9', fontSize: 13, marginTop: 28 }}>
           {t('attendeeExperience.pageRange', { start: (page - 1) * ITEMS_PER_PAGE + 1, end: Math.min(page * ITEMS_PER_PAGE, filteredParticipants.length), total: filteredParticipants.length })}
         </p>}
-        {(type === 'speakers' || type === 'exhibitors' || type === 'attendees') && (
+        {(type === 'speakers' || type === 'attendees') && (
           <PaginationControls totalItems={type === 'attendees' ? filteredParticipants.length : counts[type]} />
         )}
       </div>

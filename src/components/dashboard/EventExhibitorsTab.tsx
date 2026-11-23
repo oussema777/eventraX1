@@ -37,8 +37,10 @@ export default function EventExhibitorsTab({ eventId }: { eventId: string }) {
   const mapExhibitorRow = (row: any): Exhibitor => ({
     id: String(row.id),
     companyName: row.company_name || '',
+    directoryListed: row.directory_listed === true,
+    status: row.status,
     logo: row.logo_url || row.logo || '',
-    website: row.website || '',
+    website: row.website_url || row.website || '',
     description: row.description || '',
     category: row.category || row.industry || '',
     tags: Array.isArray(row.tags) ? row.tags : [],
