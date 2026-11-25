@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { isAuthRetryableFetchError } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { eventAuthPath, safeAuthPath } from '../utils/authRedirect';
 import { useI18n } from '../i18n/I18nContext';
@@ -35,7 +36,13 @@ export default function AuthCallback() {
       }
       const code = params.get('code');
       // The SDK may already have consumed the callback while initializing.
-      let { data: { session } } = await supabase.auth.getSession();
+      const restored = await supabase.auth.getSession();
+      if (isAuthRetryableFetchError(restored.error)) {
+        setMessage('refreshFailed');
+        setCanRetry(true);
+        return;
+      }
+      let session = restored.data.session;
       if (code && !session) {
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) {

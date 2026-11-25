@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { User, Session } from '@supabase/supabase-js';
+import { isAuthRetryableFetchError, type User, type Session } from '@supabase/supabase-js';
 import type { Profile } from '../types/profile';
 
 const PROFILE_COLUMNS = '*';
@@ -17,23 +17,23 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const buildFallbackProfile = (authUser: User) => ({
+  id: authUser.id,
+  email: authUser.email,
+  full_name:
+    authUser.user_metadata?.full_name ||
+    authUser.user_metadata?.name ||
+    authUser.email?.split('@')[0] ||
+    'New User'
+});
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const buildFallbackProfile = (authUser: User) => ({
-    id: authUser.id,
-    email: authUser.email,
-    full_name:
-      authUser.user_metadata?.full_name ||
-      authUser.user_metadata?.name ||
-      authUser.email?.split('@')[0] ||
-      'New User'
-  });
-
-  const fetchProfile = async (authUser: User) => {
+  const fetchProfile = useCallback(async (authUser: User) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -68,35 +68,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    let generation = 0;
+    let currentUserId: string | undefined;
+    let retry: ReturnType<typeof setTimeout>;
+
+    const applySession = (session: Session | null, refreshed = false) => {
+      const sameUser = currentUserId === session?.user.id;
+      currentUserId = session?.user.id;
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user);
-      } else {
-        setIsLoading(false);
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-
-      if (event === 'TOKEN_REFRESHED') return;
-
-      if (session?.user) {
-        fetchProfile(session.user);
+        if (!refreshed || !sameUser) void fetchProfile(session.user);
       } else {
         setProfile(null);
         setIsLoading(false);
       }
+    };
+
+    // INITIAL_SESSION can be null when renewal is temporarily unavailable.
+    // Confirm the result outside the SDK callback before redirecting to login.
+    const confirmInitialSession = async (version: number) => {
+      const { data, error } = await supabase.auth.getSession();
+      if (version !== generation) return;
+      if (isAuthRetryableFetchError(error)) {
+        retry = setTimeout(() => void confirmInitialSession(version), 5000);
+        return;
+      }
+      applySession(data.session);
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const version = ++generation;
+      clearTimeout(retry);
+      if (event === 'INITIAL_SESSION' && !session) {
+        retry = setTimeout(() => void confirmInitialSession(version), 0);
+      } else {
+        applySession(session, event === 'TOKEN_REFRESHED');
+      }
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      generation++;
+      clearTimeout(retry);
+      subscription.unsubscribe();
+    };
+  }, [fetchProfile]);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
@@ -104,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshProfile = useCallback(async () => {
     if (user) await fetchProfile(user);
-  }, [user]);
+  }, [user, fetchProfile]);
 
   const accountType = ((session?.user ?? user)?.app_metadata?.account_type ?? 'user') as 'user' | 'event_guest';
 
