@@ -11,13 +11,17 @@ const personalCode = meetingLink('http://127.0.0.1:3000', meetingId, eventId, a.
 const otherCode = meetingLink('http://127.0.0.1:3000', meetingId, eventId, b.profile_id);
 
 async function scanner(page, options = {}) {
-  const state = { attendees: [{ ...a }, { ...b }], meeting: { id: meetingId, event_id: eventId, profile_a_id: a.profile_id, profile_b_id: b.profile_id, attendee_a_id: null, attendee_b_id: null, start_at: '2027-11-20T13:00:00Z', end_at: '2027-11-20T13:30:00Z', location: 'Table 04', status: 'confirmed' }, checkins: [], attempts: [], failLookup: false, failSave: false, failAttendeeUpdate: false, delaySave: false, ...options };
+  const state = { attendees: [{ ...a }, { ...b }], meeting: { id: meetingId, event_id: eventId, profile_a_id: a.profile_id, profile_b_id: b.profile_id, attendee_a_id: null, attendee_b_id: null, start_at: '2027-11-20T13:00:00Z', end_at: '2027-11-20T13:30:00Z', location: 'Table 04', status: 'confirmed' }, moreMeetings: [], checkins: [], attempts: [], failLookup: false, failSave: false, failAttendeeUpdate: false, delaySave: false, ...options };
   await page.addInitScript(() => localStorage.setItem('eventra_locale', 'en'));
   await page.route('**/api/send-email', route => route.fulfill({ json: { id: 'test-only' } }));
   await page.route('**/rest/v1/**', async route => {
     const req = route.request(), url = new URL(req.url()), table = url.pathname.split('/').pop(), method = req.method();
     const filter = list => list.filter(row => [...url.searchParams].every(([key, value]) => {
       if (['select', 'order', 'limit', 'offset'].includes(key)) return true;
+      if (key === 'or') return value.slice(1, -1).split(',').some(clause => {
+        const [column, , id] = clause.split('.');
+        return row[column] === id;
+      });
       const cell = key === 'meta->>confirmation_code' ? row.meta?.confirmation_code : row[key];
       if (value.startsWith('eq.')) return String(cell) === value.slice(3);
       if (value.startsWith('ilike.')) return String(cell).toLowerCase() === value.slice(6).toLowerCase();
@@ -39,8 +43,8 @@ async function scanner(page, options = {}) {
       data = filter(state.attendees);
     }
     if (table === 'event_b2b_meetings') {
-      data = filter([state.meeting]);
-      if (method === 'PATCH' && data.length) Object.assign(state.meeting, req.postDataJSON());
+      data = filter([state.meeting, ...state.moreMeetings]);
+      if (method === 'PATCH' && data.length) Object.assign(data[0], req.postDataJSON());
     }
     if (table === 'event_checkins') {
       if (method === 'POST') {
@@ -54,7 +58,7 @@ async function scanner(page, options = {}) {
       } else data = filter(state.checkins);
     }
     const total = Array.isArray(data) ? data.length : 1;
-    if (Array.isArray(data) && url.searchParams.get('limit')) data = data.slice(0, Number(url.searchParams.get('limit')));
+    if (Array.isArray(data) && url.searchParams.get('limit')) data = data.slice(Number(url.searchParams.get('offset')), Number(url.searchParams.get('offset')) + Number(url.searchParams.get('limit')));
     if (req.headers().accept?.includes('application/vnd.pgrst.object+json') && Array.isArray(data)) data = data[0] || null;
     return route.fulfill({ json: data, headers: { 'content-range': `0-${Math.max(0, total - 1)}/${total}` } });
   });
@@ -70,6 +74,8 @@ async function openScanner(page, kind = 'B2B') {
   return input;
 }
 async function scan(page, input, code) { await input.fill(code); await input.press('Enter'); }
+
+const appointmentButton = page => page.locator('.dayof-scanner__appointment button');
 
 test('QR formats round-trip and arbitrary URLs never become attendee IDs', () => {
   expect(parseScanCode(personalCode)).toEqual({ eventId, meetingId, profileId: a.profile_id });
@@ -87,6 +93,7 @@ test('personal B2B passes resolve profile-only meetings; only both participants 
   await page.setViewportSize({ width: 1440, height: 1050 });
   await page.screenshot({ path: info.outputPath('scanner-ready-desktop.png') });
   await scan(page, input, personalCode);
+  await appointmentButton(page).click();
   await expect(page.getByRole('heading', { name: /Check.*Successful/i })).toBeVisible();
   await page.screenshot({ path: info.outputPath('scanner-success-desktop.png') });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -95,6 +102,7 @@ test('personal B2B passes resolve profile-only meetings; only both participants 
   await page.getByRole('button', { name: /Next Scan/i }).click();
   await page.getByRole('button', { name: /Manual Entry/i }).click(); input = page.getByRole('textbox');
   await scan(page, input, otherCode);
+  await appointmentButton(page).click();
   await expect(page.getByRole('heading', { name: /Check.*Successful/i })).toBeVisible();
   expect(state.checkins).toHaveLength(2); expect(state.meeting.status).toBe('completed');
   await page.screenshot({ path: info.outputPath('scanner-mobile.png') });
@@ -117,13 +125,17 @@ test('legacy JSON and email codes ask which participant arrived instead of guess
 test('rapid submissions save once and repeat scans obey the duplicate policy', async ({ page }) => {
   const state = await scanner(page, { delaySave: true }); const input = await openScanner(page);
   await input.fill(personalCode);
-  await input.evaluate(el => { for (let i = 0; i < 3; i++) el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
+  await input.press('Enter');
+  await expect(appointmentButton(page)).toBeVisible();
+  expect(state.attempts).toHaveLength(0);
+  await appointmentButton(page).evaluate(el => { el.click(); el.click(); el.click(); });
   await expect(page.getByRole('heading', { name: /Check.*Successful/i })).toBeVisible();
   expect(state.attempts).toHaveLength(1);
   await page.getByRole('button', { name: /Next Scan/i }).click();
   await page.getByRole('button', { name: /Manual Entry/i }).click();
   await scan(page, input, personalCode);
-  await expect(page.getByRole('heading', { name: /Already|Duplicate/i })).toBeVisible();
+  await expect(page.locator('.dayof-scanner__appointment')).toContainText('Checked in');
+  await expect(appointmentButton(page)).toHaveCount(0);
   expect(state.checkins).toHaveLength(1);
 });
 
@@ -136,6 +148,47 @@ for (const kind of ['event', 'session']) test(`${kind} scanner accepts registrat
   await expect(page.getByRole('heading', { name: /Check.*Successful/i })).toBeVisible();
   expect(state.checkins[0]).toMatchObject({ type: kind, attendee_id: a.id, event_id: eventId });
   if (kind === 'session') expect(state.checkins[0].session_id).toBe('55555555-5555-4555-8555-555555555555');
+});
+
+for (const code of [a.id, `https://eventra.cloud/profile/${a.profile_id}`]) test(`staff choose the exact appointment from a personal code ${code}`, async ({ page }) => {
+  const state = await scanner(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.clock.setFixedTime(new Date('2027-11-20T13:10:00Z'));
+  const later = { ...state.meeting, id: '99999999-9999-4999-8999-999999999999', start_at: '2027-11-20T14:00:00Z', end_at: '2027-11-20T14:30:00Z', location: 'Table 7', attendee_b_id: a.id, profile_a_id: b.profile_id, profile_b_id: null };
+  state.moreMeetings.push(later, { ...later, id: b.id, profile_a_id: b.profile_id, attendee_b_id: b.id }, { ...later, id: a.id, status: 'cancelled' });
+  const input = await openScanner(page);
+  const rows = page.locator('.dayof-scanner__appointment');
+  await scan(page, input, code);
+  await expect(rows).toHaveCount(2);
+  expect(await page.getByRole('dialog').evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+  await expect(rows.first()).toContainText('Now');
+  await expect(rows.last()).toContainText(b.name);
+  await expect(page.locator('.dayof-scanner__clock')).toContainText('02:10 PM');
+  expect(state.checkins).toHaveLength(0);
+  await rows.last().getByRole('button').click();
+  await expect.poll(() => state.checkins.length).toBe(1);
+  expect(state.checkins[0]).toMatchObject({ attendee_id: a.id, meeting_id: later.id });
+});
+
+test('an unknown registration and a known attendee without appointments get distinct feedback', async ({ page }) => {
+  const state = await scanner(page);
+  state.meeting.status = 'pending';
+  const input = await openScanner(page);
+  await scan(page, input, '99999999-9999-4999-8999-999999999999');
+  await expect(page.getByText(/No registration matches/).first()).toBeVisible();
+  await scan(page, input, a.id);
+  await expect(page.locator('.dayof-scanner__agenda')).toContainText('No confirmed meetings');
+  expect(state.checkins).toHaveLength(0);
+});
+
+test('confirmation rechecks the selected appointment after a cancellation', async ({ page }) => {
+  const state = await scanner(page);
+  await scan(page, await openScanner(page), a.id);
+  await expect(appointmentButton(page)).toBeVisible();
+  state.meeting.status = 'cancelled';
+  await appointmentButton(page).click();
+  await expect(page.getByText(/This meeting is not confirmed/).first()).toBeVisible();
+  expect(state.checkins).toHaveLength(0);
 });
 
 test('a person not assigned to a B2B meeting cannot check in', async ({ page }) => {
@@ -159,12 +212,16 @@ test('camera detection records one arrival and pauses on the result', async ({ p
   await page.getByRole('button', { name: /Launch|Open|Start/i }).nth(2).click();
   await expect.poll(() => page.locator('video').evaluate(el => el.readyState)).toBeGreaterThanOrEqual(2);
   await page.evaluate(code => window.testScanCode = code, personalCode);
+  await expect(appointmentButton(page)).toBeVisible();
+  expect(state.checkins).toHaveLength(0);
+  await appointmentButton(page).click();
   await expect(page.getByRole('heading', { name: /Check.*Successful/i })).toBeVisible();
   await page.evaluate(code => window.testScanCode = code, otherCode);
-  // More than two detection intervals: the result must hold until staff continue.
+  // A new code may be presented while success feedback is visible.
   await page.waitForTimeout(1100);
   expect(state.checkins).toHaveLength(1);
-  await page.getByRole('button', { name: /Next Scan/i }).click();
+  await expect(page.locator('.dayof-scanner__agenda h3')).toHaveText(b.name);
+  await appointmentButton(page).click();
   await expect.poll(() => state.checkins.length).toBe(2);
 });
 
@@ -181,26 +238,26 @@ test('cancelled meetings, wrong events and unavailable reads never record attend
 
 test('failed writes never show success; an interrupted save retries with the same ID', async ({ page }) => {
   const state = await scanner(page, { failSave: true }); const input = await openScanner(page);
-  await scan(page, input, personalCode); await expect(page.getByText(/could not be fully saved/).first()).toBeVisible();
+  await scan(page, input, personalCode); await appointmentButton(page).click(); await expect(page.getByText(/could not be fully saved/).first()).toBeVisible();
   expect(state.checkins).toHaveLength(0); expect(state.attendees[0].checked_in).toBe(false);
   state.failSave = false; state.failAttendeeUpdate = true;
-  await scan(page, input, personalCode); await expect.poll(() => state.checkins.length).toBe(1);
+  await scan(page, input, personalCode); await appointmentButton(page).click(); await expect.poll(() => state.checkins.length).toBe(1);
   await expect(page.getByText(/could not be fully saved/).first()).toBeVisible();
-  state.failAttendeeUpdate = false; await scan(page, input, personalCode);
+  state.failAttendeeUpdate = false; await scan(page, input, personalCode); await appointmentButton(page).click();
   await expect(page.getByRole('heading', { name: /Check.*Successful/i })).toBeVisible();
   expect(state.checkins).toHaveLength(1); expect(new Set(state.attempts.map(row => row.id)).size).toBe(1);
 });
 
 test('a refresh recovers a partially saved arrival without duplicating its log', async ({ page }) => {
   const state = await scanner(page, { failAttendeeUpdate: true });
-  await scan(page, await openScanner(page), personalCode);
+  await scan(page, await openScanner(page), personalCode); await appointmentButton(page).click();
   await expect(page.getByText(/could not be fully saved/).first()).toBeVisible();
   expect(state.checkins).toHaveLength(1);
   expect(state.attendees[0].checked_in).toBe(false);
   const savedId = state.checkins[0].id;
   await page.reload();
   state.failAttendeeUpdate = false;
-  await scan(page, await openScanner(page), personalCode);
+  await scan(page, await openScanner(page), personalCode); await appointmentButton(page).click();
   await expect(page.getByRole('heading', { name: /Check.*Successful/i })).toBeVisible();
   expect(state.attendees[0].checked_in).toBe(true);
   expect(state.checkins).toHaveLength(1);
@@ -219,9 +276,8 @@ test.describe('event time stays consistent for overseas visitors', () => {
   test.use({ timezoneId: 'America/Los_Angeles' });
   test('scanner and personal pass use the Tunis schedule with legacy timezone settings', async ({ page }) => {
     await scanner(page);
-    await openScanner(page);
-    await page.locator('.dayof-scanner__meeting select').selectOption(meetingId);
-    await expect(page.locator('.dayof-scanner__meeting-meta')).toContainText('02:00 PM');
+    await scan(page, await openScanner(page), a.id);
+    await expect(page.locator('.dayof-scanner__appointment')).toContainText('02:00 PM');
     await page.goto('/tests/fixtures/meeting-review.html?mode=pass&timeZone=pt');
     await expect(page.getByRole('dialog')).toContainText('Africa/Tunis');
     await expect(page.getByRole('dialog')).toContainText('02:00 PM');

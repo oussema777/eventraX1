@@ -23,6 +23,7 @@ const sql = input => run(executable('psql'),[...connection,'-d',database,'-v','O
 for (const file of files) sql(readFileSync(file,'utf8'));
 sql('create table public.event_notification_settings(event_id uuid,trigger_type text,is_email_enabled boolean,is_bell_enabled boolean);');
 sql(readFileSync('supabase/migrations/20261110180000_meeting_delivery_reliability.sql','utf8'));
+sql(readFileSync('supabase/migrations/20261125120000_personal_meeting_passes.sql','utf8'));
 const output=sql(readFileSync('tests/meeting-delivery.sql','utf8'));
 console.log(output.split('\n').filter(line=>line.includes('PASS:')).join('\n'));
 const race=spawnSync(process.execPath,['tests/meeting-delivery-concurrency.mjs'],{encoding:'utf8',env:{...process.env,MEETING_FIXTURE_DB:database},windowsHide:true});

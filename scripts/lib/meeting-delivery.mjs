@@ -1,6 +1,7 @@
+import { createMeetingPass } from './meeting-pass.mjs';
 import { renderBrandedNotice } from '../../supabase/functions/_shared/emailBrand.mjs';
 
-export function renderQueuedMeeting(payload, { origin, from }) {
+export function renderQueuedMeeting(payload, { origin, from }, pass = null) {
   const base = new URL(origin);
   if (base.protocol !== 'https:' || base.pathname !== '/' || base.search || base.hash || base.username || base.password) throw new Error('INVALID_ORIGIN');
   const uuid = /^[a-f0-9-]{36}$/i;
@@ -12,7 +13,7 @@ export function renderQueuedMeeting(payload, { origin, from }) {
     ? 'This invitation is awaiting acceptance. The appointment and table are not reserved until confirmation.'
     : payload.kind === 'confirmed' ? 'Your meeting is confirmed. Open Eventra for the latest details and your meeting pass.'
     : 'This meeting has been cancelled or declined. Please check your updated schedule in Eventra.';
-  const url = new URL(`/event/${payload.event_id}/networking?tab=schedule&meetingId=${payload.meeting_id}`, base).href;
+  const url = pass?.url || new URL(`/event/${payload.event_id}/networking?tab=schedule&meetingId=${payload.meeting_id}`, base).href;
   let zone = payload.timezone || 'UTC';
   try { new Intl.DateTimeFormat('en', { timeZone: zone }); } catch { zone = 'UTC'; }
   const details = [['Event', payload.event_name || 'Event'], ['With', payload.partner || 'Participant']];
@@ -22,7 +23,8 @@ export function renderQueuedMeeting(payload, { origin, from }) {
   if (payload.kind === 'pending') details.push(['Location', payload.format === 'video' ? 'Online — joining details in Eventra' : 'Table assigned on confirmation']);
   if (payload.kind === 'confirmed' && payload.location) details.push(['Location', payload.location]);
   return { from, to: [payload.to], subject: title, text: `${body}\n\n${details.map(([k,v]) => `${k}: ${v}`).join('\n')}\n\n${url}`,
-    html: renderBrandedNotice({ title, body, url, action: 'View my meeting', details }) };
+    ...(pass && { attachments: pass.attachments }),
+    html: renderBrandedNotice({ title, body, url, contentHtml: pass?.html, action: 'View my meeting', details }) };
 }
 
 export async function deliverMeetingJob({ rpc, send, origin, from }) {
@@ -33,7 +35,7 @@ export async function deliverMeetingJob({ rpc, send, origin, from }) {
   if (!prepared) return { state: 'suppressed', id: lease.id };
   let mail;
   try {
-    mail = prepared.mail || renderQueuedMeeting(prepared.payload, { origin, from });
+    mail = prepared.mail || renderQueuedMeeting(prepared.payload, { origin, from }, await createMeetingPass(prepared.payload, origin));
   } catch {
     await rpc('finish_meeting_delivery', { ...args, p_error: 'INVALID_PAYLOAD', p_permanent: true });
     return { state: 'reconcile', id: lease.id };

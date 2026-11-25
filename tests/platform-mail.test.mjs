@@ -119,3 +119,13 @@ test('all-workshop reminder requires a current booking in an active workshop at 
   const unrelated = tables([{ ...session, type: 'keynote' }, { ...session, event_id: stranger }, { ...session, status: 'cancelled' }]);
   assert.deepEqual(await fixture(unrelated, true)(command), { ineligible: true });
 });
+
+test('a legacy direct confirmation carries the personal pass and retains the same delivery key on retry', async () => {
+  const run = fixture({ event_b2b_meetings: [{ ...meeting, status: 'confirmed' }] });
+  const cmd = { kind: 'meeting', entityId: entity, recipientId: other };
+  const { mail, key } = await run(cmd);
+  assert.equal(mail.attachments[0].content_id, 'meeting-pass');
+  assert.match(mail.html, /src="cid:meeting-pass"/);
+  assert.ok(mail.text.includes('participant=' + other));
+  assert.equal((await run(cmd)).key, key);
+});

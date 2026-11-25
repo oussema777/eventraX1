@@ -1,3 +1,4 @@
+import { createMeetingPass } from './meeting-pass.mjs';
 // No environment reads or network side effects on import. All I/O is injected.
 import { brandedReviewEmail } from './review-email-brand.mjs';
 const copy = {
@@ -19,7 +20,7 @@ const copy = {
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-export function renderReviewDelivery(payload, { origin, from }) {
+export function renderReviewDelivery(payload, { origin, from }, pass = null) {
   const base = new URL(origin);
   if (base.protocol !== 'https:' || base.username || base.password || base.pathname !== '/' || base.search || base.hash) throw new Error('INVALID_ORIGIN');
   const messages = copy[payload.kind]?.[payload.audience];
@@ -27,8 +28,8 @@ export function renderReviewDelivery(payload, { origin, from }) {
   if (![1, 2].includes(payload.version) || !messages || !uuid.test(payload.event_id) || !uuid.test(entityId)
       || typeof payload.to !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.to)
       || typeof from !== 'string' || /[\r\n]/.test(from) || !from.includes('@')) throw new Error('INVALID_PAYLOAD');
-  const url = new URL(payload.audience === 'reviewer' ? `/manage-event/${payload.event_id}?tab=b2b` : '/my-networking', base).href;
-  if (payload.version === 2) return { from, to: [payload.to], text: `${messages.join('\n\n')}\n\nEventra: ${url}`, ...brandedReviewEmail(payload, messages, url) };
+  const url = pass?.url || new URL(payload.audience === 'reviewer' ? `/manage-event/${payload.event_id}?tab=b2b` : '/my-networking', base).href;
+  if (payload.version === 2) return { from, to: [payload.to], text: `${messages.join('\n\n')}\n\nEventra: ${url}`, ...(pass && { attachments: pass.attachments }), ...brandedReviewEmail(payload, messages, url, pass?.html) };
   // Trilingual until a verified per-recipient language preference is available.
   // No sensitive details in email: sign-in and live authorization guard the UI.
   return { from, to: [payload.to], subject: 'Eventra — Rendez-vous / Meetings / الاجتماعات',
@@ -44,7 +45,7 @@ export async function deliverReviewJob({ rpc, send, origin, from }) {
   const payload = await rpc('prepare_review_delivery', args);
   if (!payload) return { state: 'suppressed', id: lease.id };
   let mail;
-  try { mail = renderReviewDelivery(payload, { origin, from }); }
+  try { mail = renderReviewDelivery(payload, { origin, from }, await createMeetingPass(payload, origin)); }
   catch {
     await rpc('finish_review_delivery', { ...args, p_error: 'INVALID_PAYLOAD', p_permanent: true });
     return { state: 'failed', id: lease.id };

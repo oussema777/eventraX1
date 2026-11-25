@@ -1,3 +1,4 @@
+import { createMeetingPass } from '../scripts/lib/meeting-pass.mjs';
 import { createHash } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { createResendSender } from '../scripts/lib/review-delivery.mjs';
@@ -22,6 +23,7 @@ export async function authorizePlatformMail({command,actor,db,userDb,origin}) {
   const base=new URL(origin);
   if(base.protocol!=='https:' || base.username || base.password || base.pathname!=='/' || base.search || base.hash)throw new MailError(503,'Email origin not configured');
   let target, notificationRecipient, email, title, body, settingEvent, settingTrigger, path='/my-networking', revision='';
+  let pass = null;
   const details=[];
   const can=async(event,permission)=>requireValue(await row(userDb.rpc('event_can',{p_event_id:event,p_permission:permission}))===true);
   const profileEmail=async id=>{
@@ -54,6 +56,8 @@ export async function authorizePlatformMail({command,actor,db,userDb,origin}) {
       details.push(['Date',new Intl.DateTimeFormat('en',{timeZone:zone,weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date(m.start_at))],['Time',format.format(new Date(m.start_at))+(m.end_at&&Number.isFinite(Date.parse(m.end_at))?` – ${format.format(new Date(m.end_at))}`:'')],['Time zone',zone]);
     }
     if(m.location)details.push(['Location',m.location]);
+    pass = await createMeetingPass({ kind: m.status, event_id: m.event_id, meeting_id: m.id, participant_id: recipientId,
+      format: m.meta?.meeting_format || m.meta?.meeting_type || 'in-person' }, origin);
   } else if (kind === 'session_reminder' || kind === 'workshops_reminder') {
     if (!recipientId || (command.channel && command.channel !== 'email')) throw new MailError(400, 'Invalid reminder recipient or channel');
     if (typeof command.subject !== 'string' || typeof command.message !== 'string' ||
@@ -136,7 +140,8 @@ export async function authorizePlatformMail({command,actor,db,userDb,origin}) {
   const legacyMail={to:[email],subject:title,text:`${body}\n\n${url}`,html:`<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px;color:#153047"><h1>Eventra</h1><h2>${escape(title)}</h2><p style="white-space:pre-line">${escape(body)}</p><p><a href="${escape(url)}">Open Eventra</a></p></div>`};
   const key=createHash('sha256').update(JSON.stringify([kind,entityId,target,revision,legacyMail])).digest('hex');
   const actions={session_reminder:'Agenda',workshops_reminder:'Agenda',welcome:'Complete my profile',meeting:'View my meeting',message:'Read my message',broadcast:'View event',registration_cancelled:'View registration',b2b_invite:'Explore networking',b2b_matches:'View my matches',event_approved:'Manage my event',event_rejected:'Review my event',connection_request:'View connection request',connection_accepted:'View my connections',connection_declined:'View my connections',meeting_checkin:'View my meeting'};
-  const mail={...legacyMail,text:`${body}\n\n${details.map(([label,value])=>`${label}: ${value}`).join('\n')}\n\n${url}`,html:renderBrandedNotice({title,body,url,action:actions[kind],details})};
+  const actionUrl = pass?.url || url;
+  const mail={...legacyMail,...(pass && {attachments:pass.attachments}),text:`${body}\n\n${details.map(([label,value])=>`${label}: ${value}`).join('\n')}\n\n${actionUrl}`,html:renderBrandedNotice({title,body,url:actionUrl,contentHtml:pass?.html,action:actions[kind],details})};
   const settings=settingEvent ? await row(db.from('event_notification_settings').select('is_email_enabled,is_bell_enabled').eq('event_id',settingEvent).eq('trigger_type',settingTrigger).maybeSingle()) : null;
   return {mail,key,emailEnabled:settings?.is_email_enabled!==false,bellEnabled:settings?.is_bell_enabled!==false,notification:{recipient_id:notificationRecipient===undefined?target:notificationRecipient,actor_id:actor.id,type:'action',title,body,action_url:path,source_key:`platform:${key}`}};
 }
@@ -161,7 +166,10 @@ export async function executePlatformMail({authorization,command,env=process.env
   if(command.channel==='bell'||!authorized.emailEnabled)return {success:true,skipped:!authorized.emailEnabled};
   if(!env.RESEND_API_KEY)throw new MailError(503,'Email service not configured');
   const from=env.EVENTRA_MAIL_FROM||'Eventra <contact@eventra.cloud>';
-  const claimed=await row(db.rpc('claim_platform_mail',{p_key:authorized.key,p_actor:data.user.id,p_mail:{...authorized.mail,from}}));
+  // Previously issued leases keep the exact provider request under the same key.
+  const frozen = authorized.mail.attachments ? await row(db.from('platform_mail_deliveries')
+    .select('mail').eq('dedup_key', authorized.key).maybeSingle()) : null;
+  const claimed=await row(db.rpc('claim_platform_mail',{p_key:authorized.key,p_actor:data.user.id,p_mail:frozen?.mail || {...authorized.mail,from}}));
   if(claimed.sent)return {success:true};
   if(!claimed.token)throw new MailError(409,'Email already being processed or requires reconciliation');
   const result=await createResendSender({apiKey:env.RESEND_API_KEY,fetchImpl})(claimed.mail,`eventra-platform/${claimed.id}`).catch(()=>({error:'NETWORK_ERROR'}));

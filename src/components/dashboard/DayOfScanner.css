@@ -14,3 +14,13 @@
 .dayof-scanner[dir=rtl] .dayof-scanner__heading p,.dayof-scanner[dir=rtl] .dayof-scanner__camera-caption span,.dayof-scanner[dir=rtl] .dayof-scanner__waiting p,.dayof-scanner[dir=rtl] .dayof-scanner__manual input,.dayof-scanner[dir=rtl] .dayof-scanner__meeting select{font-size:13px;line-height:1.8}
 @media(max-width:750px){.dayof-scanner__header{position:sticky;top:0;z-index:3}}
 @media(max-width:750px){.dayof-scanner{width:calc(100vw - 24px);max-height:calc(100dvh - 24px);border-radius:20px}.dayof-scanner__header{padding:21px 22px 23px}.dayof-scanner__heading h2{font-size:23px}.dayof-scanner__heading p{font-size:11px}.dayof-scanner__heading{gap:11px}.dayof-scanner__title-icon{width:42px;height:42px;border-radius:12px}.dayof-scanner__workspace{grid-template-columns:1fr;padding:21px;gap:23px}.dayof-scanner__camera{height:300px}.dayof-scanner__viewfinder{top:46px;width:155px;height:155px}.dayof-scanner__footer{padding:15px 21px;flex-wrap:wrap}.dayof-scanner__controls button{padding:10px 9px;font-size:10px}.dayof-scanner__controls{gap:6px}.dayof-scanner__manual>div{flex-wrap:wrap}.dayof-scanner__manual input{flex-basis:100%}.dayof-scanner__manual button{width:100%}.dayof-scanner__eyebrow{font-size:8px;letter-spacing:1px}.dayof-scanner__status{max-width:48%;text-align:end}.dayof-scanner__close{inset-inline-end:17px;top:17px}.dayof-scanner__identity{padding-inline-end:30px;gap:12px}.dayof-scanner__eyebrow{padding-inline-start:12px}}
+
+.dayof-scanner__clock { display:flex; align-items:center; flex-wrap:wrap; gap:6px; color:#35566c; font-size:13px; }
+.dayof-scanner__clock strong { font-variant-numeric:tabular-nums; }
+.dayof-scanner__agenda { padding:16px; border:1px solid #dce6ed; background:white; border-radius:14px; overflow-wrap:anywhere; }
+.dayof-scanner__appointment { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 0; border-top:1px solid #dce6ed; }
+.dayof-scanner__appointment strong { font-size:13px; }
+.dayof-scanner__appointment p, .dayof-scanner__agenda>p { margin:4px 0; font-size:13px; color:#486478; }
+.dayof-scanner__appointment>span, .dayof-scanner__now { font-size:12px; font-weight:600; color:#176447; }
+.dayof-scanner__now { display:inline-block; margin-inline-start:6px; }
+.dayof-scanner__appointment button { min-height:44px; flex-shrink:0; }

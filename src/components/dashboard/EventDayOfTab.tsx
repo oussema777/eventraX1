@@ -1,7 +1,7 @@
 import DayOfScanner from './DayOfScanner';
 import { networkingTimeZone } from '../../utils/networkingSchedule';
 const ATTENDEE_PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80"><rect width="80" height="80" rx="40" fill="#244963"/><circle cx="40" cy="29" r="13" fill="#b9d4e9"/><path d="M16 70c0-28 48-28 48 0" fill="#b9d4e9"/></svg>');
-import { resolveCheckin, saveCheckin } from '../../lib/eventCheckin';
+import { resolveCheckin, saveCheckin, b2bArrivalId, type MeetingReview } from '../../lib/eventCheckin';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -57,7 +57,8 @@ export default function EventDayOfTab({ eventId, canManageSettings = true, scann
   const cameraGenerationRef = useRef(0);
   const attemptIds = useRef(new Map<string, string>());
   const handleDetectedCodeRef = useRef<(code: string) => Promise<void>>(async () => {});
-  const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [scanPhase, setScanPhase] = useState<'lookup' | 'save' | null>(null);
+  const isCheckingIn = scanPhase !== null;
   const [scanError, setScanError] = useState('');
   const [participantChoice, setParticipantChoice] = useState<{ code: string; meetingId: string; candidates: any[] } | null>(null);
   const flushLockRef = useRef(false);
@@ -67,7 +68,7 @@ export default function EventDayOfTab({ eventId, canManageSettings = true, scann
   const [showDownload, setShowDownload] = useState(false);
   const [manualEntryOpen, setManualEntryOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState('');
-  const [selectedMeeting, setSelectedMeeting] = useState('');
+  const [meetingReview, setMeetingReview] = useState<(MeetingReview & { code: string }) | null>(null);
   const [scannerSettingsBase, setScannerSettingsBase] = useState<any>({});
   const [scannerSettings, setScannerSettings] = useState<ScannerSettings>(DEFAULT_SCANNER_SETTINGS);
   const [savingScannerSettings, setSavingScannerSettings] = useState(false);
@@ -95,7 +96,6 @@ export default function EventDayOfTab({ eventId, canManageSettings = true, scann
 
   const [recentCheckIns, setRecentCheckIns] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
-  const [meetings, setMeetings] = useState<any[]>([]);
   const [manualCode, setManualCode] = useState('');
   const [reportType, setReportType] = useState<'event' | 'session' | 'b2b' | 'all'>('event');
   const [reportIncludes, setReportIncludes] = useState({
@@ -106,8 +106,8 @@ export default function EventDayOfTab({ eventId, canManageSettings = true, scann
     summary: true
   });
   const [loadingData, setLoadingData] = useState(false);
-  const scannerStateRef = useRef({ showScanner, scanResult, manualEntryOpen, participantChoice });
-  scannerStateRef.current = { showScanner, scanResult, manualEntryOpen, participantChoice };
+  const scannerStateRef = useRef({ showScanner, scanResult, manualEntryOpen, participantChoice, meetingReview });
+  scannerStateRef.current = { showScanner, scanResult, manualEntryOpen, participantChoice, meetingReview };
 
   const parseMaybeDate = (v: any) => {
     if (!v) return null;
@@ -158,36 +158,12 @@ export default function EventDayOfTab({ eventId, canManageSettings = true, scann
         supabase.from('event_checkins').select('id', { head: true, count: 'exact' }).eq('event_id', eventId).gte('created_at', lastHour.toISOString()),
         supabase.from('event_checkins').select('id', { head: true, count: 'exact' }).eq('event_id', eventId).eq('type', 'session').gte('created_at', todayStart.toISOString()),
         supabase.from('event_sessions').select('id,title,location,starts_at,ends_at').eq('event_id', eventId).order('starts_at', { ascending: true }),
-        supabase.from('event_b2b_meetings').select('id,start_at,end_at,status,attendee_a_id,attendee_b_id,profile_a_id,profile_b_id,location').eq('event_id', eventId).in('status', ['confirmed', 'completed']).order('start_at', { ascending: true }).limit(200)
+        supabase.from('event_b2b_meetings').select('start_at,end_at,status').eq('event_id', eventId).in('status', ['confirmed', 'completed']).order('start_at', { ascending: true }).limit(200)
       ]);
 
       const sessionsData = sessionsRes.data || [];
-      const meetingsRaw = meetingsRes.data || [];
-
-      // Resolve profile names for B2B meeting display
-      const profileIds = new Set<string>();
-      meetingsRaw.forEach((m: any) => {
-        if (m.profile_a_id) profileIds.add(m.profile_a_id);
-        if (m.profile_b_id) profileIds.add(m.profile_b_id);
-      });
-      let profileNameMap: Record<string, string> = {};
-      if (profileIds.size > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', Array.from(profileIds));
-        (profiles || []).forEach((p: any) => {
-          profileNameMap[p.id] = p.full_name || '';
-        });
-      }
-      const meetingsData = meetingsRaw.map((m: any) => ({
-        ...m,
-        profile_a_name: profileNameMap[m.profile_a_id] || '',
-        profile_b_name: profileNameMap[m.profile_b_id] || ''
-      }));
-
+      const meetingsData = meetingsRes.data || [];
       setSessions(sessionsData);
-      setMeetings(meetingsData);
 
       const activeSessions = sessionsData.filter((x: any) => {
         const st = parseMaybeDate(x.starts_at);
@@ -423,18 +399,6 @@ export default function EventDayOfTab({ eventId, canManageSettings = true, scann
   }, [selectedSession, showScanner]);
 
   useEffect(() => {
-    if (!meetings?.length) {
-      if (selectedMeeting) setSelectedMeeting('');
-      return;
-    }
-    if (!selectedMeeting || !meetings.find((x: any) => x.id === selectedMeeting)) {
-      // Prefer first non-completed meeting
-      const active = meetings.find((x: any) => x.status !== 'completed');
-      setSelectedMeeting(active ? active.id : meetings[0].id);
-    }
-  }, [meetings, selectedMeeting]);
-
-  useEffect(() => {
     if (!scannerSettings.offlineScanning) return;
     flushOfflineQueue();
   }, [scannerSettings.offlineScanning, eventId]);
@@ -447,12 +411,13 @@ export default function EventDayOfTab({ eventId, canManageSettings = true, scann
   }, [scannerSettings.offlineScanning, eventId]);
 
   const handleOpenScanner = (type: ScannerType) => {
+    setManualCode('');
     setShowScanner(type);
     setScanResult(null);
     setManualEntryOpen(false);
     setLastScanDetails(null);
     setPendingDuplicate(null);
-    setParticipantChoice(null); setScanError('');
+    setParticipantChoice(null); setMeetingReview(null); setScanError('');
     lastScanRef.current = null;
   };
 
@@ -463,7 +428,7 @@ export default function EventDayOfTab({ eventId, canManageSettings = true, scann
     setLastScanDetails(null);
     setPendingDuplicate(null);
     setCameraError('');
-    setParticipantChoice(null); setScanError('');
+    setParticipantChoice(null); setMeetingReview(null); setScanError('');
     stopScannerCamera();
   };
 
@@ -509,7 +474,7 @@ export default function EventDayOfTab({ eventId, canManageSettings = true, scann
 
     scanIntervalRef.current = window.setInterval(async () => {
       const current = scannerStateRef.current;
-      if (!videoRef.current || !current.showScanner || current.scanResult || current.manualEntryOpen || current.participantChoice) return;
+      if (!videoRef.current || !current.showScanner || current.scanResult || current.manualEntryOpen || current.participantChoice || current.meetingReview) return;
       if (scanLockRef.current) return;
       if (videoRef.current.readyState < 2) return;
       scanLockRef.current = true;
@@ -523,8 +488,9 @@ export default function EventDayOfTab({ eventId, canManageSettings = true, scann
         } else {
           rawValue = await scanWithJsQR();
         }
+        if (!rawValue && generation === cameraGenerationRef.current) lastScanRef.current = null;
         const latest = scannerStateRef.current;
-        if (rawValue && generation === cameraGenerationRef.current && latest.showScanner && !latest.scanResult && !latest.manualEntryOpen && !latest.participantChoice) {
+        if (rawValue && generation === cameraGenerationRef.current && latest.showScanner && !latest.scanResult && !latest.manualEntryOpen && !latest.participantChoice && !latest.meetingReview) {
           await handleDetectedCodeRef.current(rawValue);
         }
       } catch {
@@ -573,7 +539,7 @@ export default function EventDayOfTab({ eventId, canManageSettings = true, scann
     if (!value) return;
     const now = Date.now();
     const last = lastScanRef.current;
-    if (last && last.value === value && now - last.at < 2500) return;
+    if (last && last.value === value && (showScanner === 'b2b' || now - last.at < 2500)) return;
     lastScanRef.current = { value, at: now };
     if (showScanner === 'session') return doCheckin('session', undefined, value);
     if (showScanner === 'b2b') return doCheckin('b2b', undefined, value);
@@ -639,7 +605,7 @@ export default function EventDayOfTab({ eventId, canManageSettings = true, scann
       if (scannerSettings.vibrateOnSuccess && typeof navigator !== 'undefined' && navigator.vibrate) {
         navigator.vibrate(120);
       }
-      if (scannerSettings.autoAdvance) {
+      if (showScanner === 'b2b' || scannerSettings.autoAdvance) {
         autoAdvanceRef.current = window.setTimeout(() => {
           handleNextScan();
         }, 1500);
@@ -651,7 +617,7 @@ export default function EventDayOfTab({ eventId, canManageSettings = true, scann
         autoAdvanceRef.current = null;
       }
     };
-  }, [scanResult, scannerSettings.autoAdvance, scannerSettings.soundOnSuccess, scannerSettings.vibrateOnSuccess]);
+  }, [showScanner, scanResult, scannerSettings.autoAdvance, scannerSettings.soundOnSuccess, scannerSettings.vibrateOnSuccess]);
   const buildScanDetails = (attendee: any, kind: 'event' | 'session' | 'b2b', checkInAt: string, previousCount: number, firstCheckInAt?: string | null) => ({
     attendeeId: attendee.id,
     name: attendee.name || attendee.email || 'Attendee',
@@ -669,7 +635,10 @@ export default function EventDayOfTab({ eventId, canManageSettings = true, scann
 
   const completeB2bAttendance = async (meeting: any) => {
     const { data: attendees, error: attendeeError } = await supabase.from('event_attendees')
-      .select('id,profile_id').eq('event_id', eventId);
+      .select('id,profile_id').eq('event_id', eventId).or([
+        ...[meeting.attendee_a_id, meeting.attendee_b_id].filter(Boolean).map(id => 'id.eq.' + id),
+        ...[meeting.profile_a_id, meeting.profile_b_id].filter(Boolean).map(id => 'profile_id.eq.' + id)
+      ].join(','));
     const { data: checkins, error: checkinError } = await supabase.from('event_checkins')
       .select('attendee_id').eq('event_id', eventId).eq('type', 'b2b').eq('meeting_id', meeting.id);
     if (attendeeError || checkinError) throw new Error('completionFailed');
@@ -679,7 +648,11 @@ export default function EventDayOfTab({ eventId, canManageSettings = true, scann
     if (sidePresent('a') && sidePresent('b') && meeting.status === 'confirmed') {
       const { data, error } = await supabase.from('event_b2b_meetings').update({ status: 'completed' })
         .eq('event_id', eventId).eq('id', meeting.id).eq('status', 'confirmed').select('id').maybeSingle();
-      if (error || !data?.id) throw new Error('completionFailed');
+      if (error) throw new Error('completionFailed');
+      if (!data?.id) {
+        const current = await supabase.from('event_b2b_meetings').select('status').eq('event_id', eventId).eq('id', meeting.id).maybeSingle();
+        if (current.error || current.data?.status !== 'completed') throw new Error('completionFailed');
+      }
     }
   };
 
@@ -699,16 +672,21 @@ export default function EventDayOfTab({ eventId, canManageSettings = true, scann
     if (!delivered) toast.warning(t('networking.notifications.emailFailed'));
   };
 
-  const doCheckin = async (kind: 'event' | 'session' | 'b2b', chosenAttendeeId?: string, codeOverride?: string, allowDuplicate = false) => {
+  const doCheckin = async (kind: 'event' | 'session' | 'b2b', chosenAttendeeId?: string, codeOverride?: string, allowDuplicate = false, confirmedMeetingId?: string) => {
     if (checkinLockRef.current) return;
     const code = (codeOverride || manualCode || '').trim();
     if (!code) { toast.error(t('manageEvent.dayOf.toasts.enterCode')); return; }
-    checkinLockRef.current = true; setIsCheckingIn(true); setScanError(''); setScanResult(null);
+    checkinLockRef.current = true; setScanPhase(kind === 'b2b' && !confirmedMeetingId ? 'lookup' : 'save'); setScanError(''); setScanResult(null);
     const scannerSession = cameraGenerationRef.current;
     try {
-      const resolved = await resolveCheckin(supabase, { eventId, kind, code, chosenAttendeeId, sessionId: selectedSession, meetingId: selectedMeeting });
+      const resolved = await resolveCheckin(supabase, { eventId, kind, code, chosenAttendeeId, sessionId: selectedSession, meetingId: confirmedMeetingId, preview: kind === 'b2b' && !confirmedMeetingId });
       if (scannerSession !== cameraGenerationRef.current) return;
-      if (resolved.meeting) setSelectedMeeting(resolved.meeting.id);
+      if (resolved.review) {
+        setParticipantChoice(null);
+        setMeetingReview({ ...resolved.review, code });
+        return;
+      }
+      setMeetingReview(null);
       if (resolved.candidates) {
         setParticipantChoice({ code, meetingId: resolved.meeting.id, candidates: resolved.candidates });
         return;
@@ -732,35 +710,39 @@ export default function EventDayOfTab({ eventId, canManageSettings = true, scann
       // attendee update was interrupted, without creating another arrival.
       const retryId = attemptIds.current.get(attemptKey)
         || (!attendee.checked_in ? existing?.[0]?.id : undefined);
-      if (duplicate && !retryId && scannerSettings.duplicatePolicy !== 'allow' && !(allowDuplicate && scannerSettings.duplicatePolicy === 'confirm')) {
+      const repeatAllowed = kind !== 'b2b' && (scannerSettings.duplicatePolicy === 'allow' ||
+        (scannerSettings.duplicatePolicy === 'confirm' && allowDuplicate));
+      if (duplicate && !retryId && !repeatAllowed) {
         setScanResult('duplicate'); setLastScanDetails(details);
-        setPendingDuplicate(scannerSettings.duplicatePolicy === 'confirm' ? { kind, code, attendeeId: attendee.id } : null);
+        setPendingDuplicate(kind !== 'b2b' && scannerSettings.duplicatePolicy === 'confirm' ? { kind, code, attendeeId: attendee.id } : null);
         return;
       }
-      const id = retryId || crypto.randomUUID(); attemptIds.current.set(attemptKey, id);
-      await saveCheckin(supabase, { id, event_id: eventId, attendee_id: attendee.id, type: kind,
+      const id = retryId || (kind === 'b2b' ? await b2bArrivalId(attemptKey) : crypto.randomUUID());
+      if (scannerSession !== cameraGenerationRef.current) return;
+      attemptIds.current.set(attemptKey, id);
+      const inserted = await saveCheckin(supabase, { id, event_id: eventId, attendee_id: attendee.id, type: kind,
         session_id: kind === 'session' ? selectedSession : null, meeting_id: meetingId, scanned_code: code }, attendee, nowIso);
       attemptIds.current.delete(attemptKey);
       if (kind === 'b2b') {
         try { await completeB2bAttendance(resolved.meeting); } catch { toast.warning(t('scannerFlow.completionFailed')); }
-        if (!duplicate) void notifyB2bArrival(resolved.meeting, attendee).catch(() => toast.warning(t('networking.notifications.emailFailed')));
+        if (inserted && !duplicate) void notifyB2bArrival(resolved.meeting, attendee).catch(() => toast.warning(t('networking.notifications.emailFailed')));
       }
       if (scannerSession !== cameraGenerationRef.current) return;
-      setManualCode(''); setScanResult('success'); setLastScanDetails(details); setPendingDuplicate(null);
+      setManualCode(''); setScanResult('success'); setLastScanDetails({ ...details, location: resolved.meeting?.location }); setPendingDuplicate(null);
       if (kind === 'session') setSessionCheckinCount(value => value + 1);
       void refreshDayOfData();
     } catch (error) {
       if (scannerSession !== cameraGenerationRef.current) return;
       const key = error instanceof Error ? error.message : 'saveFailed';
       const message = t('scannerFlow.' + key, { defaultValue: t('manageEvent.dayOf.toasts.checkInFailed') });
-      setScanResult('error'); setScanError(message); toast.error(message);
-    } finally { checkinLockRef.current = false; setIsCheckingIn(false); }
+      setMeetingReview(null); setParticipantChoice(null); setScanResult('error'); setScanError(message); toast.error(message);
+    } finally { checkinLockRef.current = false; setScanPhase(null); }
   };
   handleDetectedCodeRef.current = async (code: string) => { await handleDetectedCode(code); };
 
   const handleNextScan = () => {
-    setScanResult(null); setManualEntryOpen(false); setLastScanDetails(null); setPendingDuplicate(null);
-    setParticipantChoice(null); setScanError(''); setManualCode(''); lastScanRef.current = null;
+    setScanResult(null); setManualEntryOpen(Boolean(cameraError)); setLastScanDetails(null); setPendingDuplicate(null);
+    setParticipantChoice(null); setMeetingReview(null); setScanError(''); setManualCode('');
   };
   const handleAllowDuplicate = async () => {
     if (!pendingDuplicate || scannerSettings.duplicatePolicy !== 'confirm') return;
@@ -1502,14 +1484,14 @@ export default function EventDayOfTab({ eventId, canManageSettings = true, scann
 
       {showScanner && <DayOfScanner
         kind={showScanner} timeZone={scannerTimeZone} videoRef={videoRef} cameraReady={cameraReady} cameraError={cameraError}
-        torchEnabled={torchEnabled} busy={isCheckingIn} result={scanResult} error={scanError} details={lastScanDetails}
-        manualOpen={manualEntryOpen} code={manualCode} meetings={meetings} sessions={sessions}
-        meetingId={selectedMeeting} sessionId={selectedSession} candidates={participantChoice?.candidates}
+        torchEnabled={torchEnabled} busy={isCheckingIn} lookingUp={scanPhase === 'lookup'} result={scanResult} error={scanError} details={lastScanDetails}
+        manualOpen={manualEntryOpen} code={manualCode} review={meetingReview} sessions={sessions}
+        sessionId={selectedSession} candidates={participantChoice?.candidates}
         canAllowDuplicate={!!pendingDuplicate && scannerSettings.duplicatePolicy === 'confirm'} totalToday={stats.totalScansToday}
         onClose={handleCloseScanner} onSwitchCamera={() => setCameraFacingMode(prev => prev === 'environment' ? 'user' : 'environment')}
         onTorch={toggleTorch} onManual={() => setManualEntryOpen(open => cameraError ? true : !open)} onCode={setManualCode}
-        onMeeting={setSelectedMeeting} onSession={setSelectedSession} onScan={() => void doCheckin(showScanner)}
-        onChoose={id => { if (participantChoice) void doCheckin('b2b', id, participantChoice.code); }}
+        onMeeting={id => { if (meetingReview) void doCheckin('b2b', meetingReview.attendeeId, meetingReview.code, false, id); }} onSession={setSelectedSession} onScan={() => void doCheckin(showScanner)}
+        onChoose={id => { if (participantChoice) void doCheckin('b2b', id, participantChoice.code, false, participantChoice.meetingId); }}
         onNext={handleNextScan} onAllowDuplicate={handleAllowDuplicate}
         onViewAttendee={scannerOnly ? undefined : () => { handleCloseScanner(); navigate(`/event/${eventId}?tab=attendees`); }}
       />}

@@ -7222,6 +7222,13 @@ export default {
 }
 ,
 "scannerFlow": {
+  "finding": "Finding meetings…",
+  "eventTime": "Event time",
+  "now": "Now",
+  "alreadyIn": "Checked in",
+  "noAppointments": "No confirmed meetings for this attendee at this event.",
+  "scanPerson": "Scan a registration, profile or meeting QR to see the appointment and check in the attendee.",
+  "findMeetings": "Find meetings",
   "invalidCode": "This is not a recognized Eventra QR code. Scan a meeting pass or enter a registration code."
 ,
 "wrongEvent": "This pass belongs to a different event. Open that event’s scanner."

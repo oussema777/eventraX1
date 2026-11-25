@@ -6977,6 +6977,13 @@ export default {
 }
 ,
 "scannerFlow": {
+  "finding": "Recherche des rendez-vous…",
+  "eventTime": "Heure de l’événement",
+  "now": "En cours",
+  "alreadyIn": "Présence enregistrée",
+  "noAppointments": "Aucun rendez-vous confirmé pour cette personne à cet événement.",
+  "scanPerson": "Scannez le QR code d’inscription, de profil ou de rendez-vous pour enregistrer la présence.",
+  "findMeetings": "Voir les rendez-vous",
   "invalidCode": "Ce code QR Eventra n’est pas reconnu. Scannez un pass de rendez-vous ou saisissez un code d’inscription."
 ,
 "wrongEvent": "Ce pass appartient à un autre événement. Ouvrez le scanner de cet événement."

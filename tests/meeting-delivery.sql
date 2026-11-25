@@ -50,6 +50,10 @@ select test_assert((select count(*)=2 from meeting_delivery_jobs where kind='con
 update meeting_delivery_jobs set available_at=now()-interval '2 minutes' where kind='pending' and state='queued';
 select claim_meeting_delivery() as stale_job \gset
 select test_assert(prepare_meeting_delivery((:'stale_job'::jsonb->>'id')::uuid,(:'stale_job'::jsonb->>'token')::uuid) is null,'obsolete pending invitation suppressed after acceptance');
+select claim_meeting_delivery() as pass_job \gset
+select prepare_meeting_delivery((:'pass_job'::jsonb->>'id')::uuid,(:'pass_job'::jsonb->>'token')::uuid)->'payload' as pass_payload \gset
+select test_assert((select :'pass_payload'::jsonb->>'participant_id'=recipient_id::text and :'pass_payload'::jsonb->>'format'='in-person'
+  and :'pass_payload'::jsonb->>'kind'='confirmed' from meeting_delivery_jobs where id=(:'pass_job'::jsonb->>'id')::uuid),'confirmation pass identifies the addressed participant and format');
 set role authenticated;
 select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',true);
 update event_b2b_meetings set status='cancelled' where id='50000000-0000-4000-8000-000000000001';
